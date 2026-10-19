@@ -25,11 +25,23 @@
   .item { background: #1a0a2e; padding: 8px; border-radius: 8px; text-align: center; }
   .item img { width: 100%; height: 60px; object-fit: cover; border-radius: 4px; }
   .close { float: right; background: #444; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+  .setup { position: absolute; inset: 0; background: #0a0a12; display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .setup-box { background: #1a0a2e; padding: 24px; border-radius: 12px; max-width: 420px; text-align: center; }
+  .setup textarea { width: 100%; height: 120px; margin: 10px 0; }
 </style>
 </head>
 <body>
-<div id="game">
-  <div class="room"><img class="bg" src="imagine_images/q4BXV.jpg"></div>
+<div class="setup" id="setup">
+  <div class="setup-box">
+    <h2 style="color:#ff00ff">PUNK ME</h2>
+    <p>Вставь свой Firebase Config</p>
+    <textarea id="configInput" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"..."}'></textarea>
+    <button class="btn" onclick="initFirebase()">Запустить</button>
+  </div>
+</div>
+
+<div id="game" style="display:none">
+  <div class="room"><img class="bg" src="https://picsum.photos/id/1015/1200/800"></div>
   <div class="ui">
     <div class="badge">Coins: <span id="coins">250</span></div>
     <div class="badge" id="sub">Free</div>
@@ -53,32 +65,27 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyACAXPV9H4vfWNUoRYEWzXi6CSX0kpCaho",
-  authDomain: "punk-me-40605.firebaseapp.com",
-  databaseURL: "https://punk-me-40605-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "punk-me-40605",
-  storageBucket: "punk-me-40605.firebasestorage.app",
-  messagingSenderId: "761070335468",
-  appId: "1:761070335468:web:4bffd5120ef98e79f47cc9"
-};
-
 let db, myRef, coins = 250, sub = false, owned = [], myName = "Игрок" + Math.floor(Math.random()*1000);
 
 const shopItems = [
-  {name:"Неоновая куртка", price:300, img:"imagine_images/LTPb8.jpg"},
-  {name:"Ирокез", price:150, img:"imagine_images/Oo040.jpg"},
-  {name:"Цепи", price:100, img:"imagine_images/Lix06.jpg"},
-  {name:"Питомец", price:400, img:"imagine_images/q4BXV.jpg"}
+  {name:"Неоновая куртка", price:300, img:"https://picsum.photos/id/1015/200/150"},
+  {name:"Ирокез", price:150, img:"https://picsum.photos/id/1016/200/150"},
+  {name:"Цепи", price:100, img:"https://picsum.photos/id/1018/200/150"},
+  {name:"Питомец", price:400, img:"https://picsum.photos/id/1019/200/150"}
 ];
 
 function initFirebase() {
-  firebase.initializeApp(FIREBASE_CONFIG);
-  db = firebase.database();
-  startGame();
+  try {
+    const config = JSON.parse(document.getElementById("configInput").value);
+    firebase.initializeApp(config);
+    db = firebase.database();
+    document.getElementById("setup").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    startGame();
+  } catch(e) {
+    alert("Ошибка в конфиге: " + e.message);
+  }
 }
-
-document.addEventListener("DOMContentLoaded", initFirebase);
 
 function startGame() {
   myRef = db.ref("players").push({ name: myName, color: "#ff00ff" });
