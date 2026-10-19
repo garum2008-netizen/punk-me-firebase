@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUNK ME — Firebase Multiplayer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a12; color: #fff; font-family: Arial, sans-serif; }
+  #game { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+  .room img.bg { width: 100%; height: 100%; object-fit: cover; opacity: 0.75; position: absolute; }
+  .ui { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; }
+  .badge { background: #2d0a4e; padding: 6px 12px; border-radius: 16px; font-size: 14px; }
+  .badge.premium { background: #ff00ff; }
+  .panel { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; justify-content: center; }
+  .btn { background: #ff00ff; color: #fff; border: none; padding: 10px 14px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+  .chat { position: absolute; bottom: 70px; left: 8px; width: 280px; background: rgba(20,8,40,0.92); border-radius: 12px; padding: 8px; z-index: 10; }
+  .chat-messages { height: 130px; overflow-y: auto; font-size: 13px; margin-bottom: 6px; }
+  .chat input { width: 100%; padding: 6px; border: none; border-radius: 6px; }
+  .players-list { position: absolute; top: 50px; right: 8px; background: rgba(20,8,40,0.9); padding: 8px; border-radius: 10px; z-index: 10; max-width: 160px; }
+  .player { font-size: 13px; margin: 3px 0; }
+  .modal { position: absolute; inset: 20px; background: rgba(10,10,18,0.97); border: 2px solid #ff00ff; border-radius: 14px; padding: 16px; display: none; z-index: 30; overflow: auto; }
+  .modal.active { display: block; }
+  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 8px; }
+  .item { background: #1a0a2e; padding: 8px; border-radius: 8px; text-align: center; }
+  .item img { width: 100%; height: 60px; object-fit: cover; border-radius: 4px; }
+  .close { float: right; background: #444; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+  .setup { position: absolute; inset: 0; background: #0a0a12; display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .setup-box { background: #1a0a2e; padding: 24px; border-radius: 12px; max-width: 420px; text-align: center; }
+  .setup textarea { width: 100%; height: 120px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<div class="setup" id="setup">
+  <div class="setup-box">
+    <h2 style="color:#ff00ff">PUNK ME</h2>
+    <p>Вставь свой Firebase Config</p>
+    <textarea id="configInput" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"..."}'></textarea>
+    <button class="btn" onclick="initFirebase()">Запустить</button>
+  </div>
+</div>
+
+<div id="game" style="display:none">
+  <div class="room"><img class="bg" src="imagine_images/q4BXV.jpg"></div>
+  <div class="ui">
+    <div class="badge">Coins: <span id="coins">250</span></div>
+    <div class="badge" id="sub">Free</div>
+    <div class="badge">Online: <span id="online">1</span></div>
+  </div>
+  <div class="players-list" id="playersList"></div>
+  <div class="panel">
+    <button class="btn" onclick="openModal('shop')">Магазин</button>
+    <button class="btn" onclick="openModal('room')">Комната</button>
+    <button class="btn" onclick="doJob()">Работа</button>
+    <button class="btn" onclick="buySub()">Подписка</button>
+  </div>
+  <div class="chat">
+    <div class="chat-messages" id="chat"></div>
+    <input id="msg" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')send()">
+  </div>
+  <div class="modal" id="shop"><button class="close" onclick="closeModal('shop')">✕</button><h3 style="color:#0ff">Магазин</h3><div class="items" id="shopItems"></div></div>
+  <div class="modal" id="room"><button class="close" onclick="closeModal('room')">✕</button><h3 style="color:#0ff">Комната</h3><div class="items" id="owned"></div></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+let db, myRef, coins = 250, sub = false, owned = [], myName = "Игрок" + Math.floor(Math.random()*1000);
+
+const shopItems = [
+  {name:"Неоновая куртка", price:300, img:"imagine_images/LTPb8.jpg"},
+  {name:"Ирокез", price:150, img:"imagine_images/Oo040.jpg"},
+  {name:"Цепи", price:100, img:"imagine_images/Lix06.jpg"},
+  {name:"Питомец", price:400, img:"imagine_images/q4BXV.jpg"}
+];
+
+function initFirebase() {
+  try {
+    const config = JSON.parse(document.getElementById("configInput").value);
+    firebase.initializeApp(config);
+    db = firebase.database();
+    document.getElementById("setup").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    startGame();
+  } catch(e) {
+    alert("Ошибка в конфиге: " + e.message);
+  }
+}
+
+function startGame() {
+  myRef = db.ref("players").push({ name: myName, color: "#ff00ff" });
+  myRef.onDisconnect().remove();
+
+  db.ref("players").on("value", snap => {
+    const list = [];
+    snap.forEach(c => list.push(c.val()));
+    document.getElementById("online").textContent = list.length;
+    document.getElementById("playersList").innerHTML = list.map(p => 
+      `<div class="player" style="color:${p.color||'#fff'}">● ${p.name}</div>`).join("");
+  });
+
+  db.ref("chat").limitToLast(40).on("child_added", snap => {
+    const m = snap.val();
+    const c = document.getElementById("chat");
+    c.innerHTML += `<div><b>${m.name}:</b> ${m.text}</div>`;
+    c.scrollTop = c.scrollHeight;
+  });
+
+  updateLocal();
+  chatSystem("Добро пожаловать!");
+}
+
+function send() {
+  const input = document.getElementById("msg");
+  if (!input.value.trim() || !db) return;
+  db.ref("chat").push({ name: myName, text: input.value, time: Date.now() });
+  input.value = "";
+}
+
+function chatSystem(text) {
+  if (db) db.ref("chat").push({ name: "Система", text, time: Date.now() });
+}
+
+function updateLocal() {
+  document.getElementById("coins").textContent = coins;
+  document.getElementById("sub").textContent = sub ? "Premium" : "Free";
+  document.getElementById("sub").className = sub ? "badge premium" : "badge";
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add("active");
+  if (id === "shop") {
+    document.getElementById("shopItems").innerHTML = shopItems.map((it, i) => `
+      <div class="item"><img src="${it.img}"><div>${it.name}</div><div>${it.price}</div>
+      <button class="btn" onclick="buy(${i})">Купить</button></div>`).join("");
+  }
+  if (id === "room") {
+    document.getElementById("owned").innerHTML = owned.length
+      ? owned.map(i => `<div class="item"><img src="${i.img}"><div>${i.name}</div></div>`).join("")
+      : "<p>Пусто</p>";
+  }
+}
+function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+function buy(i) {
+  const it = shopItems[i];
+  if (coins >= it.price) {
+    coins -= it.price;
+    owned.push(it);
+    updateLocal();
+    chatSystem("Куплено: " + it.name);
+    openModal("shop");
+  } else chatSystem("Не хватает монет");
+}
+
+function doJob() {
+  const r = sub ? 80 : 50;
+  coins += r;
+  updateLocal();
+  chatSystem("+" + r + " монет");
+}
+
+function buySub() {
+  if (coins >= 500) {
+    coins -= 500; sub = true; updateLocal();
+    chatSystem("Подписка активирована!");
+  } else chatSystem("Не хватает на подписку");
+}
+</script>
+</body>
+</html>
