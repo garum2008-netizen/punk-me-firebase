@@ -3,79 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PUNK ME — Multiplayer</title>
+<title>PUNK ME — Банда и диалоги</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0a0a12; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; }
   #game { width: 100vw; height: 100vh; position: relative; }
   .room { position: absolute; inset: 0; }
-  .room img.bg { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
-  .hotspot { position: absolute; cursor: pointer; border-radius: 50%; opacity: 0.15; background: #ff00ff; transition: 0.2s; }
-  .hotspot:hover { opacity: 0.45; transform: scale(1.1); }
-  .overlay-item { position: absolute; pointer-events: none; filter: drop-shadow(0 0 8px #ff00ff); animation: float 3s ease-in-out infinite; }
-  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .room img.bg { width: 100%; height: 100%; object-fit: cover; opacity: 0.85; }
+  .hotspot { position: absolute; cursor: pointer; border-radius: 50%; opacity: 0.3; background: #ff00ff; }
+  .hotspot:hover { opacity: 0.6; }
+  .player-char { position: absolute; width: 65px; height: 85px; z-index: 5; filter: drop-shadow(0 0 6px #ff00ff); }
   .ui { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; }
-  .badge { background: rgba(45,10,78,0.9); padding: 6px 14px; border-radius: 20px; font-size: 14px; backdrop-filter: blur(4px); }
-  .badge.premium { background: linear-gradient(90deg,#ff00ff,#ff6600); color:#000; font-weight:bold; }
-  .panel { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; justify-content: center; }
-  .btn { background: #ff00ff; color: #fff; border: none; padding: 10px 16px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.15s; }
-  .btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn.small { padding: 6px 10px; font-size: 12px; }
-  .chat { position: absolute; bottom: 80px; left: 10px; width: min(300px, 40vw); background: rgba(20,8,40,0.92); border-radius: 14px; padding: 10px; z-index: 10; }
-  .chat-messages { height: 140px; overflow-y: auto; font-size: 13px; margin-bottom: 8px; }
+  .badge { background: rgba(45,10,78,0.9); padding: 6px 14px; border-radius: 20px; font-size: 14px; }
+  .panel { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; }
+  .btn { background: #ff00ff; color: #fff; border: none; padding: 10px 16px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+  .btn:hover { filter: brightness(1.15); }
+  .chat { position: absolute; bottom: 80px; left: 10px; width: min(280px, 38vw); background: rgba(20,8,40,0.92); border-radius: 14px; padding: 10px; z-index: 10; }
+  .chat-messages { height: 100px; overflow-y: auto; font-size: 13px; margin-bottom: 8px; }
   .chat input { width: 100%; padding: 8px; border: none; border-radius: 8px; background: #1a0a2e; color: #fff; }
-  .players-list { position: absolute; top: 60px; right: 10px; background: rgba(20,8,40,0.9); padding: 10px; border-radius: 12px; z-index: 10; max-width: 220px; }
-  .player { font-size: 13px; margin: 4px 0; display: flex; align-items: center; gap: 6px; }
-  .owner-tag { font-size: 10px; background: #ff6600; color: #000; padding: 2px 6px; border-radius: 6px; font-weight: bold; }
-  .modal { position: absolute; inset: 16px; background: rgba(10,10,18,0.96); border: 2px solid #ff00ff; border-radius: 16px; padding: 18px; display: none; z-index: 30; overflow: auto; }
+  .players-list { position: absolute; top: 55px; right: 10px; background: rgba(20,8,40,0.9); padding: 10px; border-radius: 12px; z-index: 10; max-width: 190px; }
+  .modal { position: absolute; inset: 12px; background: rgba(10,10,18,0.97); border: 2px solid #ff00ff; border-radius: 16px; padding: 18px; display: none; z-index: 30; overflow: auto; }
   .modal.active { display: block; }
-  .modal.owner-panel { inset: auto; top: 50px; right: 10px; width: 280px; max-height: 75vh; border-color: #ff6600; }
-  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 10px; margin-top: 12px; }
-  .item { background: #1a0a2e; padding: 10px; border-radius: 10px; text-align: center; }
-  .item img { width: 100%; height: 70px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; }
-  .close { float: right; background: #444; color: #fff; border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
-  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ff00ff; color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 100; opacity: 0; transition: 0.3s; pointer-events: none; }
+  .gang-member { display: flex; gap: 12px; background: #1a0a2e; padding: 10px; border-radius: 10px; margin: 8px 0; cursor: pointer; }
+  .gang-member img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
+  .dialog-box { background: #1a0a2e; padding: 12px; border-radius: 10px; margin: 10px 0; line-height: 1.4; }
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ff00ff; color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 100; opacity: 0; transition: 0.3s; }
   .toast.show { opacity: 1; }
+  .close { float: right; background: #444; color: #fff; border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
 </style>
 </head>
 <body>
 <div id="game">
   <div class="room">
-    <img class="bg" src="imagine_images/q4BXV.jpg" alt="room">
-    <div class="hotspot" style="left:48%;top:48%;width:80px;height:60px;" onclick="clickHotspot('dog')" title="Погладить пса"></div>
-    <div class="hotspot" style="left:18%;top:22%;width:70px;height:90px;" onclick="clickHotspot('poster')" title="Постер"></div>
+    <img class="bg" id="bg" src="imagine_images/q4BXV.jpg" alt="room">
+    <img class="player-char" id="player" src="imagine_images/LTPb8.jpg" style="left:38%;top:58%;" alt="ты">
+    <div class="hotspot" style="left:48%;top:48%;width:70px;height:55px;" onclick="talkDog()" title="Пёс"></div>
+    <div class="hotspot" style="left:65%;top:35%;width:80px;height:60px;" onclick="openModal('gang')" title="Банда"></div>
   </div>
-  <div id="overlays"></div>
   <div class="ui">
     <div class="badge">Монеты: <span id="coins">…</span></div>
-    <div class="badge" id="sub">Free</div>
     <div class="badge">Онлайн: <span id="online">0</span></div>
-    <div class="badge" id="ownerBadge" style="display:none;background:#ff6600;color:#000">Owner</div>
   </div>
   <div class="players-list" id="playersList"></div>
   <div class="panel">
+    <button class="btn" onclick="openModal('gang')">Банда</button>
     <button class="btn" onclick="openModal('shop')">Магазин</button>
-    <button class="btn" onclick="openModal('room')">Мои вещи</button>
-    <button class="btn" id="jobBtn" onclick="doJob()">Работа (+50)</button>
-    <button class="btn" onclick="openModal('leader')">Топ</button>
+    <button class="btn" onclick="doJob()">Работа</button>
   </div>
   <div class="chat">
     <div class="chat-messages" id="chat"></div>
     <input id="msg" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')send()">
   </div>
-  <div class="modal" id="shop"><button class="close" onclick="closeModal('shop')">✕</button><h3 style="color:#0ff">Магазин</h3><div class="items" id="shopItems"></div></div>
-  <div class="modal" id="room"><button class="close" onclick="closeModal('room')">✕</button><h3 style="color:#0ff">Мои вещи</h3><div class="items" id="owned"></div></div>
-  <div class="modal" id="leader"><button class="close" onclick="closeModal('leader')">✕</button><h3 style="color:#0ff">Топ по монетам</h3><div id="leaderList"></div></div>
-  <div class="modal owner-panel" id="ownerPanel">
-    <button class="close" onclick="closeModal('ownerPanel')">✕</button>
-    <h3 style="color:#ff6600">Owner</h3>
-    <p id="ownerAuthStatus" style="font-size:13px;margin:8px 0;color:#aaa">...</p>
-    <div id="ownerActions"></div>
+  <div class="modal" id="gang"><button class="close" onclick="closeModal('gang')">✕</button>
+    <h3 style="color:#0ff">Банда на улице</h3>
+    <div id="gangList"></div>
+    <div id="dialogArea"></div>
   </div>
+  <div class="modal" id="shop"><button class="close" onclick="closeModal('shop')">✕</button><h3 style="color:#0ff">Магазин</h3><div id="shopItems"></div></div>
 </div>
 <div class="toast" id="toast"></div>
-<button type="button" style="position:absolute;top:10px;right:10px;z-index:12;background:none;border:none;color:#888;text-decoration:underline;cursor:pointer;" onclick="openOwnerPanel()">Owner</button>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -91,195 +77,113 @@ const FIREBASE_CONFIG = {
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
 let auth, db, uid, isOwner = false;
-let me = { name: "Игрок" + Math.floor(Math.random()*999), coins: 250, owned: [], premium: false, lastJob: 0 };
-let players = {};
+let me = { name: "Панк" + Math.floor(Math.random()*99), coins: 200, owned: [], lastJob: 0 };
+const gang = [
+  { id: "pink", name: "Розовый", img: "imagine_images/LTPb8.jpg", lines: [
+    "Йо, новенький! Неоновая ночь только начинается.",
+    "Видел банду на улице? Они ждут, пока ты наберёшь цепи.",
+    "Пёс в комнате — хороший знак. Гладь его чаще."
+  ]},
+  { id: "green", name: "Зелёный", img: "imagine_images/Lix06.jpg", lines: [
+    "Pet Shop открыт. Призраки сегодня спокойные.",
+    "Хочешь на крышу? Сначала докажи, что свой.",
+    "Монеты копятся быстро, если не ленишься."
+  ]},
+  { id: "purple", name: "Фиолетовый", img: "imagine_images/Oo040.jpg", lines: [
+    "На кладбище написано NOT DEAD YET. Это про нас.",
+    "Цепи — ключ к улице. Без них банда не пустит.",
+    "Ночью коты и полиция гуляют. Смотри внимательно."
+  ]}
+];
 const shopItems = [
-  { id:"jacket", name:"Неоновая куртка", price:300, img:"imagine_images/LTPb8.jpg" },
-  { id:"mohawk", name:"Ирокез", price:150, img:"imagine_images/Oo040.jpg" },
-  { id:"chains", name:"Цепи", price:100, img:"imagine_images/Lix06.jpg" },
-  { id:"pet", name:"Питомец", price:400, img:"imagine_images/q4BXV.jpg" }
+  { id:"jacket", name:"Неоновая куртка", price:250, img:"imagine_images/LTPb8.jpg" },
+  { id:"chains", name:"Цепи", price:150, img:"imagine_images/Lix06.jpg" },
+  { id:"pet", name:"Питомец", price:350, img:"imagine_images/q4BXV.jpg" }
 ];
 function toast(msg) {
   const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.classList.add("show");
+  t.textContent = msg; t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 1800);
 }
 function init() {
   firebase.initializeApp(FIREBASE_CONFIG);
-  auth = firebase.auth();
-  db = firebase.database();
-  auth.onAuthStateChanged(user => {
-    if (user) {
-      uid = user.uid;
-      isOwner = user.email === OWNER_EMAIL && user.emailVerified;
-      loadMe();
-      listenPlayers();
-      listenChat();
-    } else {
-      auth.signInAnonymously().catch(e => alert("Auth error: " + e.message));
-    }
+  auth = firebase.auth(); db = firebase.database();
+  auth.onAuthStateChanged(u => {
+    if (u) { uid = u.uid; isOwner = u.email === OWNER_EMAIL && u.emailVerified; loadMe(); listenPlayers(); listenChat(); }
+    else auth.signInAnonymously().catch(e => alert(e.message));
   });
 }
 function loadMe() {
-  db.ref("players/" + uid).once("value").then(snap => {
-    if (snap.exists()) me = { ...me, ...snap.val() };
-    me.lastSeen = Date.now();
-    saveMe();
-    updateUI();
-    renderOverlays();
+  db.ref("players/"+uid).once("value").then(s => {
+    if (s.exists()) me = {...me, ...s.val()};
+    me.lastSeen = Date.now(); saveMe(); updateUI();
   });
 }
-function saveMe() {
-  if (!uid) return;
-  db.ref("players/" + uid).update({
-    name: me.name,
-    coins: me.coins,
-    owned: me.owned,
-    premium: me.premium || isOwner,
-    owner: isOwner,
-    lastSeen: Date.now()
-  });
-}
+function saveMe() { if (uid) db.ref("players/"+uid).update({name:me.name, coins:me.coins, owned:me.owned, owner:isOwner, lastSeen:Date.now()}); }
 function listenPlayers() {
-  db.ref("players").on("value", snap => {
-    players = snap.val() || {};
-    document.getElementById("online").textContent = Object.keys(players).length;
-    renderPlayers();
+  db.ref("players").on("value", s => {
+    const p = s.val() || {};
+    document.getElementById("online").textContent = Object.keys(p).length;
+    document.getElementById("playersList").innerHTML = Object.values(p).map(x => `<div>● ${escapeHtml(x.name)}</div>`).join("");
   });
 }
 function listenChat() {
-  db.ref("chat").limitToLast(30).on("child_added", snap => {
-    const m = snap.val();
-    const c = document.getElementById("chat");
-    const badge = m.owner ? ' <span class="owner-tag">Owner</span>' : "";
-    c.innerHTML += `<div><b>${escapeHtml(m.name)}${badge}:</b> ${escapeHtml(m.text)}</div>`;
-    c.scrollTop = c.scrollHeight;
+  db.ref("chat").limitToLast(20).on("child_added", s => {
+    const m = s.val();
+    document.getElementById("chat").innerHTML += `<div><b>${escapeHtml(m.name)}:</b> ${escapeHtml(m.text)}</div>`;
+    document.getElementById("chat").scrollTop = 9999;
   });
 }
-function escapeHtml(s) { return String(s||"").replace(/[&<>]/g, c => ({'&':'&','<':'<','>':'>'}[c])); }
-function updateUI() {
-  document.getElementById("coins").textContent = isOwner ? "∞" : me.coins;
-  const sub = document.getElementById("sub");
-  const premium = me.premium || isOwner;
-  sub.textContent = premium ? "Premium" : "Free";
-  sub.className = premium ? "badge premium" : "badge";
-  document.getElementById("ownerBadge").style.display = isOwner ? "block" : "none";
-  const jobBtn = document.getElementById("jobBtn");
-  const cd = Math.max(0, 30 - Math.floor((Date.now() - (me.lastJob||0))/1000));
-  jobBtn.disabled = cd > 0 && !isOwner;
-  jobBtn.textContent = cd > 0 && !isOwner ? `Работа (${cd}с)` : "Работа (+" + (premium?80:50) + ")";
-}
-function renderPlayers() {
-  document.getElementById("playersList").innerHTML = Object.values(players).map(p => 
-    `<div class="player">● ${escapeHtml(p.name)} ${p.owner?'<span class="owner-tag">Owner</span>':''}</div>`
-  ).join("");
-}
-function renderOverlays() {
-  const el = document.getElementById("overlays");
-  el.innerHTML = "";
-  if (me.owned.includes("pet")) {
-    el.innerHTML += `<img class="overlay-item" src="imagine_images/q4BXV.jpg" style="left:45%;top:50%;width:90px;height:70px;border-radius:12px;">`;
-  }
-  if (me.owned.includes("jacket")) {
-    el.innerHTML += `<div class="overlay-item" style="left:12%;top:55%;font-size:40px;">🧥</div>`;
-  }
-}
+function escapeHtml(s){return String(s||"").replace(/[&<>]/g,c=>({'&':'&','<':'<','>':'>'}[c]));}
+function updateUI() { document.getElementById("coins").textContent = isOwner ? "∞" : me.coins; }
 function openModal(id) {
   document.getElementById(id).classList.add("active");
+  if (id === "gang") renderGang();
   if (id === "shop") renderShop();
-  if (id === "room") renderOwned();
-  if (id === "leader") renderLeader();
-  if (id === "ownerPanel") renderOwner();
 }
-function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+function closeModal(id){ document.getElementById(id).classList.remove("active"); }
+function renderGang() {
+  document.getElementById("gangList").innerHTML = gang.map(g => `
+    <div class="gang-member" onclick="talk('${g.id}')">
+      <img src="${g.img}"><div><b>${g.name}</b><br><small>Нажми, чтобы поговорить</small></div>
+    </div>`).join("");
+  document.getElementById("dialogArea").innerHTML = "<p style='opacity:.7'>Выбери кого-нибудь из банды</p>";
+}
+function talk(id) {
+  const member = gang.find(g => g.id === id);
+  const line = member.lines[Math.floor(Math.random() * member.lines.length)];
+  document.getElementById("dialogArea").innerHTML = `<div class="dialog-box"><b>${member.name}:</b> ${line}</div>`;
+  toast(member.name + " говорит...");
+}
+function talkDog() { toast("Пёс виляет хвостом и даёт +" + (Math.floor(Math.random()*8)+2) + " монет"); if (!isOwner) { me.coins += 5; saveMe(); updateUI(); } }
 function renderShop() {
   document.getElementById("shopItems").innerHTML = shopItems.map(it => {
-    const owned = me.owned.includes(it.id);
-    return `<div class="item"><img src="${it.img}"><div>${it.name}</div><div>${isOwner?"FREE":it.price}</div>
-      <button class="btn small" ${owned?"disabled":""} onclick="buy('${it.id}')">${owned?"Есть":"Купить"}</button></div>`;
+    const own = me.owned.includes(it.id);
+    return `<div style="background:#1a0a2e;padding:8px;border-radius:8px;margin:6px 0">
+      <img src="${it.img}" style="width:100%;height:50px;object-fit:cover;border-radius:6px"><br>${it.name} — ${isOwner?"FREE":it.price}
+      <button class="btn" style="margin-top:6px" ${own?"disabled":""} onclick="buy('${it.id}')">${own?"Есть":"Купить"}</button></div>`;
   }).join("");
 }
-function renderOwned() {
-  const list = shopItems.filter(it => me.owned.includes(it.id));
-  document.getElementById("owned").innerHTML = list.length 
-    ? list.map(it => `<div class="item"><img src="${it.img}"><div>${it.name}</div></div>`).join("")
-    : "<p>Пока пусто. Купи что-нибудь в магазине!</p>";
-}
-function renderLeader() {
-  const sorted = Object.values(players).sort((a,b) => (b.coins||0) - (a.coins||0)).slice(0,10);
-  document.getElementById("leaderList").innerHTML = sorted.map((p,i) => 
-    `<div style="padding:6px 0;border-bottom:1px solid #333;">${i+1}. ${escapeHtml(p.name)} — ${p.owner?"∞":(p.coins||0)}</div>`
-  ).join("") || "<p>Пока никого</p>";
-}
-function renderOwner() {
-  const status = document.getElementById("ownerAuthStatus");
-  const actions = document.getElementById("ownerActions");
-  if (isOwner) {
-    status.textContent = "Вы Owner";
-    actions.innerHTML = `
-      <button class="btn small" onclick="me.coins+=1000;saveMe();updateUI();toast('+1000')">+1000 монет</button>
-      <button class="btn small" onclick="clearChat()">Очистить чат</button>
-      <button class="btn small" onclick="auth.signOut().then(()=>location.reload())">Выйти</button>
-    `;
-  } else {
-    status.textContent = auth.currentUser?.email || "Войдите Google (только owner)";
-    actions.innerHTML = `<button class="btn" onclick="ownerLogin()">Войти Google</button>`;
-  }
-}
-function ownerLogin() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).catch(e => {
-    if (e.code.includes("popup")) auth.signInWithRedirect(provider);
-    else alert(e.message);
-  });
-}
 function buy(id) {
-  const it = shopItems.find(x => x.id === id);
+  const it = shopItems.find(x=>x.id===id);
   if (!it || me.owned.includes(id)) return;
   if (!isOwner && me.coins < it.price) { toast("Не хватает монет"); return; }
   if (!isOwner) me.coins -= it.price;
-  me.owned.push(id);
-  saveMe();
-  updateUI();
-  renderOverlays();
-  chatSystem(me.name + " купил(а): " + it.name);
-  toast("Куплено: " + it.name);
-  openModal("shop");
+  me.owned.push(id); saveMe(); updateUI(); toast("Куплено: " + it.name); openModal("shop");
 }
 function doJob() {
   const now = Date.now();
-  if (!isOwner && now - (me.lastJob||0) < 30000) return;
-  const gain = (me.premium || isOwner) ? 80 : 50;
+  if (!isOwner && now - (me.lastJob||0) < 20000) { toast("Подожди"); return; }
+  const gain = 55 + Math.floor(Math.random()*20);
   if (!isOwner) me.coins += gain;
-  me.lastJob = now;
-  saveMe();
-  updateUI();
-  chatSystem(me.name + " заработал(а) +" + gain);
-  toast("+" + gain + " монет");
-}
-function clickHotspot(what) {
-  const gain = Math.floor(Math.random()*15) + 5;
-  if (!isOwner) me.coins += gain;
-  saveMe();
-  updateUI();
-  toast(what === "dog" ? "Пёс доволен! +" + gain : "Крутой постер! +" + gain);
+  me.lastJob = now; saveMe(); updateUI(); toast("Заработал(а) +" + gain); 
 }
 function send() {
-  const input = document.getElementById("msg");
-  const text = input.value.trim();
-  if (!text) return;
-  db.ref("chat").push({ name: me.name, text, time: Date.now(), owner: isOwner });
-  input.value = "";
+  const t = document.getElementById("msg").value.trim();
+  if (!t) return;
+  db.ref("chat").push({name:me.name, text:t, time:Date.now()});
+  document.getElementById("msg").value = "";
 }
-function chatSystem(text) {
-  db.ref("chat").push({ name: "Система", text, time: Date.now() });
-}
-function clearChat() {
-  if (!isOwner) return;
-  db.ref("chat").remove().then(() => document.getElementById("chat").innerHTML = "");
-}
-function openOwnerPanel() { openModal("ownerPanel"); }
 setInterval(updateUI, 1000);
 document.addEventListener("DOMContentLoaded", init);
 </script>
