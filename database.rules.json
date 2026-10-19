@@ -4,14 +4,14 @@
     ".write": false,
     "players": {
       ".read": true,
-      "$playerId": {
-        ".write": "!data.exists() || newData == null || (auth != null && auth.token.email === 'garum2008@gmail.com' && auth.token.email_verified === true)"
+      "$uid": {
+        ".write": "auth != null && (auth.uid === $uid || (auth.token.email === 'garum2008@gmail.com' && auth.token.email_verified === true))"
       }
     },
     "chat": {
       ".read": true,
-      "$messageId": {
-        ".write": "!data.exists() || (auth != null && auth.token.email === 'garum2008@gmail.com' && auth.token.email_verified === true)"
+      "$msgId": {
+        ".write": "auth != null && (!data.exists() || (auth.token.email === 'garum2008@gmail.com' && auth.token.email_verified === true))"
       }
     }
   }
