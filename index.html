@@ -9,43 +9,41 @@
   body { background: #0a0a12; color: #fff; font-family: Arial, sans-serif; }
   #game { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
   .room img.bg { width: 100%; height: 100%; object-fit: cover; opacity: 0.75; position: absolute; }
-  .ui { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; }
+  .ui { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; align-items: center; }
   .badge { background: #2d0a4e; padding: 6px 12px; border-radius: 16px; font-size: 14px; }
   .badge.premium { background: #ff00ff; }
   .panel { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; justify-content: center; }
   .btn { background: #ff00ff; color: #fff; border: none; padding: 10px 14px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+  .btn.small { padding: 6px 10px; font-size: 12px; }
+  .btn.ghost { background: transparent; color: #aaa; font-weight: normal; }
   .chat { position: absolute; bottom: 70px; left: 8px; width: 280px; background: rgba(20,8,40,0.92); border-radius: 12px; padding: 8px; z-index: 10; }
   .chat-messages { height: 130px; overflow-y: auto; font-size: 13px; margin-bottom: 6px; }
   .chat input { width: 100%; padding: 6px; border: none; border-radius: 6px; }
-  .players-list { position: absolute; top: 50px; right: 8px; background: rgba(20,8,40,0.9); padding: 8px; border-radius: 10px; z-index: 10; max-width: 160px; }
-  .player { font-size: 13px; margin: 3px 0; }
+  .players-list { position: absolute; top: 50px; right: 8px; background: rgba(20,8,40,0.9); padding: 8px; border-radius: 10px; z-index: 10; max-width: 200px; }
+  .player { font-size: 13px; margin: 3px 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .owner-tag { font-size: 10px; background: #ff6600; color: #000; padding: 1px 5px; border-radius: 6px; font-weight: bold; }
+  .owner-link { position: absolute; top: 10px; right: 10px; z-index: 11; font-size: 12px; color: #888; background: none; border: none; cursor: pointer; text-decoration: underline; }
+  .owner-link:hover { color: #ff00ff; }
   .modal { position: absolute; inset: 20px; background: rgba(10,10,18,0.97); border: 2px solid #ff00ff; border-radius: 14px; padding: 16px; display: none; z-index: 30; overflow: auto; }
   .modal.active { display: block; }
+  .modal.owner-panel { inset: auto; top: 40px; right: 8px; left: auto; width: 280px; max-height: 70vh; border-color: #ff6600; }
   .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 8px; }
   .item { background: #1a0a2e; padding: 8px; border-radius: 8px; text-align: center; }
   .item img { width: 100%; height: 60px; object-fit: cover; border-radius: 4px; }
   .close { float: right; background: #444; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
-  .setup { position: absolute; inset: 0; background: #0a0a12; display: flex; align-items: center; justify-content: center; z-index: 100; }
-  .setup-box { background: #1a0a2e; padding: 24px; border-radius: 12px; max-width: 420px; text-align: center; }
-  .setup textarea { width: 100%; height: 120px; margin: 10px 0; }
+  .owner-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .kick-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; }
 </style>
 </head>
 <body>
-<div class="setup" id="setup">
-  <div class="setup-box">
-    <h2 style="color:#ff00ff">PUNK ME</h2>
-    <p>Вставь свой Firebase Config</p>
-    <textarea id="configInput" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"..."}'></textarea>
-    <button class="btn" onclick="initFirebase()">Запустить</button>
-  </div>
-</div>
-
-<div id="game" style="display:none">
-  <div class="room"><img class="bg" src="https://picsum.photos/id/1015/1200/800"></div>
+<div id="game">
+  <div class="room"><img class="bg" src="imagine_images/q4BXV.jpg"></div>
+  <button type="button" class="owner-link" id="ownerLink" onclick="openOwnerPanel()">Owner</button>
   <div class="ui">
     <div class="badge">Coins: <span id="coins">250</span></div>
     <div class="badge" id="sub">Free</div>
     <div class="badge">Online: <span id="online">1</span></div>
+    <div class="badge" id="ownerBadge" style="display:none;background:#ff6600;color:#000">Owner</div>
   </div>
   <div class="players-list" id="playersList"></div>
   <div class="panel">
@@ -60,49 +58,133 @@
   </div>
   <div class="modal" id="shop"><button class="close" onclick="closeModal('shop')">✕</button><h3 style="color:#0ff">Магазин</h3><div class="items" id="shopItems"></div></div>
   <div class="modal" id="room"><button class="close" onclick="closeModal('room')">✕</button><h3 style="color:#0ff">Комната</h3><div class="items" id="owned"></div></div>
+  <div class="modal owner-panel" id="ownerPanel">
+    <button class="close" onclick="closeModal('ownerPanel')">✕</button>
+    <h3 style="color:#ff6600">Owner</h3>
+    <p id="ownerAuthStatus" style="font-size:13px;margin:8px 0;color:#aaa">Войдите через Google</p>
+    <div class="owner-actions" id="ownerSignedOut">
+      <button class="btn" onclick="ownerSignIn()">Войти (Google)</button>
+    </div>
+    <div class="owner-actions" id="ownerSignedIn" style="display:none">
+      <button class="btn small" onclick="ownerAddCoins()">+1000 монет</button>
+      <button class="btn small" onclick="clearChat()">Очистить чат</button>
+      <div id="kickList"></div>
+      <button class="btn small ghost" onclick="ownerSignOut()">Выйти</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
-let db, myRef, coins = 250, sub = false, owned = [], myName = "Игрок" + Math.floor(Math.random()*1000);
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyACAXPV9H4vfWNUoRYEWzXi6CSX0kpCaho",
+  authDomain: "punk-me-40605.firebaseapp.com",
+  databaseURL: "https://punk-me-40605-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "punk-me-40605",
+  storageBucket: "punk-me-40605.firebasestorage.app",
+  messagingSenderId: "761070335468",
+  appId: "1:761070335468:web:4bffd5120ef98e79f47cc9"
+};
+const OWNER_EMAIL = "garum2008@gmail.com";
+
+let auth, db, myRef, coins = 250, sub = false, owned = [], myName = "Игрок" + Math.floor(Math.random()*1000);
+let isOwnerUser = false;
+let playersSnapshot = [];
 
 const shopItems = [
-  {name:"Неоновая куртка", price:300, img:"https://picsum.photos/id/1015/200/150"},
-  {name:"Ирокез", price:150, img:"https://picsum.photos/id/1016/200/150"},
-  {name:"Цепи", price:100, img:"https://picsum.photos/id/1018/200/150"},
-  {name:"Питомец", price:400, img:"https://picsum.photos/id/1019/200/150"}
+  {name:"Неоновая куртка", price:300, img:"imagine_images/LTPb8.jpg"},
+  {name:"Ирокез", price:150, img:"imagine_images/Oo040.jpg"},
+  {name:"Цепи", price:100, img:"imagine_images/Lix06.jpg"},
+  {name:"Питомец", price:400, img:"imagine_images/q4BXV.jpg"}
 ];
 
+function hasPremium() {
+  return sub || isOwnerUser;
+}
+
 function initFirebase() {
-  try {
-    const config = JSON.parse(document.getElementById("configInput").value);
-    firebase.initializeApp(config);
-    db = firebase.database();
-    document.getElementById("setup").style.display = "none";
-    document.getElementById("game").style.display = "block";
-    startGame();
-  } catch(e) {
-    alert("Ошибка в конфиге: " + e.message);
+  firebase.initializeApp(FIREBASE_CONFIG);
+  auth = firebase.auth();
+  db = firebase.database();
+  auth.getRedirectResult().catch(function(e) { console.warn("redirect", e); });
+  auth.onAuthStateChanged(onAuthStateChanged);
+  startGame();
+}
+
+function checkOwnerUser(user) {
+  return !!(user && user.email === OWNER_EMAIL && user.emailVerified);
+}
+
+function onAuthStateChanged(user) {
+  isOwnerUser = checkOwnerUser(user);
+  document.getElementById("ownerBadge").style.display = isOwnerUser ? "block" : "none";
+  document.getElementById("ownerSignedOut").style.display = isOwnerUser ? "none" : "block";
+  document.getElementById("ownerSignedIn").style.display = isOwnerUser ? "block" : "none";
+  var status = document.getElementById("ownerAuthStatus");
+  if (isOwnerUser) {
+    status.textContent = user.displayName || user.email;
+    if (user.displayName) myName = user.displayName;
+    sub = true;
+    syncPlayerPresence();
+    updateLocal();
+    renderPlayersList();
+  } else {
+    status.textContent = user ? "Нет прав owner (" + (user.email || "?") + ")" : "Войдите через Google";
+    if (myRef) myRef.update({ owner: false });
   }
 }
 
+function syncPlayerPresence() {
+  if (!myRef || !isOwnerUser) return;
+  myRef.update({ name: myName, owner: true });
+}
+
+function ownerSignIn() {
+  var provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(function(err) {
+    if (err.code === "auth/popup-blocked" || err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
+      return auth.signInWithRedirect(provider);
+    }
+    alert("Ошибка входа: " + err.message);
+  });
+}
+
+function ownerSignOut() {
+  auth.signOut();
+  closeModal("ownerPanel");
+}
+
+function openOwnerPanel() {
+  document.getElementById("ownerPanel").classList.add("active");
+  renderKickList();
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  initFirebase();
+  if (new URLSearchParams(location.search).has("owner")) openOwnerPanel();
+});
+
 function startGame() {
-  myRef = db.ref("players").push({ name: myName, color: "#ff00ff" });
+  myRef = db.ref("players").push({ name: myName, color: "#ff00ff", owner: false });
   myRef.onDisconnect().remove();
 
-  db.ref("players").on("value", snap => {
-    const list = [];
-    snap.forEach(c => list.push(c.val()));
-    document.getElementById("online").textContent = list.length;
-    document.getElementById("playersList").innerHTML = list.map(p => 
-      `<div class="player" style="color:${p.color||'#fff'}">● ${p.name}</div>`).join("");
+  db.ref("players").on("value", function(snap) {
+    playersSnapshot = [];
+    snap.forEach(function(c) {
+      playersSnapshot.push({ id: c.key, val: c.val() });
+    });
+    document.getElementById("online").textContent = playersSnapshot.length;
+    renderPlayersList();
+    if (isOwnerUser) renderKickList();
   });
 
-  db.ref("chat").limitToLast(40).on("child_added", snap => {
-    const m = snap.val();
-    const c = document.getElementById("chat");
-    c.innerHTML += `<div><b>${m.name}:</b> ${m.text}</div>`;
+  db.ref("chat").limitToLast(40).on("child_added", function(snap) {
+    var m = snap.val();
+    var c = document.getElementById("chat");
+    var badge = m.owner ? ' <span class="owner-tag">Owner</span>' : "";
+    c.innerHTML += "<div><b>" + escapeHtml(m.name) + badge + ":</b> " + escapeHtml(m.text) + "</div>";
     c.scrollTop = c.scrollHeight;
   });
 
@@ -110,42 +192,96 @@ function startGame() {
   chatSystem("Добро пожаловать!");
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderPlayersList() {
+  document.getElementById("playersList").innerHTML = playersSnapshot.map(function(p) {
+    var v = p.val || {};
+    var badge = v.owner ? ' <span class="owner-tag">Owner</span>' : "";
+    return '<div class="player" style="color:' + (v.color || "#fff") + '">● ' + escapeHtml(v.name || "?") + badge + "</div>";
+  }).join("");
+}
+
+function renderKickList() {
+  var el = document.getElementById("kickList");
+  if (!el || !isOwnerUser) return;
+  el.innerHTML = playersSnapshot.map(function(p) {
+    if (p.id === myRef.key) return "";
+    var v = p.val || {};
+    return '<div class="kick-row"><span>' + escapeHtml(v.name || "?") + '</span><button class="btn small" onclick="kickPlayer(\'' + p.id + '\')">Kick</button></div>';
+  }).join("") || "<p style='font-size:12px;color:#888'>Нет других игроков</p>";
+}
+
+function kickPlayer(id) {
+  if (!isOwnerUser || !id || id === myRef.key) return;
+  db.ref("players/" + id).remove().then(function() {
+    chatSystem("Игрок удалён (owner)");
+    renderKickList();
+  }).catch(function(e) {
+    alert("Kick failed: " + e.message);
+  });
+}
+
+function clearChat() {
+  if (!isOwnerUser) return;
+  db.ref("chat").once("value", function(snap) {
+    var updates = {};
+    snap.forEach(function(c) { updates[c.key] = null; });
+    return db.ref("chat").update(updates);
+  }).then(function() {
+    document.getElementById("chat").innerHTML = "";
+    chatSystem("Чат очищен (owner)");
+  }).catch(function(e) {
+    alert("Clear chat failed: " + e.message);
+  });
+}
+
+function ownerAddCoins() {
+  if (!isOwnerUser) return;
+  coins += 1000;
+  updateLocal();
+}
+
 function send() {
-  const input = document.getElementById("msg");
+  var input = document.getElementById("msg");
   if (!input.value.trim() || !db) return;
-  db.ref("chat").push({ name: myName, text: input.value, time: Date.now() });
+  db.ref("chat").push({ name: myName, text: input.value, time: Date.now(), owner: isOwnerUser });
   input.value = "";
 }
 
 function chatSystem(text) {
-  if (db) db.ref("chat").push({ name: "Система", text, time: Date.now() });
+  if (db) db.ref("chat").push({ name: "Система", text: text, time: Date.now() });
 }
 
 function updateLocal() {
-  document.getElementById("coins").textContent = coins;
-  document.getElementById("sub").textContent = sub ? "Premium" : "Free";
-  document.getElementById("sub").className = sub ? "badge premium" : "badge";
+  document.getElementById("coins").textContent = isOwnerUser ? "∞" : coins;
+  document.getElementById("sub").textContent = hasPremium() ? "Premium" : "Free";
+  document.getElementById("sub").className = hasPremium() ? "badge premium" : "badge";
 }
 
 function openModal(id) {
   document.getElementById(id).classList.add("active");
   if (id === "shop") {
-    document.getElementById("shopItems").innerHTML = shopItems.map((it, i) => `
-      <div class="item"><img src="${it.img}"><div>${it.name}</div><div>${it.price}</div>
-      <button class="btn" onclick="buy(${i})">Купить</button></div>`).join("");
+    document.getElementById("shopItems").innerHTML = shopItems.map(function(it, i) {
+      return '<div class="item"><img src="' + it.img + '"><div>' + it.name + '</div><div>' + (isOwnerUser ? "FREE" : it.price) + '</div>' +
+      '<button class="btn" onclick="buy(' + i + ')">Купить</button></div>';
+    }).join("");
   }
   if (id === "room") {
     document.getElementById("owned").innerHTML = owned.length
-      ? owned.map(i => `<div class="item"><img src="${i.img}"><div>${i.name}</div></div>`).join("")
+      ? owned.map(function(i) { return '<div class="item"><img src="' + i.img + '"><div>' + i.name + '</div></div>'; }).join("")
       : "<p>Пусто</p>";
   }
+  if (id === "ownerPanel") renderKickList();
 }
 function closeModal(id) { document.getElementById(id).classList.remove("active"); }
 
 function buy(i) {
-  const it = shopItems[i];
-  if (coins >= it.price) {
-    coins -= it.price;
+  var it = shopItems[i];
+  if (isOwnerUser || coins >= it.price) {
+    if (!isOwnerUser) coins -= it.price;
     owned.push(it);
     updateLocal();
     chatSystem("Куплено: " + it.name);
@@ -154,15 +290,17 @@ function buy(i) {
 }
 
 function doJob() {
-  const r = sub ? 80 : 50;
-  coins += r;
+  var r = hasPremium() ? 80 : 50;
+  if (!isOwnerUser) coins += r;
   updateLocal();
   chatSystem("+" + r + " монет");
 }
 
 function buySub() {
-  if (coins >= 500) {
-    coins -= 500; sub = true; updateLocal();
+  if (isOwnerUser || coins >= 500) {
+    if (!isOwnerUser) coins -= 500;
+    sub = true;
+    updateLocal();
     chatSystem("Подписка активирована!");
   } else chatSystem("Не хватает на подписку");
 }
