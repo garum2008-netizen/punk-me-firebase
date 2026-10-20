@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v9";
+const GAME_VERSION = "living3d-v10";
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
 
@@ -433,6 +433,10 @@ function init() {
       },
       onNpcClick: (nid) => openNpcDialog(nid),
       onInteract: () => {
+        if (window.World3D?.getNearestDog?.()) {
+          petDog(true);
+          return;
+        }
         const nid = window.World3D?.getNearestNpc?.();
         if (nid) openNpcDialog(nid);
       },
@@ -492,6 +496,9 @@ function loadMe() {
     window.me = me;
     me.level = levelFromXp(me.xp || 0);
     me.lastSeen = Date.now();
+    if (me.characterId && typeof isCharacterJoinable === "function" && !isCharacterJoinable(me.characterId)) {
+      me.characterId = "vienna";
+    }
     saveMe();
     if (!me.characterId) {
       document.getElementById("loading").style.display = "none";
@@ -507,6 +514,7 @@ function loadMe() {
 }
 
 function pickCharacterAndContinue(id) {
+  if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
   me.characterId = id;
   const def = getCharacterDef(id);
   me.avatar = def.poster;
@@ -1034,6 +1042,7 @@ function openNpcDialog(nid) {
 window.changeCharacter = function () {
   if (!window.CharSelect) return;
   CharSelect.open(id => {
+    if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
     me.characterId = id;
     me.avatar = getCharacterDef(id).poster;
     saveMe();

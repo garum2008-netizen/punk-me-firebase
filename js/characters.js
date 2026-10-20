@@ -4,7 +4,8 @@ const PLAYABLE_CHARACTER_IDS = ["razor", "vienna", "cobalt", "mohawk"];
 const CHARACTERS = {
   razor: {
     id: "razor",
-    playable: true,
+    playable: false,
+    comingSoon: true,
     npc: true,
     poster: "imagine_images/LTPb8.jpg",
     look: {
@@ -212,6 +213,13 @@ function getCharacterDef(id) {
 function getPlayableCharacters() {
   return PLAYABLE_CHARACTER_IDS.map(id => CHARACTERS[id]);
 }
+
+function isCharacterJoinable(id) {
+  const c = CHARACTERS[id];
+  return !!c && c.playable !== false && !c.comingSoon;
+}
+
+window.isCharacterJoinable = isCharacterJoinable;
 
 function characterIntroLine(id, lang) {
   const c = getCharacterDef(id);

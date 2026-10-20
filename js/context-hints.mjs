@@ -6,8 +6,11 @@ export function initContextHints() {
 
 export function updateContextHints(data) {
   if (!el || !data) return;
-  const { nearNpc, nearPortal, location } = data;
-  if (nearNpc) {
+  const { nearNpc, nearPortal, nearDog, location } = data;
+  if (nearDog) {
+    el.textContent = typeof t === "function" ? t("hint_pet_dog") : "E — pet";
+    el.classList.add("visible");
+  } else if (nearNpc) {
     el.textContent = typeof t === "function" ? t("hint_talk_npc") : "E — talk";
     el.classList.add("visible");
   } else if (nearPortal?.labelKey) {

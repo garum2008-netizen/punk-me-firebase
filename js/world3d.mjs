@@ -17,8 +17,10 @@ import {
   getTemplateForCharacter,
   createCc0Actor,
   updateLocomotionTimeScale,
-  WAVE_EMOTE_ENABLED
+  WAVE_EMOTE_ENABLED,
+  isStationaryMeshyNpc
 } from "./world/meshy-punk.mjs";
+import { loadPunkDogTemplate, createMeshyDog, updateMeshyDogAnim } from "./world/meshy-dog.mjs";
 import { pulseScene } from "./world/location-enrich.mjs";
 import {
   ensureMarkerRoot,
@@ -26,7 +28,6 @@ import {
   clearQuestMarkers
 } from "./world/quest-markers.mjs";
 import { initTouchControls } from "./touch-controls.mjs";
-import { createProceduralDog, updateProceduralDogAnim } from "./world/procedural-dog.mjs";
 import {
   getInputState,
   consumeJump,
@@ -39,8 +40,9 @@ function resolveAnimName(name) {
   return name;
 }
 
-const DOG_FOLLOW_DIST = 1.25;
-const DOG_FOLLOW_SIDE = 0.55;
+const DOG_FOLLOW_DIST = 1.2;
+const DOG_FOLLOW_SIDE = 0.45;
+let punkDogTemplate = null;
 let renderer, scene, camera, clock, raycaster, pointer;
 let hooks = {};
 let actors = new Map();
@@ -110,7 +112,8 @@ function createActorFromCatalog(id, characterId) {
     id, characterId: characterId || "vienna", group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
     _tplKey: tpl.key, _meshy: built._meshy, _proc: built._proc,
-    _visPushX: 0, _visPushZ: 0
+    _visPushX: 0, _visPushZ: 0,
+    _stationary: isStationaryMeshyNpc(characterId)
   };
   for (let i = 0; i < 4; i++) updateProcedural(actor, 1 / 60, null, false);
   actors.set(id, actor);
@@ -128,6 +131,7 @@ function ensureActor(id, characterId, isNpc) {
   }
   if (!a) a = createActorFromCatalog(id, characterId);
   a.isNpc = isNpc;
+  a._stationary = isNpc && isStationaryMeshyNpc(characterId);
   return a;
 }
 
@@ -172,6 +176,7 @@ function fadeTo(actor, name) {
 }
 
 function pickLocomotionAnim(actor, speed, talking) {
+  if (actor._stationary) return "idle";
   if (actor._holdAnim && actor._holdUntil > performance.now()) {
     if (actor._holdAnim === "walk" || actor._holdAnim === "run") return actor._holdAnim;
     return resolveAnimName(actor._holdAnim);
@@ -199,7 +204,10 @@ function playOneShot(actor, name, ms = 1400) {
 }
 
 function createDog() {
-  return createProceduralDog(scene);
+  if (!punkDogTemplate) return null;
+  const d = createMeshyDog(scene, punkDogTemplate);
+  d.group.add(makeShadow());
+  return d;
 }
 
 function updateDogFollow(dt, pl) {
@@ -221,19 +229,20 @@ function updateDogFollow(dt, pl) {
   dog.wz += (tgt.z - dog.wz) * lerp;
   const move = Math.hypot(tgt.x - dog.wx, tgt.z - dog.wz);
   const playerSpd = pl._spd || 0;
-  if (playerSpd < 0.12 && move < 0.05 && dog._sitUntil < performance.now()) {
-    if (Math.random() < dt * 0.015) dog._sitUntil = performance.now() + 2200 + Math.random() * 2000;
+  dog.group.position.set(dog.wx, 0, dog.wz);
+  const moveSpd = move / Math.max(dt, 0.001);
+  const following = moveSpd > 0.12 || playerSpd > 0.15;
+  if (following) {
+    const ty = Math.atan2(pl.wx - dog.wx, pl.wz - dog.wz);
+    let diff = ty - dog.group.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    dog.group.rotation.y += diff * Math.min(1, dt * 8);
   }
-  const sitting = dog._sitUntil > performance.now();
-  dog.group.position.set(dog.wx, sitting ? -0.06 : 0, dog.wz);
-  dog.group.rotation.y = Math.atan2(pl.wx - dog.wx, pl.wz - dog.wz);
-  const spd = sitting ? 0 : Math.max(move / Math.max(dt, 0.001), playerSpd * 0.85);
+  const spd = following ? Math.max(moveSpd, playerSpd * 0.85) : 0;
   dog._spd = spd;
-  const anim = sitting ? "sit" : spd > 1.35 ? "run" : spd > 0.2 ? "walk" : "idle";
-  dog._anim = anim;
-  if (dog._proceduralDog) updateProceduralDogAnim(dog, dt, anim);
-  else if (sitting) fadeToDog(dog, "idle");
-  else fadeToDog(dog, anim);
+  dog._anim = following ? "hop" : "idle";
+  if (dog._meshyDog) updateMeshyDogAnim(dog, dt, following ? "hop" : "idle", spd);
 }
 
 function ensureCar(show) {
@@ -261,6 +270,7 @@ function ensureCar(show) {
 
 async function loadModels() {
   await loadAllCc0Templates();
+  punkDogTemplate = await loadPunkDogTemplate();
   modelsReady = true;
 }
 
@@ -468,9 +478,25 @@ function updateThirdPersonCamera() {
   updateCameraOccluders();
 }
 
+function tickStationaryNpcFacePlayer(dt) {
+  const pl = actors.get("player");
+  if (!pl) return;
+  actors.forEach((a, id) => {
+    if (!id.startsWith("npc_") || !a._stationary) return;
+    const dx = pl.wx - a.wx;
+    const dz = pl.wz - a.wz;
+    if (Math.hypot(dx, dz) > 5.5) return;
+    const targetY = Math.atan2(dx, dz);
+    let diff = targetY - a.group.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    a.group.rotation.y += diff * Math.min(1, dt * 2.1);
+  });
+}
+
 function tickNpcPatrols(dt) {
   actors.forEach((a, id) => {
-    if (!id.startsWith("npc_") || !a._patrol?.length) return;
+    if (!id.startsWith("npc_") || !a._patrol?.length || a._stationary) return;
     const path = a._patrol;
     let idx = a._patrolIdx || 0;
     const tgt = path[idx];
@@ -538,6 +564,14 @@ function processInput(dt) {
     player._onGround = false;
   }
   if (consumeInteract()) hooks.onInteract?.();
+}
+
+function getNearestDogId() {
+  const pl = actors.get("player");
+  const dog = actors.get("dog");
+  if (!pl || !dog) return false;
+  const d = Math.hypot(pl.wx - dog.wx, pl.wz - dog.wz);
+  return d < 2.15;
 }
 
 function getNearestNpcId() {
@@ -713,6 +747,7 @@ function loop() {
   sceneTime += dt;
   processInput(dt);
   tickNpcPatrols(dt);
+  tickStationaryNpcFacePlayer(dt);
   const pl = actors.get("player");
   if (pl && actors.get("dog")) updateDogFollow(dt, pl);
   if (pl) {
@@ -726,7 +761,8 @@ function loop() {
   setQuestMarkerTarget(guideTarget, actors, sceneTime);
   const nearNpc = getNearestNpcId();
   const nearPortal = getNearPortal();
-  hooks.onHints?.({ nearNpc, nearPortal, location: currentLoc });
+  const nearDog = getNearestDogId();
+  hooks.onHints?.({ nearNpc, nearPortal, nearDog, location: currentLoc });
   const playerPos = pl ? pl.group.position : null;
   actors.forEach(a => {
     a.mixer?.update(dt);
@@ -739,7 +775,7 @@ function loop() {
       });
     }
     markActorVisibleWhenReady(a);
-    if (a._proceduralDog) updateProceduralDogAnim(a, dt, a._anim || "idle");
+    if (a._meshyDog) updateMeshyDogAnim(a, dt, a._anim === "hop" ? "hop" : "idle", a._spd || 0);
     if (a.root && !a.isDog) {
       const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));
       updateProcedural(a, dt, a.isNpc ? playerPos : null, talk);
@@ -840,6 +876,7 @@ const api = {
   isReady: () => modelsReady,
   getLocation: () => currentLoc,
   getNearestNpc: getNearestNpcId,
+  getNearestDog: getNearestDogId,
   getNearPortal,
   setGuideTarget: t => { guideTarget = t; },
   releaseCaptureFrame: () => {
@@ -870,11 +907,41 @@ const api = {
     dog.wx = cx;
     dog.wz = cz;
     dog.group.position.set(cx, 0, cz);
-    dog.group.rotation.y = Math.PI / 2;
-    updateProceduralDogAnim(dog, 1 / 60, "idle");
+    dog.group.rotation.y = 0;
+    dog._anim = "idle";
+    updateMeshyDogAnim(dog, 0.4, "idle", 0);
     const p = dog.group.position;
-    camera.position.set(p.x + 1.55, p.y + 0.48, p.z);
-    camera.lookAt(p.x, p.y + 0.42, p.z);
+    camera.position.set(p.x + 1.45, p.y + 0.5, p.z + 0.02);
+    camera.lookAt(p.x, p.y + 0.4, p.z);
+    if (locationRoot) pulseScene(locationRoot, sceneTime);
+    renderer.render(scene, camera);
+    return true;
+  },
+  captureDogThreeQuarter: () => {
+    const dog = actors.get("dog");
+    const pl = actors.get("player");
+    if (!dog?.group || !pl || !renderer || !camera || !bounds) return false;
+    captureFrameLock = true;
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cz = (bounds.minZ + bounds.maxZ) / 2;
+    captureHideActors = [];
+    pl.group.visible = false;
+    captureHideActors.push(pl);
+    actors.forEach(a => {
+      if (a.id.startsWith("npc_")) {
+        a.group.visible = false;
+        captureHideActors.push(a);
+      }
+    });
+    dog.wx = cx;
+    dog.wz = cz;
+    dog.group.position.set(cx, 0, cz);
+    dog.group.rotation.y = 0.55;
+    dog._anim = "idle";
+    updateMeshyDogAnim(dog, 0.35, "idle", 0);
+    const p = dog.group.position;
+    camera.position.set(p.x + 1.05, p.y + 0.62, p.z + 1.35);
+    camera.lookAt(p.x, p.y + 0.44, p.z);
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     renderer.render(scene, camera);
     return true;

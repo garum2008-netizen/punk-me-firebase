@@ -127,10 +127,16 @@ function buildUi() {
   });
   const confirmBtn = document.getElementById("charSelectConfirm");
   if (confirmBtn) {
+    const id = PLAYABLE_CHARACTER_IDS[selectedIdx];
+    const joinable = typeof isCharacterJoinable === "function" ? isCharacterJoinable(id) : true;
+    confirmBtn.disabled = !joinable;
+    confirmBtn.classList.toggle("disabled", !joinable);
+    confirmBtn.title = !joinable && typeof t === "function" ? t("char_razor_soon") : "";
     confirmBtn.onclick = () => {
-      const id = PLAYABLE_CHARACTER_IDS[selectedIdx];
+      const pick = PLAYABLE_CHARACTER_IDS[selectedIdx];
+      if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(pick)) return;
       close();
-      onPickCb?.(id);
+      onPickCb?.(pick);
     };
   }
 }

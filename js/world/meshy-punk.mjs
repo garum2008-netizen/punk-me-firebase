@@ -13,6 +13,13 @@ export const MESHY_FALLBACK_GLB = "assets/models/meshy/punk_pink.glb";
 export const MESHY_PUNK_URL = MESHY_FALLBACK_GLB;
 export const DEFAULT_MESHY_CHARACTER = "vienna";
 
+/** Meshy rigs with broken locomotion — idle-only NPCs (root yaw toward player). */
+export const STATIONARY_MESHY_NPCS = new Set(["razor"]);
+
+export function isStationaryMeshyNpc(characterId) {
+  return STATIONARY_MESHY_NPCS.has(characterId);
+}
+
 const CLIPS_FALLBACK = {
   idle: ["IdleStand"],
   walk: ["Walking"],
