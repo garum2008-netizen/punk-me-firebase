@@ -409,10 +409,12 @@ function loadMe() {
     saveMe();
     if (!me.characterId) {
       document.getElementById("loading").style.display = "none";
-      if (window.CharSelect) {
-        CharSelect.open(pickCharacterAndContinue);
-        return;
-      }
+      const openSelect = () => {
+        if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
+        else setTimeout(openSelect, 120);
+      };
+      openSelect();
+      return;
     }
     continueGameBoot();
   });

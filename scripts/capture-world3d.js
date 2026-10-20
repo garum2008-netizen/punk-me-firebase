@@ -11,6 +11,12 @@ async function waitGame(page) {
     () => document.getElementById("gameVersion")?.textContent?.includes("world3d"),
     { timeout: 120000 }
   );
+  const sel = page.locator("#charSelectConfirm");
+  if (await sel.isVisible({ timeout: 8000 }).catch(() => false)) {
+    await page.click('.char-pick[data-id="razor"]').catch(() => {});
+    await sel.click();
+    await page.waitForTimeout(2500);
+  }
   await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), { timeout: 60000 });
   await page.waitForTimeout(3500);
 }
