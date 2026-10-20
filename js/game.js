@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v21r3";
+const GAME_VERSION = "living3d-v21r4";
 let moveSaveTimer = null;
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
@@ -84,7 +84,7 @@ const LOCATIONS = {
       { x: 10, y: 60, w: 12, h: 16, to: "elevator", labelKey: "door_elevator" },
       { x: 78, y: 35, w: 12, h: 18, to: "parkour", labelKey: "door_parkour" }
     ],
-    npcs: ["mohawk"],
+    npcs: ["mohawk", "cobalt"],
     night: true
   },
   street: {
@@ -355,7 +355,9 @@ function defaultPlayer() {
     dog: { x: 38, y: 65 },
     characterId: null,
     lastSeen: Date.now(),
-    story: null
+    story: null,
+    authority: 0,
+    gang_rank: "newbie"
   };
 }
 
@@ -386,6 +388,8 @@ function applyItemStats(item) {
 }
 
 function npcLines(npc) {
+  const rankLines = window.StoryEngine?.Authority?.getNpcLinesForRank?.(npc.id);
+  if (rankLines?.length) return rankLines;
   const i18n = npcLinesI18n(npc.id);
   if (i18n.length) return i18n;
   const lang = getLanguage();
@@ -701,6 +705,8 @@ function sanitizePlayer(p) {
     lang: getLanguage(),
     characterId: p.characterId || "vienna",
     story: p.story,
+    authority: p.authority ?? p.story?.authority,
+    gang_rank: p.gang_rank ?? p.story?.gang_rank,
     energy: p.energy,
     mood: p.mood,
     owner: isOwner,
@@ -962,6 +968,7 @@ function renderAll() {
   document.getElementById("level").textContent = String(me.level);
   document.getElementById("rep").textContent = String(me.rep);
   document.getElementById("chainStat").textContent = String(me.stats.chain);
+  window.StoryEngine?.Authority?.renderAuthorityHud?.(me);
 
   const doors = document.getElementById("doors");
   if (world3d) doors.innerHTML = "";
@@ -1400,6 +1407,19 @@ function tryDecorPlace() {
 function decorPlaceAtWorld(wx, wz) {
   window.World3D?.placeDecorAt?.(wx, wz);
 }
+
+window.startTrainingDuelMohawk = function () {
+  if (me.location !== "street") {
+    goLocation("street");
+    return;
+  }
+  if (window.World3D?.startDuel3D?.("mohawk", { training: true, firstTo: 3 })) {
+    window._duel3dEnd = win => {
+      if (win) window.StoryEngine?.fireStoryEvent?.("auth_trial_duel");
+      else toast(t("fight_try_again"));
+    };
+  }
+};
 
 function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };

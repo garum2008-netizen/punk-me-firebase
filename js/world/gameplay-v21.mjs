@@ -40,7 +40,7 @@ function saveDecor(items) {
 export function bindGameplayToWorld3D(api, getCtx) {
   ctxGet = getCtx;
   api.startCemeteryJobMini = () => startCemeteryJob();
-  api.startDuel3D = nid => startDuel3D(nid || "razor");
+  api.startDuel3D = (nid, opts) => startDuel3D(nid || "razor", opts);
   api.stopDuel3D = () => stopDuel3D(false);
   api.throwFetchBall = () => throwFetchBall();
   api.setDecorMode = on => setDecorMode(!!on);
@@ -206,7 +206,7 @@ function endCemeteryJob(success) {
   window._cemeteryJobDone?.(success);
 }
 
-function startDuel3D(nid) {
+function startDuel3D(nid, opts = {}) {
   const ctx = ctxGet?.();
   const pl = ctx?.actors?.get("player");
   if (!pl || !ctx.scene) return false;
@@ -220,13 +220,19 @@ function startDuel3D(nid) {
   opponent.wz = pl.wz;
   opponent.group.position.set(opponent.wx, 0, opponent.wz);
   opponent.group.rotation.y = Math.PI;
+  const training = !!opts.training;
+  const firstTo = opts.firstTo || (training ? 3 : 0);
   state.duel = {
     active: true,
     nid,
-    plHp: 100,
-    npcHp: 100,
-    plMax: 100,
-    npcMax: 100,
+    training,
+    firstTo,
+    plHits: 0,
+    npcHits: 0,
+    plHp: training ? 999 : 100,
+    npcHp: training ? 999 : 100,
+    plMax: training ? 999 : 100,
+    npcMax: training ? 999 : 100,
     cd: 0,
     npcCd: 0,
     plBlock: 0,
@@ -249,6 +255,7 @@ function ensureActorNpc(ctx, nid) {
 
 function stopDuel3D(win) {
   const d = state.duel;
+  const wasTraining = d?.training;
   if (d?.trail) {
     d.trail.removeFromParent();
     d.trail = null;
@@ -260,7 +267,7 @@ function stopDuel3D(win) {
   if (res) {
     res.classList.remove("hidden");
     res.innerHTML = win
-      ? `<b>${t("win_fight")}</b><div>+${reward} coins · +25 XP</div>`
+      ? `<b>${wasTraining ? t("duel_training_win") || "Training win!" : t("win_fight")}</b><div>${wasTraining ? "" : `+${reward} coins · +25 XP`}</div>`
       : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
     setTimeout(() => res.classList.add("hidden"), 3200);
   }
@@ -337,7 +344,8 @@ function tickDuel(dt, ctx) {
   });
   if (window._duelAttack && d.cd <= 0) {
     const dmg = 12 + Math.floor(Math.random() * 8);
-    d.npcHp -= dmg;
+    if (d.training) d.plHits += 1;
+    else d.npcHp -= dmg;
     d.plLunge = 0.32;
     const dx = npc.wx - pl.wx;
     const dz = npc.wz - pl.wz;
@@ -377,7 +385,8 @@ function tickDuel(dt, ctx) {
     if (d.dodgeT <= 0 && d.plBlock <= 0) {
       let dmg = 8 + Math.floor(Math.random() * 6);
       if (d.plBlock > 0) dmg = Math.floor(dmg * 0.25);
-      d.plHp -= dmg;
+      if (d.training) d.npcHits += 1;
+      else d.plHp -= dmg;
       const dx = pl.wx - npc.wx;
       const dz = pl.wz - npc.wz;
       const len = Math.hypot(dx, dz) || 1;
@@ -390,8 +399,13 @@ function tickDuel(dt, ctx) {
     fadeEmote(npc, "interact");
   }
   npc.group.lookAt(pl.group.position);
-  if (d.plHp <= 0) stopDuel3D(false);
-  if (d.npcHp <= 0) stopDuel3D(true);
+  if (d.training) {
+    if (d.plHits >= d.firstTo) stopDuel3D(true);
+    else if (d.npcHits >= d.firstTo) stopDuel3D(false);
+  } else {
+    if (d.plHp <= 0) stopDuel3D(false);
+    if (d.npcHp <= 0) stopDuel3D(true);
+  }
 }
 
 function fadeEmote(actor, name) {

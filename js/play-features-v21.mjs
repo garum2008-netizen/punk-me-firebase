@@ -101,6 +101,7 @@ export function initPlayV21(ctx) {
       applyJobShift(me, hooks, { pay, xp: 15, energy: -10 });
       hooks.toast(t("job_pizza_done") + " +" + pay);
       window.StoryEngine?.fireStoryEvent?.("job_pizza_done");
+      window.StoryEngine?.fireStoryEvent?.("auth_pizza_done");
     },
     startStoryJob(me, action, hooks) {
       const jobs = window.StoryEngine?.getJobs?.() || [];

@@ -1,6 +1,8 @@
 /**
- * Data-driven story / quests (TZ §7–8). Bubbles + subtitles + SFX only (no synth TTS).
+ * Data-driven story / quests (TZ §7–9). Bubbles + subtitles + SFX only (no synth TTS).
  */
+
+import * as Authority from "./authority.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -22,7 +24,10 @@ const BEACONS = {
   obj_scrap_roof: { loc: "roof", wx: 5, wz: -4 },
   obj_parkour_finish: { loc: "parkour", wx: 0, wz: -8 },
   portal_roof: { loc: "elevator", portalTo: "roof" },
-  portal_construction: { loc: "city", portalTo: "construction" }
+  portal_construction: { loc: "city", portalTo: "construction" },
+  npc_mohawk_street: { loc: "street", npcId: "mohawk" },
+  npc_cobalt_roof: { loc: "roof", npcId: "cobalt" },
+  obj_roof_parkour: { loc: "roof", wx: 4, wz: -3 }
 };
 
 const STORY_NPC_IDS = new Set([
@@ -66,9 +71,17 @@ export function ensureStoryState(p) {
       calloutAt: {},
       choices: {},
       events: {},
-      idleHintLevel: 0
+      idleHintLevel: 0,
+      authority: 0,
+      gang_rank: "newbie",
+      auth: { stage: 1, s1Done: false, tasks: {}, trials: {}, ch2Done: false }
     };
   }
+  if (p.story.authority != null) {
+    p.authority = p.story.authority;
+    p.gang_rank = p.story.gang_rank;
+  }
+  Authority.ensureAuthority(p);
   if (p.energy == null) p.energy = p.story.energy;
   if (p.mood == null) p.mood = p.story.mood;
   return p.story;
@@ -82,13 +95,16 @@ async function loadJson(path) {
 
 export async function loadStoryData() {
   if (loaded) return data;
-  const [balance, jobs, hangout, dialogues, quests] = await Promise.all([
+  const [balance, jobs, hangout, dialogues, quests, authorityPath] = await Promise.all([
     loadJson(DATA_BASE + "balance.json"),
     loadJson(DATA_BASE + "jobs.json"),
     loadJson(DATA_BASE + "construction-hangout.json"),
     loadJson(DATA_BASE + "dialogues.json"),
-    loadJson(DATA_BASE + "quests.json")
+    loadJson(DATA_BASE + "quests.json"),
+    loadJson(DATA_BASE + "authority-path.json")
   ]);
+  Authority.setAuthorityPathData(authorityPath);
+  data.authorityPath = authorityPath;
   data.balance = balance;
   data.jobs = jobs.jobs || [];
   data.hangout = hangout;
@@ -232,6 +248,14 @@ function applyEffects(effects) {
       }
       case "start_duel":
         window.startNpcFight?.(e.id === "razor" ? "razor" : e.id);
+        break;
+      case "authority":
+        Authority.addAuthority(e.value, p);
+        break;
+      case "gang_rank":
+        st.gang_rank = e.value;
+        p.gang_rank = e.value;
+        Authority.renderAuthorityHud(p);
         break;
       default:
         break;
@@ -423,9 +447,14 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;");
 }
 
+export function applyEffect(effect) {
+  applyEffects([effect]);
+}
+
 export function fireStoryEvent(name) {
   const st = ensureStoryState(me());
   st.events[name] = true;
+  Authority.onAuthStoryEvent(name);
   if (name === "duel_razor_win" && st.quest.activeId === "q_initiation_duel") {
     applyEffects([{ type: "flag", value: "joined_gang" }]);
   }
@@ -555,6 +584,12 @@ export function renderObjectivePanel() {
       });
     }
   } else {
+    const authObj = !st.flags.joined_gang ? Authority.getAuthorityObjective(p) : null;
+    if (authObj) {
+      title = authObj.title;
+      objective = authObj.objective;
+      if (authObj.beacon) setBeacon(authObj.beacon);
+    } else {
     const q = getActiveQuest();
     const step = getActiveStep();
     if (q && step) {
@@ -565,15 +600,7 @@ export function renderObjectivePanel() {
         sub = L(step.hint_60s);
         if (hintLevel >= 3) sub += " · " + L({ ru: "Показать путь", en: "Show path", da: "Vis vej" });
       }
-    } else if (!st.flags.joined_gang) {
-      title = L({ ru: "Прописка", en: "Initiation", da: "Optagelse" });
-      objective = L({
-        ru: "Иди к Рейзору на Улице банды",
-        en: "Go to Razor on Gang Street",
-        da: "Gå til Razor på Bandegaden"
-      });
-      setBeacon("npc_razor");
-    } else if (st.hangoutStage < 4) {
+    } else if (st.hangoutStage < 4 && st.flags.joined_gang) {
       title = L(data.hangout?.title || {});
       const stage = data.hangout?.stages?.[st.hangoutStage];
       objective = stage ? L(stage.hint) : L({ ru: "Стройка: Тусовка", en: "Construction: hangout", da: "Byggeplads" });
@@ -586,8 +613,10 @@ export function renderObjectivePanel() {
         da: "Udforsk — NPC'er kalder"
       });
     }
+    }
   }
 
+  Authority.renderAuthorityHud(p);
   box.innerHTML = `<div class="quest-tracker story-objective">
     <b>${escapeHtml(title)}</b>
     <div class="quest-step-title">${escapeHtml(objective)}</div>
@@ -767,6 +796,7 @@ function closeDialogue() {
 }
 
 export function tryStoryNpc(npcId) {
+  if (Authority.tryAuthorityNpc(npcId)) return true;
   if (!STORY_NPC_IDS.has(npcId)) return false;
   const loc = me().location;
   const dlg = data.dialogues.find(d => {
@@ -803,6 +833,7 @@ export function onLocationChange(loc) {
   setTimeout(() => {
     if (me()) me()._storyJustEntered = null;
   }, 1200);
+  if (loc === "street") Authority.onEnterStreetForTeasing();
   tryCallouts();
   renderObjectivePanel();
   syncBeacon();
@@ -863,8 +894,10 @@ export function initStoryEngine(h) {
 }
 
 export function onOnboardingComplete() {
+  Authority.startAuthorityPath(me());
   pickNextObjective();
   renderObjectivePanel();
+  Authority.renderAuthorityHud();
 }
 
 const api = {
@@ -886,6 +919,8 @@ const api = {
   startQuest,
   ensureStoryState,
   onOnboardingComplete,
+  applyEffect,
+  Authority,
   getJobs: () => data.jobs,
   getBalance: () => data.balance
 };

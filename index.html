@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v21r3">
+<link rel="stylesheet" href="css/game.css?v=living3d-v21r4">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -65,6 +65,13 @@
   <div class="hud-column">
     <div class="hud">
       <div class="badge badge-stat" title="Coins"><span class="stat-icon" aria-hidden="true">◎</span><span class="stat-label" data-i18n="coins">Монеты</span><strong id="coins">…</strong></div>
+      <div class="badge badge-stat badge-stat-authority" title="Authority">
+        <span class="stat-icon" aria-hidden="true">⚡</span>
+        <span class="stat-label" data-i18n="authority_label">Авторитет</span>
+        <strong id="authorityStat">0</strong>
+        <span class="authority-rank" id="authorityRank">…</span>
+        <div class="authority-bar-wrap"><div class="authority-bar" id="authorityBar"></div></div>
+      </div>
       <div class="badge badge-stat" title="XP"><span class="stat-icon" aria-hidden="true">★</span><span class="stat-label" data-i18n="xp">XP</span><strong id="xp">0</strong></div>
       <div class="badge badge-stat" title="Level"><span class="stat-icon" aria-hidden="true">▲</span><span class="stat-label" data-i18n="level">Уровень</span><strong id="level">1</strong></div>
       <div class="badge badge-stat badge-stat-rep" title="Rep"><span class="stat-icon" aria-hidden="true">◆</span><span class="stat-label" data-i18n="rep">Репутация</span><strong id="rep">0</strong></div>
@@ -202,20 +209,20 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v21r3"></script>
-<script src="js/i18n.js?v=living3d-v21r3"></script>
-<script src="js/voice.js?v=living3d-v21r3"></script>
-<script src="js/onboarding.js?v=living3d-v21r3"></script>
-<script type="module" src="js/context-hints.mjs?v=living3d-v21r3"></script>
-<script type="module" src="js/how-to-play.mjs?v=living3d-v21r3"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v21r3"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v21r3"></script>
-<script type="module" src="js/play-features-v21.mjs?v=living3d-v21r3"></script>
-<script src="js/life.js?v=living3d-v21r3"></script>
-<script src="js/game.js?v=living3d-v21r3"></script>
+<script src="js/characters.js?v=living3d-v21r4"></script>
+<script src="js/i18n.js?v=living3d-v21r4"></script>
+<script src="js/voice.js?v=living3d-v21r4"></script>
+<script src="js/onboarding.js?v=living3d-v21r4"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v21r4"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v21r4"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v21r4"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v21r4"></script>
+<script type="module" src="js/play-features-v21.mjs?v=living3d-v21r4"></script>
+<script src="js/life.js?v=living3d-v21r4"></script>
+<script src="js/game.js?v=living3d-v21r4"></script>
 <script type="module">
-  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v21r3";
-  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v21r3";
+  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v21r4";
+  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v21r4";
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });

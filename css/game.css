@@ -642,3 +642,12 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 }
 #storyConstructionHud.active { display: block; }
 #storyConstructionHud .need-line { margin: 6px 0; }
+.badge-stat-authority { flex-wrap: wrap; max-width: 140px; }
+.badge-stat-authority .authority-rank { font-size: 9px; opacity: 0.85; width: 100%; }
+.authority-bar-wrap {
+  width: 100%; height: 4px; background: rgba(255,255,255,0.12); border-radius: 4px; margin-top: 2px;
+}
+.authority-bar {
+  height: 100%; width: 0%; background: linear-gradient(90deg, #ff8800, #ff00ff); border-radius: 4px;
+  transition: width 0.35s ease;
+}
