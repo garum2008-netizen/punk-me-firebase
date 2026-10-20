@@ -368,6 +368,14 @@ function prepareDuelCapturePose(nid = "razor") {
   d.trail = null;
   restoreActorMaterials(pl);
   restoreActorMaterials(npc);
+  pl._vy = 0;
+  pl._onGround = true;
+  pl.group.position.y = 0;
+  pl.group.rotation.x = 0;
+  pl.group.rotation.z = 0;
+  npc.group.position.y = 0;
+  npc.group.rotation.x = 0;
+  npc.group.rotation.z = 0;
   ctx.actors.forEach((act, id) => {
     if (id === "player" || id === `npc_${nid}`) return;
     act.group.visible = false;

@@ -735,8 +735,20 @@ function projectWorldToScreen(wx, wy, wz) {
   return { x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h };
 }
 
+function resetActorStanding(actor) {
+  if (!actor?.group) return;
+  actor._vy = 0;
+  actor._onGround = true;
+  actor._holdAnim = null;
+  actor._holdUntil = 0;
+  actor.group.position.y = 0;
+  actor.group.rotation.x = 0;
+  actor.group.rotation.z = 0;
+}
+
 function freezeActorIdleForCapture(actor) {
   if (!actor) return;
+  resetActorStanding(actor);
   if (!actor.isDog) {
     fadeTo(actor, "idle");
     actor._spd = 0;
