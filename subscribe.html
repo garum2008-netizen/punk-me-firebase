@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="PUNK ME — price, subscription terms, 13+ age rating.">
+<title>PUNK ME — Price &amp; terms</title>
+<link rel="stylesheet" href="css/subscribe.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>PUNK ME</h1>
+  <p class="age-badge" data-sub="age_label">13+</p>
+  <div class="lang-switch">
+    <button type="button" class="lang-btn" data-lang="ru">RU</button>
+    <button type="button" class="lang-btn" data-lang="en">EN</button>
+    <button type="button" class="lang-btn" data-lang="da">DA</button>
+  </div>
+
+  <p data-sub="not_gated"></p>
+
+  <h2 data-sub="model_title"></h2>
+  <div class="card">
+    <p data-sub="model_free"></p>
+    <p data-sub="model_paid"></p>
+  </div>
+
+  <div class="price-box">
+    <p><strong data-sub="price"></strong></p>
+    <p data-sub="price_note"></p>
+  </div>
+
+  <p data-sub="iap"></p>
+  <p data-sub="minors"></p>
+
+  <h2 data-sub="eu_title"></h2>
+  <p data-sub="eu_body"></p>
+  <div class="consent-box">
+    <label>
+      <input type="checkbox" id="euConsent" disabled aria-describedby="euHint">
+      <span data-sub="eu_checkbox" id="euHint"></span>
+    </label>
+  </div>
+
+  <button type="button" class="btn btn-subscribe" disabled aria-disabled="true" title="Payment not connected">
+    <span data-sub="subscribe_btn"></span>
+    <span class="soon" data-sub="subscribe_soon"></span>
+  </button>
+  <a class="btn btn-play" href="index.html" data-sub="back_game"></a>
+
+  <h2 data-sub="seller_title"></h2>
+  <p class="seller" data-sub="seller_body"></p>
+
+  <div class="footer-links">
+    <a href="terms.html" data-sub="links_terms"></a>
+    <a href="privacy.html" data-sub="links_privacy"></a>
+  </div>
+</div>
+<script src="js/subscribe-i18n.js"></script>
+</body>
+</html>

@@ -41,6 +41,21 @@ body {
   position: absolute; left: 0; right: 0; bottom: 0; height: 58%;
   z-index: 9; pointer-events: auto; touch-action: manipulation;
 }
+.legal-footer {
+  position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+  z-index: 50; display: flex; align-items: center; gap: 12px;
+  font-size: 11px; background: rgba(10,6,20,0.85); padding: 6px 14px; border-radius: 20px;
+  border: 1px solid rgba(0,255,255,0.25);
+}
+.legal-footer a { color: #7df9ff; text-decoration: none; }
+.legal-footer a:hover { text-decoration: underline; }
+.legal-footer-start { position: relative; left: auto; transform: none; margin-top: 24px; justify-content: center; }
+.legal-footer-game { bottom: 4px; pointer-events: auto; }
+.age-badge-inline {
+  font-weight: 800; color: #ff8888; border: 1px solid #ff4444;
+  padding: 2px 6px; border-radius: 6px; font-size: 10px;
+}
+#loading { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 body.mode-3d #entities .entity { opacity: 0; pointer-events: none; }
 body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .street-sign-cover {
