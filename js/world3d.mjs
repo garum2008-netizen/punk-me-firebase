@@ -9,6 +9,7 @@ import {
   PORTALS,
   LOCATION_THEME,
   resolveWorldPosition,
+  moveWithCollision,
   findClearSpawn,
   pointInsideCollider
 } from "./world/locations.mjs";
@@ -405,13 +406,11 @@ function spawnParticles(locId) {
 }
 
 function clampWorld(x, z, radius = 0.42) {
-  if (motionProbe) return { x, z };
   const cols = furnitureColliders;
   return resolveWorldPosition(x, z, bounds, cols, radius);
 }
 
 function separateActors() {
-  if (motionProbe) return;
   const list = [...actors.values()].filter(a => !a.isDog);
   const dog = actors.get("dog");
   const pl = actors.get("player");
@@ -446,8 +445,8 @@ function separateActors() {
           const push = (minDist - d) * 0.55;
           const ux = dx / d;
           const uz = dz / d;
-          const wa = a.isPlayer ? 0.2 : 1;
-          const wb = b.isPlayer ? 0.2 : 1;
+          const wa = a.isPlayer ? 0 : 1;
+          const wb = b.isPlayer ? 0 : 1;
           a._visPushX -= ux * push * wa;
           a._visPushZ -= uz * push * wa;
           b._visPushX += ux * push * wb;
@@ -457,6 +456,11 @@ function separateActors() {
     }
   }
   list.forEach(a => {
+    if (a.isPlayer) {
+      a.group.position.x = a.wx;
+      a.group.position.z = a.wz;
+      return;
+    }
     const baseX = a.wx + (a._visPushX || 0);
     const baseZ = a.wz + (a._visPushZ || 0);
     const p = clampWorld(baseX, baseZ);
@@ -591,6 +595,44 @@ function setElevatorCutaway(active) {
       }))
     });
     o.visible = false;
+  });
+}
+
+function dimPropsBetweenCameraAnd(tx, ty, tz, opacity = 0.15) {
+  if (!locationRoot || !camera || !raycaster) return;
+  const eye = camera.position.clone();
+  const aim = new THREE.Vector3(tx, ty, tz);
+  const dir = aim.clone().sub(eye);
+  const maxD = dir.length();
+  if (maxD < 0.2) return;
+  dir.normalize();
+  raycaster.set(eye, dir);
+  const meshes = [];
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const tag = o.userData?.propTag || o.parent?.userData?.propTag;
+    if (!tag) return;
+    meshes.push(o);
+  });
+  const hits = raycaster.intersectObjects(meshes, false);
+  const hitSet = new Set(hits.filter(h => h.distance < maxD - 0.15).map(h => h.object));
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const tag = o.userData?.propTag || o.parent?.userData?.propTag;
+    if (!tag) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m) return;
+      if (!m.userData._baseOpacitySaved) {
+        m.userData._baseOpacitySaved = true;
+        m.userData._baseOpacity = m.opacity ?? 1;
+        m.userData._baseTransparent = m.transparent;
+      }
+      const fade = hitSet.has(o);
+      m.transparent = true;
+      m.opacity = fade ? opacity : m.userData._baseOpacity ?? 1;
+      m.depthWrite = !fade;
+    });
   });
 }
 
@@ -832,6 +874,8 @@ function resetCameraForLocation() {
 
 function updateThirdPersonCamera(dt = lastCameraDt) {
   positionCameraBehindPlayer(false, dt);
+  const pl = actors.get("player");
+  if (pl && !captureFrameLock) dimPropsBetweenCameraAnd(pl.wx, 1.05, pl.wz, 0.22);
 }
 
 function tickNpcPatrols(dt) {
@@ -908,42 +952,32 @@ function processInput(dt) {
   const player = actors.get("player");
   if (!player || !bounds) return;
   const input = getInputState();
-  if (motionProbe) {
-    input.moveZ = 1;
-    input.moveX = 0;
-    input.run = true;
-  }
-  const step = (input.run ? 7.2 : 4.5) * LOCO_DT;
-  const fwd = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
-  const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
+  const step = (motionProbe || input.run ? 7.2 : 4.5) * LOCO_DT;
   let mx = 0;
   let mz = 0;
-  const mag = Math.hypot(input.moveX, input.moveZ);
-  if (mag > 0.05) {
-    const nx = input.moveX / mag;
-    const nz = input.moveZ / mag;
-    mx = (fwd.x * nz + right.x * nx) * step;
-    mz = (fwd.z * nz + right.z * nx) * step;
+  if (motionProbe) {
+    const dirZ = motionProbe.moveZ ?? 1;
+    const dirX = motionProbe.moveX ?? 0;
+    const mag = Math.hypot(dirX, dirZ) || 1;
+    mx = (dirX / mag) * step;
+    mz = (dirZ / mag) * step;
+  } else {
+    const fwd = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+    const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
+    const mag = Math.hypot(input.moveX, input.moveZ);
+    if (mag > 0.05) {
+      const nx = input.moveX / mag;
+      const nz = input.moveZ / mag;
+      mx = (fwd.x * nz + right.x * nx) * step;
+      mz = (fwd.z * nz + right.z * nx) * step;
+    }
   }
   if (mx !== 0 || mz !== 0) {
-    let px = player.wx;
-    let pz = player.wz;
-    if (motionProbe) {
-      px = player.wx + mx;
-      pz = player.wz + mz;
-    } else {
-      if (Math.abs(mx) > 1e-6) {
-        const cx = clampWorld(px + mx, pz);
-        px = cx.x;
-        pz = cx.z;
-      }
-      if (Math.abs(mz) > 1e-6) {
-        const cz = clampWorld(px, pz + mz);
-        px = cz.x;
-        pz = cz.z;
-      }
-    }
-    player._intentRun = input.run;
+    const cols = furnitureColliders;
+    const moved = moveWithCollision(player.wx, player.wz, mx, mz, bounds, cols, 0.42);
+    const px = moved.x;
+    const pz = moved.z;
+    player._intentRun = motionProbe ? true : input.run;
     placeActorWorld(player, px, pz, true);
     player._gameSyncT = (player._gameSyncT || 0) - dt;
     if (!motionProbe && player._gameSyncT <= 0) {
@@ -1447,26 +1481,37 @@ const api = {
   },
   snapDialogueNpcShot: (npcId = "mohawk") => {
     const pl = actors.get("player");
-    const npc = actors.get(`npc_${npcId}`);
-    if (!pl || !npc || !camera || !renderer) return false;
+    if (!pl || !camera || !renderer) return false;
+    const npcKey = `npc_${npcId}`;
+    const npc = ensureActor(npcKey, npcId, true);
+    actors.forEach((a, id) => {
+      if (!id.startsWith("npc_")) return;
+      a.group.visible = id === npcKey;
+    });
     npc._patrol = null;
-    const ax = NPC_WORLD[currentLoc]?.[npcId]?.x ?? npc.wx;
-    const az = NPC_WORLD[currentLoc]?.[npcId]?.z ?? npc.wz;
+    const cx = bounds ? (bounds.minX + bounds.maxX) * 0.5 : 0;
+    const cz = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.8 : -1.2;
+    const ax = cx + 0.85;
+    const az = cz;
+    const px = cx - 0.95;
+    const pz = cz + 0.35;
     npc.wx = ax;
     npc.wz = az;
     placeActorWorld(npc, ax, az, false, true);
-    pl.wx = ax + 1.35;
-    pl.wz = az + 0.4;
-    placeActorWorld(pl, pl.wx, pl.wz, true);
-    pl.group.lookAt(npc.group.position.x, pl.group.position.y + 0.9, npc.group.position.z);
-    npc.group.lookAt(pl.group.position.x, pl.group.position.y + 0.9, pl.group.position.z);
-    const midX = (pl.wx + npc.wx) * 0.5;
-    const midZ = (pl.wz + npc.wz) * 0.5;
-    const yaw = Math.atan2(pl.wx - npc.wx, pl.wz - npc.wz);
-    camera.position.set(midX + Math.sin(yaw + 0.85) * 4.5, 2.08, midZ + Math.cos(yaw + 0.85) * 4.5);
-    camera.lookAt(midX, 1.12, midZ);
-    camera.fov = mobileQuality ? 48 : 42;
+    pl.wx = px;
+    pl.wz = pz;
+    placeActorWorld(pl, px, pz, true);
+    pl.group.lookAt(ax, pl.group.position.y + 0.92, az);
+    npc.group.lookAt(px, npc.group.position.y + 0.92, pz);
+    const midX = (px + ax) * 0.5;
+    const midZ = (pz + az) * 0.5;
+    const side = Math.atan2(ax - px, az - pz) + Math.PI / 2;
+    camera.position.set(midX + Math.sin(side) * 3.85, 1.72, midZ + Math.cos(side) * 3.85);
+    camera.lookAt(midX, 1.18, midZ);
+    camera.fov = mobileQuality ? 46 : 40;
     camera.updateProjectionMatrix();
+    dimPropsBetweenCameraAnd(midX, 1.05, midZ, 0.18);
+    document.getElementById("storyDialog")?.classList.add("story-dialog-cinematic");
     guideTarget = { npcId };
     setTalking(npcId, true);
     freezeActorIdleForCapture(pl);
@@ -1567,12 +1612,25 @@ const api = {
     }
   },
   isMotionProbeActive: () => !!motionProbe,
-  startMotionProbe: (need = 120) => {
+  startMotionProbe: (need = 120, scenario = "free") => {
     const pl = actors.get("player");
-    const pref = bounds
-      ? { x: (bounds.minX + bounds.maxX) * 0.5, z: (bounds.minZ + bounds.maxZ) * 0.5 }
-      : { x: 0, z: -1.4 };
-    const spawn = bounds ? findClearSpawn(bounds, [], pref) : pref;
+    const cols = furnitureColliders;
+    const cx = bounds ? (bounds.minX + bounds.maxX) * 0.5 : 0;
+    const cz = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 : -1.2;
+    let spawn = bounds ? findClearSpawn(bounds, cols, { x: cx, z: cz - 1.2 }) : { x: 0, z: -1.4 };
+    let moveX = 0;
+    let moveZ = 1;
+    const baseYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
+    if (bounds && scenario === "free") {
+      spawn = findClearSpawn(bounds, cols, { x: cx, z: bounds.minZ + 1.2 });
+      moveZ = 1;
+    } else if (bounds && scenario === "wall") {
+      spawn = resolveWorldPosition(cx, bounds.maxZ - 1.05, bounds, cols, 0.42);
+      moveZ = 1;
+    } else if (bounds && scenario === "slide") {
+      spawn = resolveWorldPosition(bounds.maxX - 1.05, bounds.minZ + 1.15, bounds, cols, 0.42);
+      moveZ = 1;
+    }
     if (pl) {
       pl._visPushX = 0;
       pl._visPushZ = 0;
@@ -1581,9 +1639,18 @@ const api = {
       pl._intentRun = true;
       updateLocomotionTimeScale(pl);
     }
-    cameraYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
+    cameraYaw = baseYaw;
     positionCameraBehindPlayer(true);
-    motionProbe = { active: true, start: performance.now(), frames: [], last: null, need };
+    motionProbe = {
+      active: true,
+      start: performance.now(),
+      frames: [],
+      last: null,
+      need,
+      scenario,
+      moveX,
+      moveZ
+    };
     return true;
   },
   stopMotionProbe: () => {

@@ -606,6 +606,17 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   background: rgba(4, 2, 12, 0.38);
 }
 #storyDialog.active { display: flex; }
+#storyDialog.story-dialog-cinematic {
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(4, 2, 12, 0.2);
+  pointer-events: none;
+}
+#storyDialog.story-dialog-cinematic .story-dialog-panel {
+  margin-bottom: 3.5vh;
+  max-width: min(520px, 94vw);
+  pointer-events: auto;
+}
 .story-dialog-panel {
   max-width: min(420px, 92vw); background: rgba(14, 8, 28, 0.96); border: 2px solid #ff00ff;
   border-radius: 14px; padding: 14px 16px; box-shadow: 0 0 28px rgba(255, 0, 255, 0.35);

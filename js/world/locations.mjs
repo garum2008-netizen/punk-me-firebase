@@ -650,50 +650,87 @@ export function pointInsideCollider(x, z, colliders, radius = 0.4) {
   return false;
 }
 
+function clampToBounds(x, z, bounds, pad = 0.5) {
+  if (!bounds) return { x, z };
+  return {
+    x: Math.max(bounds.minX + pad, Math.min(bounds.maxX - pad, x)),
+    z: Math.max(bounds.minZ + pad, Math.min(bounds.maxZ - pad, z))
+  };
+}
+
+function resolveCircleVsAabb(px, pz, b, radius) {
+  const nx = Math.max(b.minX, Math.min(b.maxX, px));
+  const nz = Math.max(b.minZ, Math.min(b.maxZ, pz));
+  const dx = px - nx;
+  const dz = pz - nz;
+  const d2 = dx * dx + dz * dz;
+  const r2 = radius * radius;
+  if (d2 >= r2 || d2 < 1e-8) return { x: px, z: pz, moved: false };
+  const d = Math.sqrt(d2);
+  const push = (radius - d) * 0.98;
+  return { x: px + (dx / d) * push, z: pz + (dz / d) * push, moved: true };
+}
+
+function exitInteriorOfAabb(px, pz, b, radius) {
+  if (px <= b.minX || px >= b.maxX || pz <= b.minZ || pz >= b.maxZ) return { x: px, z: pz, moved: false };
+  const dL = px - b.minX;
+  const dR = b.maxX - px;
+  const dB = pz - b.minZ;
+  const dF = b.maxZ - pz;
+  const m = Math.min(dL, dR, dB, dF);
+  const inset = radius * 0.98;
+  if (m === dL) return { x: b.minX + inset, z: pz, moved: true };
+  if (m === dR) return { x: b.maxX - inset, z: pz, moved: true };
+  if (m === dB) return { x: px, z: b.minZ + inset, moved: true };
+  return { x: px, z: b.maxZ - inset, moved: true };
+}
+
 export function resolveWorldPosition(x, z, bounds, colliders, radius = 0.42) {
   let px = x;
   let pz = z;
-  if (bounds) {
-    px = Math.max(bounds.minX + 0.5, Math.min(bounds.maxX - 0.5, px));
-    pz = Math.max(bounds.minZ + 0.5, Math.min(bounds.maxZ - 0.5, pz));
-  }
-  for (let iter = 0; iter < 10; iter++) {
+  const b0 = clampToBounds(px, pz, bounds);
+  px = b0.x;
+  pz = b0.z;
+  for (let iter = 0; iter < 12; iter++) {
     let moved = false;
     for (const b of colliders || []) {
-      if (px > b.minX && px < b.maxX && pz > b.minZ && pz < b.maxZ) {
-        const dL = px - b.minX;
-        const dR = b.maxX - px;
-        const dB = pz - b.minZ;
-        const dF = b.maxZ - pz;
-        const m = Math.min(dL, dR, dB, dF);
-        if (m === dL) px = b.minX - radius * 0.15;
-        else if (m === dR) px = b.maxX + radius * 0.15;
-        else if (m === dB) pz = b.minZ - radius * 0.15;
-        else pz = b.maxZ + radius * 0.15;
-        moved = true;
+      const inside =
+        px > b.minX + 1e-4 && px < b.maxX - 1e-4 && pz > b.minZ + 1e-4 && pz < b.maxZ - 1e-4;
+      if (inside) {
+        const e = exitInteriorOfAabb(px, pz, b, radius);
+        px = e.x;
+        pz = e.z;
+        moved = e.moved || moved;
       } else {
-        const nx = Math.max(b.minX, Math.min(b.maxX, px));
-        const nz = Math.max(b.minZ, Math.min(b.maxZ, pz));
-        const dx = px - nx;
-        const dz = pz - nz;
-        const d2 = dx * dx + dz * dz;
-        const r2 = radius * radius;
-        if (d2 < r2 && d2 > 1e-6) {
-          const d = Math.sqrt(d2);
-          const push = (radius - d) * 0.82;
-          px += (dx / d) * push;
-          pz += (dz / d) * push;
-          moved = true;
-        }
+        const c = resolveCircleVsAabb(px, pz, b, radius);
+        px = c.x;
+        pz = c.z;
+        moved = c.moved || moved;
       }
     }
     if (!moved) break;
   }
-  if (bounds) {
-    px = Math.max(bounds.minX + 0.5, Math.min(bounds.maxX - 0.5, px));
-    pz = Math.max(bounds.minZ + 0.5, Math.min(bounds.maxZ - 0.5, pz));
+  const b1 = clampToBounds(px, pz, bounds);
+  return { x: b1.x, z: b1.z };
+}
+
+/** Slide movement: try full step, then axis splits + corner combine (no snap-back). */
+export function moveWithCollision(fromX, fromZ, dx, dz, bounds, colliders, radius = 0.42) {
+  const dist = Math.hypot(dx, dz);
+  if (dist < 1e-8) return { x: fromX, z: fromZ };
+  const tryAt = (x, z) => resolveWorldPosition(x, z, bounds, colliders, radius);
+  const full = tryAt(fromX + dx, fromZ + dz);
+  const movedFull = Math.hypot(full.x - fromX, full.z - fromZ);
+  if (movedFull >= dist * 0.99) return full;
+  const ax = tryAt(fromX + dx, fromZ);
+  const az = tryAt(fromX, fromZ + dz);
+  const movedX = Math.hypot(ax.x - fromX, ax.z - fromZ);
+  const movedZ = Math.hypot(az.x - fromX, az.z - fromZ);
+  if (movedX > 1e-4 && movedZ > 1e-4) {
+    return tryAt(ax.x, az.z);
   }
-  return { x: px, z: pz };
+  if (movedX >= movedZ) return ax;
+  return az;
 }
 
 export function findClearSpawn(bounds, colliders, preferred = { x: 0, z: -1.5 }) {

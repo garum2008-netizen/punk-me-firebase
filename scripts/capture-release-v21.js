@@ -168,7 +168,7 @@ async function snapLoc(page, loc, storeDesktop = false) {
     me._decorMode = true;
     World3D.setDecorMode?.(true);
     World3D.setDecorPick?.("beanbag");
-    World3D.setDecorGhostAt?.(0.5, 2.6);
+    PlayV21?.setDecorGhostScreenCenter?.();
     syncStage3D?.();
     World3D?.snapScreenshotView?.();
   }, decorTypes);
@@ -206,9 +206,9 @@ async function snapLoc(page, loc, storeDesktop = false) {
   });
   await desk.waitForTimeout(500);
   await desk.evaluate(() => {
-    window._duelAttack = true;
+    PlayV21?.prepareDuelCapturePose?.("razor");
   });
-  await desk.waitForTimeout(420);
+  await desk.waitForTimeout(320);
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
 
   const fetchFrames = [];

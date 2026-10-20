@@ -173,7 +173,88 @@ function cemeteryCrypt(x, z) {
   return tagged("cemetery_crypt", g);
 }
 
+function trashBin(x, z, tag = "fg_trash") {
+  const g = new THREE.Group();
+  g.add(box(0.34, 0.48, 0.34, mat(0x3a4048)).translateY(0.24));
+  g.add(box(0.38, 0.05, 0.38, mat(0x2a3038)).translateY(0.5));
+  g.position.set(x, 0, z);
+  return tagged(tag, g);
+}
+
+function bikeProp(x, z, tag = "fg_bike") {
+  const g = new THREE.Group();
+  const frame = box(0.9, 0.08, 0.18, mat(0xcc2222));
+  frame.position.y = 0.35;
+  g.add(frame);
+  const w1 = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 8, 16), mat(0x333344));
+  w1.rotation.x = Math.PI / 2;
+  w1.position.set(-0.28, 0.22, 0);
+  const w2 = w1.clone();
+  w2.position.set(0.28, 0.22, 0);
+  g.add(w1, w2);
+  g.position.set(x, 0, z);
+  return tagged(tag, g);
+}
+
+function graffitiWall(x, z, tag) {
+  const g = new THREE.Group();
+  const wall = box(2.8, 1.8, 0.12, mat(0x3a3540));
+  wall.position.y = 0.9;
+  g.add(wall);
+  g.add(box(1.6, 0.9, 0.02, mat(0x662244, 0xff00ff)).translateY(1.05).translateZ(0.07));
+  g.add(box(0.8, 0.35, 0.02, mat(0x00ffff, 0x00ffff)).translateY(1.35).translateX(-0.5).translateZ(0.07));
+  g.position.set(x, 0, z);
+  return tagged(tag, g);
+}
+
+/** Perimeter props only — never in the camera–player foreground arc (z > 1.2 near center). */
+function addPerimeterDressing(locId, root) {
+  const zBack = -5.5;
+  const zSide = 3.4;
+  if (locId === "street") {
+    root.add(graffitiWall(-5.2, zBack, "fg_street_graffiti"));
+    root.add(streetLamp(-5.5, -3.5, "fg_street_lamp_w"));
+    root.add(streetLamp(5.2, -3.2, "fg_street_lamp_e"));
+    root.add(parkBench(-4.8, zSide));
+    root.add(trashBin(4.6, zSide, "fg_street_trash"));
+    root.add(bikeProp(3.8, -2.2, "fg_street_bike"));
+    const pump = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), mat(0xff6600, 0xff4400));
+    pump.position.set(-3.8, 0.2, -2.5);
+    root.add(tagged("fg_street_pumpkin", pump));
+    root.add(tagged("fg_street_crate", box(0.55, 0.55, 0.55, mat(0x6a5030)).translateY(0.28).translateX(5.5).translateZ(1.5)));
+    root.add(tagged("fg_street_fence", ironFence(-6, 0.5, 3)));
+    return;
+  }
+  if (locId === "room") {
+    root.add(streetLamp(-4.5, zBack, "fg_room_lamp"));
+    root.add(tagged("fg_room_poster", box(0.9, 1.2, 0.03, mat(0x442266, 0x220044)).translateY(1.4).translateX(5).translateZ(zBack)));
+    root.add(tagged("fg_room_guitar", box(0.35, 0.12, 0.1, mat(0xcc2222)).translateY(0.55).translateX(-5).translateZ(-2)));
+    root.add(trashBin(5.2, 2.5, "fg_room_trash"));
+    return;
+  }
+  if (locId === "construction") {
+    root.add(tagged("fg_con_barrel", new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.55, 10), mat(0x553322)).translateY(0.28).translateX(-5.5).translateZ(zBack)));
+    root.add(tagged("fg_con_crate", box(0.9, 0.5, 0.7, mat(0x6a5030)).translateY(0.25).translateX(5.2).translateZ(-3)));
+    root.add(streetLamp(-5, 2.8, "fg_con_lamp"));
+    return;
+  }
+  if (locId === "parkour") {
+    root.add(parkBench(-5, zBack));
+    root.add(trashBin(5, -2.5, "fg_park_trash"));
+    root.add(streetLamp(5.5, 2.5, "fg_park_lamp"));
+    return;
+  }
+  if (locId === "kitchen") {
+    root.add(tagged("fg_kitchen_crate", box(0.5, 0.5, 0.5, mat(0x6a5030)).translateY(0.25).translateX(-5).translateZ(zBack)));
+    root.add(trashBin(5, -2, "fg_kitchen_trash"));
+  }
+}
+
 function addForegroundCluster(locId, root) {
+  if (["street", "room", "construction", "parkour", "kitchen"].includes(locId)) {
+    addPerimeterDressing(locId, root);
+    return;
+  }
   if (locId === "elevator") {
     for (let i = 0; i < 22; i++) {
       const g = tagged(
@@ -197,43 +278,14 @@ function addForegroundCluster(locId, root) {
       root.add(g);
     }
   }
-  const z = 3.2;
-  const urbanOnly = ["street", "room", "construction", "parkour", "kitchen"].includes(locId);
-  const items = [
-    ["fg_bench", () => parkBench(0, z)],
-    ["fg_lamp", () => streetLamp(2.2, z - 0.4, `fg_lamp_${locId}`)],
-    ...(urbanOnly
-      ? []
-      : [
-          ["fg_fence", () => ironFence(-2.5, z + 0.5, 2)],
-          ["fg_crypt", () => cemeteryCrypt(3.2, z - 0.8)],
-          ["fg_tomb_cross", () => tombstone(`fg_cross_${locId}`, -1.2, z + 0.6, true)],
-          ["fg_tomb_round", () => tombstone(`fg_round_${locId}`, 1.4, z + 0.4, false)]
-        ]),
-    ["fg_hydrant", () => { const g = tagged("fg_hydrant", box(0.35, 0.55, 0.35, mat(0xcc2222, 0xff0000))); g.position.set(-3.2, 0.28, z); return g; }],
-    ["fg_mailbox", () => { const g = tagged("fg_mailbox", box(0.35, 1.1, 0.25, mat(0x2255aa, 0x0033aa))); g.position.set(3.5, 0.55, z - 0.2); return g; }],
-    ["fg_planter", () => { const g = tagged("fg_planter", box(0.55, 0.45, 0.55, mat(0x5a4030))); g.position.set(-0.5, 0.225, z + 1.1); return g; }],
-    ["fg_sign", () => { const g = tagged("fg_sign", box(0.9, 0.28, 0.05, mat(0xff00ff, 0xff00ff))); g.position.set(0, 2.1, z + 1.4); return g; }],
-    ["fg_sink", () => { const g = tagged("fg_sink", box(0.7, 0.15, 0.45, mat(0x99aabb, 0, 0.35))); g.position.set(2.8, 0.95, z + 0.8); return g; }],
-    ["fg_stove", () => { const g = tagged("fg_stove", box(0.7, 0.9, 0.55, mat(0x3a3a40))); g.position.set(-2.6, 0.45, z + 0.9); return g; }],
-    ["fg_tv", () => { const g = tagged("fg_tv", box(0.75, 0.45, 0.06, mat(0x111118))); g.position.set(0.8, 1.1, z + 1.2); return g; }],
-    ["fg_sofa", () => { const g = tagged("fg_sofa", box(1.2, 0.35, 0.55, mat(0x5a3048))); g.position.set(-0.8, 0.2, z - 0.5); return g; }],
-    ["fg_guitar", () => { const g = tagged("fg_guitar", box(0.35, 0.12, 0.1, mat(0xcc2222))); g.position.set(2.2, 0.55, z - 0.3); return g; }],
-    ["fg_neon", () => { const g = tagged("fg_neon", box(1.1, 0.32, 0.05, mat(0x00ffff, 0x00ffff))); g.position.set(0, 2.35, z); return g; }],
-    ["fg_skull_lamp", () => { const g = tagged("fg_skull_lamp", box(0.18, 0.28, 0.18, mat(0xddddcc, 0xaaccaa))); g.position.set(-1.8, 1.55, z); return g; }],
-    ["fg_rug", () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1), mat(0x5a2040)); m.rotation.x = -Math.PI / 2; const g = tagged("fg_rug", m); g.position.set(0, 0.015, z - 0.2); return g; }],
-    ["fg_poster", () => { const g = tagged("fg_poster", box(0.8, 1, 0.03, mat(0x442266, 0x220044))); g.position.set(1.6, 1.45, z + 1.5); return g; }],
-    ["fg_bookshelf", () => { const g = tagged("fg_bookshelf", box(0.85, 1.3, 0.3, mat(0x5a4030))); g.position.set(-3.5, 0.65, z + 0.3); return g; }],
-    ["fg_bed", () => { const g = tagged("fg_bed", box(1.3, 0.22, 1.8, mat(0x3a2848))); g.position.set(3.8, 0.11, z + 0.5); return g; }],
-    ["fg_ac", () => { const g = tagged("fg_ac", box(1, 0.7, 0.85, mat(0x666677))); g.position.set(0, 0.35, z + 1.8); return g; }],
-    ["fg_trash", () => { const g = tagged("fg_trash", box(0.32, 0.55, 0.32, mat(0x3a4048))); g.position.set(-2.8, 0.275, z + 0.2); return g; }],
-    ["fg_pizza_sign", () => { const g = tagged("fg_pizza_sign", box(1.2, 0.35, 0.05, mat(0xff3366, 0xff2244))); g.position.set(2.5, 2.2, z + 0.6); return g; }],
-    ["fg_parking_meter", () => { const g = tagged("fg_parking_meter", box(0.12, 1.1, 0.12, mat(0x888899))); g.position.set(-0.2, 0.55, z + 1.6); return g; }],
-    ["fg_news_stand", () => { const g = tagged("fg_news_stand", box(0.9, 1.2, 0.6, mat(0x553366))); g.position.set(1.2, 0.6, z + 1.9); return g; }],
-    ["fg_bike_rack", () => { const g = tagged("fg_bike_rack", box(1.2, 0.5, 0.15, mat(0x666677))); g.position.set(-1.5, 0.25, z + 2.1); return g; }],
-    ["fg_vending", () => { const g = tagged("fg_vending", box(0.65, 1.65, 0.55, mat(0x223344, 0x004466))); g.position.set(3.2, 0.82, z + 0.4); return g; }]
-  ];
-  items.forEach(([, build]) => root.add(build()));
+  const z = -4.8;
+  root.add(parkBench(-4, z));
+  root.add(streetLamp(4.5, z - 0.5, `fg_lamp_${locId}`));
+  root.add(ironFence(-5.5, z + 1, 2));
+  root.add(cemeteryCrypt(5, z - 0.5));
+  root.add(tombstone(`fg_cross_${locId}`, -2, z + 0.5, true));
+  root.add(tombstone(`fg_round_${locId}`, 2.5, z, false));
+  root.add(trashBin(-3, z + 1.2, `fg_trash_${locId}`));
 }
 
 export function addShowcaseProps(locId, root) {

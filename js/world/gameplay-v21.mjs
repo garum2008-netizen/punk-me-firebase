@@ -41,6 +41,8 @@ export function bindGameplayToWorld3D(api, getCtx) {
   ctxGet = getCtx;
   api.startCemeteryJobMini = () => startCemeteryJob();
   api.startDuel3D = (nid, opts) => startDuel3D(nid || "razor", opts);
+  api.prepareDuelCapturePose = (nid) => prepareDuelCapturePose(nid || "razor");
+  api.setDecorGhostScreenCenter = () => setDecorGhostScreenCenter();
   api.stopDuel3D = () => stopDuel3D(false);
   api.throwFetchBall = () => throwFetchBall();
   api.setDecorMode = on => setDecorMode(!!on);
@@ -317,18 +319,47 @@ function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
   return g;
 }
 
-function flashActor(actor, dur = 0.35) {
+function flashActor(actor, dur = 0.11) {
   if (!actor?.group) return;
   actor.group.traverse(o => {
     if (!o.isMesh || !o.material) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     mats.forEach(m => {
       if (!m.emissive) return;
+      if (m.userData._hitBaseEmi === undefined) {
+        m.userData._hitBaseEmi = m.emissive.getHex();
+        m.userData._hitBaseInt = m.emissiveIntensity ?? 0.2;
+      }
       m.emissive.set(0xffffff);
-      m.emissiveIntensity = 1.4;
+      m.emissiveIntensity = 0.72;
     });
   });
   actor._hitFlash = dur;
+}
+
+function prepareDuelCapturePose(nid = "razor") {
+  const ctx = ctxGet?.();
+  if (!ctx?.actors) return false;
+  if (!state.duel?.active) startDuel3D(nid, { training: true, firstTo: 3 });
+  const d = state.duel;
+  const pl = ctx.actors.get("player");
+  const npc = ctx.actors.get("npc_" + nid) || ctx.actors.get("npc_razor");
+  if (!pl || !npc || !d) return false;
+  d.cd = 0.6;
+  d.plLunge = 0.26;
+  d.npcLunge = 0;
+  d.trail = null;
+  pl._hitFlash = 0;
+  npc._hitFlash = 0;
+  const dx = npc.wx - pl.wx;
+  const dz = npc.wz - pl.wz;
+  const len = Math.hypot(dx, dz) || 1;
+  pl.group.rotation.y = Math.atan2(dx, dz);
+  npc.group.rotation.y = Math.atan2(-dx, -dz);
+  fadeTo(pl, "run");
+  pl._spd = 2.4;
+  fadeTo(npc, "idle");
+  return true;
 }
 
 function tickDuel(dt, ctx) {
@@ -360,7 +391,14 @@ function tickDuel(dt, ctx) {
         a.group.traverse(o => {
           if (!o.isMesh || !o.material) return;
           const mats = Array.isArray(o.material) ? o.material : [o.material];
-          mats.forEach(m => { m.emissiveIntensity = 0; });
+          mats.forEach(m => {
+            if (m.userData._hitBaseEmi !== undefined) {
+              m.emissive.setHex(m.userData._hitBaseEmi);
+              m.emissiveIntensity = m.userData._hitBaseInt ?? 0.2;
+            } else {
+              m.emissiveIntensity = 0;
+            }
+          });
         });
       }
     }
@@ -380,8 +418,8 @@ function tickDuel(dt, ctx) {
     npc.wz -= (dz / len) * 0.55;
     npc.group.position.set(npc.wx, 0, npc.wz);
     d.trail = spawnChainTrail(ctx, pl.wx, pl.wz, npc.wx, npc.wz);
-    flashActor(npc, 0.35);
-    d.flashNpc = 0.35;
+    flashActor(npc, 0.11);
+    d.flashNpc = 0.11;
     fadeEmote(pl, "interact");
     window._duelAttack = false;
     d.cd = 0.55;
@@ -536,7 +574,20 @@ function setDecorGhostAt(wx, wz) {
   if (!state.decor.ghost) return false;
   state.decor.ghost.position.set(wx, 0, wz);
   state.decor.ghost.rotation.y = state.decor.rot;
+  state.decor.ghost.visible = true;
   return true;
+}
+
+function setDecorGhostScreenCenter() {
+  const ctx = ctxGet?.();
+  const canvas = document.getElementById("stage3d");
+  if (!canvas || !ctx?.camera || !ctx.locationRoot || ctx.currentLoc !== "room") return false;
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2(0, -0.08), ctx.camera);
+  const hits = rc.intersectObject(ctx.locationRoot, true);
+  const hit = hits.find(h => h.point.y < 0.35 && h.point.y > -0.05);
+  if (!hit) return false;
+  return setDecorGhostAt(hit.point.x, hit.point.z);
 }
 
 function setDecorMode(on) {
