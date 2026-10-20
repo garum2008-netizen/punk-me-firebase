@@ -3,189 +3,112 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PUNK ME — Банда и диалоги</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0a0a12; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; }
-  #game { width: 100vw; height: 100vh; position: relative; }
-  .room { position: absolute; inset: 0; }
-  .room img.bg { width: 100%; height: 100%; object-fit: cover; opacity: 0.85; }
-  .hotspot { position: absolute; cursor: pointer; border-radius: 50%; opacity: 0.3; background: #ff00ff; }
-  .hotspot:hover { opacity: 0.6; }
-  .player-char { position: absolute; width: 65px; height: 85px; z-index: 5; filter: drop-shadow(0 0 6px #ff00ff); }
-  .ui { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; }
-  .badge { background: rgba(45,10,78,0.9); padding: 6px 14px; border-radius: 20px; font-size: 14px; }
-  .panel { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; }
-  .btn { background: #ff00ff; color: #fff; border: none; padding: 10px 16px; border-radius: 12px; font-weight: bold; cursor: pointer; }
-  .btn:hover { filter: brightness(1.15); }
-  .chat { position: absolute; bottom: 80px; left: 10px; width: min(280px, 38vw); background: rgba(20,8,40,0.92); border-radius: 14px; padding: 10px; z-index: 10; }
-  .chat-messages { height: 100px; overflow-y: auto; font-size: 13px; margin-bottom: 8px; }
-  .chat input { width: 100%; padding: 8px; border: none; border-radius: 8px; background: #1a0a2e; color: #fff; }
-  .players-list { position: absolute; top: 55px; right: 10px; background: rgba(20,8,40,0.9); padding: 10px; border-radius: 12px; z-index: 10; max-width: 190px; }
-  .modal { position: absolute; inset: 12px; background: rgba(10,10,18,0.97); border: 2px solid #ff00ff; border-radius: 16px; padding: 18px; display: none; z-index: 30; overflow: auto; }
-  .modal.active { display: block; }
-  .gang-member { display: flex; gap: 12px; background: #1a0a2e; padding: 10px; border-radius: 10px; margin: 8px 0; cursor: pointer; }
-  .gang-member img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
-  .dialog-box { background: #1a0a2e; padding: 12px; border-radius: 10px; margin: 10px 0; line-height: 1.4; }
-  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ff00ff; color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 100; opacity: 0; transition: 0.3s; }
-  .toast.show { opacity: 1; }
-  .close { float: right; background: #444; color: #fff; border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
-</style>
+<meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
+<title>PUNK ME — Живая неоновая ночь</title>
+<link rel="stylesheet" href="css/game.css">
 </head>
 <body>
+<div id="loading">
+  <div style="font-size:22px;font-weight:800;color:#ff00ff">PUNK ME</div>
+  <div style="opacity:.8">Вход в банду...</div>
+</div>
 <div id="game">
-  <div class="room">
-    <img class="bg" id="bg" src="imagine_images/q4BXV.jpg" alt="room">
-    <img class="player-char" id="player" src="imagine_images/LTPb8.jpg" style="left:38%;top:58%;" alt="ты">
-    <div class="hotspot" style="left:48%;top:48%;width:70px;height:55px;" onclick="talkDog()" title="Пёс"></div>
-    <div class="hotspot" style="left:65%;top:35%;width:80px;height:60px;" onclick="openModal('gang')" title="Банда"></div>
+  <div class="room-layer" id="roomLayer">
+    <img class="bg" id="bg" src="imagine_images/q4BXV.jpg" alt="">
+    <div class="vignette"></div>
+    <div class="night-fx"><div class="neon-scan"></div></div>
+    <div id="buildLayer"></div>
+    <div id="ambients" class="night-fx"></div>
+    <div id="doors"></div>
+    <div id="entities"></div>
   </div>
-  <div class="ui">
-    <div class="badge">Монеты: <span id="coins">…</span></div>
-    <div class="badge">Онлайн: <span id="online">0</span></div>
+  <div class="loc-name" id="locTitle">Комната панка</div>
+  <div class="hud">
+    <div class="badge">Монеты: <strong id="coins">…</strong></div>
+    <div class="badge">XP: <strong id="xp">0</strong></div>
+    <div class="badge">Уровень: <strong id="level">1</strong></div>
+    <div class="badge">Репутация: <strong id="rep">0</strong></div>
+    <div class="badge">Цепь: <strong id="chainStat">10</strong></div>
+    <div class="badge">Онлайн: <strong id="onlineCount">0</strong></div>
+    <div class="badge" style="font-size:11px;opacity:.85">v <strong id="gameVersion">…</strong></div>
   </div>
-  <div class="players-list" id="playersList"></div>
-  <div class="panel">
-    <button class="btn" onclick="openModal('gang')">Банда</button>
-    <button class="btn" onclick="openModal('shop')">Магазин</button>
-    <button class="btn" onclick="doJob()">Работа</button>
-  </div>
+  <div class="quest-box" id="questBox"></div>
+  <div class="side" id="playersSide"><b>В сети</b><div id="playersList">…</div></div>
   <div class="chat">
-    <div class="chat-messages" id="chat"></div>
-    <input id="msg" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')send()">
+    <div class="chat-messages" id="chatMessages"></div>
+    <input id="chatInput" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
   </div>
-  <div class="modal" id="gang"><button class="close" onclick="closeModal('gang')">✕</button>
-    <h3 style="color:#0ff">Банда на улице</h3>
+  <div class="panel-bottom">
+    <button class="btn" onclick="openModal('gangModal')">Банда</button>
+    <button class="btn" onclick="openModal('shopModal')">Лавка</button>
+    <button class="btn secondary" onclick="openModal('magicModal')">Магия</button>
+    <button class="btn secondary" onclick="openModal('invModal')">Инвентарь</button>
+    <button class="btn" id="btnJob" style="display:none" onclick="openJobPanel()">Работа</button>
+    <button class="btn" id="btnBuild" style="display:none" onclick="toggleBuildMode()">Стройка</button>
+    <button class="btn secondary" id="btnDecor" style="display:none" onclick="tryDecorPlace()">Декор</button>
+    <button class="btn danger" id="btnFight" style="display:none" onclick="startFightUi()">Драка</button>
+    <button class="btn" id="btnParkour" style="display:none" onclick="runParkour()">Паркур</button>
+  </div>
+  <div class="modal" id="gangModal">
+    <button class="close" onclick="closeModal('gangModal')">✕</button>
+    <h2>Живая банда</h2>
     <div id="gangList"></div>
     <div id="dialogArea"></div>
   </div>
-  <div class="modal" id="shop"><button class="close" onclick="closeModal('shop')">✕</button><h3 style="color:#0ff">Магазин</h3><div id="shopItems"></div></div>
+  <div class="modal" id="shopModal">
+    <button class="close" onclick="closeModal('shopModal')">✕</button>
+    <h2>Неоновая лавка</h2>
+    <div class="tabs">
+      <span class="tab active" data-tab="clothes">Одежда</span>
+      <span class="tab" data-tab="chains">Цепи</span>
+      <span class="tab" data-tab="magic">Магия</span>
+      <span class="tab" data-tab="pets">Питомцы</span>
+      <span class="tab" data-tab="materials">Материалы</span>
+    </div>
+    <div class="grid-shop" id="shopGrid"></div>
+    <p style="margin-top:10px;font-size:12px;opacity:.75">Стройка: купи материалы → Город → Стройка → клик по земле.
+      <button class="btn secondary" onclick="setBuildType('crypt')">Склеп</button>
+      <button class="btn secondary" onclick="setBuildType('shack')">Дом</button>
+      <button class="btn secondary" onclick="setBuildType('neon_sign')">Неон</button>
+    </p>
+  </div>
+  <div class="modal" id="magicModal">
+    <button class="close" onclick="closeModal('magicModal')">✕</button>
+    <h2>Панк-магия</h2>
+    <div id="magicList"></div>
+  </div>
+  <div class="modal" id="invModal">
+    <button class="close" onclick="closeModal('invModal')">✕</button>
+    <h2>Рюкзак</h2>
+    <div id="invContent"></div>
+  </div>
+  <div class="modal" id="jobModal">
+    <button class="close" onclick="closeModal('jobModal')">✕</button>
+    <h2 id="jobModalTitle">Подработки</h2>
+    <p id="jobModalDesc" style="margin-bottom:10px;font-size:13px"></p>
+    <div id="jobActions"></div>
+  </div>
+  <div class="fight-overlay" id="fightOverlay">
+    <div class="fight-panel">
+      <h2 style="color:#f87171">Цепная дуэль</h2>
+      <p id="fightNpcName"></p>
+      <div>Ты <div class="bar"><span id="playerHpBar" style="width:100%"></span></div></div>
+      <div>Соперник <div class="bar"><span id="npcHpBar" style="width:100%"></span></div></div>
+      <div id="fightLog" style="font-size:12px;margin:8px 0;min-height:48px"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <button class="btn danger" onclick="fightAttack('chain')">Цепь</button>
+        <button class="btn danger" onclick="fightAttack('kick')">Пинок</button>
+        <button class="btn danger" onclick="fightAttack('heavy')">Тяжёлый</button>
+        <button class="btn secondary" onclick="fightSpell()">Свиток</button>
+        <button class="btn" onclick="closeFight()">Сбежать</button>
+      </div>
+    </div>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script>
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyACAXPV9H4vfWNUoRYEWzXi6CSX0kpCaho",
-  authDomain: "punk-me-40605.firebaseapp.com",
-  databaseURL: "https://punk-me-40605-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "punk-me-40605",
-  storageBucket: "punk-me-40605.firebasestorage.app",
-  messagingSenderId: "761070335468",
-  appId: "1:761070335468:web:4bffd5120ef98e79f47cc9"
-};
-const OWNER_EMAIL = "garum2008@gmail.com";
-let auth, db, uid, isOwner = false;
-let me = { name: "Панк" + Math.floor(Math.random()*99), coins: 200, owned: [], lastJob: 0 };
-const gang = [
-  { id: "pink", name: "Розовый", img: "imagine_images/LTPb8.jpg", lines: [
-    "Йо, новенький! Неоновая ночь только начинается.",
-    "Видел банду на улице? Они ждут, пока ты наберёшь цепи.",
-    "Пёс в комнате — хороший знак. Гладь его чаще."
-  ]},
-  { id: "green", name: "Зелёный", img: "imagine_images/Lix06.jpg", lines: [
-    "Pet Shop открыт. Призраки сегодня спокойные.",
-    "Хочешь на крышу? Сначала докажи, что свой.",
-    "Монеты копятся быстро, если не ленишься."
-  ]},
-  { id: "purple", name: "Фиолетовый", img: "imagine_images/Oo040.jpg", lines: [
-    "На кладбище написано NOT DEAD YET. Это про нас.",
-    "Цепи — ключ к улице. Без них банда не пустит.",
-    "Ночью коты и полиция гуляют. Смотри внимательно."
-  ]}
-];
-const shopItems = [
-  { id:"jacket", name:"Неоновая куртка", price:250, img:"imagine_images/LTPb8.jpg" },
-  { id:"chains", name:"Цепи", price:150, img:"imagine_images/Lix06.jpg" },
-  { id:"pet", name:"Питомец", price:350, img:"imagine_images/q4BXV.jpg" }
-];
-function toast(msg) {
-  const t = document.getElementById("toast");
-  t.textContent = msg; t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 1800);
-}
-function init() {
-  firebase.initializeApp(FIREBASE_CONFIG);
-  auth = firebase.auth(); db = firebase.database();
-  auth.onAuthStateChanged(u => {
-    if (u) { uid = u.uid; isOwner = u.email === OWNER_EMAIL && u.emailVerified; loadMe(); listenPlayers(); listenChat(); }
-    else auth.signInAnonymously().catch(e => alert(e.message));
-  });
-}
-function loadMe() {
-  db.ref("players/"+uid).once("value").then(s => {
-    if (s.exists()) me = {...me, ...s.val()};
-    me.lastSeen = Date.now(); saveMe(); updateUI();
-  });
-}
-function saveMe() { if (uid) db.ref("players/"+uid).update({name:me.name, coins:me.coins, owned:me.owned, owner:isOwner, lastSeen:Date.now()}); }
-function listenPlayers() {
-  db.ref("players").on("value", s => {
-    const p = s.val() || {};
-    document.getElementById("online").textContent = Object.keys(p).length;
-    document.getElementById("playersList").innerHTML = Object.values(p).map(x => `<div>● ${escapeHtml(x.name)}</div>`).join("");
-  });
-}
-function listenChat() {
-  db.ref("chat").limitToLast(20).on("child_added", s => {
-    const m = s.val();
-    document.getElementById("chat").innerHTML += `<div><b>${escapeHtml(m.name)}:</b> ${escapeHtml(m.text)}</div>`;
-    document.getElementById("chat").scrollTop = 9999;
-  });
-}
-function escapeHtml(s){return String(s||"").replace(/[&<>]/g,c=>({'&':'&','<':'<','>':'>'}[c]));}
-function updateUI() { document.getElementById("coins").textContent = isOwner ? "∞" : me.coins; }
-function openModal(id) {
-  document.getElementById(id).classList.add("active");
-  if (id === "gang") renderGang();
-  if (id === "shop") renderShop();
-}
-function closeModal(id){ document.getElementById(id).classList.remove("active"); }
-function renderGang() {
-  document.getElementById("gangList").innerHTML = gang.map(g => `
-    <div class="gang-member" onclick="talk('${g.id}')">
-      <img src="${g.img}"><div><b>${g.name}</b><br><small>Нажми, чтобы поговорить</small></div>
-    </div>`).join("");
-  document.getElementById("dialogArea").innerHTML = "<p style='opacity:.7'>Выбери кого-нибудь из банды</p>";
-}
-function talk(id) {
-  const member = gang.find(g => g.id === id);
-  const line = member.lines[Math.floor(Math.random() * member.lines.length)];
-  document.getElementById("dialogArea").innerHTML = `<div class="dialog-box"><b>${member.name}:</b> ${line}</div>`;
-  toast(member.name + " говорит...");
-}
-function talkDog() { toast("Пёс виляет хвостом и даёт +" + (Math.floor(Math.random()*8)+2) + " монет"); if (!isOwner) { me.coins += 5; saveMe(); updateUI(); } }
-function renderShop() {
-  document.getElementById("shopItems").innerHTML = shopItems.map(it => {
-    const own = me.owned.includes(it.id);
-    return `<div style="background:#1a0a2e;padding:8px;border-radius:8px;margin:6px 0">
-      <img src="${it.img}" style="width:100%;height:50px;object-fit:cover;border-radius:6px"><br>${it.name} — ${isOwner?"FREE":it.price}
-      <button class="btn" style="margin-top:6px" ${own?"disabled":""} onclick="buy('${it.id}')">${own?"Есть":"Купить"}</button></div>`;
-  }).join("");
-}
-function buy(id) {
-  const it = shopItems.find(x=>x.id===id);
-  if (!it || me.owned.includes(id)) return;
-  if (!isOwner && me.coins < it.price) { toast("Не хватает монет"); return; }
-  if (!isOwner) me.coins -= it.price;
-  me.owned.push(id); saveMe(); updateUI(); toast("Куплено: " + it.name); openModal("shop");
-}
-function doJob() {
-  const now = Date.now();
-  if (!isOwner && now - (me.lastJob||0) < 20000) { toast("Подожди"); return; }
-  const gain = 55 + Math.floor(Math.random()*20);
-  if (!isOwner) me.coins += gain;
-  me.lastJob = now; saveMe(); updateUI(); toast("Заработал(а) +" + gain); 
-}
-function send() {
-  const t = document.getElementById("msg").value.trim();
-  if (!t) return;
-  db.ref("chat").push({name:me.name, text:t, time:Date.now()});
-  document.getElementById("msg").value = "";
-}
-setInterval(updateUI, 1000);
-document.addEventListener("DOMContentLoaded", init);
-</script>
+<script src="js/game.js"></script>
 </body>
 </html>
