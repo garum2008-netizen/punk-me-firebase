@@ -561,18 +561,47 @@ const LOCATION_CAMERA = {
     pos: [0.35, 1.78, 4.25],
     look: [0, 0.94, 0.04],
     player: { x: 0, z: 0.02, yaw: 0 },
-    dog: { dx: 0.76, dz: -0.06 }
+    dog: { dx: 0.76, dz: -0.06 },
+    mobile: {
+      fov: 48,
+      pos: [0.12, 2.38, 6.95],
+      look: [0, 0.86, 0.02],
+      player: { x: 0, z: 0.02, yaw: 0 },
+      dog: { dx: 0.7, dz: -0.04 }
+    }
   },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: {
     fixed: true,
-    fov: 50,
-    pos: [0.42, 2.05, 4.35],
-    look: [0.08, 1.12, -3.05],
-    player: { x: -0.12, z: 0.36, yaw: Math.PI },
-    dog: { dx: 0.68, dz: 0.04 }
+    fov: 56,
+    pos: [0.34, 2.48, 5.85],
+    look: [0.08, 1.26, -2.55],
+    player: { x: -0.1, z: 0.28, yaw: Math.PI },
+    dog: { dx: 0.78, dz: 0.04 },
+    mobile: {
+      fov: 64,
+      pos: [0.98, 2.82, 6.65],
+      look: [0.38, 1.14, -2.3],
+      player: { x: 0.38, z: 0.28, yaw: Math.PI },
+      dog: { dx: 0.52, dz: 0.06 }
+    }
   }
 };
+
+function getFixedLocationShot() {
+  const spec = LOCATION_CAMERA[currentLoc];
+  if (!spec?.fixed) return spec;
+  if (!mobileQuality || !spec.mobile) return spec;
+  const m = spec.mobile;
+  return {
+    ...spec,
+    fov: m.fov ?? spec.fov,
+    pos: m.pos ?? spec.pos,
+    look: m.look ?? spec.look,
+    player: { ...spec.player, ...m.player },
+    dog: { ...spec.dog, ...m.dog }
+  };
+}
 
 function cameraFollowProfile() {
   const loc = LOCATION_CAMERA[currentLoc] || {};
@@ -610,7 +639,7 @@ function resolveCameraWallCollision(eye, desired) {
 }
 
 function applyFixedLocationActors() {
-  const spec = LOCATION_CAMERA[currentLoc];
+  const spec = getFixedLocationShot();
   if (!spec?.player) return;
   const pl = actors.get("player");
   if (pl && spec.player) {
@@ -639,7 +668,7 @@ function applyFixedLocationActors() {
 function positionCameraBehindPlayer(instant = false) {
   const player = actors.get("player");
   if (!player || !camera) return;
-  const fixed = LOCATION_CAMERA[currentLoc];
+  const fixed = getFixedLocationShot();
   if (fixed?.fixed) {
     if (fixed.fov && camera.fov !== fixed.fov) {
       camera.fov = fixed.fov;
@@ -666,7 +695,8 @@ function positionCameraBehindPlayer(instant = false) {
 
 function resetCameraForLocation() {
   applyViewportCameraProfile();
-  const fixedFov = LOCATION_CAMERA[currentLoc]?.fov;
+  const fixedShot = getFixedLocationShot();
+  const fixedFov = fixedShot?.fov;
   if (fixedFov && camera) {
     camera.fov = fixedFov;
     camera.updateProjectionMatrix();
@@ -1238,7 +1268,8 @@ const api = {
   snapScreenshotView: () => {
     const a = actors.get("player");
     if (!a || !bounds || !renderer || !camera) return false;
-    const shot = LOCATION_CAMERA[currentLoc];
+    applyViewportCameraProfile();
+    const shot = getFixedLocationShot();
     if (shot?.player) applyFixedLocationActors();
     else {
       a.group.rotation.y = 0.12;
