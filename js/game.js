@@ -9,7 +9,9 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "cartoon-v2";
+const GAME_VERSION = "world3d-v2";
+let portalCooldown = 0;
+let lastPresenceAnimPush = 0;
 
 function devCoinsEnabled() {
   try {
@@ -241,6 +243,7 @@ function defaultPlayer() {
     built: 0,
     decor: [],
     dog: { x: 38, y: 65 },
+    characterId: null,
     lastSeen: Date.now()
   };
 }
@@ -303,7 +306,11 @@ function syncStage3D() {
     y: 58 + (i % 2) * 6
   }));
   Scene3D.sync({
-    player: { x: me.x, y: me.y, avatar: me.avatar },
+    player: {
+      x: me.x, y: me.y, avatar: me.avatar,
+      characterId: me.characterId || "razor",
+      anim: me._animState || "idle"
+    },
     others,
     npcs: npcData,
     location: me.location,
@@ -348,7 +355,20 @@ function init() {
         me.x = x; me.y = y; saveMe(); syncStage3D();
       },
       onNpcClick: (nid) => openNpcDialog(nid),
-      onReady: () => syncStage3D()
+      onPortal: (to) => {
+        if (Date.now() < portalCooldown) return;
+        portalCooldown = Date.now() + 1500;
+        if (LOCATIONS[to]) goLocation(to);
+      },
+      onReady: () => syncStage3D(),
+      onAnimState: (st) => {
+        me._animState = st;
+        const now = Date.now();
+        if (now - lastPresenceAnimPush > 280) {
+          lastPresenceAnimPush = now;
+          pushPresence();
+        }
+      }
     });
   }
   window.addEventListener("scene3d-ready", bootScene3D);
@@ -387,16 +407,37 @@ function loadMe() {
     me.level = levelFromXp(me.xp || 0);
     me.lastSeen = Date.now();
     saveMe();
-    hideLoading();
-    renderAll();
-    initMultiplayer();
-    listenChat();
-    listenBuildings();
-    refreshLifeScene();
-    if (me.dog) dogPos = { ...me.dog };
-    else dogPos = { x: me.x - 4, y: me.y + 2 };
-    applyHashRoute();
+    if (!me.characterId) {
+      document.getElementById("loading").style.display = "none";
+      if (window.CharSelect) {
+        CharSelect.open(pickCharacterAndContinue);
+        return;
+      }
+    }
+    continueGameBoot();
   });
+}
+
+function pickCharacterAndContinue(id) {
+  me.characterId = id;
+  const def = getCharacterDef(id);
+  me.avatar = def.poster;
+  me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
+  saveMe();
+  continueGameBoot();
+}
+
+function continueGameBoot() {
+  hideLoading();
+  renderAll();
+  initMultiplayer();
+  listenChat();
+  listenBuildings();
+  refreshLifeScene();
+  if (me.dog) dogPos = { ...me.dog };
+  else dogPos = { x: me.x - 4, y: me.y + 2 };
+  applyHashRoute();
+  syncStage3D();
 }
 
 function applyHashRoute() {
@@ -465,6 +506,7 @@ function sanitizePlayer(p) {
     decor: p.decor,
     dog: dogPos,
     lang: getLanguage(),
+    characterId: p.characterId || "razor",
     owner: isOwner,
     lastSeen: p.lastSeen
   };
@@ -494,6 +536,8 @@ function pushPresence() {
     y: me.y,
     avatar: me.avatar,
     level: me.level,
+    characterId: me.characterId || "razor",
+    anim: me._animState || "idle",
     ts: Date.now()
   };
   const ref = db.ref("presence/" + loc + "/" + uid);
@@ -522,7 +566,20 @@ function listenPresence() {
   const loc = me.location;
   presenceListenRef = db.ref("presence/" + loc);
   presenceListenRef.on("value", snap => {
-    others = snap.val() || {};
+    const raw = snap.val() || {};
+    others = {};
+    Object.entries(raw).forEach(([id, p]) => {
+      if (id === uid || !p || p.probe) return;
+      others[id] = {
+        name: p.name,
+        x: p.x || 50,
+        y: p.y || 55,
+        avatar: p.avatar,
+        level: p.level || 1,
+        characterId: p.characterId || "cobalt",
+        anim: p.anim || "idle"
+      };
+    });
     renderPlayers();
     renderPlayersList();
     updateOnlineCount();
@@ -544,7 +601,9 @@ function listenPlayersInLocation() {
         x: p.x || 50,
         y: p.y || 55,
         avatar: p.avatar,
-        level: p.level || 1
+        level: p.level || 1,
+        characterId: p.characterId || "cobalt",
+        anim: "idle"
       };
     });
     renderPlayers();
@@ -645,6 +704,7 @@ function goLocation(id, fromHash) {
 }
 
 function onRoomClick(e) {
+  if (document.body.classList.contains("mode-world3d")) return;
   if (e.target.closest(".hotspot, .entity, .btn, .modal, .chat, .ambient, .ambient-life, .build-piece, #dogEntity, .life-dog")) return;
   const rect = document.getElementById("roomLayer").getBoundingClientRect();
   const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -660,6 +720,7 @@ function onRoomClick(e) {
 }
 
 function onKey(e) {
+  if (document.body.classList.contains("mode-world3d")) return;
   const step = 4;
   if (["w", "a", "s", "d", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
     if (e.key === "w" || e.key === "ArrowUp") me.y -= step;
@@ -676,9 +737,12 @@ function onKey(e) {
 
 function renderAll() {
   const loc = LOCATIONS[me.location];
-  document.getElementById("bg").src = loc.bg;
-  const bgDup = document.getElementById("bgDup");
-  if (bgDup) bgDup.src = loc.bg;
+  const world3d = document.body.classList.contains("mode-world3d");
+  if (!world3d) {
+    document.getElementById("bg").src = loc.bg;
+    const bgDup = document.getElementById("bgDup");
+    if (bgDup) bgDup.src = loc.bg;
+  }
   document.getElementById("locTitle").textContent = locTitle(loc.id);
   document.getElementById("coins").textContent = formatCoinsDisplay();
   document.getElementById("xp").textContent = String(me.xp);
@@ -687,7 +751,8 @@ function renderAll() {
   document.getElementById("chainStat").textContent = String(me.stats.chain);
 
   const doors = document.getElementById("doors");
-  doors.innerHTML = loc.doors.map(d =>
+  if (world3d) doors.innerHTML = "";
+  else doors.innerHTML = loc.doors.map(d =>
     `<div class="hotspot door" data-label="${escapeHtml(doorT(d.labelKey || d.label))}" style="left:${d.x}%;top:${d.y}%;width:${d.w}%;height:${d.h}%;" data-to="${d.to}"></div>`
   ).join("");
   doors.querySelectorAll(".hotspot").forEach(el => {
@@ -721,6 +786,11 @@ function refreshLifeScene() {
 
 function renderPlayers() {
   const layer = document.getElementById("entities");
+  if (document.body.classList.contains("mode-world3d")) {
+    layer.innerHTML = "";
+    syncStage3D();
+    return;
+  }
   let html = `<div class="entity me" style="left:${me.x}%;top:${me.y}%;">
     <div class="sprite-wrap breathe sway"><img class="avatar" src="${me.avatar}" alt=""><span class="blink-overlay"></span></div>
     <div class="tag">${escapeHtml(me.name)} ${t("you")}</div></div>`;
@@ -842,8 +912,28 @@ function openNpcDialog(nid) {
      <button class="btn danger" onclick="closeModal('gangModal'); startNpcFight('${nid}')">${escapeHtml(t("chain_fight"))}</button>
      ${n.quest ? `<button class="btn secondary" onclick="acceptQuest('${n.quest}')">${escapeHtml(t("accept_quest"))}</button>` : ""}`;
   openModal("gangModal");
+  if (window.Voice) Voice.speakCharacter(nid, line);
+  if (window.World3D?.setTalking) World3D.setTalking(nid, true);
   if (nid === "razor") questBump("talk_razor");
 }
+
+window.changeCharacter = function () {
+  if (!window.CharSelect) return;
+  CharSelect.open(id => {
+    me.characterId = id;
+    me.avatar = getCharacterDef(id).poster;
+    saveMe();
+    syncStage3D();
+    toast(t("char_changed"));
+  });
+};
+
+window.toggleVoiceMute = function () {
+  if (!window.Voice) return;
+  Voice.setMuted(!Voice.getMuted());
+  const btn = document.getElementById("btnVoiceMute");
+  if (btn) btn.textContent = Voice.getMuted() ? t("voice_unmute") : t("voice_mute");
+};
 
 function acceptQuest(qid) {
   me.quests.active = qid;

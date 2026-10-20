@@ -41,6 +41,31 @@ body {
   position: absolute; left: 0; right: 0; bottom: 0; height: 72%;
   z-index: 9; pointer-events: auto; touch-action: manipulation;
 }
+body.mode-world3d #stage3d {
+  inset: 0; width: 100%; height: 100%;
+}
+body.mode-world3d .bg-stack,
+body.mode-world3d #doors,
+body.mode-world3d #entities,
+body.mode-world3d #lifeCanvas,
+body.mode-world3d .street-sign-cover,
+body.mode-world3d .vignette,
+body.mode-world3d .night-fx,
+body.mode-world3d #buildLayer,
+body.mode-world3d #ambients { display: none !important; }
+body.mode-world3d .room-layer { background: #050008; }
+.char-select {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: radial-gradient(ellipse at center, #1a0828 0%, #050008 70%);
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 16px; gap: 12px;
+}
+.char-select.active { display: flex; }
+.char-select h2 { color: #0ff; text-shadow: 0 0 12px #f0f; }
+#charSelect3d { width: min(92vw, 720px); height: min(50vh, 400px); border: 2px solid #ff00ff; border-radius: 12px; }
+.char-intro { min-height: 2.5em; text-align: center; max-width: 520px; opacity: 0.9; }
+.char-select-ui { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 640px; }
+.char-select-ui .char-pick.active { border-color: #0ff; color: #0ff; }
 body.mode-3d #entities .entity { opacity: 0; pointer-events: none; }
 body.mode-3d .bg-a { filter: saturate(0.55) brightness(0.32) blur(2px); }
 body.mode-3d.loc-street .bg-a { filter: saturate(0.45) brightness(0.26) blur(2.5px); }

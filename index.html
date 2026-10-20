@@ -5,9 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=cartoon-v2">
+<link rel="stylesheet" href="css/game.css?v=world3d-v2">
 </head>
 <body>
+<div id="charSelect" class="char-select" aria-hidden="true">
+  <h2 data-i18n="char_select_title">Выбери своего панка</h2>
+  <canvas id="charSelect3d" width="640" height="360"></canvas>
+  <p id="charSelectIntro" class="char-intro"></p>
+  <div id="charSelectUi" class="char-select-ui"></div>
+</div>
 <div id="loading">
   <div style="font-size:22px;font-weight:800;color:#ff00ff">PUNK ME</div>
   <div style="opacity:.8" data-i18n="loading">Вход в банду...</div>
@@ -42,6 +48,8 @@
       <button type="button" class="lang-btn" data-lang="en">EN</button>
       <button type="button" class="lang-btn" data-lang="da">DA</button>
     </div>
+    <button type="button" class="lang-btn" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
+    <button type="button" class="lang-btn" onclick="changeCharacter()" data-i18n="char_change_btn">Сменить героя</button>
     <div class="badge" style="font-size:11px;opacity:.85">v <strong id="gameVersion">…</strong></div>
   </div>
   <div class="quest-box" id="questBox"></div>
@@ -132,9 +140,12 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/i18n.js?v=cartoon-v2"></script>
-<script type="module" src="js/scene3d.mjs?v=cartoon-v2"></script>
-<script src="js/life.js?v=cartoon-v2"></script>
-<script src="js/game.js?v=cartoon-v2"></script>
+<script src="js/characters.js?v=world3d-v2"></script>
+<script src="js/i18n.js?v=world3d-v2"></script>
+<script src="js/voice.js?v=world3d-v2"></script>
+<script type="module" src="js/world3d.mjs?v=world3d-v2"></script>
+<script type="module" src="js/char-select.mjs?v=world3d-v2"></script>
+<script src="js/life.js?v=world3d-v2"></script>
+<script src="js/game.js?v=world3d-v2"></script>
 </body>
 </html>

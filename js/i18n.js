@@ -47,6 +47,9 @@ const I18N = {
     login_error: "Ошибка входа:", fight_hit_you: "Ты бьёшь", fight_hit_npc: "бьёт",
     fight_shield_block: "Щит блокирует", fight_skip_turn: "Соперник пропускает ход",
     npc_razor: "Рейзор", npc_mohawk: "Ирокез", npc_vienna: "Вена", npc_ghost: "Призрак Сцены", npc_gravedigger: "Смотритель",
+    npc_cobalt: "Кобальт",
+    char_select_title: "Выбери своего панка", char_select_confirm: "В бой", char_changed: "Персонаж сменён",
+    voice_mute: "Без голоса", voice_unmute: "Голос вкл", char_change_btn: "Сменить героя",
     spell_neon_flash: "Неоновый всплеск", spell_graffiti: "Граффити-щит", spell_shadow: "Теневой рывок", spell_spark: "Искра цепи",
     prog_talk_razor: "Поговорить с Рейзором", prog_win_fight: "Победить в драке", prog_parkour_win: "Пройти паркур", prog_built: "Построить"
   },
@@ -97,6 +100,9 @@ const I18N = {
     login_error: "Login error:", fight_hit_you: "You hit", fight_hit_npc: "hits",
     fight_shield_block: "Shield blocks", fight_skip_turn: "Rival skips a turn",
     npc_razor: "Razor", npc_mohawk: "Mohawk", npc_vienna: "Vienna", npc_ghost: "Stage Ghost", npc_gravedigger: "Gravedigger",
+    npc_cobalt: "Cobalt",
+    char_select_title: "Pick your punk", char_select_confirm: "Join the gang", char_changed: "Character changed",
+    voice_mute: "Mute voices", voice_unmute: "Voices on", char_change_btn: "Change hero",
     spell_neon_flash: "Neon burst", spell_graffiti: "Graffiti shield", spell_shadow: "Shadow dash", spell_spark: "Chain spark",
     prog_talk_razor: "Talk to Razor", prog_win_fight: "Win a fight", prog_parkour_win: "Clear parkour", prog_built: "Build"
   },
@@ -147,6 +153,9 @@ const I18N = {
     login_error: "Login-fejl:", fight_hit_you: "Du slår", fight_hit_npc: "slår",
     fight_shield_block: "Skjold blokerer", fight_skip_turn: "Modstander springer tur over",
     npc_razor: "Razor", npc_mohawk: "Mohawk", npc_vienna: "Vienna", npc_ghost: "Scenegåst", npc_gravedigger: "Gravvogter",
+    npc_cobalt: "Cobalt",
+    char_select_title: "Vælg din punk", char_select_confirm: "Gå med banden", char_changed: "Karakter skiftet",
+    voice_mute: "Sluk stemmer", voice_unmute: "Stemmer på", char_change_btn: "Skift helt",
     spell_neon_flash: "Neon-burst", spell_graffiti: "Graffiti-skærm", spell_shadow: "Skygge-spring", spell_spark: "Kæde-gnist",
     prog_talk_razor: "Tal med Razor", prog_win_fight: "Vind en kamp", prog_parkour_win: "Klare parkour", prog_built: "Byg"
   }
