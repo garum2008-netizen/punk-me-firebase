@@ -368,6 +368,10 @@ function prepareDuelCapturePose(nid = "razor") {
   d.trail = null;
   restoreActorMaterials(pl);
   restoreActorMaterials(npc);
+  ctx.actors.forEach((act, id) => {
+    if (id === "player" || id === `npc_${nid}`) return;
+    act.group.visible = false;
+  });
   const dx = npc.wx - pl.wx;
   const dz = npc.wz - pl.wz;
   const len = Math.hypot(dx, dz) || 1;
@@ -603,7 +607,15 @@ function setDecorGhostScreenCenter() {
   const rc = new THREE.Raycaster();
   rc.setFromCamera(new THREE.Vector2(0, -0.08), ctx.camera);
   const hits = rc.intersectObject(ctx.locationRoot, true);
-  const hit = hits.find(h => h.point.y < 0.35 && h.point.y > -0.05);
+  const hit = hits.find(h => {
+    if (h.point.y < 0.02 || h.point.y > 0.38) return false;
+    let o = h.object;
+    while (o) {
+      if (o.userData?.isActor) return false;
+      o = o.parent;
+    }
+    return true;
+  });
   if (!hit) return false;
   return setDecorGhostAt(hit.point.x, hit.point.z);
 }

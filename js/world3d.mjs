@@ -145,6 +145,7 @@ function createActorFromCatalog(id, characterId) {
   const { root, mixer, actions } = built;
   root.add(makeShadow());
   const group = new THREE.Group();
+  group.userData.isActor = true;
   group.add(root);
   scene.add(group);
   const actor = {
@@ -1507,7 +1508,10 @@ const api = {
     placeActorWorld(npc, ax, az, false, true);
     pl.wx = px;
     pl.wz = pz;
+    pl._vy = 0;
+    pl._onGround = true;
     placeActorWorld(pl, px, pz, true);
+    pl.group.position.y = 0;
     pl.group.lookAt(ax, pl.group.position.y + 0.92, az);
     npc.group.lookAt(px, npc.group.position.y + 0.92, pz);
     const midX = (px + ax) * 0.5;
@@ -1539,6 +1543,16 @@ const api = {
   snapScreenshotView: () => {
     const a = actors.get("player");
     if (!a || !bounds || !renderer || !camera) return false;
+    if (captureHideActors) {
+      captureHideActors.forEach(act => { act.group.visible = true; });
+      captureHideActors = null;
+    }
+    captureHideActors = [];
+    actors.forEach((act, id) => {
+      if (id === "player" || id === "dog") return;
+      act.group.visible = false;
+      captureHideActors.push(act);
+    });
     applyViewportCameraProfile();
     const shot = getFixedLocationShot();
     if (shot?.player) applyFixedLocationActors();
