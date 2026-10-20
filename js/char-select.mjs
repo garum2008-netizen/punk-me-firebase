@@ -3,9 +3,10 @@ import {
   loadAllCc0Templates,
   getTemplateForCharacter,
   createCc0Actor
-} from "./world/cc0-characters.mjs";
+} from "./world/meshy-punk.mjs";
+import { updateProcedural } from "./character-rig.mjs";
 
-let renderer, scene, camera, clock, actorRoot, mixer, actions;
+let renderer, scene, camera, clock, actorRoot, mixer, actions, previewProc;
 let selectedIdx = 0;
 let raf = 0;
 let onPickCb = null;
@@ -22,6 +23,7 @@ function showCharacter(id) {
   scene.add(actorRoot);
   mixer = built.mixer;
   actions = built.actions;
+  previewProc = built._proc;
   const line = characterIntroLine(id);
   const el = document.getElementById("charSelectIntro");
   if (el) el.textContent = line;
@@ -32,6 +34,9 @@ function loop() {
   raf = requestAnimationFrame(loop);
   const dt = clock.getDelta();
   mixer?.update(dt);
+  if (actorRoot && previewProc) {
+    updateProcedural({ _meshy: true, _proc: previewProc, current: "idle", root: actorRoot }, dt, null, false);
+  }
   if (actorRoot) actorRoot.rotation.y += dt * 0.55;
   renderer?.render(scene, camera);
 }

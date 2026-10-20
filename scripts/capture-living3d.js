@@ -7,12 +7,12 @@ const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 async function boot(page, qs) {
   await page.goto(`${base}/${qs}`, { waitUntil: "networkidle", timeout: 120000 });
   await page.waitForFunction(
-    () => document.getElementById("gameVersion")?.textContent?.includes("living3d-v3"),
+    () => document.getElementById("gameVersion")?.textContent?.includes("living3d-v4"),
     { timeout: 120000 }
   );
   const sel = page.locator("#charSelectConfirm");
   if (await sel.isVisible({ timeout: 8000 }).catch(() => false)) {
-    await page.click('.char-pick[data-id="razor"]').catch(() => {});
+    await page.click('.char-pick[data-id="vienna"]').catch(() => {});
     await sel.click();
     await page.waitForTimeout(2000);
   }
@@ -39,22 +39,29 @@ async function goLoc(page, locId) {
 
   await page.evaluate(() => World3D.captureCloseup("idle"));
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${out}/living3d-v3-closeup-idle.png` });
+  await page.screenshot({ path: `${out}/living3d-v4-closeup-idle.png` });
 
   await page.evaluate(() => World3D.captureCloseup("walk"));
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${out}/living3d-v3-closeup-walk.png` });
+  await page.screenshot({ path: `${out}/living3d-v4-closeup-walk.png` });
 
-  for (const loc of ["room", "kitchen", "roof", "street", "cemetery"]) {
+  await page.evaluate(() => {
+    World3D.captureCloseup("run");
+    World3D.nudgePlayer(0.12, 0, 12);
+  });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/living3d-v4-closeup-run.png` });
+
+  for (const loc of ["room", "kitchen", "street"]) {
     await goLoc(page, loc);
-    await page.screenshot({ path: `${out}/living3d-v3-${loc}.png` });
+    await page.screenshot({ path: `${out}/living3d-v4-${loc}.png` });
   }
 
   await boot(page, "?dev=1&demo3=1&solo=1&v=party");
   await page.evaluate(() => { if (typeof buyItem === "function") buyItem("pet_dog"); });
   await goLoc(page, "room");
   await page.waitForTimeout(2500);
-  await page.screenshot({ path: `${out}/living3d-v3-room-party-dog.png` });
+  await page.screenshot({ path: `${out}/living3d-v4-room-party-dog.png` });
 
   console.log(JSON.stringify({
     version: await page.textContent("#gameVersion"),

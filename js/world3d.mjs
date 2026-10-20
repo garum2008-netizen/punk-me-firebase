@@ -13,8 +13,9 @@ import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs
 import {
   loadAllCc0Templates,
   getTemplateForCharacter,
-  createCc0Actor
-} from "./world/cc0-characters.mjs";
+  createCc0Actor,
+  updateLocomotionTimeScale
+} from "./world/meshy-punk.mjs";
 
 const MODEL_DOG = "assets/models/cc0/fox.glb";
 
@@ -68,7 +69,8 @@ function createActorFromCatalog(id, characterId) {
   const def = charDef(characterId || "razor");
   const tpl = getTemplateForCharacter(characterId || "razor");
   if (!tpl?.gltf) return null;
-  const { root, mixer, actions } = createCc0Actor(tpl, characterId, def.look || {});
+  const built = createCc0Actor(tpl, characterId, def.look || {});
+  const { root, mixer, actions } = built;
   root.add(makeShadow());
   const group = new THREE.Group();
   group.add(root);
@@ -76,8 +78,9 @@ function createActorFromCatalog(id, characterId) {
   const actor = {
     id, characterId: characterId || "razor", group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
-    _tplKey: tpl.key
+    _tplKey: tpl.key, _meshy: built._meshy, _proc: built._proc
   };
+  for (let i = 0; i < 4; i++) updateProcedural(actor, 1 / 60, null, false);
   actors.set(id, actor);
   return actor;
 }
@@ -97,6 +100,34 @@ function ensureActor(id, characterId, isNpc) {
 }
 
 function fadeTo(actor, name) {
+  const locomotion = name === "walk" || name === "run";
+  if (actor._meshy) {
+    const key = locomotion && actor.actions?.[name] ? name : "idle";
+    if (actor.current === key && (locomotion || !locomotion)) {
+      if (locomotion) updateLocomotionTimeScale(actor);
+      return;
+    }
+    if (locomotion && actor.actions?.[name]) {
+      const next = actor.actions[name];
+      const other = name === "walk" ? actor.actions.run : actor.actions.walk;
+      other?.stop();
+      other?.setEffectiveWeight(0);
+      next.reset().setEffectiveWeight(1).fadeIn(0.22).play();
+      actor.current = name;
+      updateLocomotionTimeScale(actor);
+      return;
+    }
+    ["walk", "run"].forEach(k => {
+      const act = actor.actions?.[k];
+      if (!act) return;
+      act.fadeOut(0.15);
+      act.stop();
+      act.setEffectiveWeight(0);
+    });
+    const procName = ["talk", "wave", "interact", "sit", "emote"].includes(name) ? name : "idle";
+    if (actor.current !== procName) actor.current = procName;
+    return;
+  }
   const key = actor.actions?.[name] ? name : "idle";
   if (!actor.actions?.[key] || actor.current === key) return;
   const prev = actor.actions[actor.current];
@@ -107,10 +138,14 @@ function fadeTo(actor, name) {
 }
 
 function pickLocomotionAnim(actor, speed, talking) {
-  if (talking) return "talk";
-  if (actor._holdAnim && actor._holdUntil > performance.now()) return actor._holdAnim;
+  if (actor._holdAnim && actor._holdUntil > performance.now()) {
+    if (actor._holdAnim === "walk" || actor._holdAnim === "run") return actor._holdAnim;
+    return actor._holdAnim;
+  }
+  if (talking && speed < 0.08) return "talk";
+  const walkGate = actor._meshy ? 0.16 : 0.08;
   if (speed > 1.2) return "run";
-  if (speed > 0.08) return "walk";
+  if (speed > walkGate) return "walk";
   return "idle";
 }
 
@@ -246,7 +281,10 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   actor.group.position.y = 0;
   const dx = c.x - (actor.wx ?? c.x);
   const dz = c.z - (actor.wz ?? c.z);
-  const speed = Math.hypot(dx, dz) * (isPlayer ? 8 : 4);
+  let speed = Math.hypot(dx, dz) * (isPlayer ? 8 : 2.5);
+  if (actor.id.startsWith("demo_")) speed = 0;
+  if (!isPlayer && isNpc && Math.hypot(dx, dz) < 0.025) speed = 0;
+  if (!isPlayer && actor._netAnim === "idle") speed = 0;
   actor._spd = speed;
   if (isPlayer) { meLastDx = dx; meLastDy = dz; }
   actor.wx = c.x;
@@ -258,9 +296,10 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   }
   if (actor.isDog) {
     fadeToDog(actor, speed > 0.8 ? "run" : speed > 0.08 ? "walk" : "idle");
-  } else if (actor.actions) {
+  } else if (actor.actions || actor._meshy) {
     const talking = talkingIds.has(actor.characterId) || talkingIds.has(actor.id.replace("npc_", ""));
     fadeTo(actor, pickLocomotionAnim(actor, speed, talking));
+    updateLocomotionTimeScale(actor);
   }
   if (isPlayer) {
     const st = talkingIds.has("player") ? "talk" : (speed > 1.2 ? "run" : speed > 0.08 ? "walk" : "idle");
@@ -437,6 +476,14 @@ function loop() {
   const playerPos = pl ? pl.group.position : null;
   actors.forEach(a => {
     a.mixer?.update(dt);
+    if (a._meshy && a.current !== "walk" && a.current !== "run") {
+      ["walk", "run"].forEach(k => {
+        const act = a.actions?.[k];
+        if (!act || act.getEffectiveWeight() < 0.02) return;
+        act.stop();
+        act.setEffectiveWeight(0);
+      });
+    }
     markActorVisibleWhenReady(a);
     if (a.root && !a.isDog) {
       const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));
@@ -524,8 +571,16 @@ const api = {
   captureCloseup: (pose = "idle") => {
     const a = actors.get("player");
     if (!a?.root) return false;
-    fadeTo(a, pose === "walk" ? "walk" : "idle");
-    for (let i = 0; i < 40; i++) a.mixer.update(1 / 30);
+    const key = pose === "run" ? "run" : pose === "walk" ? "walk" : "idle";
+    fadeTo(a, key);
+    if (key === "walk" || key === "run") {
+      a._spd = key === "run" ? 2.4 : 1.1;
+      updateLocomotionTimeScale(a);
+    }
+    for (let i = 0; i < 48; i++) {
+      a.mixer?.update(1 / 30);
+      updateProcedural(a, 1 / 30, null, false);
+    }
     markActorVisibleWhenReady(a);
     a.root.visible = true;
     const p = a.group.position;
@@ -533,6 +588,16 @@ const api = {
     camera.lookAt(p.x, p.y + 1.22, p.z);
     renderer.render(scene, camera);
     return true;
+  },
+  nudgePlayer: (dx, dz, steps = 8) => {
+    const a = actors.get("player");
+    if (!a || !bounds) return;
+    for (let i = 0; i < steps; i++) {
+      const np = clampWorld(a.wx + dx, a.wz + dz);
+      placeActorWorld(a, np.x, np.z, true);
+      a.mixer?.update(1 / 30);
+      updateProcedural(a, 1 / 30, null, false);
+    }
   }
 };
 window.World3D = api;
