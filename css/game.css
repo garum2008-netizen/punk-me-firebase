@@ -24,7 +24,7 @@ body {
 }
 @keyframes scan { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
 .hotspot {
-  position: absolute; z-index: 6; cursor: pointer;
+  position: absolute; z-index: 12; cursor: pointer;
   border: 2px dashed rgba(0,255,255,0.35);
   border-radius: 12px; background: rgba(255,0,255,0.12);
   transition: background 0.2s, border-color 0.2s;

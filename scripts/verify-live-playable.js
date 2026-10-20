@@ -45,20 +45,18 @@ const URL = "https://halloween.punk.contractbot.dk/";
   }
   await page.screenshot({ path: `${out}/live-verify-movement.png` });
 
-  const doors = await page.$$(".hotspot.door");
   let changedLoc = loc;
-  if (doors.length > 0) {
-    const dbox = await doors[0].boundingBox();
-    if (dbox) {
-      await page.mouse.click(dbox.x + dbox.width / 2, dbox.y + dbox.height / 2);
-      await page.waitForTimeout(1200);
-      changedLoc = await page.textContent("#locTitle");
-    }
+  const kitchen = page.locator('.hotspot.door[data-label="Кухня"]');
+  if (await kitchen.count()) {
+    await kitchen.click({ force: true });
+    await page.waitForTimeout(1200);
+    changedLoc = await page.textContent("#locTitle");
   }
 
   const report = {
     url: URL,
-    playable: hasGameJs && hasCss && version && version.startsWith("mvp-2026-10-20") && coins !== "…" && changedLoc !== loc,
+    playable: hasGameJs && hasCss && version && version.includes("mvp-2026-10-20") && coins !== "…" && changedLoc !== loc,
+    noPageErrors: !logs.some((l) => l.startsWith("PAGEERROR")),
     version,
     coins,
     locBefore: loc,

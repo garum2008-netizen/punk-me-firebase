@@ -306,7 +306,7 @@ function loadMe() {
     saveMe();
     hideLoading();
     renderAll();
-    listenPresence();
+    initMultiplayer();
     listenChat();
     listenBuildings();
     spawnNightAmbients();
@@ -353,6 +353,20 @@ function sanitizePlayer(p) {
     owner: isOwner,
     lastSeen: p.lastSeen
   };
+}
+
+function initMultiplayer() {
+  if (!uid) return;
+  const probe = db.ref("presence/" + me.location + "/" + uid);
+  probe.set({ probe: true, ts: Date.now() }).then(() => {
+    presenceOk = true;
+    probe.remove().catch(() => {});
+    listenPresence();
+    pushPresence();
+  }).catch(() => {
+    presenceOk = false;
+    listenPlayersInLocation();
+  });
 }
 
 function pushPresence() {
