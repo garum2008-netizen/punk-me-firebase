@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/game.css?v=live-anim">
 </head>
 <body>
 <div id="loading">
@@ -14,7 +14,12 @@
 </div>
 <div id="game">
   <div class="room-layer" id="roomLayer">
-    <img class="bg" id="bg" src="imagine_images/q4BXV.jpg" alt="">
+    <div class="bg-stack">
+      <img class="bg bg-a" id="bg" src="imagine_images/q4BXV.jpg" alt="">
+      <img class="bg bg-b bg-drift" id="bgDup" src="imagine_images/q4BXV.jpg" alt="" aria-hidden="true">
+      <div class="neon-flicker"></div>
+    </div>
+    <canvas id="lifeCanvas" aria-hidden="true"></canvas>
     <div class="vignette"></div>
     <div class="night-fx"><div class="neon-scan"></div></div>
     <div id="buildLayer"></div>
@@ -109,6 +114,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script src="js/game.js?v=mvp-live-2"></script>
+<script src="js/life.js?v=live-anim"></script>
+<script src="js/game.js?v=live-anim"></script>
 </body>
 </html>

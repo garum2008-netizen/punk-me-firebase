@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "mvp-2026-10-20-live";
+const GAME_VERSION = "mvp-live-anim";
 
 const LOCATIONS = {
   room: {
@@ -285,7 +285,19 @@ function init() {
   window.addEventListener("keydown", onKey);
   setInterval(tickPresence, 2500);
   setInterval(tickNight, 4000);
-  setInterval(tickDog, 120);
+  LifeEngine.init({
+    getMe: () => me,
+    hasDog,
+    onPetDog: () => petDog(true),
+    onTrashKick: () => {
+      if (!isOwner) me.coins += 5;
+      me.xp += 2;
+      saveMe();
+      toast("+5 за мусор");
+      document.getElementById("coins").textContent = isOwner ? "∞" : String(me.coins);
+    },
+    onCatPet: () => toast("Кот шипит и убегает")
+  });
   const ver = document.getElementById("gameVersion");
   if (ver) ver.textContent = GAME_VERSION;
 }
@@ -309,7 +321,7 @@ function loadMe() {
     initMultiplayer();
     listenChat();
     listenBuildings();
-    spawnNightAmbients();
+    refreshLifeScene();
     if (me.dog) dogPos = { ...me.dog };
     else dogPos = { x: me.x - 4, y: me.y + 2 };
   });
@@ -496,9 +508,10 @@ function goLocation(id) {
   me.x = 45;
   me.y = 60;
   saveMe();
-  listenPresence();
+  if (presenceOk) listenPresence();
+  else listenPlayersInLocation();
   listenBuildings();
-  spawnNightAmbients();
+  refreshLifeScene();
   renderAll();
   toast(LOCATIONS[id].title);
   if (pendingJobAction) {
@@ -509,7 +522,7 @@ function goLocation(id) {
 }
 
 function onRoomClick(e) {
-  if (e.target.closest(".hotspot, .entity, .btn, .modal, .chat, .ambient, .build-piece")) return;
+  if (e.target.closest(".hotspot, .entity, .btn, .modal, .chat, .ambient, .ambient-life, .build-piece, #dogEntity, .life-dog")) return;
   const rect = document.getElementById("roomLayer").getBoundingClientRect();
   const x = ((e.clientX - rect.left) / rect.width) * 100;
   const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -562,19 +575,27 @@ function renderAll() {
   document.getElementById("btnFight").style.display = (loc.npcs && loc.npcs.length) ? "inline-block" : "none";
 
   renderPlayers();
+  LifeEngine.onSceneRender(loc);
+  LifeEngine.decorateEntities();
   renderQuest();
   renderNpcMarkers();
+}
+
+function refreshLifeScene() {
+  const loc = LOCATIONS[me.location];
+  LifeEngine.onLocationChange(!!loc.night);
 }
 
 function renderPlayers() {
   const layer = document.getElementById("entities");
   let html = `<div class="entity me" style="left:${me.x}%;top:${me.y}%;">
-    <img class="avatar" src="${me.avatar}" alt=""><div class="tag">${escapeHtml(me.name)} (ты)</div></div>`;
+    <div class="sprite-wrap breathe sway"><img class="avatar" src="${me.avatar}" alt=""><span class="blink-overlay"></span></div>
+    <div class="tag">${escapeHtml(me.name)} (ты)</div></div>`;
 
   Object.entries(others).forEach(([id, p]) => {
     if (id === uid || !p) return;
-    html += `<div class="entity" style="left:${p.x}%;top:${p.y}%;">
-      <img class="avatar" src="${escapeHtml(p.avatar || "imagine_images/Lix06.jpg")}" alt="">
+    html += `<div class="entity breathe sway" style="left:${p.x}%;top:${p.y}%;">
+      <div class="sprite-wrap"><img class="avatar" src="${escapeHtml(p.avatar || "imagine_images/Lix06.jpg")}" alt=""></div>
       <div class="tag">${escapeHtml(p.name)} · ур.${p.level || 1}</div></div>`;
   });
 
@@ -583,49 +604,25 @@ function renderPlayers() {
     if (!n) return;
     const px = 25 + (nid.length * 7) % 50;
     const py = 48 + (nid.length * 3) % 20;
-    html += `<div class="entity npc" style="left:${px}%;top:${py}%;" data-npc="${nid}">
-      <img class="avatar" src="${n.img}" alt=""><div class="tag">${escapeHtml(n.name)}</div></div>`;
+    html += `<div class="entity npc breathe sway" style="left:${px}%;top:${py}%;" data-npc="${nid}">
+      <div class="sprite-wrap"><img class="avatar" src="${n.img}" alt=""><span class="blink-overlay npc-blink"></span></div>
+      <div class="tag">${escapeHtml(n.name)}</div></div>`;
   });
-
-  if (hasDog()) {
-    html += `<div class="entity dog" id="dogEntity" style="left:${dogPos.x}%;top:${dogPos.y}%;">
-      <img class="avatar" src="imagine_images/sgz0l.jpg" alt="пёс">
-      <div class="tag">${dogWag ? "🐾 гав!" : "пёс"}</div></div>`;
-  }
 
   layer.innerHTML = html;
   layer.querySelectorAll(".entity.npc").forEach(el => {
     el.onclick = () => openNpcDialog(el.dataset.npc);
   });
-  const dogEl = document.getElementById("dogEntity");
-  if (dogEl) dogEl.onclick = (e) => { e.stopPropagation(); petDog(); };
+  LifeEngine.afterEntityRender?.();
 }
 
-function tickDog() {
-  if (!me || !hasDog()) return;
-  const dx = me.x - dogPos.x;
-  const dy = me.y - dogPos.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist > 3) {
-    dogPos.x += dx * 0.14;
-    dogPos.y += dy * 0.14;
-  }
-  const el = document.getElementById("dogEntity");
-  if (el) {
-    el.style.left = dogPos.x + "%";
-    el.style.top = dogPos.y + "%";
-  }
-  me.dog = { x: dogPos.x, y: dogPos.y };
-}
-
-function petDog() {
-  dogWag = true;
+function petDog(fromLife) {
+  if (!fromLife) LifeEngine.barkAndPet();
   toast("Пёс рад! +6 монет");
   if (!isOwner) me.coins += 6;
   me.xp += 3;
   saveMe();
-  renderAll();
-  setTimeout(() => { dogWag = false; renderPlayers(); }, 900);
+  document.getElementById("coins").textContent = isOwner ? "∞" : String(me.coins);
 }
 
 function renderNpcMarkers() {}
@@ -1048,29 +1045,6 @@ function sendChat() {
 function tickPresence() {
   pushPresence();
   updateOnlineCount();
-}
-
-function spawnNightAmbients() {
-  const layer = document.getElementById("ambients");
-  layer.innerHTML = "";
-  if (!LOCATIONS[me.location].night) return;
-  const types = [
-    { emoji: "🐈", action: () => { if (!isOwner) me.coins += 8; toast("Кот мурлычет +8"); saveMe(); renderAll(); } },
-    { emoji: "🚓", action: () => toast("Полиция — гаси неон!") },
-    { emoji: "🗑️", action: () => { if (!isOwner) me.coins += 5; toast("+5 за мусор"); saveMe(); renderAll(); } },
-    { emoji: "💡", action: () => toast("Фонарь мигает в такт басу") }
-  ];
-  for (let i = 0; i < 3; i++) {
-    const t = types[i % types.length];
-    const el = document.createElement("div");
-    el.className = "ambient";
-    el.textContent = t.emoji;
-    el.style.left = 15 + Math.random() * 70 + "%";
-    el.style.top = 25 + Math.random() * 50 + "%";
-    el.style.animationDelay = i * 0.4 + "s";
-    el.onclick = t.action;
-    layer.appendChild(el);
-  }
 }
 
 function tickNight() {

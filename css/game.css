@@ -7,9 +7,35 @@ body {
 }
 #game { width: 100vw; height: 100vh; position: relative; }
 .room-layer { position: absolute; inset: 0; overflow: hidden; }
+.bg-stack {
+  position: absolute; inset: 0;
+  transform: translate(var(--px, 0), var(--py, 0));
+  transition: transform 0.15s ease-out;
+}
 .room-layer img.bg {
   width: 100%; height: 100%; object-fit: cover;
   filter: saturate(1.15) contrast(1.05);
+}
+.room-layer img.bg-a { position: absolute; inset: 0; }
+.room-layer img.bg-b {
+  position: absolute; inset: 0; opacity: 0.22;
+  mix-blend-mode: screen; filter: blur(1px) hue-rotate(25deg);
+}
+.bg-breathe { animation: bgBreath 7s ease-in-out infinite; }
+.bg-drift { animation: bgDrift 20s ease-in-out infinite alternate; }
+@keyframes bgBreath { 50% { transform: scale(1.018); } }
+@keyframes bgDrift {
+  from { transform: translate(-1.2%, 0.3%) scale(1.025); }
+  to { transform: translate(1.2%, -0.4%) scale(1.03); }
+}
+.neon-flicker {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(125deg, rgba(255,0,255,0.1), rgba(0,255,255,0.08));
+  mix-blend-mode: screen;
+}
+.night-scene .neon-flicker { background: linear-gradient(125deg, rgba(255,0,255,0.16), rgba(0,255,255,0.12)); }
+#lifeCanvas {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0.65;
 }
 .room-layer .vignette {
   position: absolute; inset: 0;
@@ -40,6 +66,24 @@ body {
   transition: left 0.35s ease, top 0.35s ease;
   text-align: center;
 }
+.sprite-wrap {
+  position: relative; display: inline-block;
+  transform-origin: center bottom;
+}
+.sprite-wrap.breathe { animation: spriteBreathe 2.6s ease-in-out infinite; }
+.sprite-wrap.sway { animation: spriteSway 4s ease-in-out infinite; }
+@keyframes spriteBreathe { 50% { transform: scale(1.06) translateY(-3px); } }
+@keyframes spriteSway { 50% { transform: rotate(1.5deg); } 0%, 100% { transform: rotate(-1.5deg); } }
+.blink-overlay {
+  position: absolute; left: 15%; right: 15%; top: 28%; height: 8%;
+  background: #0a0a12; opacity: 0; border-radius: 40%;
+  animation: eyeBlink 5.5s infinite; pointer-events: none;
+}
+.npc-blink { animation: eyeBlink 3.8s infinite; }
+@keyframes eyeBlink {
+  0%, 97%, 100% { opacity: 0; transform: scaleY(1); }
+  98% { opacity: 0.85; transform: scaleY(0.1); }
+}
 .entity img.avatar {
   width: 58px; height: 72px; object-fit: cover;
   border-radius: 10px; border: 2px solid #ff00ff;
@@ -52,6 +96,59 @@ body {
 .entity.me img.avatar { border-color: #0ff; box-shadow: 0 0 14px rgba(0,255,255,0.6); }
 .entity.npc img.avatar { border-color: #a855f7; }
 .entity.dog img.avatar { width: 50px; height: 50px; border-color: #fbbf24; border-radius: 50%; }
+.life-dog { z-index: 9; cursor: pointer; }
+.life-dog .sprite-wrap { animation: dogBreathe 1.1s ease-in-out infinite; }
+.life-dog.dog-run .sprite-wrap { animation: dogRun 0.22s steps(2) infinite; }
+.life-dog.dog-wag .sprite-wrap { animation: dogWag 0.12s ease-in-out 8; }
+.life-dog.dog-sit .sprite-wrap { transform: scale(0.9) translateY(8px); animation: none; }
+.life-dog.dog-sleep .sprite-wrap { animation: dogSleep 2.5s ease-in-out infinite; filter: brightness(0.85); }
+@keyframes dogBreathe { 50% { transform: scale(1.08) translateY(-2px); } }
+@keyframes dogRun { 50% { transform: translateY(-5px) scale(1.05); } }
+@keyframes dogWag { 50% { transform: rotate(12deg); } }
+@keyframes dogSleep { 50% { transform: translateY(4px) scale(0.95); } }
+.speech-bubble {
+  position: absolute; top: -30px; left: 50%; min-width: 36px;
+  transform: translateX(-50%) scale(0); background: #fff; color: #111;
+  padding: 4px 9px; border-radius: 12px; font-size: 11px; font-weight: 800;
+  box-shadow: 0 0 10px rgba(255,0,255,0.5); transition: transform 0.18s;
+  pointer-events: none; z-index: 12;
+}
+.speech-bubble.show { transform: translateX(-50%) scale(1); }
+.ambient-life {
+  position: absolute; z-index: 8; pointer-events: auto; transform: translate(-50%, -50%);
+}
+.ambient-life .amb-sprite { display: inline-block; font-size: 30px; filter: drop-shadow(0 0 8px #ff00ff); }
+.ambient-cat .amb-sprite { animation: catWalk 0.45s steps(2) infinite; }
+@keyframes catWalk { 50% { transform: translateY(-3px); } }
+.ambient-cat.cat-jump .amb-sprite { animation: catJump 0.55s ease-out !important; }
+@keyframes catJump { 40% { transform: translateY(-22px) rotate(-8deg); } }
+.ambient-police .amb-sprite { animation: carBounce 0.35s ease-in-out infinite; }
+@keyframes carBounce { 50% { transform: translateY(-2px); } }
+.police-flash {
+  position: absolute; inset: -6px; border-radius: 6px; pointer-events: none;
+  animation: policeFlash 0.35s linear infinite;
+}
+@keyframes policeFlash {
+  0%, 100% { box-shadow: 0 0 14px 4px rgba(59,130,246,0.7); }
+  50% { box-shadow: 0 0 16px 5px rgba(239,68,68,0.75); }
+}
+.ambient-trash.rustle .amb-sprite { animation: trashRustle 0.45s ease-in-out; }
+@keyframes trashRustle {
+  25% { transform: rotate(-10deg) scale(1.05); }
+  75% { transform: rotate(10deg) scale(1.05); }
+}
+.ambient-light .amb-sprite { animation: lightFlicker 0.1s infinite alternate; }
+@keyframes lightFlicker { from { opacity: 0.75; } to { opacity: 1; } }
+.light-glow {
+  position: absolute; inset: -24px; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,240,120,0.4), transparent 65%);
+  animation: glowPulse 1.4s ease-in-out infinite;
+}
+@keyframes glowPulse { 50% { opacity: 0.55; transform: scale(1.15); } }
+.build-piece { animation: buildPulse 3s ease-in-out infinite; }
+@keyframes buildPulse { 50% { box-shadow: 0 0 16px rgba(0,255,255,0.65); transform: translate(-50%, -50%) scale(1.06); } }
+.loc-name { animation: titleNeon 2.2s ease-in-out infinite; }
+@keyframes titleNeon { 50% { text-shadow: 0 0 18px #ff00ff, 0 0 8px #0ff; } }
 .build-piece {
   position: absolute; z-index: 5; transform: translate(-50%, -50%);
   width: 48px; height: 48px; border-radius: 8px;
