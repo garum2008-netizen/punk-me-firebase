@@ -40,7 +40,7 @@ export const LOCATION_BOUNDS = {
   room: { minX: -7, maxX: 7, minZ: -6, maxZ: 6 },
   kitchen: { minX: -6, maxX: 6, minZ: -5, maxZ: 5 },
   toilet: { minX: -5, maxX: 5, minZ: -4, maxZ: 4 },
-  elevator: { minX: -5, maxX: 5, minZ: -5, maxZ: 5 },
+  elevator: { minX: -1.45, maxX: 1.45, minZ: -1.45, maxZ: 1.45 },
   roof: { minX: -10, maxX: 10, minZ: -8, maxZ: 8 },
   street: { minX: -12, maxX: 12, minZ: -10, maxZ: 10 },
   cemetery: { minX: -11, maxX: 11, minZ: -9, maxZ: 9 },
@@ -163,7 +163,7 @@ export const LOCATION_THEME = {
   street: { bg: 0x1a1028, fog: 0x140c20, fogD: 0.0082, hemi: 0xff88ff, ground: 0x282038 },
   cemetery: { bg: 0x142018, fog: 0x101818, fogD: 0.0105, hemi: 0x99ffbb, ground: 0x243028 },
   toilet: { bg: 0x182838, fog: 0x121828, fogD: 0.0055, hemi: 0x99ccff, ground: 0x2a3040 },
-  elevator: { bg: 0x222230, fog: 0x1a1a28, fogD: 0.005, hemi: 0xccccff, ground: 0x3a3a48 },
+  elevator: { bg: 0x2a2a38, fog: 0x2a2a38, fogD: 0.11, hemi: 0xccccff, ground: 0x3a3a48 },
   city: { bg: 0x221028, fog: 0x1a0c18, fogD: 0.0055, hemi: 0xff99cc, ground: 0x2a2030 },
   parkour: { bg: 0x182040, fog: 0x121830, fogD: 0.0045, hemi: 0x99ddff, ground: 0x2a3850 }
 };
@@ -340,7 +340,8 @@ export function buildLocationScene(locId, texLoader) {
   let floor = null;
   const props = { cats: [], showCar: false };
   const colliders = [];
-  addSkyDome(root, theme);
+  const interiorCab = locId === "elevator" || locId === "toilet" || locId === "kitchen";
+  if (!interiorCab) addSkyDome(root, theme);
 
   if (locId === "room") {
     floor = tiledFloor(14, 12, theme.ground, true);
@@ -394,16 +395,16 @@ export function buildLocationScene(locId, texLoader) {
     const sign = neonSign("KITCHEN", 0xff8800);
     sign.position.set(-4, 2.4, -4.7);
     root.add(sign);
-    const counter = wall(5.5, 0.9, 0.55, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
-    counter.position.set(-1.5, 0.45, -4.15);
+    const counter = wall(8, 0.9, 0.55, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
+    counter.position.set(0, 0.45, -4.15);
     root.add(counter);
-    pushCollider(colliders, -1.5, -4.15, 2.75, 0.32);
+    pushCollider(colliders, 0, -4.15, 4, 0.32);
     props.cats.push(buildCat(3, 2, 0x222233));
     addKitchenDressing(root, { wall, colliders, pushCollider });
     addPoster(texLoader, root, "imagine_images/kwt1b.jpg", 2.8, 1.6, -5.5, 1.55, -4.88);
     addPoster(texLoader, root, "imagine_images/77Mdp.jpg", 2.2, 1.4, 5.5, 1.35, -4.88);
     addNeonTube(root, -3.5, 2.5, -4.55, 2.2, 0xff00ff);
-    addSteamPuff(root, 2.5, -4.05);
+    addSteamPuff(root, 0, -4.05);
     addLights(root, [
       { type: "point", color: 0xffaa66, intensity: 4.2, x: 0, y: 2.8, z: 0 },
       { type: "point", color: 0xff00ff, intensity: 2.8, x: -4, y: 2.5, z: -3 },
@@ -499,17 +500,29 @@ export function buildLocationScene(locId, texLoader) {
       { type: "point", color: 0xff66cc, intensity: 1.6, x: 2.5, y: 2.2, z: 1.5 }
     ]);
   } else if (locId === "elevator") {
-    floor = tiledFloor(10, 10, 0x3a3a48, false);
+    const cabMat = new THREE.MeshStandardMaterial({ color: 0x3a3a48, metalness: 0.35, roughness: 0.55 });
+    const cabTrim = new THREE.MeshStandardMaterial({ color: 0x666678, metalness: 0.72, roughness: 0.32 });
+    floor = tiledFloor(3, 3, 0x52525f, true);
     root.add(floor);
-    addRoomShell(root, 10, 10, 3.6, new THREE.MeshStandardMaterial({ color: 0x2a2a38 }), colliders);
-    addPoster(texLoader, root, "imagine_images/VmOQt.jpg", 3.5, 2.5, 0, 2, -4.85);
+    const cabH = 2.5;
+    const half = 1.5;
+    root.add(wall(3, cabH, 0.12, cabMat).translateZ(-half));
+    root.add(wall(3, cabH, 0.12, cabMat).translateX(-half));
+    root.add(wall(3, cabH, 0.12, cabMat).translateX(half));
+    root.add(wall(0.55, cabH, 0.12, cabTrim).translateX(-0.95).translateZ(half));
+    root.add(wall(0.55, cabH, 0.12, cabTrim).translateX(0.95).translateZ(half));
+    const ceil = wall(3, 0.12, 3, cabMat);
+    ceil.position.y = cabH;
+    root.add(ceil);
+    pushCollider(colliders, 0, -half, 1.45, 0.08);
+    pushCollider(colliders, -half, 0, 0.08, 1.45);
+    pushCollider(colliders, half, 0, 0.08, 1.45);
     addElevatorDressing(root, { wall, neonSign, colliders, pushCollider });
-    addNeonTube(root, -3, 2.2, -4.5, 2, 0xff00ff);
     addLights(root, [
-      { type: "point", color: 0xffccaa, intensity: 3.2, x: 0, y: 2.6, z: 2.5 },
-      { type: "point", color: 0xffffff, intensity: 2.4, x: 0, y: 2.8, z: -1 },
-      { type: "point", color: 0xff66ff, intensity: 2.2, x: -3.5, y: 2.1, z: 0.5 },
-      { type: "point", color: 0x00ffff, intensity: 1.8, x: 2.2, y: 1.8, z: 3.8 }
+      { type: "point", color: 0xffccaa, intensity: 4.5, x: 0, y: 2.2, z: 0.9 },
+      { type: "point", color: 0xffffff, intensity: 3.2, x: 0, y: 2.35, z: -0.4 },
+      { type: "point", color: 0xff66ff, intensity: 2.8, x: -1.1, y: 1.9, z: 0.2 },
+      { type: "point", color: 0x00ffff, intensity: 2.4, x: 1.05, y: 1.7, z: 0.85 }
     ]);
   } else if (locId === "city") {
     floor = tiledFloor(20, 18, theme.ground, false);

@@ -456,7 +456,25 @@ function fadeToDog(dog, name) {
   dog.current = name;
 }
 
+function resetOccluderOpacity() {
+  if (!locationRoot) return;
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.userData.cameraOccluder || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m) return;
+      m.transparent = true;
+      m.opacity = 1;
+      m.depthWrite = true;
+    });
+  });
+}
+
 function updateCameraOccluders() {
+  if (LOCATION_CAMERA[currentLoc]?.fixed) {
+    resetOccluderOpacity();
+    return;
+  }
   const player = actors.get("player");
   if (!player || !locationRoot || !raycaster) return;
   const eye = camera.position.clone();
@@ -482,10 +500,22 @@ function updateCameraOccluders() {
 }
 
 const LOCATION_CAMERA = {
-  /** 3/4 front: camera in front of player so face + doors (+Z) read in frame */
-  elevator: { dist: 3.85, height: 2.02, lookY: 1.16, yaw: -0.52, lookAhead: 1.85 },
+  elevator: {
+    fixed: true,
+    fov: 44,
+    pos: [-1.08, 1.48, -0.62],
+    look: [0.42, 0.98, 1.05],
+    player: { x: 0.02, z: -0.32, yaw: 0 },
+    dog: { dx: -0.5, dz: 0.08 }
+  },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
-  kitchen: { dist: 5.6, height: 2.42, lookY: 1.28, yaw: 0.35 }
+  kitchen: {
+    fixed: true,
+    pos: [2.15, 2.08, 1.42],
+    look: [0.95, 0.9, -1.35],
+    player: { x: 0.22, z: 0.62, yaw: Math.PI },
+    dog: { dx: -0.44, dz: 0.1 }
+  }
 };
 
 function cameraFollowProfile() {
@@ -523,9 +553,44 @@ function resolveCameraWallCollision(eye, desired) {
   return desired;
 }
 
+function applyFixedLocationActors() {
+  const spec = LOCATION_CAMERA[currentLoc];
+  if (!spec?.player) return;
+  const pl = actors.get("player");
+  if (pl && spec.player) {
+    pl.wx = spec.player.x;
+    pl.wz = spec.player.z;
+    pl.group.position.set(spec.player.x, 0, spec.player.z);
+    if (spec.player.yaw != null) pl.group.rotation.y = spec.player.yaw;
+  }
+  const dog = actors.get("dog");
+  if (dog && pl) {
+    if (spec.dog) {
+      dog.wx = pl.wx + spec.dog.dx;
+      dog.wz = pl.wz + spec.dog.dz;
+    } else {
+      syncDogBesidePlayer(pl);
+    }
+    dog.group.position.set(dog.wx, 0, dog.wz);
+    dog.group.visible = true;
+    if (dog.root) dog.root.visible = true;
+  }
+}
+
 function positionCameraBehindPlayer(instant = false) {
   const player = actors.get("player");
   if (!player || !camera) return;
+  const fixed = LOCATION_CAMERA[currentLoc];
+  if (fixed?.fixed) {
+    if (fixed.fov && camera.fov !== fixed.fov) {
+      camera.fov = fixed.fov;
+      camera.updateProjectionMatrix();
+    }
+    camera.position.set(fixed.pos[0], fixed.pos[1], fixed.pos[2]);
+    camera.lookAt(fixed.look[0], fixed.look[1], fixed.look[2]);
+    updateCameraOccluders();
+    return;
+  }
   const p = player.group.position;
   const { dist, height, lookY } = cameraFollowProfile();
   const ox = Math.sin(cameraYaw) * dist;
@@ -541,6 +606,12 @@ function positionCameraBehindPlayer(instant = false) {
 }
 
 function resetCameraForLocation() {
+  applyViewportCameraProfile();
+  const fixedFov = LOCATION_CAMERA[currentLoc]?.fov;
+  if (fixedFov && camera) {
+    camera.fov = fixedFov;
+    camera.updateProjectionMatrix();
+  }
   cameraYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
   positionCameraBehindPlayer(true);
 }
@@ -691,14 +762,12 @@ function sync(data) {
     const dogActor = actors.get("dog");
     if (dogActor) dogActor._placed = false;
   }
-  if (justChangedLoc && location === "kitchen" && player && bounds) {
-    const clear = findClearSpawn(bounds, furnitureColliders, { x: -2.8, z: -1.2 });
-    const g = worldToGameLoc(clear.x, clear.z, bounds);
+  if (justChangedLoc && location === "elevator" && player && bounds) {
+    const g = worldToGameLoc(0, -0.42, bounds);
     hooks.onMove?.(g.x, g.y);
   }
-  if (justChangedLoc && location === "elevator" && player && bounds) {
-    const clear = findClearSpawn(bounds, furnitureColliders, { x: 0, z: -2.1 });
-    const g = worldToGameLoc(clear.x, clear.z, bounds);
+  if (justChangedLoc && location === "kitchen" && player && bounds) {
+    const g = worldToGameLoc(0, 1.55, bounds);
     hooks.onMove?.(g.x, g.y);
   }
 
@@ -781,9 +850,9 @@ function sync(data) {
 
   const playerActor = actors.get("player");
   const spawnPref = currentLoc === "kitchen"
-    ? { x: -2.8, z: -1.2 }
+    ? { x: 0, z: 1.55 }
     : currentLoc === "elevator"
-      ? { x: 0, z: -2.1 }
+      ? { x: 0, z: -0.42 }
       : { x: 0, z: -1.2 };
   if (playerActor && pointInsideCollider(playerActor.wx, playerActor.wz, furnitureColliders, 0.38)) {
     const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
@@ -797,8 +866,7 @@ function sync(data) {
     }
   }
   if (justChangedLoc) {
-    const plActor = actors.get("player");
-    if (plActor && currentLoc === "elevator") plActor.group.rotation.y = 0;
+    applyFixedLocationActors();
     resetCameraForLocation();
     const dogPl = actors.get("player");
     if (actors.get("dog") && dogPl) syncDogBesidePlayer(dogPl);
@@ -988,6 +1056,18 @@ const api = {
     playOneShot(a, name === "sit" ? "sit" : "interact", 1500);
   },
   isReady: () => modelsReady,
+  getDebugCamera: () => {
+    const pl = actors.get("player");
+    const dog = actors.get("dog");
+    return {
+      loc: currentLoc,
+      pos: camera ? camera.position.toArray() : null,
+      fov: camera?.fov,
+      player: pl ? [pl.wx, pl.wz, pl.group.rotation.y] : null,
+      dog: dog ? [dog.wx, dog.wz] : null,
+      rootName: locationRoot?.name
+    };
+  },
   isDogActive: () => {
     const d = actors.get("dog");
     if (!d?.group) return false;
@@ -1097,11 +1177,19 @@ const api = {
   snapScreenshotView: () => {
     const a = actors.get("player");
     if (!a || !bounds || !renderer || !camera) return false;
-    if (currentLoc === "elevator") a.group.rotation.y = 0;
-    else a.group.rotation.y = 0.12;
-    const dog = actors.get("dog");
-    if (dog) syncDogBesidePlayer(a);
+    const shot = LOCATION_CAMERA[currentLoc];
+    if (shot?.player) applyFixedLocationActors();
+    else {
+      a.group.rotation.y = 0.12;
+      syncDogBesidePlayer(a);
+    }
     resetCameraForLocation();
+    if (shot?.fixed) {
+      camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2]);
+      camera.lookAt(shot.look[0], shot.look[1], shot.look[2]);
+      resetOccluderOpacity();
+    }
+    document.getElementById("howToOverlay")?.classList.remove("active");
     captureFrameLock = true;
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);

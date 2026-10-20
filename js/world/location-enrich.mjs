@@ -617,15 +617,15 @@ export function addKitchenDressing(root, helpers) {
   root.add(fridge);
   pushCollider(colliders, -5.2, -3.8, 0.45, 0.38);
   const stove = wall(1.1, 0.9, 0.65, new THREE.MeshStandardMaterial({ color: 0x333338, metalness: 0.5 }));
-  stove.position.set(2.5, 0.45, -4);
+  stove.position.set(0, 0.45, -4.15);
   root.add(stove);
-  pushCollider(colliders, 2.5, -4, 0.55, 0.35);
+  pushCollider(colliders, 0, -4.15, 0.55, 0.35);
   for (let b = 0; b < 4; b++) {
     const burner = new THREE.Mesh(
       new THREE.CylinderGeometry(0.1, 0.1, 0.03, 12),
       new THREE.MeshStandardMaterial({ color: 0x222228, metalness: 0.7 })
     );
-    burner.position.set(2.15 + (b % 2) * 0.45, 0.92, -4.15 + Math.floor(b / 2) * 0.35);
+    burner.position.set(-0.35 + (b % 2) * 0.45, 0.92, -4.3 + Math.floor(b / 2) * 0.35);
     root.add(burner);
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(0.08, 0.012, 6, 16),
@@ -637,7 +637,7 @@ export function addKitchenDressing(root, helpers) {
     root.add(ring);
   }
   const hood = wall(1.2, 0.15, 0.7, new THREE.MeshStandardMaterial({ color: 0x888899 }));
-  hood.position.set(2.5, 1.35, -4);
+  hood.position.set(0, 1.35, -4.15);
   root.add(hood);
   for (let c = 0; c < 3; c++) {
     const cab = wall(0.95, 0.55, 0.32, new THREE.MeshStandardMaterial({ color: 0x6a5040 }));
@@ -670,21 +670,21 @@ export function addKitchenDressing(root, helpers) {
   sinkUnit.add(sinkCab, sinkBasin, faucet, spout);
   sinkUnit.position.set(-2.5, 0, -4.1);
   root.add(sinkUnit);
-  const table = wall(2.2, 0.08, 1.2, new THREE.MeshStandardMaterial({ color: 0x3a2818 }));
-  table.position.set(4.2, 0.75, 2.8);
+  const table = wall(1.6, 0.08, 0.95, new THREE.MeshStandardMaterial({ color: 0x3a2818 }));
+  table.position.set(1.55, 0.75, 0.2);
   root.add(table);
-  pushCollider(colliders, 4.2, 2.8, 1.1, 0.65, 0.35);
+  pushCollider(colliders, 1.55, 0.2, 0.85, 0.52, 0.35);
   for (let c = 0; c < 2; c++) {
     const chair = wall(0.45, 0.55, 0.45, new THREE.MeshStandardMaterial({ color: 0x4a3020 }));
-    chair.position.set(3.5 + c * 0.85, 0.28, 3.5);
+    chair.position.set(1.15 + c * 0.75, 0.28, 0.95);
     root.add(chair);
-    pushCollider(colliders, chair.position.x, 3.5, 0.22, 0.22);
+    pushCollider(colliders, chair.position.x, 1.35, 0.22, 0.22);
   }
   const lamp = new THREE.Mesh(
-    new THREE.ConeGeometry(0.28, 0.22, 8),
-    new THREE.MeshStandardMaterial({ color: 0xffeecc, emissive: 0xffdd99, emissiveIntensity: 0.65 })
+    new THREE.ConeGeometry(0.32, 0.26, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffeecc, emissive: 0xffdd99, emissiveIntensity: 0.75 })
   );
-  lamp.position.set(0, 2.85, -1.2);
+  lamp.position.set(1.55, 2.75, 0.2);
   lamp.rotation.x = Math.PI;
   root.add(lamp);
   const kettle = new THREE.Group();
@@ -697,17 +697,17 @@ export function addKitchenDressing(root, helpers) {
   const kettleSpout = wall(0.12, 0.04, 0.04, kettleBody.material);
   kettleSpout.position.set(0.12, 0.16, 0);
   kettle.add(kettleBody, kettleSpout);
-  kettle.position.set(4.35, 0.8, 2.65);
+  kettle.position.set(0.15, 0.98, -4.15);
   root.add(kettle);
   const pizza = wall(0.45, 0.05, 0.45, new THREE.MeshStandardMaterial({ color: 0xddaa44 }));
-  pizza.position.set(3.85, 0.8, 2.95);
+  pizza.position.set(1.25, 0.8, 0.35);
   root.add(pizza);
   for (let m = 0; m < 2; m++) {
     const mug = new THREE.Mesh(
       new THREE.CylinderGeometry(0.06, 0.07, 0.12, 8),
       new THREE.MeshStandardMaterial({ color: m ? 0x3366aa : 0xaa3366 })
     );
-    mug.position.set(4.55 + m * 0.18, 0.86, 2.75);
+    mug.position.set(1.75 + m * 0.18, 0.86, 0.45);
     root.add(mug);
   }
   for (let m = 0; m < 4; m++) {
@@ -725,20 +725,20 @@ export function addKitchenDressing(root, helpers) {
     new THREE.CylinderGeometry(0.16, 0.18, 0.22, 14),
     new THREE.MeshStandardMaterial({ color: 0x333338, metalness: 0.65, roughness: 0.35 })
   );
-  pot.position.set(2.5, 1.02, -4);
+  pot.position.set(0, 1.02, -4.15);
   root.add(pot);
   const fruitBowl = new THREE.Mesh(
     new THREE.SphereGeometry(0.16, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2),
     new THREE.MeshStandardMaterial({ color: 0xcc8844 })
   );
-  fruitBowl.position.set(4.1, 0.82, 2.75);
+  fruitBowl.position.set(1.55, 0.82, 0.2);
   root.add(fruitBowl);
   for (let f = 0; f < 3; f++) {
     const fruit = new THREE.Mesh(
       new THREE.SphereGeometry(0.05, 8, 8),
       new THREE.MeshStandardMaterial({ color: f ? 0xcc3333 : 0x88cc44 })
     );
-    fruit.position.set(4.05 + f * 0.08, 0.92, 2.7 + f * 0.06);
+    fruit.position.set(1.5 + f * 0.08, 0.92, 0.15 + f * 0.06);
     root.add(fruit);
   }
   const pizzaBox = new THREE.Group();
@@ -748,7 +748,7 @@ export function addKitchenDressing(root, helpers) {
   boxLid.position.set(0, 0.1, 0.05);
   boxLid.rotation.x = -0.35;
   pizzaBox.add(boxBase, boxLid);
-  pizzaBox.position.set(3.7, 0.8, 3.05);
+  pizzaBox.position.set(1.85, 0.8, 0.05);
   root.add(pizzaBox);
   for (let c = 0; c < 4; c++) {
     const lowCab = wall(1.1, 0.75, 0.38, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
@@ -760,22 +760,22 @@ export function addKitchenDressing(root, helpers) {
 export function addElevatorDressing(root, helpers) {
   const { wall, neonSign, colliders, pushCollider } = helpers;
   const doorMat = new THREE.MeshStandardMaterial({
-    color: 0xb8c8d8, metalness: 0.9, roughness: 0.22,
-    emissive: 0x223344, emissiveIntensity: 0.15
+    color: 0xd8e8f8, metalness: 0.88, roughness: 0.16,
+    emissive: 0x4466aa, emissiveIntensity: 0.55
   });
-  const doorZ = 4.05;
-  const doorL = wall(1.22, 2.55, 0.07, doorMat);
-  doorL.position.set(-0.62, 1.28, doorZ);
+  const doorZ = 1.38;
+  const doorL = wall(0.52, 2.05, 0.05, doorMat);
+  doorL.position.set(-0.27, 1.02, doorZ);
   const doorR = doorL.clone();
-  doorR.position.x = 0.62;
-  const seam = wall(0.05, 2.48, 0.03, new THREE.MeshStandardMaterial({
-    color: 0x111118, emissive: 0x001122, emissiveIntensity: 0.35
+  doorR.position.x = 0.27;
+  const seam = wall(0.04, 2, 0.025, new THREE.MeshStandardMaterial({
+    color: 0x111118, emissive: 0x00ffcc, emissiveIntensity: 0.55
   }));
-  seam.position.set(0, 1.28, doorZ + 0.02);
-  const frame = wall(2.75, 2.75, 0.14, new THREE.MeshStandardMaterial({ color: 0x777788, metalness: 0.75 }));
-  frame.position.set(0, 1.35, doorZ - 0.06);
+  seam.position.set(0, 1.02, doorZ + 0.015);
+  const frame = wall(1.35, 2.15, 0.08, new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.8 }));
+  frame.position.set(0, 1.08, doorZ - 0.04);
   root.add(doorL, doorR, seam, frame);
-  pushCollider(colliders, 0, doorZ, 1.25, 0.08);
+  pushCollider(colliders, 0, doorZ, 0.68, 0.05);
   const floorCanvas = document.createElement("canvas");
   floorCanvas.width = 128;
   floorCanvas.height = 64;
@@ -793,15 +793,17 @@ export function addElevatorDressing(root, helpers) {
       map: floorTex, emissive: 0x00ffcc, emissiveIntensity: 0.85, transparent: true
     })
   );
-  floorDisplay.position.set(0, 2.72, doorZ - 0.08);
+  floorDisplay.position.set(0, 2.18, doorZ - 0.05);
   root.add(floorDisplay);
-  const panelBody = wall(0.42, 1.05, 0.1, new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.55 }));
-  panelBody.position.set(2.15, 1.35, 3.55);
+  const panelBody = wall(0.28, 0.82, 0.06, new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.55 }));
+  panelBody.position.set(1.38, 1.12, 0.45);
+  panelBody.rotation.y = -Math.PI / 2;
   root.add(panelBody);
-  const panelFace = wall(0.38, 0.98, 0.02, new THREE.MeshStandardMaterial({
-    color: 0x0a1828, emissive: 0x002233, emissiveIntensity: 0.55
+  const panelFace = wall(0.26, 0.76, 0.015, new THREE.MeshStandardMaterial({
+    color: 0x0a1828, emissive: 0x003344, emissiveIntensity: 0.75
   }));
-  panelFace.position.set(2.15, 1.35, 3.5);
+  panelFace.position.set(1.35, 1.12, 0.45);
+  panelFace.rotation.y = -Math.PI / 2;
   root.add(panelFace);
   const btnColors = [0xff4466, 0x00ffcc, 0xffcc00, 0x8899aa];
   for (let row = 0; row < 2; row++) {
@@ -817,31 +819,32 @@ export function addElevatorDressing(root, helpers) {
         })
       );
       btn.rotation.x = Math.PI / 2;
-      btn.position.set(1.95 + col * 0.22, 1.55 - row * 0.22, 3.48);
+      btn.position.set(1.33, 1.35 - row * 0.16, 0.32 + col * 0.14);
+      btn.rotation.z = Math.PI / 2;
       root.add(btn);
     }
   }
   const mirror = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.4, 2.55),
+    new THREE.PlaneGeometry(1.35, 1.65),
     new THREE.MeshStandardMaterial({ color: 0xb8d0e8, metalness: 0.92, roughness: 0.08 })
   );
-  mirror.position.set(-4.35, 1.38, 0.2);
+  mirror.position.set(-1.42, 1.22, 0.15);
   mirror.rotation.y = Math.PI / 2;
   root.add(mirror);
   const railMat = new THREE.MeshStandardMaterial({ color: 0x99aabb, metalness: 0.82, roughness: 0.25 });
-  const railBack = wall(3.2, 0.07, 0.07, railMat);
-  railBack.position.set(0, 1.02, -4.2);
-  const postL = wall(0.07, 0.85, 0.07, railMat);
-  postL.position.set(-1.55, 0.52, -4.2);
+  const railBack = wall(2.2, 0.05, 0.05, railMat);
+  railBack.position.set(0, 0.92, -1.38);
+  const postL = wall(0.05, 0.72, 0.05, railMat);
+  postL.position.set(-1.05, 0.46, -1.38);
   const postR = postL.clone();
-  postR.position.x = 1.55;
+  postR.position.x = 1.05;
   root.add(railBack, postL, postR);
   const ceil = new THREE.Mesh(
-    new THREE.PlaneGeometry(7.5, 7.5),
-    new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffddaa, emissiveIntensity: 0.42 })
+    new THREE.PlaneGeometry(2.6, 2.6),
+    new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffddaa, emissiveIntensity: 0.55 })
   );
   ceil.rotation.x = Math.PI / 2;
-  ceil.position.y = 3.42;
+  ceil.position.y = 2.42;
   ceil.userData.neonFlicker = true;
   ceil.userData.pulse = 1.05;
   root.add(ceil);
@@ -860,20 +863,21 @@ export function addElevatorDressing(root, helpers) {
       new THREE.PlaneGeometry(0.42, 0.22),
       new THREE.MeshStandardMaterial({ map: tex, transparent: true, emissive: 0xff00ff, emissiveIntensity: 0.25 })
     );
-    sticker.position.set(-4.2 + i * 0.5, 1.05 + (i % 2) * 0.55, -4.86);
+    sticker.position.set(-1.35 + i * 0.35, 0.95 + (i % 2) * 0.4, -1.44);
     root.add(sticker);
   });
   for (let s = 0; s < 4; s++) {
     const sticker = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.22, 0.22),
-      new THREE.MeshStandardMaterial({ color: 0xff66cc, emissive: 0xff00ff, emissiveIntensity: 0.45 })
+      new THREE.PlaneGeometry(0.14, 0.14),
+      new THREE.MeshStandardMaterial({ color: 0xff66cc, emissive: 0xff00ff, emissiveIntensity: 0.55 })
     );
-    sticker.position.set(3.8 + (s % 2) * 0.25, 0.85 + Math.floor(s / 2) * 0.45, 3.72);
+    sticker.position.set(1.22 + (s % 2) * 0.16, 0.75 + Math.floor(s / 2) * 0.28, 1.18);
     root.add(sticker);
   }
-  addNeonTube(root, 0, 2.35, doorZ - 0.15, 2.4, 0x00ffff);
+  addNeonTube(root, 0, 2.05, doorZ - 0.08, 1.05, 0x00ffff);
   const punkLift = neonSign("PUNK LIFT", 0xff66ff);
-  punkLift.position.set(0, 2.45, -4.65);
+  punkLift.scale.set(0.42, 0.55, 1);
+  punkLift.position.set(0, 2.05, -1.42);
   root.add(punkLift);
 }
 
