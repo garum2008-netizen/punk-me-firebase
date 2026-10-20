@@ -222,7 +222,7 @@ function addPerimeterDressing(locId, root) {
     pump.position.set(-3.8, 0.2, -2.5);
     root.add(tagged("fg_street_pumpkin", pump));
     root.add(tagged("fg_street_crate", box(0.55, 0.55, 0.55, mat(0x6a5030)).translateY(0.28).translateX(5.5).translateZ(-1.5)));
-    root.add(tagged("fg_street_fence", ironFence(-6, 0.5, 3)));
+    root.add(tagged("fg_street_fence", ironFence(-6, -4.6, 3)));
     return;
   }
   if (locId === "room") {
@@ -421,8 +421,8 @@ export function addShowcaseProps(locId, root) {
     }
   } else if (locId === "street") {
     root.add(tagged("street_graffiti_mural", box(3.2, 2, 0.05, mat(0x442266, 0xff00ff)).translateY(1.5).translateX(-1).translateZ(-6.5)));
-    root.add(tagged("street_neon_gang", box(2.2, 0.45, 0.05, mat(0xff00ff, 0xff00ff)).translateY(3.2).translateZ(-5.8)));
-    root.add(tagged("street_neon_shop", box(1.8, 0.35, 0.05, mat(0x00ffff, 0x00ffff)).translateY(2.8).translateX(4.5).translateZ(-4.2)));
+    root.add(tagged("street_neon_gang", box(1.4, 0.28, 0.04, mat(0x662244, 0xff00ff)).translateY(3.35).translateZ(-5.85)));
+    root.add(tagged("street_neon_shop", box(1.1, 0.22, 0.04, mat(0x224466, 0x00ffff)).translateY(2.95).translateX(4.8).translateZ(-5.4)));
     root.add(streetLamp(-5.2, -2.5, "street_lamp_sw"));
     root.add(streetLamp(5.2, -1.8, "street_lamp_se"));
     root.add(streetLamp(-1.2, -4.2, "street_lamp_n"));
@@ -478,9 +478,29 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("con_chain_fence", box(2.2, 0.9, 0.06, mat(0x666677)).translateY(0.45).translateX(-3.5).translateZ(-1.5)));
     for (let i = 0; i < 8; i++) {
       const g = tagged(`con_debris_${i}`, box(0.15, 0.1, 0.15, mat(0x555566 + (i * 9973) % 0x111111)));
-      g.position.set(-2.5 + i * 0.45, 0.05, 1.2 + (i % 3) * 0.5);
+      g.position.set(-2.5 + i * 0.45, 0.05, -4.2 + (i % 3) * 0.35);
       root.add(g);
     }
+    for (let i = 0; i < 10; i++) {
+      const g = tagged(`con_back_prop_${i}`, box(0.35, 0.45, 0.35, mat(0x6a5030 + (i * 9137) % 0x222222)));
+      g.position.set(-4.5 + (i % 5) * 1.1, 0.22, -6.5 - Math.floor(i / 5) * 0.8);
+      root.add(g);
+    }
+    for (let i = 0; i < 6; i++) {
+      root.add(streetLamp(-5 + (i % 3) * 2.8, -5.8 - Math.floor(i / 3) * 1.1, `con_mob_lamp_${i}`));
+    }
+    for (let i = 0; i < 12; i++) {
+      const g = tagged(
+        `con_frustum_prop_${i}`,
+        box(0.32, 0.38 + (i % 3) * 0.08, 0.32, mat(0x6a5030 + (i * 12_371) % 0x222222))
+      );
+      g.position.set(-3.2 + (i % 4) * 1.05, 0.19, -3.8 - Math.floor(i / 4) * 0.85);
+      root.add(g);
+    }
+    root.add(tagged("con_mobile_fence", ironFence(0, -6.2, 4)));
+    const conHyd = box(0.35, 0.55, 0.35, mat(0xcc2222, 0xff0000));
+    conHyd.position.set(4.5, 0.28, -5.8);
+    root.add(tagged("con_mobile_hydrant", conHyd));
   } else if (locId === "parkour") {
     root.add(tagged("park_ramp_a", box(2.2, 0.35, 1.2, mat(0x666677)).translateY(0.18).translateX(-2).translateZ(2.5).rotateY(0.2)));
     root.add(tagged("park_ramp_b", box(1.8, 0.28, 1, mat(0x555566)).translateY(0.14).translateX(2.5).translateZ(1.8).rotateY(-0.15)));

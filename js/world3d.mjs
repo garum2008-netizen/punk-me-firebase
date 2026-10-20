@@ -1610,8 +1610,9 @@ const api = {
     }
     document.getElementById("howToOverlay")?.classList.remove("active");
     captureFrameLock = true;
+    guideTarget = null;
     if (locationRoot) pulseScene(locationRoot, sceneTime);
-    setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    setQuestMarkerTarget(null, actors, sceneTime);
     actors.forEach(act => act.mixer?.update(1 / 60));
     const capPl = actors.get("player");
     if (capPl) dimPropsBetweenCameraAnd(capPl.wx, 1.05, capPl.wz, 0.2);
@@ -1698,7 +1699,7 @@ const api = {
       }
       moveZ = 1;
     } else if (bounds && scenario === "wall") {
-      spawn = resolveWorldPosition(cx, bounds.maxZ - 1.05, bounds, cols, 0.42);
+      spawn = resolveWorldPosition(cx, bounds.minZ + 1.15, bounds, cols, 0.42);
       moveZ = 1;
     } else if (bounds && scenario === "slide") {
       spawn = resolveWorldPosition(bounds.maxX - 1.05, bounds.minZ + 1.15, bounds, cols, 0.42);
@@ -1814,6 +1815,56 @@ const api = {
   },
   getMotionProbeCount: () => motionProbe?.frames?.length || 0,
   countVisibleProps: (opts = {}) => countVisiblePropsInScene(opts),
+  auditLargeMeshes: (minSize = 1.5) => {
+    const rows = [];
+    if (!locationRoot) return rows;
+    locationRoot.updateMatrixWorld(true);
+    const box3 = new THREE.Box3();
+    const size = new THREE.Vector3();
+    const world = new THREE.Vector3();
+    const sourceOf = o => {
+      const parts = [];
+      let n = o;
+      while (n && n !== locationRoot) {
+        if (n.userData?.propTag) parts.push(`tag:${n.userData.propTag}`);
+        else if (n.name) parts.push(n.name);
+        n = n.parent;
+      }
+      return parts.reverse().join(" / ") || locationRoot.name || currentLoc;
+    };
+    locationRoot.traverse(o => {
+      if (!o.isMesh || !o.geometry) return;
+      if (o.userData?.decorOnly || o.userData?.cameraOccluder) return;
+      box3.setFromObject(o);
+      if (box3.isEmpty()) return;
+      box3.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      if (maxDim < minSize) return;
+      box3.getCenter(world);
+      const mats = Array.isArray(o.material) ? o.material[0] : o.material;
+      const color = mats?.color?.getHex?.() ?? 0;
+      const emissive = mats?.emissive?.getHex?.() ?? 0;
+      rows.push({
+        name: o.name || "(unnamed)",
+        tag: o.userData?.propTag || o.parent?.userData?.propTag || null,
+        source: sourceOf(o),
+        parent: o.parent?.name || o.parent?.type || null,
+        maxDim: +maxDim.toFixed(3),
+        size: { x: +size.x.toFixed(2), y: +size.y.toFixed(2), z: +size.z.toFixed(2) },
+        world: { x: +world.x.toFixed(2), y: +world.y.toFixed(2), z: +world.z.toFixed(2) },
+        color,
+        emissive
+      });
+    });
+    const sorted = rows.sort((a, b) => b.maxDim - a.maxDim);
+    if (typeof console !== "undefined" && new URLSearchParams(location.search).has("dev")) {
+      console.info(
+        `[auditLargeMeshes] ${currentLoc} >=${minSize}m (${sorted.length})`,
+        sorted.map(r => `${r.maxDim}m ${r.tag || r.name} @ ${r.source} pos(${r.world.x},${r.world.z})`)
+      );
+    }
+    return sorted;
+  },
   ensureThirdPersonRunCamera: () => {
     captureFrameLock = false;
     setElevatorCutaway(false);

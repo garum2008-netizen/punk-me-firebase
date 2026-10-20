@@ -39,6 +39,56 @@ export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
   });
 }
 
+function unionAabb(a, b) {
+  return {
+    minX: Math.min(a.minX, b.minX),
+    maxX: Math.max(a.maxX, b.maxX),
+    minZ: Math.min(a.minZ, b.minZ),
+    maxZ: Math.max(a.maxZ, b.maxZ)
+  };
+}
+
+function aabbsOverlap(a, b, gap = 0) {
+  return (
+    a.minX <= b.maxX + gap &&
+    a.maxX >= b.minX - gap &&
+    a.minZ <= b.maxZ + gap &&
+    a.maxZ >= b.minZ - gap
+  );
+}
+
+function isFurnitureCollider(c, bounds) {
+  if (!bounds) return true;
+  const bw = bounds.maxX - bounds.minX;
+  const bd = bounds.maxZ - bounds.minZ;
+  const w = c.maxX - c.minX;
+  const d = c.maxZ - c.minZ;
+  return w < bw * 0.42 && d < bd * 0.42;
+}
+
+/** Merge overlapping/touching furniture boxes (never room shell / perimeter walls). */
+export function mergeOverlappingColliders(colliders, gap = 0.06, bounds = null) {
+  if (!colliders?.length) return colliders;
+  let merged = colliders.map(c => ({ ...c }));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < merged.length; i++) {
+      for (let j = i + 1; j < merged.length; j++) {
+        if (!isFurnitureCollider(merged[i], bounds) || !isFurnitureCollider(merged[j], bounds)) continue;
+        if (aabbsOverlap(merged[i], merged[j], gap)) {
+          merged[i] = unionAabb(merged[i], merged[j]);
+          merged.splice(j, 1);
+          changed = true;
+          break;
+        }
+      }
+      if (changed) break;
+    }
+  }
+  return merged;
+}
+
 export const LOCATION_BOUNDS = {
   room: { minX: -7, maxX: 7, minZ: -6, maxZ: 6 },
   kitchen: { minX: -6, maxX: 6, minZ: -5, maxZ: 5 },
@@ -620,6 +670,9 @@ export function buildLocationScene(locId, texLoader) {
 
   addV21Clutter(locId, root, texLoader, colliders, pushCollider);
   addShowcaseProps(locId, root);
+  const merged = mergeOverlappingColliders(colliders, 0.08, bounds);
+  colliders.length = 0;
+  colliders.push(...merged);
 
   const portals = new THREE.Group();
   (PORTALS[locId] || []).forEach(p => {
@@ -686,28 +739,57 @@ function exitInteriorOfAabb(px, pz, b, radius) {
 }
 
 const BOUNDS_PAD = 0.5;
+const COLLIDER_SKIN = 0.028;
+
+function circleCenterInsideAabb(px, pz, b, radius) {
+  const inset = Math.min(radius * 0.55, (b.maxX - b.minX) * 0.45, (b.maxZ - b.minZ) * 0.45);
+  return (
+    px > b.minX + inset &&
+    px < b.maxX - inset &&
+    pz > b.minZ + inset &&
+    pz < b.maxZ - inset
+  );
+}
+
+function deepestCirclePenetration(px, pz, radius, colliders) {
+  let best = null;
+  const r = radius - COLLIDER_SKIN;
+  for (const b of colliders || []) {
+    const inside = circleCenterInsideAabb(px, pz, b, radius);
+    if (inside) {
+      const e = exitInteriorOfAabb(px, pz, b, r);
+      const dx = e.x - px;
+      const dz = e.z - pz;
+      const depth = Math.hypot(dx, dz);
+      if (depth > 1e-6 && (!best || depth > best.depth)) {
+        best = { nx: dx / depth, nz: dz / depth, depth };
+      }
+      continue;
+    }
+    const nx = Math.max(b.minX, Math.min(b.maxX, px));
+    const nz = Math.max(b.minZ, Math.min(b.maxZ, pz));
+    const dx = px - nx;
+    const dz = pz - nz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < r * r && d2 > 1e-10) {
+      const d = Math.sqrt(d2);
+      const depth = r - d;
+      if (!best || depth > best.depth) {
+        best = { nx: dx / d, nz: dz / d, depth };
+      }
+    }
+  }
+  return best;
+}
 
 function resolveCollidersAt(px, pz, colliders, radius = 0.42) {
   let x = px;
   let z = pz;
-  for (let iter = 0; iter < 12; iter++) {
-    let moved = false;
-    for (const b of colliders || []) {
-      const inside =
-        x > b.minX + 1e-4 && x < b.maxX - 1e-4 && z > b.minZ + 1e-4 && z < b.maxZ - 1e-4;
-      if (inside) {
-        const e = exitInteriorOfAabb(x, z, b, radius);
-        x = e.x;
-        z = e.z;
-        moved = e.moved || moved;
-      } else {
-        const c = resolveCircleVsAabb(x, z, b, radius);
-        x = c.x;
-        z = c.z;
-        moved = c.moved || moved;
-      }
-    }
-    if (!moved) break;
+  for (let iter = 0; iter < 10; iter++) {
+    const pen = deepestCirclePenetration(x, z, radius, colliders);
+    if (!pen || pen.depth < 1e-6) break;
+    x += pen.nx * (pen.depth + COLLIDER_SKIN);
+    z += pen.nz * (pen.depth + COLLIDER_SKIN);
   }
   return { x, z };
 }
@@ -725,52 +807,68 @@ export function resolveWorldPosition(x, z, bounds, colliders, radius = 0.42) {
   return clampToBoundsOnce(c.x, c.z, bounds);
 }
 
-function slideDelta(fromX, fromZ, dx, dz, colliders, radius) {
-  let mx = dx;
-  let mz = dz;
-  let px = fromX;
-  let pz = fromZ;
-  for (let pass = 0; pass < 5; pass++) {
-    if (Math.hypot(mx, mz) < 1e-8) break;
-    const tx = px + mx;
-    const tz = pz + mz;
-    const resolved = resolveCollidersAt(tx, tz, colliders, radius);
-    const corrX = resolved.x - tx;
-    const corrZ = resolved.z - tz;
-    if (Math.hypot(corrX, corrZ) < 1e-5) {
-      px = resolved.x;
-      pz = resolved.z;
-      break;
-    }
-    const cl = Math.hypot(corrX, corrZ) || 1;
-    const nx = corrX / cl;
-    const nz = corrZ / cl;
-    const dot = mx * nx + mz * nz;
-    mx -= nx * dot;
-    mz -= nz * dot;
-    px = resolved.x;
-    pz = resolved.z;
-  }
-  return { x: px, z: pz };
+function clampDeltaToBounds(px, pz, ax, az, bounds) {
+  if (!bounds) return { ax, az };
+  let nax = ax;
+  let naz = az;
+  const maxX = bounds.maxX - BOUNDS_PAD;
+  const minX = bounds.minX + BOUNDS_PAD;
+  const maxZ = bounds.maxZ - BOUNDS_PAD;
+  const minZ = bounds.minZ + BOUNDS_PAD;
+  if (naz > 0) naz = Math.min(naz, Math.max(0, maxZ - pz));
+  else if (naz < 0) naz = Math.max(naz, Math.min(0, minZ - pz));
+  if (nax > 0) nax = Math.min(nax, Math.max(0, maxX - px));
+  else if (nax < 0) nax = Math.max(nax, Math.min(0, minX - px));
+  return { ax: nax, az: naz };
 }
 
-/** Single motion sample: bounds axis clamp + collider slide (no snap-back oscillation). */
+function moveAxisStep(px, pz, ax, az, bounds, colliders, radius) {
+  if (Math.abs(ax) < 1e-10 && Math.abs(az) < 1e-10) return { x: px, z: pz };
+  const clipped = clampDeltaToBounds(px, pz, ax, az, bounds);
+  ax = clipped.ax;
+  az = clipped.az;
+  if (Math.abs(ax) < 1e-10 && Math.abs(az) < 1e-10) return { x: px, z: pz };
+  let tx = px + ax;
+  let tz = pz + az;
+  if (bounds) {
+    const c = clampToBoundsOnce(tx, tz, bounds);
+    tx = c.x;
+    tz = c.z;
+  }
+  const resolved = resolveCollidersAt(tx, tz, colliders, radius);
+  let x = resolved.x;
+  let z = resolved.z;
+  if (Math.abs(az) >= Math.abs(ax)) {
+    if (az > 0) z = Math.max(z, pz);
+    else if (az < 0) z = Math.min(z, pz);
+  } else {
+    if (ax > 0) x = Math.max(x, px);
+    else if (ax < 0) x = Math.min(x, px);
+  }
+  return { x, z };
+}
+
+/** Bounds clip + collider slide: axis steps keep slide direction stable (no ping-pong). */
 export function moveWithCollision(fromX, fromZ, dx, dz, bounds, colliders, radius = 0.42) {
   if (Math.abs(dx) < 1e-10 && Math.abs(dz) < 1e-10) return { x: fromX, z: fromZ };
-  let mx = dx;
-  let mz = dz;
-  if (bounds) {
-    const maxX = bounds.maxX - BOUNDS_PAD;
-    const minX = bounds.minX + BOUNDS_PAD;
-    const maxZ = bounds.maxZ - BOUNDS_PAD;
-    const minZ = bounds.minZ + BOUNDS_PAD;
-    if (fromX + mx > maxX) mx = maxX - fromX;
-    if (fromX + mx < minX) mx = minX - fromX;
-    if (fromZ + mz > maxZ) mz = maxZ - fromZ;
-    if (fromZ + mz < minZ) mz = minZ - fromZ;
+  let px = fromX;
+  let pz = fromZ;
+  const axes =
+    Math.abs(dz) >= Math.abs(dx)
+      ? [
+          [0, dz],
+          [dx, 0]
+        ]
+      : [
+          [dx, 0],
+          [0, dz]
+        ];
+  for (const [ax, az] of axes) {
+    const n = moveAxisStep(px, pz, ax, az, bounds, colliders, radius);
+    px = n.x;
+    pz = n.z;
   }
-  const slid = slideDelta(fromX, fromZ, mx, mz, colliders, radius);
-  return clampToBoundsOnce(slid.x, slid.z, bounds);
+  return clampToBoundsOnce(px, pz, bounds);
 }
 
 export function findClearSpawn(bounds, colliders, preferred = { x: 0, z: -1.5 }) {

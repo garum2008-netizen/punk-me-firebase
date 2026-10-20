@@ -9,6 +9,8 @@ const LOCS = ["street", "city", "cemetery", "room", "construction", "parkour"];
 const SCENARIOS = ["free", "wall", "slide"];
 const FRAMES = 120;
 const SPIKE_EPS = 0.032;
+const LOCO_STEP = 7.2 / 60;
+const STEADY_MIN = LOCO_STEP * 0.65;
 
 async function prep(page) {
   await page.addInitScript(() => {
@@ -40,11 +42,14 @@ async function enter(page, hero) {
 }
 
 function analyze(sample) {
-  const deltas = (sample.frames || []).slice(8).map(f => f.d).filter(d => d >= 0 && d < 1.2);
+  const raw = (sample.frames || []).slice(8).map(f => f.d).filter(d => d >= 0 && d < 1.2);
+  const active = raw.filter(d => d > 0.02);
+  const steady = active.filter(d => d >= STEADY_MIN);
+  const deltas = (steady.length ? steady : active).slice();
   deltas.sort((a, b) => a - b);
   const med = deltas.length ? deltas[Math.floor(deltas.length / 2)] : 0;
-  const spikes = deltas.filter(d => Math.abs(d - med) > SPIKE_EPS).length;
-  return { med, spikes, count: sample.frames?.length || 0, deltas };
+  const spikes = steady.filter(d => Math.abs(d - med) > SPIKE_EPS).length;
+  return { med, spikes, count: sample.frames?.length || 0, activeFrames: active.length, deltas };
 }
 
 async function runMatrix(browser, viewport, label) {

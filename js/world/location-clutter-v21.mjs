@@ -49,11 +49,11 @@ export function addV21Clutter(locId, root, texLoader, colliders, pushCollider) {
     placeProp(root, "street_clutter_hydrant", box(0.35, 0.55, 0.35, 0xcc2222), -5.5, 0.28, -2.5);
     placeProp(root, "street_clutter_trash", box(0.45, 0.7, 0.45, 0x333344), 5.2, 0.35, -3.2);
     placeProp(root, "street_clutter_crate", box(0.6, 0.55, 0.6, 0x6a5030), -4, 0.28, -4.5);
-    const arcade = box(0.9, 1.5, 0.7, 0x220033, 0xff00ff);
-    arcade.position.set(-2.5, 0.75, -4.5);
+    const arcade = box(0.9, 1.5, 0.7, 0x220033, 0x331144);
+    arcade.position.set(-5.2, 0.75, -5.6);
     arcade.userData.interact = "arcade";
     root.add(arcade);
-    pushCollider(colliders, -2.5, -4.5, 0.5, 0.4);
+    pushCollider(colliders, -5.2, -5.6, 0.5, 0.4);
     placeProp(root, "street_clutter_barrel", box(0.35, 0.5, 0.35, 0xff6600), 4.5, 0.25, -4.8);
     const pumpMat = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 0.4 });
     placeProp(

@@ -82,6 +82,10 @@ export function ensureStoryState(p) {
     p.gang_rank = p.story.gang_rank;
   }
   Authority.ensureAuthority(p);
+  if (!p.story.flags) p.story.flags = {};
+  if (!p.story.calloutAt) p.story.calloutAt = {};
+  if (!p.story.choices) p.story.choices = {};
+  if (!p.story.events) p.story.events = {};
   if (p.energy == null) p.energy = p.story.energy;
   if (p.mood == null) p.mood = p.story.mood;
   return p.story;
@@ -694,9 +698,11 @@ export function whereToGetMaterials() {
 
 function tryCallouts() {
   const p = me();
+  if (!p) return;
   const loc = p.location;
   const now = Date.now();
   const st = ensureStoryState(p);
+  if (!st.calloutAt) st.calloutAt = {};
   if (activeDlg) return;
   const dlgList = data.dialogues.filter(d => d.location === loc);
   for (const d of dlgList) {
@@ -727,7 +733,8 @@ function triggerCalloutDialogue(d) {
   playSfx(d.callout?.sound || "sfx_whistle");
   showBubble(speaker, text);
   setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker);
-  if (d.id === "dlg_razor_initiation" && !story().flags.joined_gang) {
+  const stFlags = ensureStoryState(me()).flags;
+  if (d.id === "dlg_razor_initiation" && !stFlags.joined_gang) {
     setTimeout(() => openDialogueTree(d), 800);
   }
 }
