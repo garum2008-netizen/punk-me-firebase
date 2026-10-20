@@ -40,6 +40,8 @@ let meLastDx = 0;
 let meLastDy = 0;
 let playerAnimState = "idle";
 let modelsReady = false;
+let captureFrameLock = false;
+let captureSavedRotY = 0;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 
@@ -50,6 +52,10 @@ function charDef(id) {
 function setTalking(characterId, on) {
   if (on) talkingIds.add(characterId);
   else talkingIds.delete(characterId);
+  if (on && characterId && characterId !== "player") {
+    const pl = actors.get("player");
+    if (pl?.actions?.wave) playOneShot(pl, "wave", 1900);
+  }
 }
 
 function makeShadow() {
@@ -64,8 +70,8 @@ function makeShadow() {
 
 function spawnOffsetForId(id, index) {
   const i = Math.max(0, index);
-  const angle = i * 1.35 + (id.length % 5) * 0.4;
-  const r = 0.9 + (i % 6) * 0.55;
+  const angle = i * 2.05 + (id.length % 7) * 0.55 + (id.charCodeAt(0) % 5) * 0.3;
+  const r = 1.15 + (i % 5) * 0.52;
   return { x: Math.cos(angle) * r, z: Math.sin(angle) * r };
 }
 
@@ -85,8 +91,12 @@ function createActorFromCatalog(id, characterId) {
   const actor = {
     id, characterId: characterId || "razor", group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
-    _tplKey: tpl.key, _meshy: built._meshy, _proc: built._proc
+    _tplKey: tpl.key, _meshy: built._meshy, _proc: built._proc,
+    _visPushX: 0, _visPushZ: 0
   };
+  mixer.addEventListener("finished", e => {
+    if (e.action === actions.wave) fadeTo(actor, "idle");
+  });
   for (let i = 0; i < 4; i++) updateProcedural(actor, 1 / 60, null, false);
   actors.set(id, actor);
   return actor;
@@ -109,9 +119,23 @@ function ensureActor(id, characterId, isNpc) {
 function fadeTo(actor, name) {
   const locomotion = name === "walk" || name === "run";
   if (actor._meshy) {
-    const key = locomotion && actor.actions?.[name] ? name : "idle";
-    if (actor.current === key && (locomotion || !locomotion)) {
+    const key = locomotion && actor.actions?.[name] ? name : (name === "wave" ? "wave" : "idle");
+    if (actor.current === key && name !== "wave") {
       if (locomotion) updateLocomotionTimeScale(actor);
+      return;
+    }
+    if (name === "wave" && actor.actions?.wave) {
+      ["walk", "run", "idle"].forEach(k => {
+        actor.actions[k]?.stop();
+        actor.actions[k]?.setEffectiveWeight(0);
+      });
+      const w = actor.actions.wave;
+      w.reset();
+      w.setLoop(THREE.LoopOnce, 1);
+      w.clampWhenFinished = true;
+      w.setEffectiveWeight(1);
+      w.play();
+      actor.current = "wave";
       return;
     }
     if (locomotion && actor.actions?.[name]) {
@@ -120,12 +144,14 @@ function fadeTo(actor, name) {
       other?.stop();
       other?.setEffectiveWeight(0);
       actor.actions?.idle?.fadeOut(0.2);
+      actor.actions?.wave?.stop();
+      actor.actions?.wave?.setEffectiveWeight(0);
       next.reset().setEffectiveWeight(1).fadeIn(0.22).play();
       actor.current = name;
       updateLocomotionTimeScale(actor);
       return;
     }
-    ["walk", "run"].forEach(k => {
+    ["walk", "run", "wave"].forEach(k => {
       const act = actor.actions?.[k];
       if (!act) return;
       act.fadeOut(0.15);
@@ -147,9 +173,11 @@ function fadeTo(actor, name) {
 
 function pickLocomotionAnim(actor, speed, talking) {
   if (actor._holdAnim && actor._holdUntil > performance.now()) {
+    if (actor._holdAnim === "wave") return "wave";
     if (actor._holdAnim === "walk" || actor._holdAnim === "run") return actor._holdAnim;
     return actor._holdAnim;
   }
+  if (actor.current === "wave") return "wave";
   if (talking && speed < 0.08) return "idle";
   const walkGate = actor._meshy ? 0.16 : 0.08;
   if (speed > 1.2) return "run";
@@ -158,7 +186,8 @@ function pickLocomotionAnim(actor, speed, talking) {
 }
 
 function playOneShot(actor, name, ms = 1400) {
-  if (!actor.actions?.[name]) return;
+  if (name === "wave" && !actor.actions?.wave) return;
+  if (name !== "wave" && !actor.actions?.[name]) return;
   actor._holdAnim = name;
   actor._holdUntil = performance.now() + ms;
   fadeTo(actor, name);
@@ -280,42 +309,50 @@ function clampWorld(x, z, radius = 0.42) {
 
 function separateActors() {
   const list = [...actors.values()].filter(a => !a.isDog);
-  const minDist = 1.05;
-  for (let pass = 0; pass < 5; pass++) {
-  for (let i = 0; i < list.length; i++) {
-    for (let j = i + 1; j < list.length; j++) {
-      const a = list[i];
-      const b = list[j];
-      const dx = b.group.position.x - a.group.position.x;
-      const dz = b.group.position.z - a.group.position.z;
-      const d = Math.hypot(dx, dz);
-      if (d < minDist && d > 0.001) {
-        const push = (minDist - d) * 0.5;
-        const ux = dx / d;
-        const uz = dz / d;
-        a.group.position.x -= ux * push;
-        a.group.position.z -= uz * push;
-        b.group.position.x += ux * push;
-        b.group.position.z += uz * push;
-        a.wx -= ux * push;
-        a.wz -= uz * push;
-        b.wx += ux * push;
-        b.wz += uz * push;
+  const minDist = 1.22;
+  list.forEach(a => {
+    a._visPushX = (a._visPushX || 0) * 0.9;
+    a._visPushZ = (a._visPushZ || 0) * 0.9;
+  });
+  for (let pass = 0; pass < 6; pass++) {
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i];
+        const b = list[j];
+        const ax = a.group.position.x;
+        const az = a.group.position.z;
+        const bx = b.group.position.x;
+        const bz = b.group.position.z;
+        const dx = bx - ax;
+        const dz = bz - az;
+        const d = Math.hypot(dx, dz);
+        if (d < minDist && d > 0.001) {
+          const push = (minDist - d) * 0.55;
+          const ux = dx / d;
+          const uz = dz / d;
+          const wa = a.isPlayer ? 0.2 : 1;
+          const wb = b.isPlayer ? 0.2 : 1;
+          a._visPushX -= ux * push * wa;
+          a._visPushZ -= uz * push * wa;
+          b._visPushX += ux * push * wb;
+          b._visPushZ += uz * push * wb;
+        }
       }
     }
   }
-  }
   list.forEach(a => {
-    const p = clampWorld(a.group.position.x, a.group.position.z);
+    const baseX = a.wx + (a._visPushX || 0);
+    const baseZ = a.wz + (a._visPushZ || 0);
+    const p = clampWorld(baseX, baseZ);
     a.group.position.x = p.x;
     a.group.position.z = p.z;
-    a.wx = p.x;
-    a.wz = p.z;
   });
 }
 
 function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
-  const c = clampWorld(wx, wz);
+  const offX = isPlayer ? 0 : (actor._visPushX || 0);
+  const offZ = isPlayer ? 0 : (actor._visPushZ || 0);
+  const c = clampWorld(wx + offX, wz + offZ);
   if (isPlayer) {
     actor.group.position.x = c.x;
     actor.group.position.z = c.z;
@@ -534,6 +571,10 @@ function onKeyDown(e) {
   if (k in keys) keys[k] = true;
   if (e.key === "ArrowLeft") cameraYaw += 0.08;
   if (e.key === "ArrowRight") cameraYaw -= 0.08;
+  if (e.key === "e" || e.key === "E") {
+    const pl = actors.get("player");
+    if (pl) playOneShot(pl, "wave", 1900);
+  }
 }
 function onKeyUp(e) {
   const k = e.key.toLowerCase();
@@ -549,7 +590,7 @@ function loop() {
   const playerPos = pl ? pl.group.position : null;
   actors.forEach(a => {
     a.mixer?.update(dt);
-    if (a._meshy && a.current !== "walk" && a.current !== "run") {
+    if (a._meshy && a.current !== "walk" && a.current !== "run" && a.current !== "wave") {
       ["walk", "run"].forEach(k => {
         const act = a.actions?.[k];
         if (!act || act.getEffectiveWeight() < 0.02) return;
@@ -571,7 +612,7 @@ function loop() {
   }
   if (particles) particles.rotation.y += dt * 0.02;
   separateActors();
-  updateThirdPersonCamera();
+  if (!captureFrameLock) updateThirdPersonCamera();
   checkPortals();
   renderer.render(scene, camera);
 }
@@ -639,29 +680,48 @@ const api = {
   },
   isReady: () => modelsReady,
   getLocation: () => currentLoc,
-  captureCloseup: (pose = "idle", talking = false) => {
+  releaseCaptureFrame: () => {
+    const a = actors.get("player");
+    if (a) a.group.rotation.y = captureSavedRotY;
+    captureFrameLock = false;
+  },
+  captureCloseup: (pose = "idle") => {
     const a = actors.get("player");
     if (!a?.root) return false;
-    const key = pose === "run" ? "run" : pose === "walk" ? "walk" : "idle";
+    captureFrameLock = true;
+    const key = pose === "run" ? "run" : pose === "walk" ? "walk" : pose === "wave" ? "wave" : "idle";
     fadeTo(a, key);
     if (key === "walk" || key === "run") {
       a._spd = key === "run" ? 2.4 : 1.1;
       updateLocomotionTimeScale(a);
     }
-    if (talking) setTalking(a.characterId || "player", true);
-    for (let i = 0; i < 48; i++) {
-      a.mixer?.update(1 / 30);
-      const talk = talking || talkingIds.has(a.characterId) || talkingIds.has("player");
-      updateProcedural(a, 1 / 30, null, talk);
+    captureSavedRotY = a.group.rotation.y;
+    if (pose === "wave" || pose === "front") a.group.rotation.y = Math.PI;
+    const frames = key === "wave" ? 38 : 48;
+    const start = key === "wave" ? 16 : 0;
+    if (key === "wave") {
+      a.actions?.idle?.stop();
+      a.actions?.idle?.setEffectiveWeight(0);
+      a.actions?.wave?.setEffectiveWeight(1);
     }
-    if (talking) setTalking(a.characterId || "player", false);
+    for (let i = 0; i < start; i++) a.mixer?.update(1 / 30);
+    for (let i = 0; i < frames; i++) {
+      a.mixer?.update(1 / 30);
+      updateProcedural(a, 1 / 30, null, false);
+    }
     markActorVisibleWhenReady(a);
     a.root.visible = true;
     const p = a.group.position;
-    const side = talking ? 0.55 : 1.35;
-    const distZ = talking ? 2.05 : 2.15;
-    camera.position.set(p.x + side, p.y + 1.42, p.z + distZ);
-    camera.lookAt(p.x, p.y + (talking ? 1.35 : 1.22), p.z);
+    if (pose === "wave") {
+      camera.position.set(p.x + 1.05, p.y + 1.4, p.z - 2.25);
+      camera.lookAt(p.x + 0.05, p.y + 1.34, p.z);
+    } else if (pose === "front") {
+      camera.position.set(p.x, p.y + 0.98, p.z - 2.85);
+      camera.lookAt(p.x, p.y + 0.88, p.z);
+    } else {
+      camera.position.set(p.x + 1.35, p.y + 1.42, p.z + 2.15);
+      camera.lookAt(p.x, p.y + 1.22, p.z);
+    }
     renderer.render(scene, camera);
     return true;
   },

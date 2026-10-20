@@ -2,11 +2,17 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { buildIdleStandClip } from "./meshy-idle-clip.mjs";
+import { buildWaveClip } from "./meshy-wave-clip.mjs";
 import { accentForActor, hueShiftAccentTexture } from "./meshy-accent-tint.mjs";
 
 export const MESHY_PUNK_URL = "assets/models/meshy/punk_pink.glb";
 
-const CLIPS = { idle: ["IdleStand"], walk: ["Walking"], run: ["Running"] };
+const CLIPS = {
+  idle: ["IdleStand"],
+  walk: ["Walking"],
+  run: ["Running"],
+  wave: ["PlayerWave"]
+};
 const SKIP_CLIP = /tpose|bind/i;
 const WALK_SPEED_REF = 1.05;
 const RUN_SPEED_REF = 2.35;
@@ -20,12 +26,15 @@ export async function loadMeshyPunkTemplate() {
   gltf.scene.updateMatrixWorld(true);
   const foot = computeFootLift(gltf.scene);
   const idleClip = buildIdleStandClip(gltf);
+  const waveClip = idleClip ? buildWaveClip(gltf, idleClip) : null;
   const animations = [...gltf.animations];
   if (idleClip) animations.push(idleClip);
+  if (waveClip) animations.push(waveClip);
   template = {
     gltf: { ...gltf, animations },
     foot,
     idleClip,
+    waveClip,
     def: { url: MESHY_PUNK_URL, scale: 1.0, yRot: 0, clips: CLIPS }
   };
   return template;
@@ -111,7 +120,12 @@ export function buildMeshyActions(mixer, clips, clipMap) {
     if (!clip) continue;
     const a = mixer.clipAction(clip);
     a.enabled = true;
-    a.setLoop(state === "idle" ? THREE.LoopRepeat : THREE.LoopRepeat, Infinity);
+    if (state === "wave") {
+      a.setLoop(THREE.LoopOnce, 1);
+      a.clampWhenFinished = true;
+    } else {
+      a.setLoop(THREE.LoopRepeat, Infinity);
+    }
     a.stop();
     actions[state] = a;
   }
@@ -148,7 +162,7 @@ export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
 
   const mixer = new THREE.AnimationMixer(root);
   const actions = buildMeshyActions(mixer, gltf.animations, def.clips);
-  ["walk", "run"].forEach(k => actions[k]?.stop());
+  ["walk", "run", "wave"].forEach(k => actions[k]?.stop());
   actions.idle?.reset().play();
   mixer.update(0);
 

@@ -240,10 +240,9 @@ export function buildLocationScene(locId, texLoader) {
     table.position.set(0, 0.75, 1.5);
     root.add(table);
     pushCollider(colliders, 0, 1.5, 1.25, 0.85, 0.35);
-    const kt = texLoader.load("imagine_images/LTPb8.jpg");
-    kt.colorSpace = THREE.SRGBColorSpace;
-    const kp = poster(kt, 2.5, 1.8);
-    kp.position.set(0, 2.1, -4.85);
+    const kp = neonSign("PUNK ME", 0xff3399);
+    kp.scale.set(0.85, 1.1, 1);
+    kp.position.set(0, 2.15, -4.85);
     root.add(kp);
     const sign = neonSign("KITCHEN", 0xff8800);
     sign.position.set(-4, 2.4, -4.7);

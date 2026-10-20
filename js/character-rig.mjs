@@ -1,5 +1,4 @@
-const PROC_IDLE = new Set(["idle", "talk", "sit", "emote"]);
-
+/** Visibility gate for skinned actors. */
 export function markActorVisibleWhenReady(actor) {
   if (actor._visibleReady) return;
   if (actor._meshy) {
@@ -25,10 +24,11 @@ function locomotionActive(actor) {
   return (act?.getEffectiveWeight?.() ?? 0) > 0.28;
 }
 
-/** Breathing on idle clip; wave overlay only while dialogue (talking=true). */
-export function updateProcedural(actor, dt, _playerPos, talking) {
+/** Subtle breathing on idle / wave clips (does not touch arms). */
+export function updateProcedural(actor, dt, _playerPos, _talking) {
   if (!actor._meshy || !actor._proc) return;
   if (locomotionActive(actor)) return;
+  if (actor.current === "wave") return;
 
   const t = performance.now() * 0.001;
   const { bones, rest } = actor._proc;
@@ -43,16 +43,5 @@ export function updateProcedural(actor, dt, _playerPos, talking) {
   }
   if (bones.head && rest.headX !== undefined) {
     bones.head.rotation.x = rest.headX + sway - 0.03;
-  }
-
-  if (!talking) return;
-
-  const wave = (Math.sin(t * 7.5) * 0.5 + 0.5);
-  if (bones.rightArm) {
-    bones.rightArm.rotation.x = (rest.rightArmX ?? bones.rightArm.rotation.x) - 1.55 * wave;
-    bones.rightArm.rotation.z = (rest.rightArmZ ?? bones.rightArm.rotation.z) + 0.12;
-  }
-  if (bones.rightForeArm) {
-    bones.rightForeArm.rotation.x = (rest.rightForeArmX ?? bones.rightForeArm.rotation.x) - 0.95 * wave;
   }
 }

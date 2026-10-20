@@ -7,7 +7,7 @@ const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 async function boot(page, qs) {
   await page.goto(`${base}/${qs}`, { waitUntil: "networkidle", timeout: 120000 });
   await page.waitForFunction(
-    () => document.getElementById("gameVersion")?.textContent?.includes("living3d-v5"),
+    () => document.getElementById("gameVersion")?.textContent?.includes("living3d-v6"),
     { timeout: 120000 }
   );
   const sel = page.locator("#charSelectConfirm");
@@ -30,6 +30,13 @@ async function goLoc(page, locId) {
   await page.waitForTimeout(3000);
 }
 
+async function shot(page, pose, file) {
+  await page.evaluate(p => World3D.captureCloseup(p), pose);
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: file });
+  await page.evaluate(() => World3D.releaseCaptureFrame());
+}
+
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -37,35 +44,23 @@ async function goLoc(page, locId) {
   await boot(page, "?dev=1&solo=1&v=cap");
   await goLoc(page, "room");
 
-  await page.evaluate(() => World3D.captureCloseup("idle"));
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${out}/living3d-v5-closeup-idle.png` });
+  await shot(page, "front", `${out}/living3d-v6-closeup-front.png`);
+  await shot(page, "idle", `${out}/living3d-v6-closeup-idle.png`);
+  await shot(page, "walk", `${out}/living3d-v6-closeup-walk.png`);
+  await page.evaluate(() => World3D.nudgePlayer(0.12, 0, 12));
+  await shot(page, "run", `${out}/living3d-v6-closeup-run.png`);
+  await shot(page, "wave", `${out}/living3d-v6-closeup-wave.png`);
 
-  await page.evaluate(() => World3D.captureCloseup("walk"));
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${out}/living3d-v5-closeup-walk.png` });
-
-  await page.evaluate(() => {
-    World3D.captureCloseup("run");
-    World3D.nudgePlayer(0.12, 0, 12);
-  });
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${out}/living3d-v5-closeup-run.png` });
-
-  await page.evaluate(() => World3D.captureCloseup("idle", true));
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: `${out}/living3d-v5-closeup-wave.png` });
-
-  for (const loc of ["room", "kitchen", "street"]) {
+  for (const loc of ["kitchen", "street"]) {
     await goLoc(page, loc);
-    await page.screenshot({ path: `${out}/living3d-v5-${loc}.png` });
+    await page.screenshot({ path: `${out}/living3d-v6-${loc}.png` });
   }
 
   await boot(page, "?dev=1&demo3=1&solo=1&v=party");
   await page.evaluate(() => { if (typeof buyItem === "function") buyItem("pet_dog"); });
   await goLoc(page, "room");
   await page.waitForTimeout(4000);
-  await page.screenshot({ path: `${out}/living3d-v5-room-party-dog.png` });
+  await page.screenshot({ path: `${out}/living3d-v6-room-party-dog.png` });
 
   console.log(JSON.stringify({
     version: await page.textContent("#gameVersion"),
