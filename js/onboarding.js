@@ -71,11 +71,12 @@ function saveMeQuiet() {
 function renderOnboardingQuest() {
   const box = document.getElementById("questBox");
   if (!box) return;
-  const st = currentStep();
-  if (!st) {
+  if (window.me?.onboarding?.done) {
     if (typeof renderQuest === "function") renderQuest();
     return;
   }
+  const st = currentStep();
+  if (!st) return;
   const i = stepIndex() + 1;
   const title = typeof t === "function" ? t("onboard_title") : "Your mission";
   const stepTitle = typeof t === "function" ? t(`onboard_${st.id}_title`) : st.id;
@@ -159,5 +160,5 @@ window.Onboarding = {
   onWinFight,
   onShopBuy,
   getGuideTarget,
-  isActive: () => currentStep() != null
+  isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

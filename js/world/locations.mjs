@@ -16,7 +16,10 @@ import {
   addSpinningVinyl,
   addRoofDressing,
   addParkourDressing,
-  addCemeteryDressing
+  addCemeteryDressing,
+  addCityDressing,
+  addKitchenDressing,
+  addElevatorDressing
 } from "./location-enrich.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
@@ -365,6 +368,7 @@ export function buildLocationScene(locId, texLoader) {
     sign.position.set(-4, 2.4, -4.7);
     root.add(sign);
     props.cats.push(buildCat(3, 2, 0x222233));
+    addKitchenDressing(root, { wall, colliders, pushCollider });
     addSteamPuff(root, 2, -2);
     addLights(root, [
       { type: "point", color: 0xffaa66, intensity: 4.2, x: 0, y: 2.8, z: 0 },
@@ -454,19 +458,17 @@ export function buildLocationScene(locId, texLoader) {
     root.add(floor);
     addRoomShell(root, 10, 10, 3.6, new THREE.MeshStandardMaterial({ color: 0x2a2a38 }), colliders);
     addPoster(texLoader, root, "imagine_images/VmOQt.jpg", 3.5, 2.5, 0, 2, -4.85);
-    const door = wall(2.2, 2.6, 0.12, new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.6 }));
-    door.position.set(0, 1.3, 4.2);
-    root.add(door);
-    pushCollider(colliders, 0, 4.2, 1.1, 0.08);
+    addElevatorDressing(root, { wall, neonSign, colliders, pushCollider });
     addNeonTube(root, -3, 2.2, -4.5, 2, 0xff00ff);
     addLights(root, [
       { type: "point", color: 0xffffff, intensity: 2.2, x: 0, y: 2.8, z: 0 },
       { type: "point", color: 0xff66ff, intensity: 1.4, x: -2, y: 2, z: -2 }
     ]);
   } else if (locId === "city") {
-    floor = tiledFloor(20, 18, theme.ground, true);
+    floor = tiledFloor(20, 18, theme.ground, false);
     root.add(floor);
     addRoomShell(root, 20, 18, 4, wallMat, colliders);
+    addCityDressing(root, { wall, neonSign, addNeonTube, colliders, pushCollider });
     addPoster(texLoader, root, "imagine_images/77Mdp.jpg", 8, 4, 0, 3, -8.9);
     addAmpStack(root, -5, 2, colliders);
     addAmpStack(root, 5, -1, colliders);

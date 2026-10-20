@@ -40,7 +40,10 @@ function resolveAnimName(name) {
   return name;
 }
 
-const MODEL_DOG = "assets/models/cc0/fox.glb";
+const MODEL_DOG = "assets/models/dog.glb";
+const DOG_TARGET_HEIGHT = 0.68;
+const DOG_FOLLOW_DIST = 1.25;
+const DOG_FOLLOW_SIDE = 0.55;
 
 const DOG_ANIM = { idle: "Survey", walk: "Walk", run: "Run" };
 let renderer, scene, camera, clock, raycaster, pointer;
@@ -199,31 +202,87 @@ function playOneShot(actor, name, ms = 1400) {
   }, ms);
 }
 
+function fitDogToGround(root) {
+  root.rotation.set(0, 0, 0);
+  root.scale.setScalar(1);
+  root.updateMatrixWorld(true);
+  let box = new THREE.Box3().setFromObject(root);
+  let size = box.getSize(new THREE.Vector3());
+  if (size.y < size.z * 0.55) root.rotation.x = -Math.PI / 2;
+  root.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(root);
+  size = box.getSize(new THREE.Vector3());
+  const h = Math.max(size.y, 0.001);
+  const scl = DOG_TARGET_HEIGHT / h;
+  root.scale.setScalar(scl);
+  root.updateMatrixWorld(true);
+  const box2 = new THREE.Box3().setFromObject(root);
+  root.position.y = -box2.min.y;
+}
+
 function createDog() {
   if (!dogTemplate) return null;
   const root = cloneSkinned(dogTemplate.scene);
-  root.scale.setScalar(0.008);
+  fitDogToGround(root);
   root.traverse(o => {
     if (!o.isMesh || !o.material) return;
     const m = o.material.clone();
-    if (!m.map) m.color.set(0xc4783a);
-    m.emissive = new THREE.Color(0x331808);
-    m.emissiveIntensity = 0.12;
+    if (!m.map) m.color.set(0x8a5530);
+    m.emissive = new THREE.Color(0x2a1508);
+    m.emissiveIntensity = 0.08;
     o.material = m;
   });
   root.add(makeShadow());
   const mixer = new THREE.AnimationMixer(root);
-  const clips = dogTemplate.animations;
+  const clips = dogTemplate.animations || [];
+  const pick = n => clips.find(c => c.name === n) || clips[0];
   const actions = {
-    idle: mixer.clipAction(clips.find(c => c.name === DOG_ANIM.idle) || clips[0]),
-    walk: mixer.clipAction(clips.find(c => c.name === DOG_ANIM.walk) || clips[0]),
-    run: mixer.clipAction(clips.find(c => c.name === DOG_ANIM.run) || clips[0])
+    idle: mixer.clipAction(pick(DOG_ANIM.idle)),
+    walk: mixer.clipAction(pick(DOG_ANIM.walk)),
+    run: mixer.clipAction(pick(DOG_ANIM.run))
   };
-  actions.idle.play();
+  Object.values(actions).forEach(a => { a?.setLoop(THREE.LoopRepeat, Infinity); });
+  actions.idle?.play();
   const group = new THREE.Group();
   group.add(root);
   scene.add(group);
-  return { group, root, mixer, actions, current: "idle", isDog: true };
+  return {
+    group, root, mixer, actions, current: "idle", isDog: true,
+    wx: 0, wz: 0, _sitUntil: 0, _wagPhase: Math.random() * Math.PI * 2
+  };
+}
+
+function updateDogFollow(dt, pl) {
+  const dog = actors.get("dog");
+  if (!dog || !pl || !bounds) return;
+  const yaw = pl.group.rotation.y;
+  let tx = pl.wx - Math.sin(yaw) * DOG_FOLLOW_DIST + Math.cos(yaw) * DOG_FOLLOW_SIDE;
+  let tz = pl.wz - Math.cos(yaw) * DOG_FOLLOW_DIST - Math.sin(yaw) * DOG_FOLLOW_SIDE;
+  let dx = tx - pl.wx;
+  let dz = tz - pl.wz;
+  let d = Math.hypot(dx, dz);
+  if (d < 1.05) {
+    tx = pl.wx + (dx / (d || 1)) * 1.05;
+    tz = pl.wz + (dz / (d || 1)) * 1.05;
+  }
+  const tgt = clampWorld(tx, tz);
+  const lerp = Math.min(1, dt * 7.5);
+  dog.wx += (tgt.x - dog.wx) * lerp;
+  dog.wz += (tgt.z - dog.wz) * lerp;
+  const move = Math.hypot(tgt.x - dog.wx, tgt.z - dog.wz);
+  const playerSpd = pl._spd || 0;
+  if (playerSpd < 0.12 && move < 0.05 && dog._sitUntil < performance.now()) {
+    if (Math.random() < dt * 0.015) dog._sitUntil = performance.now() + 2200 + Math.random() * 2000;
+  }
+  const sitting = dog._sitUntil > performance.now();
+  dog.group.position.set(dog.wx, sitting ? -0.06 : 0, dog.wz);
+  dog.group.rotation.y = Math.atan2(pl.wx - dog.wx, pl.wz - dog.wz);
+  const spd = sitting ? 0 : Math.max(move / Math.max(dt, 0.001), playerSpd * 0.85);
+  dog._spd = spd;
+  if (sitting) fadeToDog(dog, "idle");
+  else fadeToDog(dog, spd > 1.35 ? "run" : spd > 0.2 ? "walk" : "idle");
+  dog._wagPhase += dt * (spd > 0.2 ? 14 : 8);
+  if (dog.root) dog.root.rotation.z = Math.sin(dog._wagPhase) * (sitting ? 0.02 : 0.05);
 }
 
 function ensureCar(show) {
@@ -315,6 +374,18 @@ function clampWorld(x, z, radius = 0.42) {
 
 function separateActors() {
   const list = [...actors.values()].filter(a => !a.isDog);
+  const dog = actors.get("dog");
+  const pl = actors.get("player");
+  if (dog && pl) {
+    const dx = pl.wx - dog.wx;
+    const dz = pl.wz - dog.wz;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.95 && d > 0.001) {
+      const push = (0.95 - d) * 0.9;
+      dog.wx -= (dx / d) * push;
+      dog.wz -= (dz / d) * push;
+    }
+  }
   const minDist = 1.22;
   list.forEach(a => {
     a._visPushX = (a._visPushX || 0) * 0.9;
@@ -409,6 +480,31 @@ function fadeToDog(dog, name) {
   dog.current = name;
 }
 
+function updateCameraOccluders() {
+  const player = actors.get("player");
+  if (!player || !locationRoot || !raycaster) return;
+  const eye = camera.position.clone();
+  const aim = player.group.position.clone().add(new THREE.Vector3(0, 1.15, 0));
+  const dir = aim.clone().sub(eye).normalize();
+  const maxD = eye.distanceTo(aim);
+  raycaster.set(eye, dir);
+  const occluders = [];
+  locationRoot.traverse(o => {
+    if (o.isMesh && o.userData.cameraOccluder) occluders.push(o);
+  });
+  const hitSet = new Set(raycaster.intersectObjects(occluders, false).map(h => h.object));
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.userData.cameraOccluder || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m) return;
+      m.transparent = true;
+      m.opacity = hitSet.has(o) ? 0.22 : 1;
+      m.depthWrite = !hitSet.has(o);
+    });
+  });
+}
+
 function updateThirdPersonCamera() {
   const player = actors.get("player");
   if (!player) return;
@@ -420,6 +516,7 @@ function updateThirdPersonCamera() {
   const target = new THREE.Vector3(p.x + ox, height, p.z + oz);
   camera.position.lerp(target, 0.12);
   camera.lookAt(p.x, 1.28, p.z);
+  updateCameraOccluders();
 }
 
 function tickNpcPatrols(dt) {
@@ -558,7 +655,9 @@ function sync(data) {
     }
   });
 
+  const heroId = player?.characterId || "vienna";
   (npcs || []).forEach(n => {
+    if (n.id === heroId) return;
     const id = "npc_" + n.id;
     keep.add(id);
     const a = ensureActor(id, n.id, true);
@@ -595,7 +694,11 @@ function sync(data) {
     }
     const dog = actors.get("dog");
     const pl = actors.get("player");
-    if (dog && pl) placeActorWorld(dog, pl.wx - 1.2, pl.wz + 0.8, false);
+    if (dog && pl && !dog._placed) {
+      dog.wx = pl.wx - 1;
+      dog.wz = pl.wz + 0.9;
+      dog._placed = true;
+    }
     keep.add("dog");
   } else if (actors.get("dog")) {
     scene.remove(actors.get("dog").group);
@@ -662,6 +765,7 @@ function loop() {
   processInput(dt);
   tickNpcPatrols(dt);
   const pl = actors.get("player");
+  if (pl && actors.get("dog")) updateDogFollow(dt, pl);
   if (pl) {
     pl._vy = (pl._vy || 0) - 14 * dt;
     let y = (pl.group.position.y || 0) + pl._vy * dt;

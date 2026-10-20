@@ -373,7 +373,8 @@ function initResponsiveHud() {
 function syncStage3D() {
   if (!window.Scene3D) return;
   const loc = LOCATIONS[me.location];
-  const npcData = (loc.npcs || []).map((nid, i) => ({
+  const heroId = me.characterId || "vienna";
+  const npcData = (loc.npcs || []).filter(nid => nid !== heroId).map((nid, i) => ({
     id: nid,
     img: NPCS[nid]?.img || "imagine_images/77Mdp.jpg",
     x: 18 + i * 18,
@@ -939,11 +940,18 @@ function renderBuildings() {
 }
 
 function renderQuest() {
-  if (window.Onboarding?.isActive?.()) {
-    Onboarding.render();
+  if (window.me?.onboarding && !window.me.onboarding.done) {
+    window.Onboarding?.render?.();
     return;
   }
   const qid = me.quests.active;
+  if (me.onboarding?.done && qid === "intro") {
+    document.getElementById("questBox").innerHTML =
+      `<div class="quest-tracker"><b>${escapeHtml(t("onboard_title"))}</b>
+       <div class="quest-step-title">${escapeHtml(t("onboard_all_done"))}</div>
+       <div class="quest-step-text">${escapeHtml(QUESTS.intro.text)}</div></div>`;
+    return;
+  }
   const q = QUESTS[qid];
   if (!q) {
     document.getElementById("questBox").innerHTML = `<b>${escapeHtml(t("quests_label"))}</b><br>${escapeHtml(t("quest_done"))}`;
