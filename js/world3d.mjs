@@ -78,8 +78,8 @@ function spawnOffsetForId(id, index) {
 }
 
 function createActorFromCatalog(id, characterId) {
-  const def = charDef(characterId || "razor");
-  const tpl = getTemplateForCharacter(characterId || "razor");
+  const def = charDef(characterId || "vienna");
+  const tpl = getTemplateForCharacter(characterId || "vienna");
   if (!tpl?.gltf) return null;
   const built = createCc0Actor(tpl, characterId, def.look || {}, {
     isPlayer: id === "player",
@@ -91,7 +91,7 @@ function createActorFromCatalog(id, characterId) {
   group.add(root);
   scene.add(group);
   const actor = {
-    id, characterId: characterId || "razor", group, root, mixer, actions,
+    id, characterId: characterId || "vienna", group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
     _tplKey: tpl.key, _meshy: built._meshy, _proc: built._proc,
     _visPushX: 0, _visPushZ: 0
@@ -102,7 +102,7 @@ function createActorFromCatalog(id, characterId) {
 }
 
 function ensureActor(id, characterId, isNpc) {
-  const tplKey = getTemplateForCharacter(characterId || "razor").key;
+  const tplKey = getTemplateForCharacter(characterId || "vienna")?.key;
   let a = actors.get(id);
   if (a && (a.characterId !== characterId || a._tplKey !== tplKey)) {
     scene.remove(a.group);
@@ -446,7 +446,7 @@ function sync(data) {
   const keep = new Set(["player"]);
   if (player) {
     const w = gameToWorldLoc(player.x, player.y, bounds);
-    const a = ensureActor("player", player.characterId || "razor", false);
+    const a = ensureActor("player", player.characterId || "vienna", false);
     placeActorWorld(a, w.x, w.z, true);
     if (player.anim && player.anim !== a._netAnim) {
       applyNetworkAnim(a, player.anim);

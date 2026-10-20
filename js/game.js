@@ -371,7 +371,7 @@ function syncStage3D() {
   Scene3D.sync({
     player: {
       x: me.x, y: me.y, avatar: me.avatar,
-      characterId: me.characterId || "razor",
+      characterId: me.characterId || "vienna",
       anim: me._animState || "idle"
     },
     others: othersForStage3D(),
@@ -572,7 +572,7 @@ function sanitizePlayer(p) {
     decor: p.decor,
     dog: dogPos,
     lang: getLanguage(),
-    characterId: p.characterId || "razor",
+    characterId: p.characterId || "vienna",
     owner: isOwner,
     lastSeen: p.lastSeen
   };

@@ -11,7 +11,9 @@ const PREVIEW_FILL = 0.72;
 const PREVIEW_FACE_YAW = 0.24;
 
 let renderer, scene, camera, clock, actorRoot, mixer, actions, previewProc;
-let selectedIdx = 0;
+let selectedIdx = Math.max(0, (typeof PLAYABLE_CHARACTER_IDS !== "undefined"
+  ? PLAYABLE_CHARACTER_IDS.indexOf("vienna")
+  : 1));
 let raf = 0;
 let onPickCb = null;
 let templatesReady = false;

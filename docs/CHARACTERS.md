@@ -13,6 +13,7 @@ Original punk-gang teens for **PUNK ME**. Visual references live in `imagine_ima
 - **Catchphrases (DA):** “Kæder er vores hymne.” · “Natten tilhører banden.”
 
 ### Vienna (Вена) — pink mohawk
+- **3D:** Meshy **Neon Rebel** `assets/models/meshy/punk_pink.glb` (canonical Vienna; original texture, default hero).
 - **Look:** Hot-pink mohawk, dark punk dress, neon choker. Ref: `imagine_images/Oo040.jpg`
 - **Personality:** Bold, cemetery-side strategist, builder of the crew’s territory.
 - **Role:** Cemetery jobs, crypt-building quest, morale on the street.
