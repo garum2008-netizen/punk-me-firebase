@@ -636,9 +636,17 @@ export function addKitchenDressing(root, helpers) {
     ring.position.y += 0.02;
     root.add(ring);
   }
-  const hood = wall(1.2, 0.15, 0.7, new THREE.MeshStandardMaterial({ color: 0x888899 }));
-  hood.position.set(0, 1.35, -4.15);
-  root.add(hood);
+  const hoodMat = new THREE.MeshStandardMaterial({ color: 0x777788, metalness: 0.45, roughness: 0.4 });
+  const hoodGroup = new THREE.Group();
+  const hoodBox = wall(1.15, 0.32, 0.58, hoodMat);
+  hoodBox.position.set(0, 0.16, 0.02);
+  const hoodChimney = wall(0.42, 0.55, 0.38, hoodMat);
+  hoodChimney.position.set(0, 0.48, -0.12);
+  const hoodMount = wall(1.2, 0.08, 0.62, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
+  hoodMount.position.set(0, -0.02, -0.28);
+  hoodGroup.add(hoodMount, hoodBox, hoodChimney);
+  hoodGroup.position.set(0, 0.92, -4.48);
+  root.add(hoodGroup);
   for (let c = 0; c < 3; c++) {
     const cab = wall(0.95, 0.55, 0.32, new THREE.MeshStandardMaterial({ color: 0x6a5040 }));
     cab.position.set(-5.5 + c * 1.05, 2.35, -4.55);
@@ -670,13 +678,13 @@ export function addKitchenDressing(root, helpers) {
   sinkUnit.add(sinkCab, sinkBasin, faucet, spout);
   sinkUnit.position.set(-2.5, 0, -4.1);
   root.add(sinkUnit);
-  const table = wall(1.6, 0.08, 0.95, new THREE.MeshStandardMaterial({ color: 0x3a2818 }));
-  table.position.set(1.55, 0.75, 0.2);
+  const table = wall(1.55, 0.08, 0.9, new THREE.MeshStandardMaterial({ color: 0x3a2818 }));
+  table.position.set(1.25, 0.75, 0.62);
   root.add(table);
-  pushCollider(colliders, 1.55, 0.2, 0.85, 0.52, 0.35);
+  pushCollider(colliders, 1.25, 0.62, 0.8, 0.5, 0.35);
   for (let c = 0; c < 2; c++) {
     const chair = wall(0.45, 0.55, 0.45, new THREE.MeshStandardMaterial({ color: 0x4a3020 }));
-    chair.position.set(1.15 + c * 0.75, 0.28, 0.95);
+    chair.position.set(0.85 + c * 0.7, 0.28, 1.05);
     root.add(chair);
     pushCollider(colliders, chair.position.x, 1.35, 0.22, 0.22);
   }
@@ -684,7 +692,7 @@ export function addKitchenDressing(root, helpers) {
     new THREE.ConeGeometry(0.32, 0.26, 8),
     new THREE.MeshStandardMaterial({ color: 0xffeecc, emissive: 0xffdd99, emissiveIntensity: 0.75 })
   );
-  lamp.position.set(1.55, 2.75, 0.2);
+  lamp.position.set(1.25, 2.75, 0.62);
   lamp.rotation.x = Math.PI;
   root.add(lamp);
   const kettle = new THREE.Group();
@@ -700,14 +708,14 @@ export function addKitchenDressing(root, helpers) {
   kettle.position.set(0.15, 0.98, -4.15);
   root.add(kettle);
   const pizza = wall(0.45, 0.05, 0.45, new THREE.MeshStandardMaterial({ color: 0xddaa44 }));
-  pizza.position.set(1.25, 0.8, 0.35);
+  pizza.position.set(0.95, 0.8, 0.48);
   root.add(pizza);
   for (let m = 0; m < 2; m++) {
     const mug = new THREE.Mesh(
       new THREE.CylinderGeometry(0.06, 0.07, 0.12, 8),
       new THREE.MeshStandardMaterial({ color: m ? 0x3366aa : 0xaa3366 })
     );
-    mug.position.set(1.75 + m * 0.18, 0.86, 0.45);
+    mug.position.set(1.45 + m * 0.18, 0.86, 0.72);
     root.add(mug);
   }
   for (let m = 0; m < 4; m++) {
@@ -731,14 +739,14 @@ export function addKitchenDressing(root, helpers) {
     new THREE.SphereGeometry(0.16, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2),
     new THREE.MeshStandardMaterial({ color: 0xcc8844 })
   );
-  fruitBowl.position.set(1.55, 0.82, 0.2);
+  fruitBowl.position.set(1.25, 0.82, 0.62);
   root.add(fruitBowl);
   for (let f = 0; f < 3; f++) {
     const fruit = new THREE.Mesh(
       new THREE.SphereGeometry(0.05, 8, 8),
       new THREE.MeshStandardMaterial({ color: f ? 0xcc3333 : 0x88cc44 })
     );
-    fruit.position.set(1.5 + f * 0.08, 0.92, 0.15 + f * 0.06);
+    fruit.position.set(1.2 + f * 0.08, 0.92, 0.58 + f * 0.06);
     root.add(fruit);
   }
   const pizzaBox = new THREE.Group();
@@ -748,7 +756,7 @@ export function addKitchenDressing(root, helpers) {
   boxLid.position.set(0, 0.1, 0.05);
   boxLid.rotation.x = -0.35;
   pizzaBox.add(boxBase, boxLid);
-  pizzaBox.position.set(1.85, 0.8, 0.05);
+  pizzaBox.position.set(1.55, 0.8, 0.38);
   root.add(pizzaBox);
   for (let c = 0; c < 4; c++) {
     const lowCab = wall(1.1, 0.75, 0.38, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
@@ -764,15 +772,19 @@ export function addElevatorDressing(root, helpers) {
     emissive: 0x4466aa, emissiveIntensity: 0.55
   });
   const doorZ = 1.38;
-  const doorL = wall(0.52, 2.05, 0.05, doorMat);
+  const markCut = m => {
+    m.userData.elevatorCutaway = true;
+    return m;
+  };
+  const doorL = markCut(wall(0.52, 2.05, 0.05, doorMat));
   doorL.position.set(-0.27, 1.02, doorZ);
-  const doorR = doorL.clone();
+  const doorR = markCut(doorL.clone());
   doorR.position.x = 0.27;
-  const seam = wall(0.04, 2, 0.025, new THREE.MeshStandardMaterial({
+  const seam = markCut(wall(0.04, 2, 0.025, new THREE.MeshStandardMaterial({
     color: 0x111118, emissive: 0x00ffcc, emissiveIntensity: 0.55
-  }));
+  })));
   seam.position.set(0, 1.02, doorZ + 0.015);
-  const frame = wall(1.35, 2.15, 0.08, new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.8 }));
+  const frame = markCut(wall(1.35, 2.15, 0.08, new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.8 })));
   frame.position.set(0, 1.08, doorZ - 0.04);
   root.add(doorL, doorR, seam, frame);
   pushCollider(colliders, 0, doorZ, 0.68, 0.05);

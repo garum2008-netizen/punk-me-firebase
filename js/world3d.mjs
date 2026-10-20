@@ -64,6 +64,7 @@ let modelsReady = false;
 let captureFrameLock = false;
 let captureSavedRotY = 0;
 let captureHideActors = null;
+let elevatorCutawaySaved = null;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 let guideTarget = null;
@@ -470,6 +471,40 @@ function resetOccluderOpacity() {
   });
 }
 
+function setElevatorCutaway(active) {
+  if (!locationRoot || currentLoc !== "elevator") return;
+  if (!active) {
+    if (!elevatorCutawaySaved) return;
+    elevatorCutawaySaved.forEach(({ mesh, visible, mats }) => {
+      mesh.visible = visible;
+      mats.forEach(({ m, transparent, opacity, depthWrite }) => {
+        m.transparent = transparent;
+        m.opacity = opacity;
+        m.depthWrite = depthWrite;
+      });
+    });
+    elevatorCutawaySaved = null;
+    return;
+  }
+  if (elevatorCutawaySaved) return;
+  elevatorCutawaySaved = [];
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.userData.elevatorCutaway) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    elevatorCutawaySaved.push({
+      mesh: o,
+      visible: o.visible,
+      mats: mats.map(m => ({
+        m,
+        transparent: m.transparent,
+        opacity: m.opacity,
+        depthWrite: m.depthWrite
+      }))
+    });
+    o.visible = false;
+  });
+}
+
 function updateCameraOccluders() {
   if (LOCATION_CAMERA[currentLoc]?.fixed) {
     resetOccluderOpacity();
@@ -502,19 +537,20 @@ function updateCameraOccluders() {
 const LOCATION_CAMERA = {
   elevator: {
     fixed: true,
-    fov: 44,
-    pos: [-1.08, 1.48, -0.62],
-    look: [0.42, 0.98, 1.05],
-    player: { x: 0.02, z: -0.32, yaw: 0 },
-    dog: { dx: -0.5, dz: 0.08 }
+    fov: 38,
+    pos: [0, 2.18, 5.05],
+    look: [0, 1.04, -0.42],
+    player: { x: 0, z: -0.32, yaw: 0 },
+    dog: { dx: 0.72, dz: 0.2 }
   },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: {
     fixed: true,
-    pos: [2.15, 2.08, 1.42],
-    look: [0.95, 0.9, -1.35],
-    player: { x: 0.22, z: 0.62, yaw: Math.PI },
-    dog: { dx: -0.44, dz: 0.1 }
+    fov: 44,
+    pos: [0.1, 2.38, 3.05],
+    look: [0.2, 0.92, 0.52],
+    player: { x: 0, z: 0.42, yaw: Math.PI },
+    dog: { dx: 0.42, dz: 0.52 }
   }
 };
 
@@ -568,6 +604,9 @@ function applyFixedLocationActors() {
     if (spec.dog) {
       dog.wx = pl.wx + spec.dog.dx;
       dog.wz = pl.wz + spec.dog.dz;
+      const c = clampWorld(dog.wx, dog.wz);
+      dog.wx = c.x;
+      dog.wz = c.z;
     } else {
       syncDogBesidePlayer(pl);
     }
@@ -759,15 +798,16 @@ function sync(data) {
   if (justChangedLoc) {
     rebuildLocation(location);
     captureFrameLock = false;
+    setElevatorCutaway(false);
     const dogActor = actors.get("dog");
     if (dogActor) dogActor._placed = false;
   }
   if (justChangedLoc && location === "elevator" && player && bounds) {
-    const g = worldToGameLoc(0, -0.42, bounds);
+    const g = worldToGameLoc(0, -0.32, bounds);
     hooks.onMove?.(g.x, g.y);
   }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
-    const g = worldToGameLoc(0, 1.55, bounds);
+    const g = worldToGameLoc(0, 0.42, bounds);
     hooks.onMove?.(g.x, g.y);
   }
 
@@ -850,9 +890,9 @@ function sync(data) {
 
   const playerActor = actors.get("player");
   const spawnPref = currentLoc === "kitchen"
-    ? { x: 0, z: 1.55 }
+    ? { x: 0, z: 0.42 }
     : currentLoc === "elevator"
-      ? { x: 0, z: -0.42 }
+      ? { x: 0, z: -0.32 }
       : { x: 0, z: -1.2 };
   if (playerActor && pointInsideCollider(playerActor.wx, playerActor.wz, furnitureColliders, 0.38)) {
     const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
@@ -1085,6 +1125,7 @@ const api = {
       captureHideActors.forEach(act => { act.group.visible = true; });
       captureHideActors = null;
     }
+    setElevatorCutaway(false);
     captureFrameLock = false;
   },
   captureDogCloseup: () => {
@@ -1185,6 +1226,8 @@ const api = {
     }
     resetCameraForLocation();
     if (shot?.fixed) {
+      if (currentLoc === "elevator") setElevatorCutaway(true);
+      else setElevatorCutaway(false);
       camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2]);
       camera.lookAt(shot.look[0], shot.look[1], shot.look[2]);
       resetOccluderOpacity();

@@ -509,8 +509,13 @@ export function buildLocationScene(locId, texLoader) {
     root.add(wall(3, cabH, 0.12, cabMat).translateZ(-half));
     root.add(wall(3, cabH, 0.12, cabMat).translateX(-half));
     root.add(wall(3, cabH, 0.12, cabMat).translateX(half));
-    root.add(wall(0.55, cabH, 0.12, cabTrim).translateX(-0.95).translateZ(half));
-    root.add(wall(0.55, cabH, 0.12, cabTrim).translateX(0.95).translateZ(half));
+    const markCut = m => {
+      m.userData.elevatorCutaway = true;
+      return m;
+    };
+    root.add(markCut(wall(0.55, cabH, 0.12, cabTrim).translateX(-0.95).translateZ(half)));
+    root.add(markCut(wall(0.55, cabH, 0.12, cabTrim).translateX(0.95).translateZ(half)));
+    root.add(markCut(wall(3, cabH, 0.12, cabMat).translateZ(half)));
     const ceil = wall(3, 0.12, 3, cabMat);
     ceil.position.y = cabH;
     root.add(ceil);
