@@ -38,10 +38,13 @@ body {
   position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0.65;
 }
 #stage3d {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 58%;
+  position: absolute; left: 0; right: 0; bottom: 0; height: 72%;
   z-index: 9; pointer-events: auto; touch-action: manipulation;
 }
 body.mode-3d #entities .entity { opacity: 0; pointer-events: none; }
+body.mode-3d .bg-a { filter: saturate(0.55) brightness(0.32) blur(2px); }
+body.mode-3d.loc-street .bg-a { filter: saturate(0.45) brightness(0.26) blur(2.5px); }
+body.mode-3d .bg-b { opacity: 0.12; }
 body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .street-sign-cover {
   display: none; position: absolute; right: 14%; top: 36%; width: 16%; height: 14%;

@@ -161,6 +161,7 @@ const LifeEngine = (() => {
   }
 
   function ensureDog() {
+    if (document.body.classList.contains("mode-3d")) return;
     const me = getMe();
     if (!hooks.hasDog?.() || !me) {
       if (dog?.el) dog.el.remove();

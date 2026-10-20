@@ -12,7 +12,43 @@ const I18N = {
     tab_clothes: "Одежда", tab_chains: "Цепи", tab_magic: "Магия", tab_pets: "Питомцы", tab_materials: "Материалы",
     quest_done: "Все задания выполнены!", notEnough: "Не хватает монет", bought: "Куплено",
     dogBark: "Гав!", petHappy: "Пёс рад! +6 монет", chatDown: "Чат временно недоступен",
-    ownerCoinsHint: "владелец"
+    ownerCoinsHint: "владелец",
+    nav_room: "Дом", nav_street: "Улица", nav_cemetery: "Кладбище", nav_city: "Город", nav_roof: "Крыша", nav_parkour: "Паркур",
+    door_kitchen: "Кухня", door_toilet: "Туалет", door_elevator: "Лифт", door_roof: "Крыша", door_room: "Комната",
+    door_street: "Улица", door_cemetery: "Кладбище", door_city: "Город", door_home: "Дом", door_parkour: "Паркур",
+    job_dig: "Копать могилы", job_cobwebs: "Снять паутину", job_parkour: "Паркур-забег",
+    job_go: "Ехать и работать", chain_fight: "Цепная дуэль", accept_quest: "Взять задание",
+    coins_word: "монет", devCoins: "тест-монеты",
+    shop_jacket_neon: "Неоновая куртка", shop_mohawk_dye: "Краситель ирокеза", shop_boots_spike: "Шипованные ботинки",
+    shop_chain_rust: "Ржавая цепь", shop_chain_neon: "Неоновая цепь", shop_chain_vienna: "Венская цепь",
+    shop_pet_dog: "Панковый пёс", shop_pet_cat: "Ночной кот", shop_pet_rat: "Крыса", shop_pet_crow: "Ворона",
+    shop_spell_neon_flash: "Свиток: Неоновый всплеск", shop_spell_graffiti: "Свиток: Граффити-щит",
+    shop_spell_shadow: "Свиток: Теневой рывок", shop_spell_spark: "Свиток: Искра цепи",
+    shop_mat_crypt: "Камень склепа", shop_mat_neon: "Неоновая панель", shop_mat_brick: "Кирпич из мусора",
+    sys_bought: "купил(а)", quests_label: "Квесты", gang_dialog_hint: "Диалог / квест",
+    magic_title: "Панк-магия", inv_title: "Рюкзак", inv_chain: "Цепь", inv_pet: "Питомец",
+    inv_materials: "Материалы", inv_spells: "Свитки", inv_none: "нет", inv_dash: "—",
+    magic_empty: "Купи свитки в лавке (раздел Магия).", build_hint: "Стройка: купи материалы → Город → Стройка → клик по земле.",
+    build_crypt: "Склеп", build_shack: "Дом", build_neon: "Неон",
+    fight_you: "Ты", fight_rival: "Соперник", lvl_short: "ур.",
+    quest_new: "Новое задание:", quest_complete: "Квест выполнен:",
+    dog_with_you: "Пёс теперь с тобой!", bought_item: "Куплено:",
+    trash_coins: "+5 за мусор", cat_hiss: "Кот шипит и убегает",
+    cooldown: "Перезарядка...", no_scrolls: "Нет свитков", shield_on: "Щит активен",
+    shadow_dash_toast: "Теневой рывок!", spark_chain: "Искра усиливает цепь!",
+    neon_burst: " — неон взрывается!", rest: "Отдых...",
+    build_mode_on: "Режим стройки: кликни на землю", build_mode_off: "Стройка выкл",
+    buy_materials: "Купи материалы в лавке", built: "Построено!", decor_room: "Декор в комнате!",
+    building: "Строим:", win_fight: "Победа!", lose_fight: "Поражение... отдыхай",
+    parkour_done: "Паркур пройден!", parkour_fail: "Сорвался...",
+    parkour_step1: "Прыжок!", parkour_step2: "Баланс!", parkour_step3: "Рывок!", parkour_step4: "Финиш!",
+    job_dig_done: "Выкопал яму", job_cobwebs_done: "Снял паутину", job_clean_done: "Убрал мусор", job_water_done: "Полил цветы",
+    job_generic: "Работа", job_cemetery_spot: "Кладбище у Вены", job_corners: "Углы кладбища", job_roof_route: "Крышный маршрут",
+    login_error: "Ошибка входа:", fight_hit_you: "Ты бьёшь", fight_hit_npc: "бьёт",
+    fight_shield_block: "Щит блокирует", fight_skip_turn: "Соперник пропускает ход",
+    npc_razor: "Рейзор", npc_mohawk: "Ирокез", npc_vienna: "Вена", npc_ghost: "Призрак Сцены", npc_gravedigger: "Смотритель",
+    spell_neon_flash: "Неоновый всплеск", spell_graffiti: "Граффити-щит", spell_shadow: "Теневой рывок", spell_spark: "Искра цепи",
+    prog_talk_razor: "Поговорить с Рейзором", prog_win_fight: "Победить в драке", prog_parkour_win: "Пройти паркур", prog_built: "Построить"
   },
   en: {
     coins: "Coins", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
@@ -26,7 +62,43 @@ const I18N = {
     tab_clothes: "Clothes", tab_chains: "Chains", tab_magic: "Magic", tab_pets: "Pets", tab_materials: "Materials",
     quest_done: "All quests done!", notEnough: "Not enough coins", bought: "Purchased",
     dogBark: "Woof!", petHappy: "Dog is happy! +6 coins", chatDown: "Chat unavailable",
-    ownerCoinsHint: "owner"
+    ownerCoinsHint: "owner",
+    nav_room: "Home", nav_street: "Street", nav_cemetery: "Cemetery", nav_city: "City", nav_roof: "Roof", nav_parkour: "Parkour",
+    door_kitchen: "Kitchen", door_toilet: "Toilet", door_elevator: "Elevator", door_roof: "Rooftop", door_room: "Room",
+    door_street: "Street", door_cemetery: "Cemetery", door_city: "City", door_home: "Home", door_parkour: "Parkour",
+    job_dig: "Grave digging", job_cobwebs: "Clear cobwebs", job_parkour: "Parkour run",
+    job_go: "Go & work", chain_fight: "Chain duel", accept_quest: "Take quest",
+    coins_word: "coins", devCoins: "test coins",
+    shop_jacket_neon: "Neon jacket", shop_mohawk_dye: "Mohawk dye", shop_boots_spike: "Spiked boots",
+    shop_chain_rust: "Rust chain", shop_chain_neon: "Neon chain", shop_chain_vienna: "Vienna chain",
+    shop_pet_dog: "Punk dog", shop_pet_cat: "Night cat", shop_pet_rat: "Sewer rat", shop_pet_crow: "Grave crow",
+    shop_spell_neon_flash: "Scroll: Neon burst", shop_spell_graffiti: "Scroll: Graffiti shield",
+    shop_spell_shadow: "Scroll: Shadow dash", shop_spell_spark: "Scroll: Chain spark",
+    shop_mat_crypt: "Crypt stone", shop_mat_neon: "Neon panel", shop_mat_brick: "Scrap brick",
+    sys_bought: "bought", quests_label: "Quests", gang_dialog_hint: "Dialog / quest",
+    magic_title: "Punk magic", inv_title: "Backpack", inv_chain: "Chain", inv_pet: "Pet",
+    inv_materials: "Materials", inv_spells: "Scrolls", inv_none: "none", inv_dash: "—",
+    magic_empty: "Buy scrolls at the shop (Magic tab).", build_hint: "Build: buy materials → City → Build → click ground.",
+    build_crypt: "Crypt", build_shack: "Shack", build_neon: "Neon",
+    fight_you: "You", fight_rival: "Rival", lvl_short: "lv.",
+    quest_new: "New quest:", quest_complete: "Quest complete:",
+    dog_with_you: "Dog is with you now!", bought_item: "Purchased:",
+    trash_coins: "+5 for trash", cat_hiss: "Cat hisses and runs off",
+    cooldown: "Cooldown...", no_scrolls: "No scrolls", shield_on: "Shield active",
+    shadow_dash_toast: "Shadow dash!", spark_chain: "Spark boosts your chain!",
+    neon_burst: " — neon explodes!", rest: "Rest...",
+    build_mode_on: "Build mode: click the ground", build_mode_off: "Build mode off",
+    buy_materials: "Buy materials in the shop", built: "Built!", decor_room: "Decor in your room!",
+    building: "Building:", win_fight: "Victory!", lose_fight: "Defeat... rest up",
+    parkour_done: "Parkour cleared!", parkour_fail: "You slipped...",
+    parkour_step1: "Jump!", parkour_step2: "Balance!", parkour_step3: "Dash!", parkour_step4: "Finish!",
+    job_dig_done: "Dug a grave", job_cobwebs_done: "Cleared cobwebs", job_clean_done: "Cleaned up", job_water_done: "Watered flowers",
+    job_generic: "Job", job_cemetery_spot: "Vienna cemetery", job_corners: "Cemetery corners", job_roof_route: "Rooftop route",
+    login_error: "Login error:", fight_hit_you: "You hit", fight_hit_npc: "hits",
+    fight_shield_block: "Shield blocks", fight_skip_turn: "Rival skips a turn",
+    npc_razor: "Razor", npc_mohawk: "Mohawk", npc_vienna: "Vienna", npc_ghost: "Stage Ghost", npc_gravedigger: "Gravedigger",
+    spell_neon_flash: "Neon burst", spell_graffiti: "Graffiti shield", spell_shadow: "Shadow dash", spell_spark: "Chain spark",
+    prog_talk_razor: "Talk to Razor", prog_win_fight: "Win a fight", prog_parkour_win: "Clear parkour", prog_built: "Build"
   },
   da: {
     coins: "Mønter", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
@@ -40,7 +112,94 @@ const I18N = {
     tab_clothes: "Tøj", tab_chains: "Kæder", tab_magic: "Magie", tab_pets: "Kæledyr", tab_materials: "Materialer",
     quest_done: "Alle opgaver klaret!", notEnough: "Ikke nok mønter", bought: "Købt",
     dogBark: "Vov!", petHappy: "Hunden er glad! +6 mønter", chatDown: "Chat utilgængelig",
-    ownerCoinsHint: "ejer"
+    ownerCoinsHint: "ejer",
+    nav_room: "Hjem", nav_street: "Gade", nav_cemetery: "Kirkegård", nav_city: "By", nav_roof: "Tag", nav_parkour: "Parkour",
+    door_kitchen: "Køkken", door_toilet: "Toilet", door_elevator: "Elevator", door_roof: "Tag", door_room: "Værelse",
+    door_street: "Gade", door_cemetery: "Kirkegård", door_city: "By", door_home: "Hjem", door_parkour: "Parkour",
+    job_dig: "Grave grave", job_cobwebs: "Ryd spindelvæv", job_parkour: "Parkour-løb",
+    job_go: "Kør & arbejd", chain_fight: "Kæde-duel", accept_quest: "Tag opgave",
+    coins_word: "mønter", devCoins: "testmønter",
+    shop_jacket_neon: "Neon-jakke", shop_mohawk_dye: "Mohawk-farve", shop_boots_spike: "Pigstøvler",
+    shop_chain_rust: "Rusten kæde", shop_chain_neon: "Neon-kæde", shop_chain_vienna: "Wien-kæde",
+    shop_pet_dog: "Punk-hund", shop_pet_cat: "Natkat", shop_pet_rat: "Rotte", shop_pet_crow: "Ravn",
+    shop_spell_neon_flash: "Rune: Neon-burst", shop_spell_graffiti: "Rune: Graffiti-skærm",
+    shop_spell_shadow: "Rune: Skygge-spring", shop_spell_spark: "Rune: Kæde-gnist",
+    shop_mat_crypt: "Kryptsten", shop_mat_neon: "Neonpanel", shop_mat_brick: "Murbrik",
+    sys_bought: "købte", quests_label: "Opgaver", gang_dialog_hint: "Dialog / opgave",
+    magic_title: "Punk-magie", inv_title: "Rygsæk", inv_chain: "Kæde", inv_pet: "Kæledyr",
+    inv_materials: "Materialer", inv_spells: "Runer", inv_none: "ingen", inv_dash: "—",
+    magic_empty: "Køb runer i butikken (fanen Magie).", build_hint: "Byg: køb materialer → By → Byg → klik på jorden.",
+    build_crypt: "Krypt", build_shack: "Skur", build_neon: "Neon",
+    fight_you: "Dig", fight_rival: "Modstander", lvl_short: "nv.",
+    quest_new: "Ny opgave:", quest_complete: "Opgave fuldført:",
+    dog_with_you: "Hunden er med dig nu!", bought_item: "Købt:",
+    trash_coins: "+5 for skrald", cat_hiss: "Katten hvæser og løber",
+    cooldown: "Genopladning...", no_scrolls: "Ingen runer", shield_on: "Skjold aktivt",
+    shadow_dash_toast: "Skygge-spring!", spark_chain: "Gnist booster kæden!",
+    neon_burst: " — neon eksploderer!", rest: "Hvile...",
+    build_mode_on: "Byg-tilstand: klik på jorden", build_mode_off: "Byg-tilstand fra",
+    buy_materials: "Køb materialer i butikken", built: "Bygget!", decor_room: "Dekor i dit værelse!",
+    building: "Bygger:", win_fight: "Sejr!", lose_fight: "Nederlag... hvil dig",
+    parkour_done: "Parkour klaret!", parkour_fail: "Du faldt...",
+    parkour_step1: "Hop!", parkour_step2: "Balance!", parkour_step3: "Sprint!", parkour_step4: "Mål!",
+    job_dig_done: "Gravede en grav", job_cobwebs_done: "Fjernede spindelvæv", job_clean_done: "Ryddede op", job_water_done: "Vandede blomster",
+    job_generic: "Job", job_cemetery_spot: "Wien-kirkegård", job_corners: "Kirkegårdshjørner", job_roof_route: "Tagrute",
+    login_error: "Login-fejl:", fight_hit_you: "Du slår", fight_hit_npc: "slår",
+    fight_shield_block: "Skjold blokerer", fight_skip_turn: "Modstander springer tur over",
+    npc_razor: "Razor", npc_mohawk: "Mohawk", npc_vienna: "Vienna", npc_ghost: "Scenegåst", npc_gravedigger: "Gravvogter",
+    spell_neon_flash: "Neon-burst", spell_graffiti: "Graffiti-skærm", spell_shadow: "Skygge-spring", spell_spark: "Kæde-gnist",
+    prog_talk_razor: "Tal med Razor", prog_win_fight: "Vind en kamp", prog_parkour_win: "Klare parkour", prog_built: "Byg"
+  }
+};
+
+const QUEST_I18N = {
+  intro: {
+    ru: { title: "Ночь начинается", text: "Поговори с Рейзором и выиграй цепную дуэль." },
+    en: { title: "Night begins", text: "Talk to Razor and win a chain duel." },
+    da: { title: "Natten starter", text: "Tal med Razor og vind en kæde-duel." }
+  },
+  build_crypts: {
+    ru: { title: "Три склепа", text: "Поставь 3 объекта в городе." },
+    en: { title: "Three crypts", text: "Place 3 builds in the city." },
+    da: { title: "Tre krypta", text: "Placer 3 bygninger i byen." }
+  },
+  chain_duel: {
+    ru: { title: "Цепной вызов", text: "Победи соперника в цепной драке (NPC на улице)." },
+    en: { title: "Chain challenge", text: "Beat a rival in a chain fight on the street." },
+    da: { title: "Kæde-udfordring", text: "Slå en rival i kæde-kamp på gaden." }
+  },
+  parkour_rep: {
+    ru: { title: "Прыжок репутации", text: "Пройди крышный паркур без падения." },
+    en: { title: "Rep jump", text: "Clear the rooftop parkour without falling." },
+    da: { title: "Respekt-spring", text: "Klare tag-parkour uden at falde." }
+  }
+};
+
+const NPC_I18N = {
+  razor: {
+    ru: ["Цепи — наш гимн.", "Ночь принадлежит банде.", "Выполни квест."],
+    en: ["Chains are our anthem.", "The night belongs to the gang.", "Finish the quest."],
+    da: ["Kæder er vores hymne.", "Natten tilhører banden.", "Fuldfør opgaven."]
+  },
+  mohawk: {
+    ru: ["Магия жжёт по-настоящему.", "Купи свиток в лавке.", "Паркур качает репутацию."],
+    en: ["Magic really burns.", "Buy a scroll at the shop.", "Parkour builds rep."],
+    da: ["Magien brænder ægte.", "Køb en rune i butikken.", "Parkour giver respekt."]
+  },
+  vienna: {
+    ru: ["Кладбище платит честно.", "NOT DEAD YET — про нас.", "Построй три склепа."],
+    en: ["The cemetery pays fair.", "NOT DEAD YET — that's us.", "Build three crypts."],
+    da: ["Kirkegården betaler fair.", "NOT DEAD YET — det er os.", "Byg tre krypta."]
+  },
+  ghost: {
+    ru: ["Бас дышит с нами.", "Полиция мелькает — не стой долго.", "Коты знают короткие пути."],
+    en: ["The bass breathes with us.", "Cops flash by — don't linger.", "Cats know shortcuts."],
+    da: ["Bassen ånder med os.", "Politiet blinker — bliv ikke.", "Katte kender genveje."]
+  },
+  gravedigger: {
+    ru: ["Копай и чисти — получишь монеты.", "Не ломай памятники.", "Держи куртку — холодно."],
+    en: ["Dig and clean — get paid.", "Don't break headstones.", "Keep your jacket — it's cold."],
+    da: ["Grav og rens — få betaling.", "Bryd ikke gravsten.", "Hold jakken — det er koldt."]
   }
 };
 
@@ -89,11 +248,63 @@ function setLanguage(lang, persist) {
     btn.classList.toggle("active", btn.dataset.lang === currentLang);
   });
   if (typeof window.onLanguageChanged === "function") window.onLanguageChanged();
+  const loadingSub = document.querySelector("#loading div:last-child");
+  if (loadingSub) loadingSub.textContent = t("loading");
 }
 
 function initLanguage(saved) {
   const stored = saved || (() => { try { return localStorage.getItem("punkme_lang"); } catch (e) { return null; } })();
   setLanguage(stored || detectBrowserLang(), false);
+}
+
+function tShop(id) {
+  return t("shop_" + id) || id;
+}
+
+function tSpell(spellId) {
+  return t("spell_" + spellId) || spellId;
+}
+
+function tNpcName(npcId) {
+  return t("npc_" + npcId) || npcId;
+}
+
+function questTitle(qid) {
+  const v = tQuestField(qid, "title");
+  return v || (QUEST_FALLBACK[qid]?.title) || qid;
+}
+
+function tProg(key) {
+  return t("prog_" + key) || key;
+}
+
+function questText(qid) {
+  const v = tQuestField(qid, "text");
+  return v || (QUEST_FALLBACK[qid]?.text) || "";
+}
+
+const QUEST_FALLBACK = {
+  intro: { title: "Night begins", text: "Talk to Razor on the street and win a chain duel." },
+  chain_duel: { title: "Chain challenge", text: "Win a chain fight." },
+  parkour_rep: { title: "Rep jump", text: "Clear parkour." },
+  build_crypts: { title: "Three crypts", text: "Place 3 builds." }
+};
+
+function tQuestField(qid, field) {
+  const q = QUEST_I18N[qid];
+  if (!q) return "";
+  const l = q[currentLang] || q.en;
+  return l[field] || "";
+}
+
+function npcLinesI18n(npcId) {
+  const n = NPC_I18N[npcId];
+  if (!n) return [];
+  return n[currentLang] || n.en || n.ru;
+}
+
+function doorT(key) {
+  return t(key) || key;
 }
 
 function applyI18nDom() {
@@ -106,6 +317,14 @@ function applyI18nDom() {
   });
   const side = document.querySelector("#playersSide b");
   if (side) side.textContent = t("onlineSide");
+  document.querySelectorAll(".tab[data-tab]").forEach(tab => {
+    const k = "tab_" + tab.dataset.tab;
+    if (I18N[currentLang][k]) tab.textContent = t(k);
+  });
+  const jt = document.getElementById("jobModalTitle");
+  if (jt) jt.textContent = t("jobTitle");
+  const jd = document.getElementById("jobModalDesc");
+  if (jd) jd.textContent = t("jobDesc");
 }
 
 window.t = t;
@@ -114,3 +333,12 @@ window.setLanguage = setLanguage;
 window.initLanguage = initLanguage;
 window.getLanguage = () => currentLang;
 window.applyI18nDom = applyI18nDom;
+window.tShop = tShop;
+window.tQuestField = tQuestField;
+window.npcLinesI18n = npcLinesI18n;
+window.doorT = doorT;
+window.tSpell = tSpell;
+window.tNpcName = tNpcName;
+window.questTitle = questTitle;
+window.questText = questText;
+window.tProg = tProg;
