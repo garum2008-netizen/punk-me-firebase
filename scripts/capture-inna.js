@@ -86,6 +86,12 @@ async function enter(page) {
   await mob.waitForTimeout(2200);
   await mob.screenshot({ path: `${out}/inna-mobile-street.png` });
   files.push(`${out}/inna-mobile-street.png`);
+  await mob.evaluate(() => document.getElementById("btnHowTo")?.click());
+  await mob.waitForTimeout(600);
+  const howto = `${out}/inna-howto-mobile.png`;
+  await mob.screenshot({ path: howto });
+  files.push(howto);
+  await mob.evaluate(() => document.querySelector(".howto-close")?.click());
   await mob.close();
 
   console.log(JSON.stringify({ version: VERSION, screenshots: files.map(f => f.replace(`${out}/`, "")), consoleErrors: [...new Set(errs)] }, null, 2));
