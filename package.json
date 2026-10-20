@@ -1,0 +1,10 @@
+{
+  "name": "punk-me",
+  "private": true,
+  "description": "PUNK ME — оригинальная неоновая панк-банда (Firebase + статический хостинг)",
+  "scripts": {
+    "start": "npx --yes serve -l 3456 .",
+    "lint": "node scripts/smoke-check.js",
+    "test": "node scripts/smoke-check.js"
+  }
+}
