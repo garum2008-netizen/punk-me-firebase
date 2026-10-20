@@ -7,7 +7,8 @@ import {
   gameToWorldLoc,
   worldToGameLoc,
   NPC_WORLD,
-  PORTALS
+  PORTALS,
+  LOCATION_THEME
 } from "./world/locations.mjs";
 import {
   applyCharacterLook,
@@ -18,7 +19,8 @@ import {
 } from "./character-rig.mjs";
 
 const MODEL_TEEN = "assets/models/punk-teen.glb";
-const MODEL_DOG = "assets/models/fox.glb";
+const MODEL_DOG = "assets/models/dog.glb";
+const MODEL_DOG_FALLBACK = "assets/models/fox.glb";
 
 const DOG_ANIM = { idle: "Survey", walk: "Walk", run: "Run" };
 let renderer, scene, camera, clock, raycaster, pointer;
@@ -29,6 +31,7 @@ let locationRoot = null;
 let bounds = null;
 let floorMesh = null;
 let currentLoc = "";
+let locationProps = { showCar: false };
 let particles = null;
 let keys = { w: false, a: false, s: false, d: false };
 let cameraYaw = 0;
@@ -50,7 +53,7 @@ function setTalking(characterId, on) {
 }
 
 function characterScale() {
-  return 1.18;
+  return 1.05;
 }
 
 function makeShadow() {
@@ -191,7 +194,11 @@ async function loadModels() {
   teenGltf.scene = rigRoot;
   teenFootLift = prepareTeenScene(teenGltf.scene);
   teenTemplate = teenGltf;
-  dogTemplate = await loader.loadAsync(MODEL_DOG);
+  try {
+    dogTemplate = await loader.loadAsync(MODEL_DOG);
+  } catch (e) {
+    dogTemplate = await loader.loadAsync(MODEL_DOG_FALLBACK);
+  }
   modelsReady = true;
 }
 
@@ -217,9 +224,12 @@ function rebuildLocation(locId) {
   bounds = built.bounds;
   floorMesh = built.floor;
   scene.add(locationRoot);
-  scene.fog = new THREE.FogExp2(locId === "street" ? 0x080012 : 0x0a0614, locId === "street" ? 0.028 : 0.022);
-  scene.background = new THREE.Color(locId === "street" ? 0x050008 : 0x08040f);
-  spawnParticles(locId === "street");
+  const theme = built.theme || LOCATION_THEME.room;
+  scene.fog = new THREE.FogExp2(theme.fog, theme.fogD);
+  scene.background = new THREE.Color(theme.bg);
+  locationProps = built.props || { showCar: false };
+  (locationProps.cats || []).forEach(c => locationRoot.add(c));
+  spawnParticles(locId === "street" || locId === "cemetery");
 }
 
 function spawnParticles(night) {
@@ -290,13 +300,13 @@ function updateThirdPersonCamera() {
   const player = actors.get("player");
   if (!player) return;
   const p = player.group.position;
-  const dist = 7.5;
-  const height = 3.2;
+  const dist = 5.4;
+  const height = 2.05;
   const ox = Math.sin(cameraYaw) * dist;
   const oz = Math.cos(cameraYaw) * dist;
   const target = new THREE.Vector3(p.x + ox, height, p.z + oz);
-  camera.position.lerp(target, 0.1);
-  camera.lookAt(p.x, 1.5, p.z);
+  camera.position.lerp(target, 0.12);
+  camera.lookAt(p.x, 1.28, p.z);
 }
 
 function checkPortals() {
@@ -391,7 +401,7 @@ function sync(data) {
     actors.delete("dog");
   }
 
-  ensureCar(!!carVisible && location === "street");
+  ensureCar(location === "street" && (!!carVisible || locationProps.showCar));
 }
 
 function applyNetworkAnim(actor, anim) {
@@ -474,23 +484,23 @@ function init(h) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 120);
+  camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
   clock = new THREE.Clock();
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
 
-  scene.add(new THREE.HemisphereLight(0xc8b8ff, 0x1a0818, 1.05));
-  const fill = new THREE.DirectionalLight(0x88ccff, 0.55);
-  fill.position.set(-4, 6, -3);
+  scene.add(new THREE.HemisphereLight(0xffe8ff, 0x2a1838, 1.45));
+  const fill = new THREE.DirectionalLight(0xaaddff, 0.85);
+  fill.position.set(-4, 8, -3);
   scene.add(fill);
-  const sun = new THREE.DirectionalLight(0xffd0ff, 1.35);
-  sun.position.set(5, 11, 4);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.55);
+  sun.position.set(5, 12, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   scene.add(sun);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.42;
 
   canvas.addEventListener("pointerdown", onPointer);
   window.addEventListener("keydown", onKeyDown);
@@ -531,7 +541,8 @@ const api = {
     const a = actors.get(id || "player");
     if (a) playOneShot(a, name === "wave" ? "wave" : name === "sit" ? "sit" : "interact", 1500);
   },
-  isReady: () => modelsReady
+  isReady: () => modelsReady,
+  getLocation: () => currentLoc
 };
 window.World3D = api;
 window.Scene3D = api;

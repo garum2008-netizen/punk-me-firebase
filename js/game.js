@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v1";
+const GAME_VERSION = "living3d-v2";
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
 
@@ -19,6 +19,25 @@ function soloMode() {
   } catch (e) {
     return false;
   }
+}
+
+function demoPartyMode() {
+  try {
+    return new URLSearchParams(location.search).has("demo3");
+  } catch (e) {
+    return false;
+  }
+}
+
+function othersForStage3D() {
+  if (demoPartyMode()) {
+    return {
+      demo_mohawk: { name: "Mohawk", x: 56, y: 58, characterId: "mohawk", anim: "idle" },
+      demo_vienna: { name: "Vienna", x: 40, y: 64, characterId: "vienna", anim: "idle" }
+    };
+  }
+  if (soloMode()) return {};
+  return others;
 }
 
 function devCoinsEnabled() {
@@ -319,7 +338,7 @@ function syncStage3D() {
       characterId: me.characterId || "razor",
       anim: me._animState || "idle"
     },
-    others: soloMode() ? {} : others,
+    others: othersForStage3D(),
     npcs: npcData,
     location: me.location,
     hasDog: hasDog(),
@@ -705,6 +724,7 @@ function goLocation(id, fromHash) {
   listenBuildings();
   refreshLifeScene();
   renderAll();
+  syncStage3D();
   toast(locTitle(id));
   if (pendingJobAction) {
     const act = pendingJobAction;

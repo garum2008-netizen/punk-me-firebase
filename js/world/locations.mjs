@@ -1,11 +1,11 @@
 import * as THREE from "three";
 
-/** @typedef {{ minX:number, maxX:number, minZ:number, maxZ:number }} Bounds */
-/** @typedef {{ to:string, labelKey:string, x:number, z:number, r:number }} Portal */
-
 export const LOCATION_BOUNDS = {
   room: { minX: -7, maxX: 7, minZ: -6, maxZ: 6 },
+  kitchen: { minX: -6, maxX: 6, minZ: -5, maxZ: 5 },
+  roof: { minX: -10, maxX: 10, minZ: -8, maxZ: 8 },
   street: { minX: -12, maxX: 12, minZ: -10, maxZ: 10 },
+  cemetery: { minX: -11, maxX: 11, minZ: -9, maxZ: 9 },
   default: { minX: -8, maxX: 8, minZ: -8, maxZ: 8 }
 };
 
@@ -33,18 +33,32 @@ export const PORTALS = {
   ]
 };
 
+export const LOCATION_THEME = {
+  room: { bg: 0x1a0e28, fog: 0x12081c, fogD: 0.012, hemi: 0xffaaff, ground: 0x2a1840 },
+  kitchen: { bg: 0x281408, fog: 0x1a0c08, fogD: 0.01, hemi: 0xffcc88, ground: 0x3a2818 },
+  roof: { bg: 0x0a1838, fog: 0x081428, fogD: 0.008, hemi: 0x88ccff, ground: 0x1a2030 },
+  street: { bg: 0x100818, fog: 0x0c0610, fogD: 0.014, hemi: 0xff88ff, ground: 0x181420 },
+  cemetery: { bg: 0x081208, fog: 0x060e06, fogD: 0.018, hemi: 0x88ffaa, ground: 0x142018 }
+};
+
 function wall(w, h, d, mat) {
-  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
 }
 
 function poster(tex, w, h) {
-  const m = new THREE.MeshStandardMaterial({
-    map: tex,
-    emissive: 0x220033,
-    emissiveIntensity: 0.15,
-    roughness: 0.85
-  });
-  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshStandardMaterial({
+      map: tex,
+      emissive: 0x331144,
+      emissiveIntensity: 0.35,
+      roughness: 0.75,
+      metalness: 0.05
+    })
+  );
 }
 
 function neonSign(text, color = 0xff00ff) {
@@ -52,36 +66,94 @@ function neonSign(text, color = 0xff00ff) {
   c.width = 512;
   c.height = 128;
   const g = c.getContext("2d");
-  g.fillStyle = "rgba(0,0,0,0.65)";
+  g.fillStyle = "rgba(0,0,0,0.55)";
   g.fillRect(0, 0, 512, 128);
   g.font = "bold 56px system-ui";
   g.fillStyle = "#0ff";
   g.shadowColor = "#f0f";
-  g.shadowBlur = 18;
+  g.shadowBlur = 22;
   g.textAlign = "center";
   g.fillText(text, 256, 78);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
-  const mesh = new THREE.Mesh(
+  return new THREE.Mesh(
     new THREE.PlaneGeometry(3.2, 0.8),
-    new THREE.MeshBasicMaterial({ map: t, transparent: true, side: THREE.DoubleSide })
+    new THREE.MeshStandardMaterial({
+      map: t, emissive: color, emissiveIntensity: 1.2, transparent: true, side: THREE.DoubleSide
+    })
   );
-  mesh.userData.neon = color;
-  return mesh;
 }
 
 function portalMesh(label) {
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.9, 0.08, 8, 24),
-    new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.8, metalness: 0.3 })
+    new THREE.TorusGeometry(0.85, 0.07, 8, 24),
+    new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 1.1, metalness: 0.35 })
   );
   ring.rotation.x = Math.PI / 2;
   const sign = neonSign(label, 0x00ffff);
-  sign.position.y = 1.6;
-  sign.scale.set(0.55, 0.55, 1);
+  sign.position.y = 1.5;
+  sign.scale.set(0.5, 0.5, 1);
   const g = new THREE.Group();
   g.add(ring);
   g.add(sign);
+  return g;
+}
+
+function tiledFloor(w, d, color, checker = false) {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 256;
+  const g = c.getContext("2d");
+  const a = "#" + new THREE.Color(color).getHexString();
+  const b = checker ? "#" + new THREE.Color(color).multiplyScalar(0.72).getHexString() : a;
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      g.fillStyle = checker && (x + y) % 2 ? b : a;
+      g.fillRect(x * 32, y * 32, 32, 32);
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(w / 2, d / 2);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d),
+    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0.05 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  return floor;
+}
+
+function addLights(root, specs) {
+  const g = new THREE.Group();
+  g.name = "loc_lights";
+  specs.forEach(s => {
+    const L = s.type === "point"
+      ? new THREE.PointLight(s.color, s.intensity, s.dist || 12)
+      : new THREE.SpotLight(s.color, s.intensity, s.dist || 18, 0.6, 0.5);
+    L.position.set(s.x, s.y, s.z);
+    if (s.cast) L.castShadow = true;
+    g.add(L);
+  });
+  root.add(g);
+  return g;
+}
+
+function buildCat(x, z, color) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.35, 0.22, 0.55),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15 })
+  );
+  body.position.y = 0.18;
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.18), body.material);
+  head.position.set(0, 0.32, 0.28);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.28), body.material);
+  tail.position.set(0, 0.28, -0.32);
+  tail.rotation.x = -0.5;
+  g.add(body, head, tail);
+  g.position.set(x, 0, z);
   return g;
 }
 
@@ -107,76 +179,155 @@ export function buildLocationScene(locId, texLoader) {
   const root = new THREE.Group();
   root.name = "loc_" + locId;
   const bounds = LOCATION_BOUNDS[locId] || LOCATION_BOUNDS.default;
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x1a1028, roughness: 0.92, metalness: 0.05 });
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x120a1c, roughness: 0.88, metalness: 0.08 });
+  const theme = LOCATION_THEME[locId] || LOCATION_THEME.room;
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x2a1838, roughness: 0.82, metalness: 0.1 });
+  let floor = null;
+  const props = { cats: [], showCar: false };
 
   if (locId === "room") {
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 12), floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
+    floor = tiledFloor(14, 12, theme.ground, true);
     root.add(floor);
-
-    root.add(wall(14, 3.2, 0.25, wallMat).translateZ(-6));
-    root.add(wall(0.25, 3.2, 12, wallMat).translateX(-7));
-    root.add(wall(0.25, 3.2, 12, wallMat).translateX(7));
-
+    root.add(wall(14, 3.4, 0.3, wallMat).translateZ(-6));
+    root.add(wall(0.3, 3.4, 12, wallMat).translateX(-7));
+    root.add(wall(0.3, 3.4, 12, wallMat).translateX(7));
     const roomTex = texLoader.load("imagine_images/q4BXV.jpg");
     roomTex.colorSpace = THREE.SRGBColorSpace;
-    const p1 = poster(roomTex, 3.5, 2.2);
-    p1.position.set(0, 1.8, -5.88);
+    const p1 = poster(roomTex, 4, 2.4);
+    p1.position.set(0, 2, -5.82);
     root.add(p1);
-
-    const bed = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.5, 1.6), new THREE.MeshStandardMaterial({ color: 0x2a1840 }));
-    bed.position.set(-3, 0.25, 2);
+    const bed = wall(2.8, 0.45, 1.6, new THREE.MeshStandardMaterial({ color: 0x4a2060 }));
+    bed.position.set(-3, 0.22, 2.2);
     root.add(bed);
-    const amp = new THREE.PointLight(0xff66ff, 2.2, 8);
-    amp.position.set(-2, 2.5, 1);
-    root.add(amp);
-    const sign = neonSign("PUNK ME");
-    sign.position.set(3.5, 2.4, -5.7);
+    const desk = wall(1.6, 0.75, 0.8, new THREE.MeshStandardMaterial({ color: 0x1a1028 }));
+    desk.position.set(3.2, 0.38, -1);
+    root.add(desk);
+    const sign = neonSign("PUNK ME", 0xff00ff);
+    sign.position.set(3.8, 2.6, -5.65);
     root.add(sign);
-  } else if (locId === "street") {
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(26, 22), new THREE.MeshStandardMaterial({ color: 0x0c0814, roughness: 0.95 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
+    props.cats.push(buildCat(-2, -2, 0x5533aa));
+    addLights(root, [
+      { type: "point", color: 0xff66ff, intensity: 2.8, x: -2, y: 2.8, z: 1 },
+      { type: "point", color: 0x00ffff, intensity: 2.2, x: 3, y: 2.5, z: -2 }
+    ]);
+  } else if (locId === "kitchen") {
+    floor = tiledFloor(12, 10, theme.ground, true);
     root.add(floor);
-
-    for (let i = -2; i <= 2; i++) {
-      const b = wall(4, 5 + Math.random() * 2, 3, wallMat);
-      b.position.set(i * 5.5, 2.5, -8);
+    root.add(wall(12, 3.2, 0.3, wallMat).translateZ(-5));
+    root.add(wall(0.3, 3.2, 10, wallMat).translateX(-6));
+    root.add(wall(0.3, 3.2, 10, wallMat).translateX(6));
+    const counter = wall(5, 0.9, 0.6, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
+    counter.position.set(-2, 0.45, -4.2);
+    root.add(counter);
+    const fridge = wall(1.2, 2.2, 0.8, new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.5 }));
+    fridge.position.set(4.5, 1.1, -4.3);
+    root.add(fridge);
+    const table = wall(2.4, 0.08, 1.4, new THREE.MeshStandardMaterial({ color: 0x3a2818 }));
+    table.position.set(0, 0.75, 1.5);
+    root.add(table);
+    const kt = texLoader.load("imagine_images/LTPb8.jpg");
+    kt.colorSpace = THREE.SRGBColorSpace;
+    const kp = poster(kt, 2.5, 1.8);
+    kp.position.set(0, 2.1, -4.85);
+    root.add(kp);
+    const sign = neonSign("KITCHEN", 0xff8800);
+    sign.position.set(-4, 2.4, -4.7);
+    root.add(sign);
+    props.cats.push(buildCat(3, 2, 0x222233));
+    addLights(root, [
+      { type: "point", color: 0xffaa66, intensity: 3.2, x: 0, y: 2.8, z: 0 },
+      { type: "point", color: 0xff00ff, intensity: 1.6, x: -4, y: 2.2, z: -3 }
+    ]);
+  } else if (locId === "roof") {
+    floor = tiledFloor(20, 16, theme.ground, false);
+    root.add(floor);
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.4 });
+    [-9, 9].forEach(x => {
+      root.add(wall(0.08, 1.1, 16, railMat).translateX(x).translateY(0.55));
+    });
+    [-7, 7].forEach(z => {
+      root.add(wall(18, 1.1, 0.08, railMat).translateZ(z).translateY(0.55));
+    });
+    for (let i = -3; i <= 3; i++) {
+      const h = 4 + Math.abs(i) * 0.8;
+      const b = wall(2.2, h, 2.2, new THREE.MeshStandardMaterial({
+        color: 0x0a1028, emissive: 0x220044, emissiveIntensity: 0.25
+      }));
+      b.position.set(i * 2.8, h / 2, -12);
       root.add(b);
-      const win = new THREE.PointLight(0xff00ff, 0.6, 6);
-      win.position.set(i * 5.5, 3.5, -7);
+      const win = new THREE.PointLight(0xff00ff, 0.9, 5);
+      win.position.set(i * 2.8, h * 0.6, -11);
       root.add(win);
     }
-
+    const moon = new THREE.Mesh(
+      new THREE.SphereGeometry(0.8, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffffaa, emissiveIntensity: 1.5 })
+    );
+    moon.position.set(6, 6, -10);
+    root.add(moon);
+    const sign = neonSign("ROOFTOP", 0x88ccff);
+    sign.position.set(0, 2.2, -6);
+    root.add(sign);
+    addLights(root, [
+      { type: "point", color: 0xaaccff, intensity: 2.5, x: 0, y: 4, z: 2 },
+      { type: "point", color: 0xff00ff, intensity: 1.8, x: -5, y: 3, z: -4 }
+    ]);
+  } else if (locId === "street") {
+    floor = tiledFloor(26, 22, theme.ground, false);
+    root.add(floor);
+    for (let i = -2; i <= 2; i++) {
+      const h = 5 + (i % 2) * 1.5;
+      const b = wall(4.2, h, 3.2, wallMat);
+      b.position.set(i * 5.5, h / 2, -8.5);
+      root.add(b);
+      const lamp = new THREE.Group();
+      const pole = wall(0.12, 3.5, 0.12, new THREE.MeshStandardMaterial({ color: 0x333344 }));
+      pole.position.y = 1.75;
+      const bulb = new THREE.PointLight(0x00ffff, 2.4, 10);
+      bulb.position.set(0, 3.6, 0);
+      lamp.add(pole, bulb);
+      lamp.position.set(i * 5.5 + 2, 0, -4);
+      root.add(lamp);
+    }
     const streetTex = texLoader.load("imagine_images/77Mdp.jpg");
     streetTex.colorSpace = THREE.SRGBColorSpace;
-    const mural = poster(streetTex, 8, 4);
-    mural.position.set(0, 3, -9.9);
+    const mural = poster(streetTex, 9, 4.5);
+    mural.position.set(0, 3.2, -10.5);
     root.add(mural);
-
-    const punkSign = neonSign("PUNK ME");
-    punkSign.position.set(6, 4.2, -6);
-    punkSign.rotation.y = -0.35;
-    root.add(punkSign);
-
-    const shopSign = neonSign("NEON SHOP");
-    shopSign.position.set(-6, 3.8, -5.5);
-    shopSign.rotation.y = 0.4;
-    root.add(shopSign);
-
-    const streetLamp = new THREE.PointLight(0x00ffff, 1.8, 14);
-    streetLamp.position.set(0, 4, 0);
-    root.add(streetLamp);
+    root.add(neonSign("PUNK ME", 0xff00ff).translateX(6).translateY(4.5).translateZ(-6));
+    root.add(neonSign("NEON SHOP", 0x00ffff).translateX(-6).translateY(4).translateZ(-5.5));
+    props.showCar = true;
+    props.cats.push(buildCat(-3, 3, 0x111122), buildCat(4, -2, 0x442266));
+    addLights(root, [
+      { type: "point", color: 0xff66ff, intensity: 2.6, x: 0, y: 4.5, z: 0 },
+      { type: "point", color: 0x00ffff, intensity: 2, x: -8, y: 3, z: 2 }
+    ]);
+  } else if (locId === "cemetery") {
+    floor = tiledFloor(22, 18, theme.ground, false);
+    root.add(floor);
+    for (let i = -4; i <= 4; i++) {
+      const stone = wall(0.9, 1.1 + (i % 3) * 0.3, 0.25, new THREE.MeshStandardMaterial({ color: 0x3a4a48, roughness: 0.9 }));
+      stone.position.set(i * 2.2, 0.55, -3 + (i % 2) * 2);
+      root.add(stone);
+    }
+    const gate = neonSign("NOT DEAD YET", 0x88ff88);
+    gate.position.set(0, 2.8, -8);
+    root.add(gate);
+    const ct = texLoader.load("imagine_images/Oo040.jpg");
+    ct.colorSpace = THREE.SRGBColorSpace;
+    const cp = poster(ct, 3, 2);
+    cp.position.set(-5, 1.8, -8.5);
+    root.add(cp);
+    props.cats.push(buildCat(2, 4, 0x1a1a2a));
+    addLights(root, [
+      { type: "point", color: 0x66ff99, intensity: 2, x: 0, y: 3, z: 0 },
+      { type: "point", color: 0xff00ff, intensity: 1.2, x: 6, y: 2.5, z: -5 }
+    ]);
   } else {
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), floorMat);
-    floor.rotation.x = -Math.PI / 2;
+    floor = tiledFloor(16, 16, theme.ground, true);
     root.add(floor);
     root.add(wall(16, 4, 0.3, wallMat).translateZ(-8));
-    const sign = neonSign("PUNK ME — " + locId.toUpperCase());
-    sign.position.set(0, 2.5, -7.5);
-    root.add(sign);
+    root.add(neonSign("PUNK — " + locId.toUpperCase(), 0xff00ff).translateY(2.5).translateZ(-7.5));
+    addLights(root, [{ type: "point", color: 0xff00ff, intensity: 2.5, x: 0, y: 3, z: 0 }]);
   }
 
   const portals = new THREE.Group();
@@ -186,10 +337,9 @@ export function buildLocationScene(locId, texLoader) {
       : p.labelKey;
     const g = portalMesh(label);
     g.position.set(p.x, 0.05, p.z);
-    g.userData.portal = p;
     portals.add(g);
   });
   root.add(portals);
 
-  return { root, bounds, floor: root.children.find(c => c.isMesh && c.geometry?.type === "PlaneGeometry"), portals };
+  return { root, bounds, floor, portals, theme, props };
 }

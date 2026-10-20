@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { buildBlockyPunkAvatar, hideTemplateMeshes } from "./world/punk-avatar.mjs";
 
 const HIDE_MESH = /^(ClothBottom|ClothTop)$/i;
 const SKIP_ANIM = /^(A_TPose|Death)/i;
@@ -37,6 +38,7 @@ export function fixOpaqueMaterials(root) {
 
 /** Hide template clothes; fix materials; return foot lift for y=0 floor. */
 export function prepareTeenScene(scene) {
+  hideTemplateMeshes(scene);
   scene.traverse(o => {
     if (o.isMesh && HIDE_MESH.test(o.name || "")) o.visible = false;
   });
@@ -47,90 +49,7 @@ export function prepareTeenScene(scene) {
 }
 
 export function applyCharacterLook(root, def) {
-  const look = def.look || {};
-  root.traverse(o => {
-    if (o.isMesh && HIDE_MESH.test(o.name || "")) {
-      o.visible = false;
-      return;
-    }
-    if (!o.isMesh || !o.material) return;
-    const m = o.material.clone();
-    const n = (o.name || "").toLowerCase();
-    const isHair = n.includes("hair");
-    const isCloth = n.includes("cloth") || n.includes("superhero") || n.includes("mannequin");
-    if (isHair) {
-      m.color = new THREE.Color(look.hair || 0xff00ff);
-      m.emissive = new THREE.Color(look.hair || 0xff00ff);
-      m.emissiveIntensity = 0.2;
-    } else if (isCloth) {
-      m.color = new THREE.Color(look.jacket || 0x3a2848);
-      m.emissive = new THREE.Color(look.emissive || 0x552266);
-      m.emissiveIntensity = 0.32;
-      m.metalness = 0.12;
-      m.roughness = 0.62;
-    } else if (look.tint && m.color) {
-      m.color.lerp(new THREE.Color(look.tint), 0.15);
-    }
-    m.transparent = false;
-    m.depthWrite = true;
-    o.material = m;
-    o.castShadow = true;
-    o.receiveShadow = true;
-  });
-
-  if (look.hairStyle) {
-    root.traverse(o => {
-      if (o.isMesh && /^Hair_/i.test(o.name || "")) o.visible = false;
-    });
-  }
-  const attach = root.getObjectByName("DEF-head") || root.getObjectByName("Head") || root.getObjectByName("spine_03");
-  if (!attach) return;
-  const hairCol = look.hair || 0xff00ff;
-  const matHair = new THREE.MeshStandardMaterial({
-    color: hairCol, emissive: hairCol, emissiveIntensity: 0.28,
-    transparent: false, depthWrite: true
-  });
-  const matChain = new THREE.MeshStandardMaterial({
-    color: 0xcccccc, metalness: 0.9, emissive: 0x00ffff, emissiveIntensity: 0.25,
-    transparent: false, depthWrite: true
-  });
-
-  const acc = (def.look?.scale || 1) * 0.42;
-  if (look.hairStyle === "mohawk") {
-    const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.11 * acc, 0.5 * acc, 6), matHair);
-    mesh.position.set(0, 0.12, 0.02);
-    mesh.rotation.x = -0.2;
-    attach.add(mesh);
-  } else if (look.hairStyle === "pigtails") {
-    [-0.22, 0.22].forEach(sx => {
-      const t = new THREE.Mesh(new THREE.SphereGeometry(0.14 * acc, 8, 8), matHair);
-      t.position.set(sx * acc, 0.08 * acc, -0.02 * acc);
-      attach.add(t);
-    });
-  } else if (look.hairStyle === "spikes") {
-    for (let i = -1; i <= 1; i++) {
-      const s = new THREE.Mesh(new THREE.ConeGeometry(0.06 * acc, 0.28 * acc, 5), matHair);
-      s.position.set(i * 0.1 * acc, 0.14 * acc, 0.02 * acc);
-      attach.add(s);
-    }
-  }
-  if (look.chain) {
-    const chain = new THREE.Mesh(new THREE.TorusGeometry(0.2 * acc, 0.03 * acc, 8, 16), matChain);
-    chain.position.set(0, -0.35 * acc, 0.08 * acc);
-    chain.rotation.x = Math.PI / 2;
-    attach.add(chain);
-  }
-  if (look.choker) {
-    const ch = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.02, 6, 12), matChain);
-    ch.position.set(0, -0.12, 0.06);
-    ch.rotation.x = Math.PI / 2;
-    attach.add(ch);
-  }
-  if (look.spikes) {
-    const wrist = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.12, 4), matChain);
-    wrist.position.set(0.35, -0.55, 0.06);
-    attach.add(wrist);
-  }
+  buildBlockyPunkAvatar(root, def.look || {});
 }
 
 export function createAnimActions(mixer, clips, def) {
