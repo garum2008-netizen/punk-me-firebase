@@ -1,7 +1,7 @@
 /** First-session onboarding chain (RU/EN/DA via i18n). */
 const ONBOARDING_STEPS = [
   { id: "move", key: "moved", goal: 1, reward: { coins: 20, xp: 15 },
-    target: () => ({ loc: "room", wx: 0, wz: 2 }) },
+    target: () => ({ loc: "room", wx: -4.2, wz: 3.8 }) },
   { id: "go_street", key: "visit_street", goal: 1, reward: { coins: 30, xp: 20 },
     target: () => ({ loc: "room", wx: 0, wz: 5.2 }) },
   { id: "talk_razor", key: "talk_razor", goal: 1, reward: { coins: 40, xp: 25 },

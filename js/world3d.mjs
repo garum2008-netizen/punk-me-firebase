@@ -467,12 +467,45 @@ function updateCameraOccluders() {
   });
 }
 
+const LOCATION_CAMERA = {
+  elevator: { dist: 3.35, height: 2.88, lookY: 1.2, yaw: Math.PI + 0.12 },
+  toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
+  kitchen: { dist: 5.6, height: 2.42, lookY: 1.28, yaw: 0.35 }
+};
+
 function cameraFollowProfile() {
+  const loc = LOCATION_CAMERA[currentLoc] || {};
+  const baseDist = loc.dist ?? 6.4;
+  const dist = mobileQuality ? baseDist * 0.96 : baseDist;
   return {
-    dist: 6.4,
-    height: mobileQuality ? 2.48 : 2.4,
-    lookY: 1.28
+    dist,
+    height: loc.height ?? (mobileQuality ? 2.48 : 2.4),
+    lookY: loc.lookY ?? 1.28
   };
+}
+
+function collectCameraOccluders() {
+  const list = [];
+  if (!locationRoot) return list;
+  locationRoot.traverse(o => {
+    if (o.isMesh && o.userData.cameraOccluder) list.push(o);
+  });
+  return list;
+}
+
+function resolveCameraWallCollision(eye, desired) {
+  const occluders = collectCameraOccluders();
+  if (!occluders.length || !raycaster) return desired;
+  const dir = desired.clone().sub(eye);
+  const dist = dir.length();
+  if (dist < 0.05) return desired;
+  dir.normalize();
+  raycaster.set(eye, dir);
+  const hits = raycaster.intersectObjects(occluders, false);
+  if (hits.length && hits[0].distance < dist - 0.08) {
+    return eye.clone().add(dir.multiplyScalar(Math.max(0.45, hits[0].distance - 0.42)));
+  }
+  return desired;
 }
 
 function positionCameraBehindPlayer(instant = false) {
@@ -482,7 +515,9 @@ function positionCameraBehindPlayer(instant = false) {
   const { dist, height, lookY } = cameraFollowProfile();
   const ox = Math.sin(cameraYaw) * dist;
   const oz = Math.cos(cameraYaw) * dist;
-  const target = new THREE.Vector3(p.x + ox, height, p.z + oz);
+  const eye = p.clone().add(new THREE.Vector3(0, lookY - 0.15, 0));
+  let target = new THREE.Vector3(p.x + ox, height, p.z + oz);
+  target = resolveCameraWallCollision(eye, target);
   if (instant) camera.position.copy(target);
   else camera.position.lerp(target, 0.12);
   camera.lookAt(p.x, lookY, p.z);
@@ -490,7 +525,7 @@ function positionCameraBehindPlayer(instant = false) {
 }
 
 function resetCameraForLocation() {
-  cameraYaw = 0.38;
+  cameraYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
   positionCameraBehindPlayer(true);
 }
 
@@ -645,6 +680,11 @@ function sync(data) {
     const g = worldToGameLoc(clear.x, clear.z, bounds);
     hooks.onMove?.(g.x, g.y);
   }
+  if (justChangedLoc && location === "elevator" && player && bounds) {
+    const clear = findClearSpawn(bounds, furnitureColliders, { x: 0, z: -1.4 });
+    const g = worldToGameLoc(clear.x, clear.z, bounds);
+    hooks.onMove?.(g.x, g.y);
+  }
 
   const keep = new Set(["player"]);
   if (player) {
@@ -727,7 +767,9 @@ function sync(data) {
   const playerActor = actors.get("player");
   const spawnPref = currentLoc === "kitchen"
     ? { x: -2.8, z: -1.2 }
-    : { x: 0, z: -1.2 };
+    : currentLoc === "elevator"
+      ? { x: 0, z: -1.4 }
+      : { x: 0, z: -1.2 };
   if (playerActor && pointInsideCollider(playerActor.wx, playerActor.wz, furnitureColliders, 0.38)) {
     const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
     playerActor.group.position.x = clear.x;

@@ -77,7 +77,14 @@ export function setQuestMarkerTarget(target, actors, t) {
     }
   }
   if (target?.wx != null && target?.wz != null) {
+    let wx = target.wx;
+    let wz = target.wz;
+    const pl = actors?.get?.("player");
+    if (pl && Math.hypot(pl.wx - wx, pl.wz - wz) < 2.4) {
+      wx += 2.6;
+      wz += 1.4;
+    }
     beacon.visible = true;
-    beacon.position.set(target.wx, bob * 0.5, target.wz);
+    beacon.position.set(wx, bob * 0.5, wz);
   }
 }

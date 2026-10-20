@@ -22,7 +22,8 @@ import {
   addCemeteryDressing,
   addCityDressing,
   addKitchenDressing,
-  addElevatorDressing
+  addElevatorDressing,
+  addToiletDressing
 } from "./location-enrich.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
@@ -355,7 +356,6 @@ export function buildLocationScene(locId, texLoader) {
     p1.userData.flapBase = 0;
     root.add(p1);
     addDustParticles(root, 60);
-    addSteamPuff(root, -4.5, 3.5);
     const bed = wall(2.8, 0.45, 1.6, new THREE.MeshStandardMaterial({ color: 0x4a2060 }));
     bed.position.set(-3, 0.22, 2.2);
     root.add(bed);
@@ -368,7 +368,7 @@ export function buildLocationScene(locId, texLoader) {
     sign.position.set(3.8, 2.6, -5.65);
     root.add(sign);
     addSofa(root, -1, 3.2, colliders);
-    addBeanbag(root, 0.35, 3.05);
+    addBeanbag(root, -2.8, 4.2);
     addNeonTube(root, -4, 2.8, -5.5, 2.5, 0xff00ff);
     addNeonTube(root, 4, 2.5, -5.5, 2, 0x00ffff);
     addPumpkin(root, 4.5, 2.5, colliders);
@@ -387,18 +387,6 @@ export function buildLocationScene(locId, texLoader) {
     root.add(wall(12, 3.2, 0.3, wallMat).translateZ(-5));
     root.add(wall(0.3, 3.2, 10, wallMat).translateX(-6));
     root.add(wall(0.3, 3.2, 10, wallMat).translateX(6));
-    const counter = wall(5, 0.9, 0.6, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
-    counter.position.set(-2, 0.45, -4.2);
-    root.add(counter);
-    pushCollider(colliders, -2, -4.2, 2.5, 0.35);
-    const fridge = wall(1.2, 2.2, 0.8, new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.5 }));
-    fridge.position.set(4.5, 1.1, -4.3);
-    root.add(fridge);
-    pushCollider(colliders, 4.5, -4.3, 0.6, 0.45);
-    const table = wall(2.4, 0.08, 1.4, new THREE.MeshStandardMaterial({ color: 0x3a2818 }));
-    table.position.set(0, 0.75, 1.5);
-    root.add(table);
-    pushCollider(colliders, 0, 1.5, 1.25, 0.85, 0.35);
     const kp = neonSign("PUNK ME", 0xff3399);
     kp.scale.set(0.85, 1.1, 1);
     kp.position.set(0, 2.15, -4.85);
@@ -408,7 +396,7 @@ export function buildLocationScene(locId, texLoader) {
     root.add(sign);
     props.cats.push(buildCat(3, 2, 0x222233));
     addKitchenDressing(root, { wall, colliders, pushCollider });
-    addSteamPuff(root, 2, -2);
+    addSteamPuff(root, 2.5, -4.05);
     addLights(root, [
       { type: "point", color: 0xffaa66, intensity: 4.2, x: 0, y: 2.8, z: 0 },
       { type: "point", color: 0xff00ff, intensity: 2.8, x: -4, y: 2.5, z: -3 },
@@ -495,13 +483,13 @@ export function buildLocationScene(locId, texLoader) {
     floor = tiledFloor(10, 8, theme.ground, true);
     root.add(floor);
     addRoomShell(root, 10, 8, 3, wallMat, colliders);
-    addPoster(texLoader, root, "imagine_images/ocVdL.jpg", 3, 2.2, 0, 1.8, -3.85);
-    root.add(neonSign("PUNK ME", 0x00ffff).translateY(2.4).translateZ(-3.7));
-    const sink = wall(1.2, 0.9, 0.5, new THREE.MeshStandardMaterial({ color: 0x99aabb }));
-    sink.position.set(-2, 0.45, -3.2);
-    root.add(sink);
-    pushCollider(colliders, -2, -3.2, 0.6, 0.3);
-    addLights(root, [{ type: "point", color: 0x88ccff, intensity: 2.8, x: 0, y: 2.5, z: 0 }]);
+    addToiletDressing(root, {
+      wall, neonSign, texLoader, colliders, pushCollider, addPoster
+    });
+    addLights(root, [
+      { type: "point", color: 0x88ccff, intensity: 2.8, x: 0, y: 2.5, z: 0 },
+      { type: "point", color: 0xff66cc, intensity: 1.6, x: 2.5, y: 2.2, z: 1.5 }
+    ]);
   } else if (locId === "elevator") {
     floor = tiledFloor(10, 10, 0x3a3a48, false);
     root.add(floor);
