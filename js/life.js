@@ -97,7 +97,6 @@ const LifeEngine = (() => {
     const specs = [
       { type: "cat", emoji: "🐈", y: 28 + Math.random() * 35 },
       { type: "cat", emoji: "🐈‍⬛", y: 40 + Math.random() * 25 },
-      { type: "police", emoji: "🚓", y: 55 + Math.random() * 15 },
       { type: "trash", emoji: "🗑️", y: 62 + Math.random() * 20 },
       { type: "light", emoji: "💡", y: 18 + Math.random() * 25 },
       { type: "light", emoji: "✨", y: 22 + Math.random() * 30 }

@@ -37,6 +37,27 @@ body {
 #lifeCanvas {
   position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0.65;
 }
+#stage3d {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 58%;
+  z-index: 9; pointer-events: auto; touch-action: manipulation;
+}
+body.mode-3d #entities .entity { opacity: 0; pointer-events: none; }
+body.mode-3d .ambient-life.ambient-police { display: none !important; }
+.street-sign-cover {
+  display: none; position: absolute; right: 14%; top: 36%; width: 16%; height: 14%;
+  z-index: 4; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(20,0,40,0.92), rgba(80,0,120,0.85));
+  border: 2px solid #ff00ff; border-radius: 8px; box-shadow: 0 0 20px #ff00ff;
+  font-weight: 800; font-size: clamp(10px, 2vw, 14px); color: #0ff;
+  text-shadow: 0 0 8px #f0f; animation: titleNeon 1.8s ease-in-out infinite;
+}
+.street-sign-cover.visible { display: flex; }
+.lang-switch { display: flex; gap: 3px; }
+.lang-btn {
+  background: #1a1030; border: 1px solid #555; color: #fff; border-radius: 8px;
+  padding: 4px 8px; font-size: 11px; cursor: pointer;
+}
+.lang-btn.active { border-color: #0ff; color: #0ff; }
 .room-layer .vignette {
   position: absolute; inset: 0;
   background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);

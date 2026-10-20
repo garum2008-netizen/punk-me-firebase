@@ -24,32 +24,39 @@
     <div class="night-fx"><div class="neon-scan"></div></div>
     <div id="buildLayer"></div>
     <div id="ambients" class="night-fx"></div>
+    <div id="streetCover" class="street-sign-cover" aria-hidden="true"><span>PUNK ME</span></div>
+    <canvas id="stage3d"></canvas>
     <div id="doors"></div>
     <div id="entities"></div>
   </div>
   <div class="loc-name" id="locTitle">Комната панка</div>
   <div class="hud">
-    <div class="badge">Монеты: <strong id="coins">…</strong></div>
-    <div class="badge">XP: <strong id="xp">0</strong></div>
-    <div class="badge">Уровень: <strong id="level">1</strong></div>
-    <div class="badge">Репутация: <strong id="rep">0</strong></div>
-    <div class="badge">Цепь: <strong id="chainStat">10</strong></div>
-    <div class="badge">Онлайн: <strong id="onlineCount">0</strong></div>
+    <div class="badge"><span data-i18n="coins">Монеты</span>: <strong id="coins">…</strong></div>
+    <div class="badge"><span data-i18n="xp">XP</span>: <strong id="xp">0</strong></div>
+    <div class="badge"><span data-i18n="level">Уровень</span>: <strong id="level">1</strong></div>
+    <div class="badge"><span data-i18n="rep">Репутация</span>: <strong id="rep">0</strong></div>
+    <div class="badge"><span data-i18n="chain">Цепь</span>: <strong id="chainStat">10</strong></div>
+    <div class="badge"><span data-i18n="online">Здесь</span>: <strong id="onlineCount">0</strong> · <span data-i18n="onlineGlobal">Всего</span>: <strong id="onlineGlobal">0</strong></div>
+    <div class="lang-switch" id="langSwitch">
+      <button type="button" class="lang-btn" data-lang="ru">RU</button>
+      <button type="button" class="lang-btn" data-lang="en">EN</button>
+      <button type="button" class="lang-btn" data-lang="da">DA</button>
+    </div>
     <div class="badge" style="font-size:11px;opacity:.85">v <strong id="gameVersion">…</strong></div>
   </div>
   <div class="quest-box" id="questBox"></div>
-  <div class="side" id="playersSide"><b>В сети</b><div id="playersList">…</div></div>
+  <div class="side" id="playersSide"><b data-i18n="onlineSide">В этой локации</b><div id="playersList">…</div></div>
   <div class="chat">
     <div class="chat-messages" id="chatMessages"></div>
-    <input id="chatInput" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
+    <input id="chatInput" data-i18n-ph="chatPh" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
   </div>
   <div class="nav-quick" id="navQuick" aria-label="Быстрый переход"></div>
   <div class="panel-bottom">
-    <button class="btn" onclick="openModal('mapModal')">Карта</button>
-    <button class="btn" onclick="openModal('gangModal')">Банда</button>
-    <button class="btn" onclick="openModal('shopModal')">Лавка</button>
-    <button class="btn secondary" onclick="openModal('magicModal')">Магия</button>
-    <button class="btn secondary" onclick="openModal('invModal')">Инвентарь</button>
+    <button class="btn" data-i18n="map" onclick="openModal('mapModal')">Карта</button>
+    <button class="btn" data-i18n="gang" onclick="openModal('gangModal')">Банда</button>
+    <button class="btn" data-i18n="shop" onclick="openModal('shopModal')">Лавка</button>
+    <button class="btn secondary" data-i18n="magic" onclick="openModal('magicModal')">Магия</button>
+    <button class="btn secondary" data-i18n="inv" onclick="openModal('invModal')">Инвентарь</button>
     <button class="btn" id="btnJob" style="display:none" onclick="openJobPanel()">Работа</button>
     <button class="btn" id="btnBuild" style="display:none" onclick="toggleBuildMode()">Стройка</button>
     <button class="btn secondary" id="btnDecor" style="display:none" onclick="tryDecorPlace()">Декор</button>
@@ -122,7 +129,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script src="js/life.js?v=live-anim"></script>
-<script src="js/game.js?v=nav-fix"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="js/i18n.js?v=cartoon"></script>
+<script src="js/scene3d.js?v=cartoon"></script>
+<script src="js/life.js?v=cartoon"></script>
+<script src="js/game.js?v=cartoon"></script>
 </body>
 </html>

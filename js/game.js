@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "mvp-nav-fix";
+const GAME_VERSION = "cartoon-v1";
 
 const LOCATIONS = {
   room: {
@@ -79,11 +79,11 @@ const LOCATIONS = {
 const NPCS = {
   razor: {
     id: "razor", name: "Рейзор", img: "imagine_images/LTPb8.jpg",
-    lines: [
-      "Цепи звенят — это наш гимн. Покажи, что не слабак.",
-      "На улице ночью только свои. Остальные — фон.",
-      "Взял квест? Выполни, и банда запомнит."
-    ],
+    linesI18n: {
+      ru: ["Цепи звенят — это наш гимн. Покажи, что не слабак.", "На улице ночью только свои.", "Выполни квест — банда запомнит."],
+      en: ["Chains are our anthem. Prove you are not soft.", "At night the street is for the gang.", "Finish the quest — we will remember."],
+      da: ["Kæder er vores hymne. Vis du ikke er blød.", "Om natten er gaden for banden.", "Fuldfør opgaven — vi husker dig."]
+    },
     quest: "chain_duel"
   },
   mohawk: {
@@ -265,8 +265,54 @@ function applyItemStats(item) {
   if (item.stat.rep) me.rep += item.stat.rep;
 }
 
+function npcLines(npc) {
+  const lang = getLanguage();
+  if (npc.linesI18n) return npc.linesI18n[lang] || npc.linesI18n.en || npc.linesI18n.ru;
+  return npc.lines || [];
+}
+
+function formatCoinsDisplay() {
+  if (isOwner) return me.coins + " · " + t("ownerCoinsHint");
+  return String(me.coins);
+}
+
+function updateOnlineUI(allPlayers) {
+  const inLoc = Object.keys(others).length + 1;
+  document.getElementById("onlineCount").textContent = String(inLoc);
+  const global = allPlayers ? Object.keys(allPlayers).length : inLoc;
+  const gEl = document.getElementById("onlineGlobal");
+  if (gEl) gEl.textContent = String(global);
+}
+
+function syncStage3D() {
+  if (!window.Scene3D) return;
+  const loc = LOCATIONS[me.location];
+  const npcData = (loc.npcs || []).map((nid, i) => ({
+    id: nid,
+    img: NPCS[nid].img,
+    x: 14 + i * 20,
+    y: 54 + (i % 2) * 8
+  }));
+  Scene3D.sync({
+    player: { x: me.x, y: me.y, avatar: me.avatar },
+    others,
+    npcs: npcData,
+    location: me.location,
+    hasDog: hasDog(),
+    carVisible: !!loc.night
+  });
+}
+
 function init() {
   me = defaultPlayer();
+  window.me = me;
+  window.saveMe = saveMe;
+  window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
+  initLanguage();
+  document.querySelectorAll(".lang-btn").forEach(btn => {
+    btn.onclick = () => setLanguage(btn.dataset.lang, true);
+    btn.classList.toggle("active", btn.dataset.lang === getLanguage());
+  });
   firebase.initializeApp(FIREBASE_CONFIG);
   auth = firebase.auth();
   db = firebase.database();
@@ -286,6 +332,12 @@ function init() {
   window.addEventListener("hashchange", applyHashRoute);
   setInterval(tickPresence, 2500);
   setInterval(tickNight, 4000);
+  Scene3D.init({
+    onMove: (x, y) => {
+      me.x = x; me.y = y; saveMe(); syncStage3D();
+    },
+    onNpcClick: (nid) => openNpcDialog(nid)
+  });
   LifeEngine.init({
     getMe: () => me,
     hasDog,
@@ -295,7 +347,7 @@ function init() {
       me.xp += 2;
       saveMe();
       toast("+5 за мусор");
-      document.getElementById("coins").textContent = isOwner ? "∞" : String(me.coins);
+      document.getElementById("coins").textContent = formatCoinsDisplay();
     },
     onCatPet: () => toast("Кот шипит и убегает")
   });
@@ -313,7 +365,9 @@ function loadMe() {
       me.inventory.spells = v.inventory?.spells || [];
       me.quests = v.quests || me.quests;
       me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
+      if (v.lang) initLanguage(v.lang);
     }
+    window.me = me;
     me.level = levelFromXp(me.xp || 0);
     me.lastSeen = Date.now();
     saveMe();
@@ -341,7 +395,7 @@ function renderMapModal() {
   grid.innerHTML = Object.values(LOCATIONS).map(loc => `
     <div class="card">
       <img src="${loc.bg}" alt="">
-      <div><b>${escapeHtml(loc.title)}</b></div>
+      <div><b>${escapeHtml(locTitle(loc.id))}</b></div>
       <button class="btn" style="margin-top:6px;width:100%" ${me.location === loc.id ? "disabled" : ""}
         onclick="goLocation('${loc.id}'); closeModal('mapModal');">
         ${me.location === loc.id ? "Ты здесь" : "Идти"}
@@ -394,6 +448,7 @@ function sanitizePlayer(p) {
     built: p.built,
     decor: p.decor,
     dog: dogPos,
+    lang: getLanguage(),
     owner: isOwner,
     lastSeen: p.lastSeen
   };
@@ -478,7 +533,7 @@ function listenPlayersInLocation() {
     });
     renderPlayers();
     renderPlayersList();
-    document.getElementById("onlineCount").textContent = String(Object.keys(all).length);
+    updateOnlineUI(all);
   });
 }
 
@@ -486,7 +541,7 @@ function renderPlayersList() {
   const el = document.getElementById("playersList");
   if (!el) return;
   const rows = Object.entries(others).filter(([id]) => id !== uid).map(([, p]) => `● ${escapeHtml(p.name)}`);
-  el.innerHTML = rows.length ? rows.join("<br>") : "<span style='opacity:.6'>Пока одни...</span>";
+  el.innerHTML = rows.length ? rows.join("<br>") : `<span style='opacity:.6'>${t("alone")}</span>`;
 }
 
 function listenChat() {
@@ -582,6 +637,7 @@ function onKey(e) {
     me.y = Math.max(20, Math.min(92, me.y));
     saveMe();
     renderPlayers();
+    syncStage3D();
   }
 }
 
@@ -590,8 +646,8 @@ function renderAll() {
   document.getElementById("bg").src = loc.bg;
   const bgDup = document.getElementById("bgDup");
   if (bgDup) bgDup.src = loc.bg;
-  document.getElementById("locTitle").textContent = loc.title;
-  document.getElementById("coins").textContent = isOwner ? "∞" : String(me.coins);
+  document.getElementById("locTitle").textContent = locTitle(loc.id);
+  document.getElementById("coins").textContent = formatCoinsDisplay();
   document.getElementById("xp").textContent = String(me.xp);
   document.getElementById("level").textContent = String(me.level);
   document.getElementById("rep").textContent = String(me.rep);
@@ -657,6 +713,7 @@ function renderPlayers() {
     el.onclick = () => openNpcDialog(el.dataset.npc);
   });
   LifeEngine.afterEntityRender?.();
+  syncStage3D();
 }
 
 function petDog(fromLife) {
@@ -665,7 +722,7 @@ function petDog(fromLife) {
   if (!isOwner) me.coins += 6;
   me.xp += 3;
   saveMe();
-  document.getElementById("coins").textContent = isOwner ? "∞" : String(me.coins);
+  document.getElementById("coins").textContent = formatCoinsDisplay();
 }
 
 function renderNpcMarkers() {}
@@ -712,7 +769,7 @@ function questBump(key, amt = 1) {
   }
   saveMe();
   renderQuest();
-  document.getElementById("coins").textContent = isOwner ? "∞" : String(me.coins);
+  document.getElementById("coins").textContent = formatCoinsDisplay();
 }
 
 function openModal(id) {
@@ -744,7 +801,8 @@ function renderGangList() {
 function openNpcDialog(nid) {
   const n = NPCS[nid];
   if (!n) return;
-  const line = n.lines[Math.floor(Math.random() * n.lines.length)];
+  const lines = npcLines(n);
+  const line = lines[Math.floor(Math.random() * lines.length)];
   document.getElementById("dialogArea").innerHTML =
     `<div class="dialog-box"><b>${escapeHtml(n.name)}:</b> ${escapeHtml(line)}</div>
      <button class="btn danger" onclick="closeModal('gangModal'); startNpcFight('${nid}')">Цепная дуэль</button>
@@ -1081,7 +1139,7 @@ function sendChat() {
   const text = inp.value.trim();
   if (!text) return;
   db.ref("chat").push({ uid, name: me.name, text, time: Date.now(), loc: me.location }).catch(() => {
-    toast("Чат временно недоступен");
+    toast(t("chatDown"));
   });
   inp.value = "";
 }
@@ -1092,7 +1150,7 @@ function tickPresence() {
 }
 
 function tickNight() {
-  document.getElementById("coins").textContent = isOwner ? "∞" : String(me.coins);
+  document.getElementById("coins").textContent = formatCoinsDisplay();
 }
 
 window.openModal = openModal;
