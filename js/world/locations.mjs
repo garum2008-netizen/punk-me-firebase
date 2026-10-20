@@ -627,7 +627,7 @@ export function resolveWorldPosition(x, z, bounds, colliders, radius = 0.42) {
         const r2 = radius * radius;
         if (d2 < r2 && d2 > 1e-6) {
           const d = Math.sqrt(d2);
-          const push = (radius - d) * 1.05;
+          const push = (radius - d) * 0.82;
           px += (dx / d) * push;
           pz += (dz / d) * push;
           moved = true;

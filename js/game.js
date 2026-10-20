@@ -587,7 +587,9 @@ function hideLoading() {
 
 function saveMe() {
   if (!uid) return;
+  const prevLvl = me.level || 1;
   me.level = levelFromXp(me.xp || 0);
+  if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
   me.lastSeen = Date.now();
   db.ref("players/" + uid).update(sanitizePlayer(me));
   pushPresence();
@@ -893,8 +895,23 @@ function renderAll() {
   LifeEngine.decorateEntities();
   renderQuickNav();
   renderQuest();
+  renderDailyQuestHud();
   renderNpcMarkers();
   applyI18nDom();
+}
+
+function renderDailyQuestHud() {
+  const el = document.getElementById("dailyQuestHud");
+  if (!el || !window.PlayV21) return;
+  el.innerHTML = `<b>${escapeHtml(t("daily_title"))}</b>` + window.PlayV21.renderDailyPanel(me);
+}
+
+function showLevelUpPopup(unlock) {
+  const el = document.getElementById("levelUpPopup");
+  if (!el) return;
+  el.classList.remove("hidden");
+  el.innerHTML = `<div>${escapeHtml(t("level_up"))} ${me.level}</div><small>${escapeHtml(unlock || t("level_unlock"))}</small>`;
+  setTimeout(() => el.classList.add("hidden"), 3200);
 }
 
 function refreshLifeScene() {
@@ -1269,17 +1286,30 @@ function tryPlaceBuild(x, y) {
 
 function tryDecorPlace() {
   if (me.location !== "room") return;
-  const poster = me.owned.find(o => o.startsWith("mat_") || o === "jacket_neon");
-  const piece = { type: "poster", x: 30 + Math.random() * 40, y: 30 + Math.random() * 30, owner: uid };
-  me.decor = me.decor || [];
-  me.decor.push(piece);
-  saveMe();
-  loadPrivateDecor();
-  toast(t("decor_room"));
+  window.toggleRoomDecor?.();
+  if (me._decorMode) toast(t("decor_mode_on"));
+}
+
+function decorPlaceAtWorld(wx, wz) {
+  window.World3D?.placeDecorAt?.(wx, wz, "crate");
 }
 
 function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
+  if (window.World3D?.startDuel3D?.(nid || npc.id)) {
+    fight = {
+      npcName: tNpcName(npc.id || nid),
+      npcHp: 100,
+      npcMax: 100,
+      playerHp: 100,
+      playerMax: 100,
+      shield: 0,
+      log: [],
+      _duel3d: true
+    };
+    window._duel3dEnd = win => endFight(win);
+    return;
+  }
   fight = {
     npcName: tNpcName(npc.id || nid),
     npcHp: 55 + Math.floor(Math.random() * 30),
@@ -1292,6 +1322,10 @@ function startNpcFight(nid) {
   document.getElementById("fightOverlay").classList.add("active");
   updateFightUi();
 }
+
+function duel3dAttack() { window._duelAttack = true; }
+function duel3dDodge() { window._duelDodge = true; }
+function duel3dBlock() { if (fight) fight.shield = (fight.shield || 0) + 10; }
 
 function startFightUi() {
   const loc = LOCATIONS[me.location];
@@ -1440,6 +1474,11 @@ window.toggleBuildMode = toggleBuildMode;
 window.startFightUi = startFightUi;
 window.fightAttack = fightAttack;
 window.fightDodge = fightDodge;
+window.duel3dAttack = duel3dAttack;
+window.duel3dDodge = duel3dDodge;
+window.duel3dBlock = duel3dBlock;
+window.decorPlaceAtWorld = decorPlaceAtWorld;
+window.renderDailyQuestHud = renderDailyQuestHud;
 window.fightSpell = fightSpell;
 window.closeFight = closeFight;
 window.runParkour = runParkour;

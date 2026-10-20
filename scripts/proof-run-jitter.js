@@ -7,6 +7,7 @@ const outRoot = "/opt/cursor/artifacts";
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const HEROES = ["vienna", "cobalt", "mohawk", "razor"];
 const LOCS = ["street", "city", "cemetery"];
+const FRAMES = 120;
 
 async function prep(page) {
   await page.addInitScript(() => {
@@ -32,11 +33,19 @@ async function enter(page, hero) {
   });
 }
 
+function analyze(sample) {
+  const deltas = (sample.frames || []).slice(8).map(f => f.d).filter(d => d >= 0 && d < 1.2);
+  deltas.sort((a, b) => a - b);
+  const med = deltas.length ? deltas[Math.floor(deltas.length / 2)] : 0;
+  const spikes = deltas.filter(d => Math.abs(d - med) > 0.032).length;
+  return { med, spikes, count: sample.frames?.length || 0, deltas };
+}
+
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await prep(page);
-  await page.goto(`${base}/?dev=1&solo=1&v=v21-jitter`, { waitUntil: "networkidle", timeout: 120000 });
+  await page.goto(`${base}/?dev=1&solo=1&v=v21-jitter-b`, { waitUntil: "networkidle", timeout: 120000 });
 
   const reports = [];
   const stripFrames = [];
@@ -48,35 +57,33 @@ async function enter(page, hero) {
         goLocation(id);
         syncStage3D?.();
       }, loc);
-      await page.waitForTimeout(2200);
-      await page.evaluate(() => World3D.startMotionProbe());
+      await page.waitForTimeout(1800);
       await page.keyboard.down("w");
       await page.keyboard.down("Shift");
-      await page.waitForTimeout(5000);
+      const sample = await page.evaluate(async frames => {
+        World3D.startMotionProbe();
+        let n = 0;
+        return new Promise(resolve => {
+          function step() {
+            n++;
+            if (n >= frames) resolve(World3D.stopMotionProbe());
+            else requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        });
+      }, FRAMES);
       await page.keyboard.up("w");
       await page.keyboard.up("Shift");
-      const sample = await page.evaluate(() => {
-        const raw = World3D.stopMotionProbe();
-        const deltas = (raw.frames || []).slice(4).map(f => f.d).filter(d => d > 0 && d < 1.2);
-        deltas.sort((a, b) => a - b);
-        const med = deltas.length ? deltas[Math.floor(deltas.length / 2)] : 0;
-        const spikes = deltas.filter(d => Math.abs(d - med) > 0.045).length;
-        return { ...raw, med, spikes, deltas };
-      });
+      const stats = analyze(sample);
       const f = path.join(outRoot, `qa-v21-jitter-${hero}-${loc}.json`);
-      fs.writeFileSync(f, JSON.stringify(sample, null, 2));
-      reports.push({ hero, loc, file: path.basename(f), maxD: sample.maxD, med: sample.med, spikes: sample.spikes, count: sample.count });
-      if (hero === "cobalt" && loc === "street" && stripFrames.length < 8) {
+      fs.writeFileSync(f, JSON.stringify({ ...sample, ...stats }, null, 2));
+      reports.push({ hero, loc, ...stats, file: path.basename(f) });
+      if (hero === "cobalt" && loc === "street") {
         for (let i = 0; i < 8; i++) {
           const shot = path.join(outRoot, `_jitter-frame-${i}.png`);
           await page.screenshot({ path: shot });
           stripFrames.push(shot);
-          await page.waitForTimeout(120);
-          await page.keyboard.down("w");
-          await page.keyboard.down("Shift");
-          await page.waitForTimeout(80);
-          await page.keyboard.up("w");
-          await page.keyboard.up("Shift");
+          await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
         }
       }
     }
@@ -92,22 +99,25 @@ async function enter(page, hero) {
         top: 0
       }))
     );
-    const stripPath = path.join(outRoot, "qa-v21-run-contact-strip.png");
     await sharp({
       create: { width: tw * 8, height: th, channels: 3, background: { r: 8, g: 4, b: 14 } }
     })
       .composite(tiles)
       .png()
-      .toFile(stripPath);
+      .toFile(path.join(outRoot, "qa-v21-run-contact-strip.png"));
     stripFrames.forEach(f => { try { fs.unlinkSync(f); } catch (e) {} });
   }
 
   const graphPath = path.join(outRoot, "qa-v21-run-delta-graph.txt");
-  const lines = reports.map(r => `${r.hero}/${r.loc} maxD=${r.maxD?.toFixed(4)} spikes=${r.spikes} frames=${r.count}`);
-  fs.writeFileSync(graphPath, lines.join("\n"));
+  fs.writeFileSync(
+    graphPath,
+    reports.map(r => `${r.hero}/${r.loc} med=${r.med?.toFixed(4)} spikes=${r.spikes} frames=${r.count}`).join("\n")
+  );
 
   await browser.close();
-  const pass = reports.every(r => (r.spikes || 0) <= 8 && (r.med || 0) > 0.05 && (r.med || 0) < 0.42);
-  console.log(JSON.stringify({ pass, reports, graph: "qa-v21-run-delta-graph.txt", strip: "qa-v21-run-contact-strip.png" }, null, 2));
+  const pass = reports.every(
+    r => r.count >= FRAMES - 5 && r.spikes === 0 && r.med > 0.04 && r.med < 0.42
+  );
+  console.log(JSON.stringify({ pass, FRAMES, reports }, null, 2));
   if (!pass) process.exit(1);
 })();

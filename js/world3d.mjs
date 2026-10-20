@@ -24,6 +24,11 @@ import { createAtmospherePipeline, renderAtmosphere } from "./world/atmosphere.m
 import { loadPunkDogTemplate, createMeshyDog, updateMeshyDogAnim } from "./world/meshy-dog.mjs";
 import { pulseScene } from "./world/location-enrich.mjs";
 import {
+  bindGameplayToWorld3D,
+  onGameplayLocationBuilt,
+  tickGameplayV21
+} from "./world/gameplay-v21.mjs";
+import {
   ensureMarkerRoot,
   setQuestMarkerTarget,
   clearQuestMarkers
@@ -80,17 +85,15 @@ function notePlayerMotion(actor) {
   const x = actor.wx;
   const z = actor.wz;
   const last = motionProbe.last;
-  if (last) {
-    const d = Math.hypot(x - last.x, z - last.z);
-    motionProbe.frames.push({
-      t: now - motionProbe.start,
-      x,
-      z,
-      d,
-      spd: actor._locoSpeed ?? 0,
-      anim: actor.current
-    });
-  }
+  const d = last ? Math.hypot(x - last.x, z - last.z) : 0;
+  motionProbe.frames.push({
+    t: now - motionProbe.start,
+    x,
+    z,
+    d,
+    spd: actor._locoSpeed ?? 0,
+    anim: actor.current
+  });
   motionProbe.last = { x, z };
 }
 
@@ -367,6 +370,7 @@ function rebuildLocation(locId) {
   (locationProps.cats || []).forEach(c => locationRoot.add(c));
   spawnParticles(locId);
   ensureMarkerRoot(scene);
+  onGameplayLocationBuilt(locId, locationRoot, bounds);
 }
 
 function spawnParticles(locId) {
@@ -897,13 +901,24 @@ function processInput(dt) {
     mz = (fwd.z * nz + right.z * nx) * step;
   }
   if (mx !== 0 || mz !== 0) {
-    const np = clampWorld(player.wx + mx, player.wz + mz);
+    let px = player.wx;
+    let pz = player.wz;
+    if (Math.abs(mx) > 1e-6) {
+      const cx = clampWorld(px + mx, pz);
+      px = cx.x;
+      pz = cx.z;
+    }
+    if (Math.abs(mz) > 1e-6) {
+      const cz = clampWorld(px, pz + mz);
+      px = cz.x;
+      pz = cz.z;
+    }
     player._intentRun = input.run;
-    placeActorWorld(player, np.x, np.z, true);
+    placeActorWorld(player, px, pz, true);
     player._gameSyncT = (player._gameSyncT || 0) - dt;
     if (player._gameSyncT <= 0) {
       player._gameSyncT = 0.1;
-      const g = worldToGameLoc(np.x, np.z, bounds);
+      const g = worldToGameLoc(px, pz, bounds);
       hooks.onMove?.(g.x, g.y, { sync3d: false });
     }
   } else {
@@ -916,7 +931,10 @@ function processInput(dt) {
     player._vy = 5.2;
     player._onGround = false;
   }
-  if (consumeInteract()) hooks.onInteract?.();
+  if (consumeInteract()) {
+    window._lastInteract = true;
+    hooks.onInteract?.();
+  }
 }
 
 function getNearestDogId() {
@@ -1094,6 +1112,10 @@ function onPointer(e) {
   const hits = raycaster.intersectObject(floorMesh, true);
   const hit = hits.find(h => h.object.isMesh);
   if (hit && bounds) {
+    if (window.me?._decorMode && window.decorPlaceAtWorld) {
+      window.decorPlaceAtWorld(hit.point.x, hit.point.z);
+      return;
+    }
     const g = worldToGameLoc(hit.point.x, hit.point.z, bounds);
     hooks.onMove?.(g.x, g.y);
   }
@@ -1164,6 +1186,8 @@ function loop() {
     car.wheels.forEach(w => { w.rotation.x += dt * 5 * car.dir; });
   }
   if (particles) particles.rotation.y += dt * 0.02;
+  if (motionProbe?.active && pl) notePlayerMotion(pl);
+  tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
   lastCameraDt = dt;
   if (!captureFrameLock) updateThirdPersonCamera(dt);
   else if (captureHideActors?.length) {
@@ -1523,8 +1547,18 @@ const api = {
     if (!pl) return;
     pl._sitting = on;
     fadeTo(pl, on ? "sit" : "idle");
-  }
+  },
+  getMotionProbeCount: () => motionProbe?.frames?.length || 0
 };
+bindGameplayToWorld3D(api, () => ({
+  actors,
+  scene,
+  locationRoot,
+  bounds,
+  currentLoc,
+  hooks,
+  camera
+}));
 window.World3D = api;
 window.Scene3D = api;
 window.dispatchEvent(new Event("scene3d-ready"));

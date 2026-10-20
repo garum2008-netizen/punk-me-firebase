@@ -67,7 +67,19 @@
       <div class="badge hud-version">v <strong id="gameVersion">…</strong></div>
     </div>
     <div class="quest-box" id="questBox"></div>
+    <div class="daily-quest-hud" id="dailyQuestHud"></div>
   </div>
+  <div id="gameplayHud" class="gameplay-hud" aria-live="polite"></div>
+  <div id="duel3dHud" class="duel-3d-hud hidden">
+    <div class="duel-hp-player bar"></div>
+    <div class="duel-hp-npc bar"></div>
+    <div class="duel-3d-actions">
+      <button type="button" class="btn danger" onclick="duel3dAttack()" data-i18n="chainBtn">Chain</button>
+      <button type="button" class="btn secondary" onclick="duel3dBlock()" data-i18n="fight_block">Block</button>
+      <button type="button" class="btn secondary" onclick="duel3dDodge()" data-i18n="dodge">Dodge</button>
+    </div>
+  </div>
+  <div id="levelUpPopup" class="level-up-popup hidden"></div>
   <div class="side players-panel" id="playersSide">
     <button type="button" class="players-toggle" id="playersToggle" aria-expanded="false" aria-controls="playersDrawer">
       <span data-i18n="here_short">Здесь</span>: <strong id="playersToggleCount">0</strong>
@@ -190,6 +202,7 @@
   initPlayV21();
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
   window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });
+  window.me = window.me || {};
 </script>
 <p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
   3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0

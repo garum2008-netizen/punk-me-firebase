@@ -74,40 +74,116 @@ async function snapLoc(page, loc) {
     console.log("desktop", loc);
   }
 
-  await desk.screenshot({ path: path.join(outRoot, "qa-v21-shop-outfit.png") });
-  await desk.evaluate(() => {
-    document.getElementById("shopModal")?.classList.add("active");
-    renderShop?.();
-  });
-  await desk.waitForTimeout(400);
-  await desk.screenshot({ path: path.join(outRoot, "qa-v21-shop-modal.png") });
-  await desk.evaluate(() => document.getElementById("shopModal")?.classList.remove("active"));
-
   await desk.evaluate(() => {
     goLocation("room");
     syncStage3D?.();
-    toggleRoomDecor?.();
-    PlayV21?.placeDecorItem?.(me, "crate", { toast: () => {}, save: () => {} });
+    World3D.snapHeroForShop?.(true);
+  });
+  await desk.waitForTimeout(600);
+  const bareBuf = await desk.screenshot();
+  await desk.evaluate(() => {
+    World3D.snapHeroForShop?.(false);
+    PlayV21?.syncCosmetics?.(me);
+  });
+  await desk.waitForTimeout(600);
+  const outfitBuf = await desk.screenshot();
+  const shopOutfit = path.join(outRoot, "qa-v21-shop-outfit.png");
+  await sharp({
+    create: { width: 2560, height: 720, channels: 3, background: { r: 8, g: 4, b: 14 } }
+  })
+    .composite([
+      { input: bareBuf, left: 0, top: 0 },
+      { input: outfitBuf, left: 1280, top: 0 }
+    ])
+    .png()
+    .toFile(shopOutfit);
+
+  await desk.evaluate(() => {
+    localStorage.removeItem("punkme_room_decor_v21");
+    goLocation("room");
+    syncStage3D?.();
   });
   await desk.waitForTimeout(800);
-  await desk.screenshot({ path: path.join(outRoot, "qa-v21-room-decor.png") });
+  await desk.screenshot({ path: path.join(outRoot, "qa-v21-room-decor-before.png") });
+  await desk.evaluate(() => {
+    me._decorMode = true;
+    World3D.setDecorMode?.(true);
+    const pts = [[-2, 2], [1, 3], [2, 1], [-1, 4], [0, 2.5]];
+    pts.forEach(([x, z]) => World3D.placeDecorAt?.(x, z, "crate"));
+    me._decorMode = false;
+    World3D.setDecorMode?.(false);
+    syncStage3D?.();
+  });
+  await desk.waitForTimeout(800);
+  const decorAfter = path.join(outRoot, "qa-v21-room-decor.png");
+  await desk.screenshot({ path: decorAfter });
+  await sharp(path.join(outRoot, "qa-v21-room-decor-before.png"))
+    .resize(640, 360)
+    .toFile(path.join(outRoot, "qa-v21-room-decor-before-thumb.png"));
+  await sharp(decorAfter).resize(640, 360).png().toBuffer().then(buf =>
+    sharp({
+      create: { width: 1280, height: 360, channels: 3, background: { r: 8, g: 4, b: 14 } }
+    })
+      .composite([
+        { input: path.join(outRoot, "qa-v21-room-decor-before-thumb.png"), left: 0, top: 0 },
+        { input: buf, left: 640, top: 0 }
+      ])
+      .png()
+      .toFile(path.join(outRoot, "qa-v21-room-decor-compare.png"))
+  );
 
   await desk.evaluate(() => {
     goLocation("cemetery");
     syncStage3D?.();
     runJobAction?.("cemetery_night");
   });
-  await desk.waitForTimeout(1200);
+  await desk.waitForTimeout(3500);
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-cemetery-job.png") });
 
-  await desk.evaluate(() => startNpcFight?.("razor"));
-  await desk.waitForTimeout(600);
+  await desk.evaluate(() => {
+    goLocation("street");
+    syncStage3D?.();
+    startNpcFight?.("razor");
+  });
+  await desk.waitForTimeout(1200);
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
-  await desk.evaluate(() => closeFight?.());
 
-  await desk.evaluate(() => throwDogBall?.());
-  await desk.waitForTimeout(500);
-  await desk.screenshot({ path: path.join(outRoot, "qa-v21-dog-fetch.png") });
+  const fetchFrames = [];
+  await desk.evaluate(() => {
+    goLocation("street");
+    syncStage3D?.();
+    throwDogBall?.();
+  });
+  for (let i = 0; i < 3; i++) {
+    await desk.waitForTimeout(280);
+    const p = path.join(outRoot, `_fetch-${i}.png`);
+    await desk.screenshot({ path: p });
+    fetchFrames.push(p);
+  }
+  const tw = 426;
+  const tiles = await Promise.all(
+    fetchFrames.map(async (f, i) => ({
+      input: await sharp(f).resize(tw, 240).png().toBuffer(),
+      left: i * tw,
+      top: 0
+    }))
+  );
+  await sharp({
+    create: { width: tw * 3, height: 240, channels: 3, background: { r: 8, g: 4, b: 14 } }
+  })
+    .composite(tiles)
+    .png()
+    .toFile(path.join(outRoot, "qa-v21-dog-fetch.png"));
+  fetchFrames.forEach(f => { try { fs.unlinkSync(f); } catch (e) {} });
+
+  await desk.evaluate(() => {
+    document.getElementById("shopModal")?.classList.add("active");
+    renderShop?.();
+    PlayV21?.ensureDailyQuests?.(me);
+    renderDailyQuestHud?.();
+  });
+  await desk.waitForTimeout(400);
+  await desk.screenshot({ path: path.join(outRoot, "qa-v21-shop-modal.png") });
 
   const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await prep(mob);

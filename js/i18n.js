@@ -77,7 +77,10 @@ const I18N = {
     daily_complete: "Ежедневное задание:", decor_room_only: "Декор только в комнате", decor_mode_on: "Режим декора: кликни пол",
     decor_mode_off: "Декор выключен", decor_placed: "Мебель поставлена", decor_limit: "Лимит мебели (12)",
     dog_fetch: "Пёс принёс мячик!", need_dog: "Нужен пёс из лавки",
-    shop_hat_spike: "Шипастая шляпа"
+    shop_hat_spike: "Шипастая шляпа",
+    daily_title: "Ежедневные", level_up: "Новый уровень!", level_unlock: "Открыт аксессуар в лавке",
+    fight_block: "Блок", interact_jukebox: "Джукбокс: трек",
+    job_cemetery_hud: "Ночная смена", job_candles: "свечи", job_ghosts: "призраки"
   },
   en: {
     coins: "Coins", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
@@ -156,7 +159,10 @@ const I18N = {
     daily_complete: "Daily quest:", decor_room_only: "Decor only in your room", decor_mode_on: "Decor mode: tap floor",
     decor_mode_off: "Decor off", decor_placed: "Furniture placed", decor_limit: "Furniture limit (12)",
     dog_fetch: "Dog fetched the ball!", need_dog: "Buy the dog in the shop",
-    shop_hat_spike: "Spiked hat"
+    shop_hat_spike: "Spiked hat",
+    daily_title: "Daily", level_up: "Level up!", level_unlock: "Shop unlock available",
+    fight_block: "Block", interact_jukebox: "Jukebox track",
+    job_cemetery_hud: "Night shift", job_candles: "candles", job_ghosts: "ghosts"
   },
   da: {
     coins: "Mønter", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
@@ -235,7 +241,10 @@ const I18N = {
     daily_complete: "Daglig opgave:", decor_room_only: "Dekor kun i værelset", decor_mode_on: "Dekor-tilstand",
     decor_mode_off: "Dekor fra", decor_placed: "Møbel placeret", decor_limit: "Møbelgrænse (12)",
     dog_fetch: "Hunden hentede bolden!", need_dog: "Køb hunden i butikken",
-    shop_hat_spike: "Pigget hat"
+    shop_hat_spike: "Pigget hat",
+    daily_title: "Daglige", level_up: "Nyt level!", level_unlock: "Butiks-unlock",
+    fight_block: "Blok", interact_jukebox: "Jukebox-nummer",
+    job_cemetery_hud: "Nattevagt", job_candles: "lys", job_ghosts: "spøgelser"
   }
 };
 

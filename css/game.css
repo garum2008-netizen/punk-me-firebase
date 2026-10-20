@@ -560,3 +560,35 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   .chat-toggle { display: none; }
   .chat { padding: 8px; }
 }
+.gameplay-hud {
+  position: absolute; left: 50%; top: 18%; transform: translateX(-50%); z-index: 28;
+  background: rgba(12,6,22,0.92); border: 1px solid #ff00ff; border-radius: 12px;
+  padding: 10px 14px; font-size: 12px; min-width: 200px; text-align: center;
+}
+.gameplay-hud .gp-bar { height: 8px; background: #1a1028; border-radius: 6px; margin-top: 6px; overflow: hidden; }
+.gameplay-hud .gp-bar span { display: block; height: 100%; background: linear-gradient(90deg, #00ffff, #ff00ff); }
+.daily-quest-hud {
+  font-size: 11px; margin-top: 6px; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid rgba(0,255,255,0.25); background: rgba(8,12,24,0.85);
+}
+.daily-row { margin: 2px 0; }
+.duel-3d-hud { position: absolute; inset: 0; z-index: 35; pointer-events: none; }
+.duel-3d-hud .duel-3d-actions {
+  pointer-events: auto; position: absolute; bottom: calc(var(--dock-h, 168px) + 12px); left: 50%;
+  transform: translateX(-50%); display: flex; gap: 8px;
+}
+.duel-3d-hud .bar {
+  position: absolute; width: 64px; height: 6px; background: #331111; border-radius: 4px;
+  transform: translate(-50%, -100%); overflow: hidden;
+}
+.duel-3d-hud .bar::after {
+  content: ""; display: block; height: 100%; width: var(--w, 100%);
+  background: linear-gradient(90deg, #22c55e, #86efac);
+}
+.duel-3d-hud.hidden { display: none; }
+.level-up-popup {
+  position: absolute; left: 50%; top: 30%; transform: translateX(-50%); z-index: 50;
+  background: rgba(20,8,40,0.96); border: 2px solid #00ffff; border-radius: 14px;
+  padding: 16px 22px; font-weight: 800; text-align: center; box-shadow: 0 0 24px #ff00ff88;
+}
+.level-up-popup.hidden { display: none; }

@@ -30,6 +30,11 @@ export function initPlayV21(ctx) {
         hooks.save();
         return true;
       }
+      if (loc === "kitchen" && me.y >= 40) {
+        const track = window.World3D?.cycleJukebox?.();
+        hooks.toast(t("interact_jukebox") + " #" + ((track ?? 0) + 1));
+        return true;
+      }
       if (loc === "street") {
         hooks.toast(t("interact_arcade"));
         me.coins += 12;
@@ -48,23 +53,18 @@ export function initPlayV21(ctx) {
         hooks.toast(t("job_go_cemetery"));
         return;
       }
-      let score = 0;
-      const end = Date.now() + 28000;
-      const tick = () => {
-        if (Date.now() > end) {
-          const pay = 25 + score * 8;
-          me.coins += pay;
-          me.xp += 10 + score * 2;
-          hooks.save();
-          hooks.toast(t("job_cemetery_done") + " +" + pay);
-          return;
-        }
-        score += 1;
-        hooks.toast(t("job_cemetery_tick"));
-        setTimeout(tick, 3200);
+      window._cemeteryJobDone = success => {
+        const pay = 25 + (success ? 55 : 15);
+        me.coins += pay;
+        me.xp += 10 + (success ? 20 : 5);
+        hooks.save();
+        hooks.toast(t("job_cemetery_done") + " +" + pay);
       };
+      if (window.World3D?.startCemeteryJobMini?.()) {
+        hooks.toast(t("job_cemetery_start"));
+        return;
+      }
       hooks.toast(t("job_cemetery_start"));
-      tick();
     },
     startPizzaJob(me, hooks) {
       if (me.location !== "city") {
@@ -122,6 +122,7 @@ export function initPlayV21(ctx) {
         return;
       }
       me._decorMode = !me._decorMode;
+      window.World3D?.setDecorMode?.(me._decorMode);
       hooks.toast(me._decorMode ? t("decor_mode_on") : t("decor_mode_off"));
     },
     placeDecorItem(me, type, hooks) {
