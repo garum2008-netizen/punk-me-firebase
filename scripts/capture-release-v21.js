@@ -137,15 +137,21 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await desk.waitForTimeout(600);
   const outfitBuf = await desk.screenshot();
   const shopOutfit = path.join(outRoot, "qa-v21-shop-outfit.png");
-  await sharp({
-    create: { width: 2560, height: 720, channels: 3, background: { r: 8, g: 4, b: 14 } }
-  })
-    .composite([
-      { input: bareBuf, left: 0, top: 0 },
-      { input: outfitBuf, left: 1280, top: 0 }
-    ])
-    .png()
-    .toFile(shopOutfit);
+  try {
+    await sharp({
+      create: { width: 2560, height: 720, channels: 3, background: { r: 8, g: 4, b: 14 } }
+    })
+      .composite([
+        { input: bareBuf, left: 0, top: 0 },
+        { input: outfitBuf, left: 1280, top: 0 }
+      ])
+      .png()
+      .toFile(shopOutfit);
+  } catch (e) {
+    console.warn("shop outfit composite skipped:", e.message);
+    fs.writeFileSync(path.join(outRoot, "qa-v21-shop-bare.png"), bareBuf);
+    fs.writeFileSync(path.join(outRoot, "qa-v21-shop-outfit-panel.png"), outfitBuf);
+  }
 
   await cleanCaptureState(desk);
   await desk.evaluate(() => {
