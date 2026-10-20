@@ -228,8 +228,19 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   animation: float 3s ease-in-out infinite;
 }
 @keyframes float { 50% { transform: translateY(-6px); } }
+.hud-column {
+  position: absolute; top: 8px; left: 8px; z-index: 20;
+  display: flex; flex-direction: column; gap: 6px;
+  max-width: min(300px, 42vw);
+  pointer-events: none;
+}
+.hud-column > * { pointer-events: auto; }
+.hud-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+}
+.hud-version { font-size: 11px; opacity: 0.88; padding: 5px 10px; }
 .hud {
-  position: absolute; top: 8px; left: 8px; right: 8px; z-index: 20;
+  position: relative; top: auto; left: auto; right: auto;
   display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start;
 }
 .badge {
@@ -301,8 +312,8 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 }
 .players-toggle strong { color: #0ff; }
 .quest-box {
-  position: absolute; left: 8px; top: 52px; z-index: 20;
-  width: min(240px, 36vw); background: rgba(15,8,30,0.9);
+  position: relative; left: auto; top: auto;
+  width: 100%; max-width: 300px; background: rgba(15,8,30,0.9);
   border-radius: 12px; padding: 10px; border: 1px solid rgba(255,0,255,0.3);
   font-size: 12px;
 }
@@ -446,9 +457,12 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 @media (max-width: 900px) {
   #game { --dock-h: 168px; }
   .touch-controls { display: block; }
+  .hud-column {
+    left: 6px; max-width: calc(100% - 108px);
+  }
   .quest-box {
-    display: block; max-width: min(52vw, 220px); font-size: 11px;
-    top: 40px; left: 6px; padding: 8px;
+    display: block; max-width: min(58vw, 240px); font-size: 11px;
+    padding: 8px;
   }
   .hud-online-combined { display: none; }
   .game-bottom-bar {
@@ -503,12 +517,19 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   }
   .players-drawer.open { display: block; }
   .hud {
-    max-width: calc(100% - 96px);
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-right: 4px;
+    max-width: 100%;
+    flex-wrap: wrap;
     gap: 4px;
+    align-content: flex-start;
+  }
+  .hud .lang-switch,
+  .hud #btnVoiceMute {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+  .badge-stat-rep,
+  .badge-stat-chain {
+    display: none;
   }
   .badge-stat {
     padding: 4px 7px;

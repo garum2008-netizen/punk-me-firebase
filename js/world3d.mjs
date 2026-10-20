@@ -467,25 +467,35 @@ function updateCameraOccluders() {
   });
 }
 
-function updateThirdPersonCamera() {
+function cameraFollowProfile() {
+  return {
+    dist: 6.4,
+    height: mobileQuality ? 2.48 : 2.4,
+    lookY: 1.28
+  };
+}
+
+function positionCameraBehindPlayer(instant = false) {
   const player = actors.get("player");
-  if (!player) return;
+  if (!player || !camera) return;
   const p = player.group.position;
-  const dist = mobileQuality ? 5.15 : 5.4;
-  const height = mobileQuality ? 1.95 : 2.05;
+  const { dist, height, lookY } = cameraFollowProfile();
   const ox = Math.sin(cameraYaw) * dist;
   const oz = Math.cos(cameraYaw) * dist;
   const target = new THREE.Vector3(p.x + ox, height, p.z + oz);
-  const rightX = Math.cos(cameraYaw);
-  const rightZ = -Math.sin(cameraYaw);
-  const frameBias = mobileQuality ? 0.72 : 0;
-  target.x += rightX * frameBias;
-  target.z += rightZ * frameBias;
-  camera.position.lerp(target, 0.12);
-  const lookX = p.x + rightX * frameBias * 0.4;
-  const lookZ = p.z + rightZ * frameBias * 0.4;
-  camera.lookAt(lookX, 1.28, lookZ);
+  if (instant) camera.position.copy(target);
+  else camera.position.lerp(target, 0.12);
+  camera.lookAt(p.x, lookY, p.z);
   updateCameraOccluders();
+}
+
+function resetCameraForLocation() {
+  cameraYaw = 0.38;
+  positionCameraBehindPlayer(true);
+}
+
+function updateThirdPersonCamera() {
+  positionCameraBehindPlayer(false);
 }
 
 function tickNpcPatrols(dt) {
@@ -502,7 +512,7 @@ function tickNpcPatrols(dt) {
         a.group.position.z = a.wz;
         const dx = pl.wx - a.wx;
         const dz = pl.wz - a.wz;
-        const targetY = Math.atan2(dx, dz) + (a.characterId === "razor" ? Math.PI : 0);
+        const targetY = Math.atan2(dx, dz);
         let diff = targetY - a.group.rotation.y;
         while (diff > Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
@@ -624,7 +634,12 @@ function sync(data) {
   if (!modelsReady) return;
   const { player, others, npcs, location, hasDog, carVisible } = data;
   const justChangedLoc = location !== currentLoc;
-  if (justChangedLoc) rebuildLocation(location);
+  if (justChangedLoc) {
+    rebuildLocation(location);
+    captureFrameLock = false;
+    const dogActor = actors.get("dog");
+    if (dogActor) dogActor._placed = false;
+  }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
     const clear = findClearSpawn(bounds, furnitureColliders, { x: -2.8, z: -1.2 });
     const g = worldToGameLoc(clear.x, clear.z, bounds);
@@ -724,6 +739,7 @@ function sync(data) {
       hooks.onMove?.(g.x, g.y);
     }
   }
+  if (justChangedLoc) resetCameraForLocation();
 }
 
 function applyNetworkAnim(actor, anim) {
@@ -875,12 +891,20 @@ function init(h) {
   });
 }
 
+function applyViewportCameraProfile() {
+  mobileQuality = window.matchMedia("(max-width: 900px)").matches;
+  if (!camera) return;
+  camera.fov = mobileQuality ? 48 : 42;
+  camera.updateProjectionMatrix();
+}
+
 function resize() {
   const canvas = document.getElementById("stage3d");
   if (!canvas || !renderer) return;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
   renderer.setSize(w, h, false);
+  applyViewportCameraProfile();
   if (camera) {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
@@ -1005,21 +1029,8 @@ const api = {
   snapScreenshotView: () => {
     const a = actors.get("player");
     if (!a || !bounds || !renderer || !camera) return false;
-    const cx = (bounds.minX + bounds.maxX) / 2;
-    const cz = (bounds.minZ + bounds.maxZ) / 2;
-    a.wx = cx;
-    a.wz = cz;
-    a.group.position.set(cx, a.group.position.y || 0, cz);
     a.group.rotation.y = 0.12;
-    cameraYaw = 0.38;
-    const dist = 6.4;
-    const p = a.group.position;
-    camera.position.set(
-      p.x + Math.sin(cameraYaw) * dist,
-      2.4,
-      p.z + Math.cos(cameraYaw) * dist
-    );
-    camera.lookAt(p.x, 1.2, p.z);
+    resetCameraForLocation();
     captureFrameLock = true;
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);
