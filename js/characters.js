@@ -85,11 +85,14 @@ const CHARACTERS = {
       spikes: true
     },
     anim: {
-      idle: ["Sitting_Idle_Loop", "Idle_Loop"],
+      idle: ["Idle_Loop"],
       walk: ["Walk_Loop"],
       run: ["Sprint_Loop", "Jog_Fwd_Loop"],
       talk: ["Idle_Talking_Loop"],
       emote: ["Spell_Simple_Idle_Loop"],
+      wave: ["Interact"],
+      sit: ["Sitting_Idle_Loop"],
+      interact: ["PickUp_Table", "Interact"],
       walkSpeed: 1.15,
       idleSpeed: 1.08,
       runSpeed: 1.25

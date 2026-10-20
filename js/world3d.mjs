@@ -9,14 +9,18 @@ import {
   NPC_WORLD,
   PORTALS
 } from "./world/locations.mjs";
-import { applyCharacterLook, createAnimActions, updateProcedural } from "./character-rig.mjs";
+import {
+  applyCharacterLook,
+  createAnimActions,
+  updateProcedural,
+  prepareTeenScene,
+  markActorVisibleWhenReady
+} from "./character-rig.mjs";
 
 const MODEL_TEEN = "assets/models/punk-teen.glb";
 const MODEL_DOG = "assets/models/fox.glb";
 
 const DOG_ANIM = { idle: "Survey", walk: "Walk", run: "Run" };
-const HIDE_MESH = /^(Mannequin|ClothBottom|ClothTop)$/i;
-
 let renderer, scene, camera, clock, raycaster, pointer;
 let teenTemplate, dogTemplate, hooks = {};
 let actors = new Map();
@@ -31,6 +35,8 @@ let cameraYaw = 0;
 let meLastDx = 0;
 let meLastDy = 0;
 let playerAnimState = "idle";
+let teenFootLift = 0;
+let modelsReady = false;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 
@@ -44,23 +50,33 @@ function setTalking(characterId, on) {
 }
 
 function characterScale() {
-  return 2.85;
+  return 1.18;
 }
 
 function makeShadow() {
   const s = new THREE.Mesh(
-    new THREE.CircleGeometry(0.55, 24),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45 })
+    new THREE.CircleGeometry(0.38, 20),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })
   );
   s.rotation.x = -Math.PI / 2;
-  s.position.y = 0.03;
+  s.position.y = 0.02;
   return s;
+}
+
+function spawnOffsetForId(id, index) {
+  const i = Math.max(0, index);
+  const angle = i * 1.35 + (id.length % 5) * 0.4;
+  const r = 0.9 + (i % 6) * 0.55;
+  return { x: Math.cos(angle) * r, z: Math.sin(angle) * r };
 }
 
 function createActorFromTeen(id, characterId) {
   const def = charDef(characterId || "razor");
   const root = cloneSkinned(teenTemplate.scene);
-  root.scale.setScalar(characterScale() * (def.look?.scale || 1));
+  const scl = characterScale() * (def.look?.scale || 1);
+  root.scale.setScalar(scl);
+  root.position.y = teenFootLift * scl;
+  root.visible = false;
   applyCharacterLook(root, def);
   root.add(makeShadow());
   const mixer = new THREE.AnimationMixer(root);
@@ -70,7 +86,7 @@ function createActorFromTeen(id, characterId) {
   scene.add(group);
   const actor = {
     id, characterId: characterId || "razor", group, root, mixer, actions,
-    current: "idle", wx: 0, wz: 0, isNpc: false, def
+    current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false
   };
   actors.set(id, actor);
   return actor;
@@ -90,12 +106,34 @@ function ensureActor(id, characterId, isNpc) {
 }
 
 function fadeTo(actor, name) {
-  if (!actor.actions?.[name] || actor.current === name) return;
+  const key = actor.actions?.[name] ? name : "idle";
+  if (!actor.actions?.[key] || actor.current === key) return;
   const prev = actor.actions[actor.current];
-  const next = actor.actions[name];
+  const next = actor.actions[key];
   next.reset().fadeIn(0.2).play();
   prev?.fadeOut(0.2);
-  actor.current = name;
+  actor.current = key;
+}
+
+function pickLocomotionAnim(actor, speed, talking) {
+  if (talking) return "talk";
+  if (actor._holdAnim && actor._holdUntil > performance.now()) return actor._holdAnim;
+  if (speed > 1.2) return "run";
+  if (speed > 0.08) return "walk";
+  return "idle";
+}
+
+function playOneShot(actor, name, ms = 1400) {
+  if (!actor.actions?.[name]) return;
+  actor._holdAnim = name;
+  actor._holdUntil = performance.now() + ms;
+  fadeTo(actor, name);
+  setTimeout(() => {
+    if (actor._holdAnim === name) {
+      actor._holdAnim = null;
+      fadeTo(actor, "idle");
+    }
+  }, ms);
 }
 
 function createDog() {
@@ -141,20 +179,20 @@ function ensureCar(show) {
   car = { group, wheels, dir: 1, x: -4, flash: 0 };
 }
 
-function extractRigScene(gltf) {
-  const rig = gltf.scene.getObjectByName("Rig");
-  if (rig) return rig;
-  return gltf.scene;
-}
-
 async function loadModels() {
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   const teenGltf = await loader.loadAsync(MODEL_TEEN);
-  teenGltf.scene = extractRigScene(teenGltf);
-  teenGltf.scene.traverse(o => { if (o.isMesh && HIDE_MESH.test(o.name || "")) o.visible = false; });
+  let rigRoot = teenGltf.scene.getObjectByName("Rig");
+  if (!rigRoot) {
+    const altScene = await teenGltf.parser.getDependency("scene", 1);
+    rigRoot = altScene.getObjectByName("Rig") || altScene;
+  }
+  teenGltf.scene = rigRoot;
+  teenFootLift = prepareTeenScene(teenGltf.scene);
   teenTemplate = teenGltf;
   dogTemplate = await loader.loadAsync(MODEL_DOG);
+  modelsReady = true;
 }
 
 function clearLocation() {
@@ -230,8 +268,7 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
     fadeToDog(actor, speed > 0.8 ? "run" : speed > 0.08 ? "walk" : "idle");
   } else if (actor.actions) {
     const talking = talkingIds.has(actor.characterId) || talkingIds.has(actor.id.replace("npc_", ""));
-    if (talking) fadeTo(actor, "talk");
-    else fadeTo(actor, speed > 1.2 ? "run" : speed > 0.08 ? "walk" : "idle");
+    fadeTo(actor, pickLocomotionAnim(actor, speed, talking));
   }
   if (isPlayer) {
     const st = talkingIds.has("player") ? "talk" : (speed > 1.2 ? "run" : speed > 0.08 ? "walk" : "idle");
@@ -296,7 +333,7 @@ function processInput(dt) {
 }
 
 function sync(data) {
-  if (!teenTemplate) return;
+  if (!teenTemplate || !modelsReady) return;
   const { player, others, npcs, location, hasDog, carVisible } = data;
   if (location !== currentLoc) rebuildLocation(location);
 
@@ -306,17 +343,22 @@ function sync(data) {
     const a = ensureActor("player", player.characterId || "razor", false);
     placeActorWorld(a, w.x, w.z, true);
     if (player.anim && player.anim !== a._netAnim) {
-      fadeTo(a, player.anim === "talk" ? "talk" : player.anim);
+      applyNetworkAnim(a, player.anim);
       a._netAnim = player.anim;
     }
   }
 
-  Object.entries(others || {}).forEach(([id, p]) => {
+  const otherEntries = Object.entries(others || {}).slice(0, 5);
+  otherEntries.forEach(([id, p], idx) => {
     keep.add(id);
     const a = ensureActor(id, p.characterId || "cobalt", false);
     const w = gameToWorldLoc(p.x, p.y, bounds);
-    placeActorWorld(a, w.x, w.z, false);
-    if (p.anim) fadeTo(a, p.anim === "talk" ? "talk" : p.anim);
+    const off = spawnOffsetForId(id, idx + 1);
+    placeActorWorld(a, w.x + off.x, w.z + off.z, false);
+    if (p.anim && p.anim !== a._netAnim) {
+      applyNetworkAnim(a, p.anim);
+      a._netAnim = p.anim;
+    }
   });
 
   (npcs || []).forEach(n => {
@@ -350,6 +392,14 @@ function sync(data) {
   }
 
   ensureCar(!!carVisible && location === "street");
+}
+
+function applyNetworkAnim(actor, anim) {
+  const map = { talk: "talk", wave: "wave", sit: "sit", interact: "interact", run: "run", walk: "walk", idle: "idle", emote: "emote" };
+  const key = map[anim] || "idle";
+  if (key === "wave" || key === "interact") playOneShot(actor, key, 1600);
+  else if (key === "sit") fadeTo(actor, "sit");
+  else fadeTo(actor, key);
 }
 
 function onPointer(e) {
@@ -388,19 +438,19 @@ function onKeyUp(e) {
 
 function loop() {
   requestAnimationFrame(loop);
-  if (!renderer) return;
+  if (!renderer || !modelsReady) return;
   const dt = Math.min(clock.getDelta(), 0.05);
   processInput(dt);
   const pl = actors.get("player");
   const playerPos = pl ? pl.group.position : null;
   actors.forEach(a => {
     a.mixer?.update(dt);
+    markActorVisibleWhenReady(a);
     if (a.root && !a.isDog) {
       const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));
       updateProcedural(a, dt, a.isNpc ? playerPos : null, talk);
-      if (a.isNpc && Math.sin(clock.elapsedTime * 0.4 + a.wx) > 0.97 && a.current === "idle") {
-        fadeTo(a, "emote");
-        setTimeout(() => fadeTo(a, "idle"), 1200);
+      if (a.isNpc && a._visibleReady && Math.sin(clock.elapsedTime * 0.4 + a.wx) > 0.97 && a.current === "idle") {
+        playOneShot(a, "wave", 1200);
       }
     }
   });
@@ -429,11 +479,18 @@ function init(h) {
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
 
-  scene.add(new THREE.HemisphereLight(0x6644aa, 0x0a0408, 0.55));
-  const sun = new THREE.DirectionalLight(0xff88ff, 1.1);
-  sun.position.set(5, 10, 3);
+  scene.add(new THREE.HemisphereLight(0xc8b8ff, 0x1a0818, 1.05));
+  const fill = new THREE.DirectionalLight(0x88ccff, 0.55);
+  fill.position.set(-4, 6, -3);
+  scene.add(fill);
+  const sun = new THREE.DirectionalLight(0xffd0ff, 1.35);
+  sun.position.set(5, 11, 4);
   sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
   scene.add(sun);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
 
   canvas.addEventListener("pointerdown", onPointer);
   window.addEventListener("keydown", onKeyDown);
@@ -468,7 +525,14 @@ function getTeenTemplate() {
   return teenTemplate;
 }
 
-const api = { init, sync, resize, setLocation: rebuildLocation, setTalking, getTeenTemplate };
+const api = {
+  init, sync, resize, setLocation: rebuildLocation, setTalking, getTeenTemplate,
+  playEmote: (id, name) => {
+    const a = actors.get(id || "player");
+    if (a) playOneShot(a, name === "wave" ? "wave" : name === "sit" ? "sit" : "interact", 1500);
+  },
+  isReady: () => modelsReady
+};
 window.World3D = api;
 window.Scene3D = api;
 window.dispatchEvent(new Event("scene3d-ready"));

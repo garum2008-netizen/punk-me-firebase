@@ -9,9 +9,17 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "world3d-v2";
+const GAME_VERSION = "living3d-v1";
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
+
+function soloMode() {
+  try {
+    return new URLSearchParams(location.search).has("solo");
+  } catch (e) {
+    return false;
+  }
+}
 
 function devCoinsEnabled() {
   try {
@@ -311,7 +319,7 @@ function syncStage3D() {
       characterId: me.characterId || "razor",
       anim: me._animState || "idle"
     },
-    others,
+    others: soloMode() ? {} : others,
     npcs: npcData,
     location: me.location,
     hasDog: hasDog(),
