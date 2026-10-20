@@ -394,13 +394,21 @@ export function buildLocationScene(locId, texLoader) {
     const sign = neonSign("KITCHEN", 0xff8800);
     sign.position.set(-4, 2.4, -4.7);
     root.add(sign);
+    const counter = wall(5.5, 0.9, 0.55, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
+    counter.position.set(-1.5, 0.45, -4.15);
+    root.add(counter);
+    pushCollider(colliders, -1.5, -4.15, 2.75, 0.32);
     props.cats.push(buildCat(3, 2, 0x222233));
     addKitchenDressing(root, { wall, colliders, pushCollider });
+    addPoster(texLoader, root, "imagine_images/kwt1b.jpg", 2.8, 1.6, -5.5, 1.55, -4.88);
+    addPoster(texLoader, root, "imagine_images/77Mdp.jpg", 2.2, 1.4, 5.5, 1.35, -4.88);
+    addNeonTube(root, -3.5, 2.5, -4.55, 2.2, 0xff00ff);
     addSteamPuff(root, 2.5, -4.05);
     addLights(root, [
       { type: "point", color: 0xffaa66, intensity: 4.2, x: 0, y: 2.8, z: 0 },
       { type: "point", color: 0xff00ff, intensity: 2.8, x: -4, y: 2.5, z: -3 },
-      { type: "point", color: 0xffeecc, intensity: 3.2, x: 3, y: 2.6, z: 1 }
+      { type: "point", color: 0xffeecc, intensity: 3.2, x: 3, y: 2.6, z: 1 },
+      { type: "point", color: 0xff6622, intensity: 2.4, x: 2.5, y: 1.2, z: -3.8 }
     ]);
   } else if (locId === "roof") {
     floor = tiledFloor(20, 16, theme.ground, false);
@@ -498,8 +506,10 @@ export function buildLocationScene(locId, texLoader) {
     addElevatorDressing(root, { wall, neonSign, colliders, pushCollider });
     addNeonTube(root, -3, 2.2, -4.5, 2, 0xff00ff);
     addLights(root, [
-      { type: "point", color: 0xffffff, intensity: 2.2, x: 0, y: 2.8, z: 0 },
-      { type: "point", color: 0xff66ff, intensity: 1.4, x: -2, y: 2, z: -2 }
+      { type: "point", color: 0xffccaa, intensity: 3.2, x: 0, y: 2.6, z: 2.5 },
+      { type: "point", color: 0xffffff, intensity: 2.4, x: 0, y: 2.8, z: -1 },
+      { type: "point", color: 0xff66ff, intensity: 2.2, x: -3.5, y: 2.1, z: 0.5 },
+      { type: "point", color: 0x00ffff, intensity: 1.8, x: 2.2, y: 1.8, z: 3.8 }
     ]);
   } else if (locId === "city") {
     floor = tiledFloor(20, 18, theme.ground, false);

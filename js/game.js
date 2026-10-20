@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v14";
+const GAME_VERSION = "living3d-v15";
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
 

@@ -58,7 +58,21 @@ async function boot(page, hero) {
       });
       await page.waitForTimeout(400);
     }
-    report.heroes[hero] = { locOk, errors: errs };
+    const dogLocs = {};
+    await page.evaluate(() => {
+      me.owned = me.owned || [];
+      if (!me.owned.includes("pet_dog")) me.owned.push("pet_dog");
+      me.pet = "pet_dog";
+    });
+    for (const loc of LOCS) {
+      await page.evaluate(id => {
+        goLocation(id);
+        syncStage3D?.();
+      }, loc);
+      await page.waitForTimeout(900);
+      dogLocs[loc] = await page.evaluate(() => World3D?.isDogActive?.() === true);
+    }
+    report.heroes[hero] = { locOk, errors: errs, dogLocs };
     report.consoleErrors.push(...errs.map(e => ({ hero, e })));
     await page.close();
   }

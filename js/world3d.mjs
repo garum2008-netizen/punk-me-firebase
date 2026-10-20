@@ -209,6 +209,20 @@ function createDog() {
   return d;
 }
 
+function syncDogBesidePlayer(pl) {
+  const dog = actors.get("dog");
+  if (!dog || !pl) return;
+  const yaw = pl.group.rotation.y;
+  dog.wx = pl.wx - Math.sin(yaw) * DOG_FOLLOW_DIST + Math.cos(yaw) * DOG_FOLLOW_SIDE;
+  dog.wz = pl.wz - Math.cos(yaw) * DOG_FOLLOW_DIST - Math.sin(yaw) * DOG_FOLLOW_SIDE;
+  const c = clampWorld(dog.wx, dog.wz);
+  dog.wx = c.x;
+  dog.wz = c.z;
+  dog.group.position.set(c.x, dog.group.position.y || 0, c.z);
+  dog.group.visible = true;
+  if (dog.root) dog.root.visible = true;
+}
+
 function updateDogFollow(dt, pl) {
   const dog = actors.get("dog");
   if (!dog || !pl || !bounds) return;
@@ -468,7 +482,8 @@ function updateCameraOccluders() {
 }
 
 const LOCATION_CAMERA = {
-  elevator: { dist: 3.35, height: 2.88, lookY: 1.2, yaw: Math.PI + 0.12 },
+  /** 3/4 front: camera in front of player so face + doors (+Z) read in frame */
+  elevator: { dist: 3.85, height: 2.02, lookY: 1.16, yaw: -0.52, lookAhead: 1.85 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: { dist: 5.6, height: 2.42, lookY: 1.28, yaw: 0.35 }
 };
@@ -520,7 +535,8 @@ function positionCameraBehindPlayer(instant = false) {
   target = resolveCameraWallCollision(eye, target);
   if (instant) camera.position.copy(target);
   else camera.position.lerp(target, 0.12);
-  camera.lookAt(p.x, lookY, p.z);
+  const lookAhead = LOCATION_CAMERA[currentLoc]?.lookAhead ?? 0;
+  camera.lookAt(p.x, lookY, p.z + lookAhead);
   updateCameraOccluders();
 }
 
@@ -681,7 +697,7 @@ function sync(data) {
     hooks.onMove?.(g.x, g.y);
   }
   if (justChangedLoc && location === "elevator" && player && bounds) {
-    const clear = findClearSpawn(bounds, furnitureColliders, { x: 0, z: -1.4 });
+    const clear = findClearSpawn(bounds, furnitureColliders, { x: 0, z: -2.1 });
     const g = worldToGameLoc(clear.x, clear.z, bounds);
     hooks.onMove?.(g.x, g.y);
   }
@@ -749,9 +765,8 @@ function sync(data) {
     }
     const dog = actors.get("dog");
     const pl = actors.get("player");
-    if (dog && pl && !dog._placed) {
-      dog.wx = pl.wx - 1;
-      dog.wz = pl.wz + 0.9;
+    if (dog && pl) {
+      syncDogBesidePlayer(pl);
       dog._placed = true;
     }
     keep.add("dog");
@@ -768,7 +783,7 @@ function sync(data) {
   const spawnPref = currentLoc === "kitchen"
     ? { x: -2.8, z: -1.2 }
     : currentLoc === "elevator"
-      ? { x: 0, z: -1.4 }
+      ? { x: 0, z: -2.1 }
       : { x: 0, z: -1.2 };
   if (playerActor && pointInsideCollider(playerActor.wx, playerActor.wz, furnitureColliders, 0.38)) {
     const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
@@ -781,7 +796,13 @@ function sync(data) {
       hooks.onMove?.(g.x, g.y);
     }
   }
-  if (justChangedLoc) resetCameraForLocation();
+  if (justChangedLoc) {
+    const plActor = actors.get("player");
+    if (plActor && currentLoc === "elevator") plActor.group.rotation.y = 0;
+    resetCameraForLocation();
+    const dogPl = actors.get("player");
+    if (actors.get("dog") && dogPl) syncDogBesidePlayer(dogPl);
+  }
 }
 
 function applyNetworkAnim(actor, anim) {
@@ -967,6 +988,11 @@ const api = {
     playOneShot(a, name === "sit" ? "sit" : "interact", 1500);
   },
   isReady: () => modelsReady,
+  isDogActive: () => {
+    const d = actors.get("dog");
+    if (!d?.group) return false;
+    return d.group.visible && d.group.parent === scene;
+  },
   getLocation: () => currentLoc,
   getNearestNpc: getNearestNpcId,
   getNearestDog: getNearestDogId,
@@ -1071,7 +1097,10 @@ const api = {
   snapScreenshotView: () => {
     const a = actors.get("player");
     if (!a || !bounds || !renderer || !camera) return false;
-    a.group.rotation.y = 0.12;
+    if (currentLoc === "elevator") a.group.rotation.y = 0;
+    else a.group.rotation.y = 0.12;
+    const dog = actors.get("dog");
+    if (dog) syncDogBesidePlayer(a);
     resetCameraForLocation();
     captureFrameLock = true;
     if (locationRoot) pulseScene(locationRoot, sceneTime);
