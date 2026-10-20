@@ -599,3 +599,46 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   padding: 16px 22px; font-weight: 800; text-align: center; box-shadow: 0 0 24px #ff00ff88;
 }
 .level-up-popup.hidden { display: none; }
+.story-objective .story-subgoal { color: #88ffee; margin-top: 4px; font-size: 11px; }
+.story-meters { font-size: 10px; opacity: 0.85; margin-top: 4px; }
+#storyDialog {
+  position: fixed; inset: 0; z-index: 55; display: none; align-items: center; justify-content: center;
+  background: rgba(4, 2, 12, 0.72);
+}
+#storyDialog.active { display: flex; }
+.story-dialog-panel {
+  max-width: min(420px, 92vw); background: rgba(14, 8, 28, 0.96); border: 2px solid #ff00ff;
+  border-radius: 14px; padding: 14px 16px; box-shadow: 0 0 28px rgba(255, 0, 255, 0.35);
+}
+.story-dialog-title { font-weight: 800; margin-bottom: 8px; color: #00ffff; }
+.story-dialog-body { display: flex; flex-direction: column; gap: 8px; }
+.story-choice { text-align: left; display: flex; flex-direction: column; align-items: flex-start; }
+.story-choice .choice-hint { opacity: 0.75; font-size: 10px; }
+#storyBubbles {
+  position: absolute; inset: 0; pointer-events: none; z-index: 26;
+}
+.story-bubble {
+  position: absolute; left: 50%; top: 22%; transform: translateX(-50%);
+  max-width: 280px; padding: 8px 12px; border-radius: 12px;
+  background: rgba(0, 0, 0, 0.82); border: 1px solid #00ffff; font-size: 13px;
+  animation: storyBubble 4s ease forwards;
+}
+@keyframes storyBubble {
+  0% { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  8% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+#storyDirection {
+  position: absolute; right: 12px; top: 42%; width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid #ffcc00; background: rgba(0, 0, 0, 0.65); display: none;
+  align-items: center; justify-content: center; font-size: 22px; font-weight: 800; z-index: 27;
+}
+#storyDirection.visible { display: flex; }
+#storyConstructionHud {
+  position: absolute; left: 12px; bottom: calc(var(--dock-h, 168px) + 8px); z-index: 28;
+  display: none; max-width: 320px; padding: 10px 12px; border-radius: 10px;
+  background: rgba(10, 8, 18, 0.92); border: 1px solid #ff8800; font-size: 11px;
+}
+#storyConstructionHud.active { display: block; }
+#storyConstructionHud .need-line { margin: 6px 0; }

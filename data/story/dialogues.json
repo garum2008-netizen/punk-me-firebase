@@ -1,0 +1,174 @@
+{
+  "dialogues": [
+    {
+      "id": "dlg_razor_initiation",
+      "location": "street",
+      "trigger": { "type": "proximity", "radius_m": 10, "conditions": ["onboarding:done", "flag:!joined_gang"] },
+      "callout": { "sound": "sfx_whistle", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_razor",
+          "text": {
+            "ru": "Эй, новенький! Да, ты, с причёской. Иди сюда.",
+            "en": "Hey, new kid! Yeah, you, with the hair. Come here.",
+            "da": "Hey, nye! Ja, dig med håret. Kom her."
+          },
+          "next": "n2"
+        },
+        {
+          "id": "n2",
+          "speaker": "npc_razor",
+          "text": {
+            "ru": "«Ржавые Цепи» не берут кого попало. Докажи, что ты свой.",
+            "en": "The Rusty Chains don't take just anyone. Prove you're one of us.",
+            "da": "Rustne Kæder tager ikke hvem som helst. Bevis, at du er en af os."
+          },
+          "choices": [
+            {
+              "id": "c_pay",
+              "text": {
+                "ru": "Заработаю взнос — 150 монет.",
+                "en": "I'll earn the fee — 150 coins.",
+                "da": "Jeg tjener gebyret — 150 mønter."
+              },
+              "hint": { "ru": "Работа · Банда ▲", "en": "Work · Gang ▲", "da": "Arbejde · Bande ▲" },
+              "effects": [{ "type": "quest_start", "id": "q_initiation_pay" }],
+              "next": "n3a"
+            },
+            {
+              "id": "c_duel",
+              "text": {
+                "ru": "Вызываю тебя на дуэль цепями.",
+                "en": "I challenge you to a chain duel.",
+                "da": "Jeg udfordrer dig til kædeduel."
+              },
+              "hint": { "ru": "Дуэль · Банда ▲▲", "en": "Duel · Gang ▲▲", "da": "Duel · Bande ▲▲" },
+              "requires": ["energy>=5"],
+              "effects": [{ "type": "quest_start", "id": "q_initiation_duel" }, { "type": "start_duel", "id": "razor" }],
+              "next": "END"
+            },
+            {
+              "id": "c_graffiti",
+              "text": {
+                "ru": "Нарисую знак банды по району.",
+                "en": "I'll tag the gang sign around the district.",
+                "da": "Jeg tagger bandens tegn i kvarteret."
+              },
+              "hint": { "ru": "Клякса · Реп. ▲", "en": "Tags · Rep ▲", "da": "Tags · Omdømme ▲" },
+              "effects": [{ "type": "quest_start", "id": "q_initiation_graffiti" }],
+              "next": "n3c"
+            }
+          ]
+        },
+        {
+          "id": "n3a",
+          "speaker": "npc_razor",
+          "text": {
+            "ru": "Работяга, значит. Тони в Городе вечно ищет курьеров.",
+            "en": "A hard worker, huh. Tony in the City always needs couriers.",
+            "da": "En slider, hva'. Tony i Byen mangler altid bude."
+          },
+          "effects": [{ "type": "beacon", "target": "npc_tony" }],
+          "next": "END"
+        },
+        {
+          "id": "n3c",
+          "speaker": "npc_razor",
+          "text": {
+            "ru": "Художник? Только не на моей стене.",
+            "en": "An artist? Just not on my wall.",
+            "da": "Kunstner? Bare ikke på min mur."
+          },
+          "effects": [{ "type": "beacon", "target": "npc_razor" }],
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_zoya_enter",
+      "location": "kitchen",
+      "trigger": { "type": "proximity", "radius_m": 6, "conditions": [] },
+      "callout": { "sound": "sfx_spoon", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_zoya",
+          "text": {
+            "ru": "Эй, панчонок! Пирог стынет, а бабушка скучает!",
+            "en": "Hey, punk! The pie is getting cold and grandma misses you!",
+            "da": "Hey, punk! Tærte'n køler, og bedstemor savner dig!"
+          },
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_plukh_enter",
+      "location": "toilet",
+      "trigger": { "type": "enter", "conditions": [] },
+      "callout": { "sound": "sfx_bubble", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_plukh",
+          "text": {
+            "ru": "Пс-с! Только не смывай! Я тут живу… временно…",
+            "en": "Psst! Don't flush! I live here… temporarily…",
+            "da": "Psst! Ikke skyl! Jeg bor her… midlertidigt…"
+          },
+          "next": "n2"
+        },
+        {
+          "id": "n2",
+          "speaker": "npc_plukh",
+          "text": {
+            "ru": "Я не помню, откуда я… Может, ты поможешь?",
+            "en": "I don't remember where I'm from… Can you help?",
+            "da": "Jeg kan ikke huske, hvor jeg er fra… Kan du hjælpe?"
+          },
+          "choices": [
+            {
+              "id": "home",
+              "text": {
+                "ru": "Отведу на Кладбище",
+                "en": "I'll take you to the Cemetery",
+                "da": "Jeg tager dig til Kirkegården"
+              },
+              "effects": [{ "type": "quest_start", "id": "q_wc_plukh" }, { "type": "flag", "value": "plukh_cemetery" }],
+              "next": "END"
+            },
+            {
+              "id": "stay",
+              "text": {
+                "ru": "Оставайся соседом",
+                "en": "Stay as neighbor",
+                "da": "Bliv som nabo"
+              },
+              "effects": [{ "type": "flag", "value": "plukh_stays" }],
+              "next": "END"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dlg_foreman_enter",
+      "location": "construction",
+      "trigger": { "type": "enter", "conditions": ["chapter>=1"] },
+      "callout": { "sound": "sfx_crane", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_foreman",
+          "text": {
+            "ru": "Каску надень! Ой, нет каски… Ты от Рейзора?",
+            "en": "Helmet on! Oh, no helmet… You from Razor?",
+            "da": "Hjelm på! Åh, ingen hjelm… Er du fra Razor?"
+          },
+          "next": "END"
+        }
+      ]
+    }
+  ]
+}

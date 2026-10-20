@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v21r2";
+const GAME_VERSION = "living3d-v21r3";
 let moveSaveTimer = null;
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
@@ -62,11 +62,13 @@ const LOCATIONS = {
   kitchen: {
     id: "kitchen", title: "Кухня", bg: "imagine_images/kwt1b.jpg",
     doors: [{ x: 4, y: 50, w: 8, h: 16, to: "room", labelKey: "door_room" }],
-    npcs: []
+    npcs: ["zoya"],
+    job: true
   },
   toilet: {
     id: "toilet", title: "Туалет", bg: "imagine_images/ocVdL.jpg",
-    doors: [{ x: 6, y: 48, w: 8, h: 16, to: "room", labelKey: "door_room" }]
+    doors: [{ x: 6, y: 48, w: 8, h: 16, to: "room", labelKey: "door_room" }],
+    npcs: ["plukh"]
   },
   elevator: {
     id: "elevator", title: "Лифт", bg: "imagine_images/VmOQt.jpg",
@@ -102,9 +104,22 @@ const LOCATIONS = {
     npcs: ["gravedigger", "cobalt"]
   },
   city: {
-    id: "city", title: "Стройка кварталов", bg: "imagine_images/Z7wM3.jpg",
-    doors: [{ x: 5, y: 58, w: 10, h: 14, to: "street", labelKey: "door_street" }],
-    buildZone: "city", night: true
+    id: "city", title: "Город", bg: "imagine_images/Z7wM3.jpg",
+    doors: [
+      { x: 5, y: 58, w: 10, h: 14, to: "street", labelKey: "door_street" },
+      { x: 88, y: 42, w: 10, h: 14, to: "construction", labelKey: "door_construction" }
+    ],
+    buildZone: "city",
+    npcs: ["tony", "bolt"],
+    job: true,
+    night: true
+  },
+  construction: {
+    id: "construction", title: "Стройка", bg: "imagine_images/Z7wM3.jpg",
+    doors: [{ x: 5, y: 58, w: 10, h: 14, to: "city", labelKey: "door_city" }],
+    npcs: ["foreman", "vintik"],
+    job: true,
+    night: true
   },
   parkour: {
     id: "parkour", title: "Крышный паркур", bg: "imagine_images/tvSdj.jpg",
@@ -157,6 +172,54 @@ const NPCS = {
       "Полиция мелькает фарами — не стой на виду слишком долго.",
       "Коты знают короткие пути между локациями."
     ]
+  },
+  zoya: {
+    id: "zoya", name: "Бабуля Зоя", visualId: "vienna", img: "imagine_images/kwt1b.jpg",
+    linesI18n: {
+      ru: ["Пирог стынет — не заставляй бабушку ждать!"],
+      en: ["The pie is getting cold — don't keep grandma waiting!"],
+      da: ["Tærte'n køler — lad ikke bedstemor vente!"]
+    }
+  },
+  plukh: {
+    id: "plukh", name: "Плюх", visualId: "cobalt", img: "imagine_images/ilRF3.jpg",
+    linesI18n: {
+      ru: ["Пс-с! Только не смывай!"],
+      en: ["Psst! Don't flush!"],
+      da: ["Psst! Ikke skyl!"]
+    }
+  },
+  tony: {
+    id: "tony", name: "Тони", visualId: "mohawk", img: "imagine_images/77Mdp.jpg",
+    linesI18n: {
+      ru: ["Пицца сама себя не довезёт!"],
+      en: ["Pizza won't deliver itself!"],
+      da: ["Pizzaen leverer ikke sig selv!"]
+    }
+  },
+  bolt: {
+    id: "bolt", name: "Дядя Болт", visualId: "mohawk", img: "imagine_images/BtmE4.jpg",
+    linesI18n: {
+      ru: ["Доска — 10 монет, гвозди — 5. Лом скупаю по 3."],
+      en: ["Board — 10 coins, nails — 5. Scrap pays 3 each."],
+      da: ["Bræt — 10 mønter, søm — 5. Skrot 3 stykket."]
+    }
+  },
+  foreman: {
+    id: "foreman", name: "Михална", visualId: "vienna", img: "imagine_images/Lix06.jpg",
+    linesI18n: {
+      ru: ["Каску надень! Ой, нет каски…"],
+      en: ["Helmet on! Oh, no helmet…"],
+      da: ["Hjelm på! Åh, ingen hjelm…"]
+    }
+  },
+  vintik: {
+    id: "vintik", name: "Винтик", visualId: "mohawk", img: "imagine_images/9iBXD.jpg",
+    linesI18n: {
+      ru: ["Три минуты смены — и доски твои!"],
+      en: ["Three-minute shift — boards are yours!"],
+      da: ["Tre minutter — så er brædderne dine!"]
+    }
   },
   gravedigger: {
     id: "gravedigger", name: "Смотритель", img: "imagine_images/HePl7.jpg",
@@ -258,14 +321,19 @@ const JOB_BOARD = [
   { id: "cobwebs", titleKey: "job_cobwebs", loc: "cemetery", action: "cobwebs", descKey: "job_corners" },
   { id: "parkour_run", titleKey: "job_parkour", loc: "parkour", action: "parkour", descKey: "job_roof_route" },
   { id: "cemetery_night", titleKey: "job_cemetery_night", loc: "cemetery", action: "cemetery_night", descKey: "job_cemetery_night_desc" },
-  { id: "pizza_delivery", titleKey: "job_pizza", loc: "city", action: "pizza_delivery", descKey: "job_pizza_desc" }
+  { id: "pizza_delivery", titleKey: "job_pizza", loc: "city", action: "pizza_delivery", descKey: "job_pizza_desc" },
+  { id: "flyer_post", titleKey: "job_flyers", loc: "street", action: "flyer_post", descKey: "job_flyers_desc" },
+  { id: "construction_helper", titleKey: "job_helper", loc: "construction", action: "construction_helper", descKey: "job_helper_desc" },
+  { id: "dishes_zoya", titleKey: "job_dishes", loc: "kitchen", action: "dishes_zoya", descKey: "job_dishes_desc" }
 ];
 
 function defaultPlayer() {
   const n = Math.floor(Math.random() * 900) + 100;
   return {
     name: "Панк" + n,
-    coins: devCoinsEnabled() ? 9999 : 200,
+    coins: devCoinsEnabled() ? 9999 : 100,
+    energy: 100,
+    mood: 100,
     xp: 0,
     level: 1,
     rep: 0,
@@ -286,7 +354,8 @@ function defaultPlayer() {
     decor: [],
     dog: { x: 38, y: 65 },
     characterId: null,
-    lastSeen: Date.now()
+    lastSeen: Date.now(),
+    story: null
   };
 }
 
@@ -380,6 +449,7 @@ function syncStage3D() {
   const heroId = me.characterId || "vienna";
   const npcData = (loc.npcs || []).filter(nid => nid !== heroId).map((nid, i) => ({
     id: nid,
+    characterId: NPCS[nid]?.visualId || nid,
     img: NPCS[nid]?.img || "imagine_images/77Mdp.jpg",
     x: 18 + i * 18,
     y: 58 + (i % 2) * 6
@@ -503,6 +573,9 @@ function loadMe() {
       me.inventory.spells = v.inventory?.spells || [];
       me.quests = v.quests || me.quests;
       me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
+      me.story = v.story || me.story;
+      me.energy = v.energy ?? me.energy ?? 100;
+      me.mood = v.mood ?? me.mood ?? 100;
       me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
       if (v.lang) initLanguage(v.lang);
     }
@@ -537,6 +610,11 @@ function continueGameBoot() {
   hideLoading();
   initResponsiveHud();
   if (window.Onboarding) Onboarding.init();
+  if (me.onboarding?.done) {
+    window.StoryEngine?.onOnboardingComplete?.();
+    window.StoryEngine?.onLocationChange?.(me.location);
+    window.StoryEngine?.syncBeacon?.();
+  }
   if (window.initHowToPlay) initHowToPlay();
   if (window.initContextHints) initContextHints();
   renderAll();
@@ -573,8 +651,11 @@ function renderMapModal() {
 function renderQuickNav() {
   const el = document.getElementById("navQuick");
   if (!el) return;
-  const picks = ["room", "street", "cemetery", "city", "roof", "parkour"].filter(id => id !== me.location);
-  const navKey = { room: "nav_room", street: "nav_street", cemetery: "nav_cemetery", city: "nav_city", roof: "nav_roof", parkour: "nav_parkour" };
+  const picks = ["room", "street", "cemetery", "city", "construction", "roof", "parkour"].filter(id => id !== me.location);
+  const navKey = {
+    room: "nav_room", street: "nav_street", cemetery: "nav_cemetery", city: "nav_city",
+    construction: "nav_construction", roof: "nav_roof", parkour: "nav_parkour"
+  };
   el.innerHTML = picks.map(id =>
     `<button type="button" class="btn secondary" onclick="goLocation('${id}')">${t(navKey[id])}</button>`
   ).join("");
@@ -619,6 +700,9 @@ function sanitizePlayer(p) {
     dog: dogPos,
     lang: getLanguage(),
     characterId: p.characterId || "vienna",
+    story: p.story,
+    energy: p.energy,
+    mood: p.mood,
     owner: isOwner,
     lastSeen: p.lastSeen
   };
@@ -796,6 +880,15 @@ function updateOnlineCount() {
 function afterLocationChange() {
   window.Onboarding?.onEnterLocation?.(me.location);
   window.Onboarding?.syncGuideTarget?.();
+  window.StoryEngine?.onLocationChange?.(me.location);
+  if (me.location === "roof" && !window.StoryEngine?.ensureStoryState(me).events.roof_scrap_once) {
+    const st = window.StoryEngine.ensureStoryState(me);
+    st.materials.scrap = (st.materials.scrap || 0) + 2;
+    st.events.roof_scrap_once = true;
+  }
+  if (me.location === "elevator" && me._pkgTaken) {
+    window.StoryEngine?.fireStoryEvent?.("package_roof");
+  }
 }
 
 function goLocation(id, fromHash) {
@@ -981,6 +1074,7 @@ function renderQuest() {
     window.Onboarding?.render?.();
     return;
   }
+  if (window.StoryEngine?.renderObjectivePanel?.()) return;
   const qid = me.quests.active;
   if (me.onboarding?.done && qid === "intro") {
     document.getElementById("questBox").innerHTML =
@@ -1051,6 +1145,10 @@ function renderGangList() {
 }
 
 function openNpcDialog(nid) {
+  if (window.StoryEngine?.tryStoryNpc?.(nid)) {
+    closeModal("gangModal");
+    return;
+  }
   const n = NPCS[nid];
   if (!n) return;
   const lines = npcLines(n);
@@ -1117,7 +1215,12 @@ function buyItem(id) {
   const it = ALL_SHOP.find(x => x.id === id);
   if (!it) return;
   if (it.cat !== "materials" && me.owned.includes(id)) return;
-  if (!isOwner && me.coins < it.price) { toast(t("notEnough")); return; }
+  if (!isOwner && me.coins < it.price) {
+    const short = it.price - me.coins;
+    toast(t("notEnough") + " — " + short + " " + (t("coins_short") || ""));
+    window.StoryEngine?.beginEarnCoins?.(short, { returnLabel: tShop(id) });
+    return;
+  }
   if (!isOwner) me.coins -= it.price;
   if (it.cat === "materials") {
     me.inventory.materials[it.build] = (me.inventory.materials[it.build] || 0) + 1;
@@ -1210,6 +1313,10 @@ function runJobAction(action) {
   }
   if (action === "pizza_delivery") {
     window.PlayV21?.startPizzaJob(me, { toast, save: saveMe });
+    return;
+  }
+  if (action === "flyer_post" || action === "construction_helper" || action === "dishes_zoya") {
+    window.PlayV21?.startStoryJob?.(me, action, { toast, save: saveMe });
     return;
   }
   if (action === "parkour") {
@@ -1402,6 +1509,7 @@ function endFight(win) {
     questBump("win_fight");
     window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
     window.Onboarding?.onWinFight?.();
+    window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
   } else {
     toast(t("lose_fight"));
     me.stats.hp = me.stats.maxHp;
@@ -1418,6 +1526,7 @@ function closeFight() {
 }
 
 function runParkour() {
+  window.StoryEngine?.fireStoryEvent?.("parkour_win");
   if (me.location !== "parkour") {
     pendingJobAction = "parkour";
     goLocation("parkour");

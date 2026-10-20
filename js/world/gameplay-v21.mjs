@@ -583,6 +583,7 @@ function handleDecorKey(key) {
       if (items[idx]) {
         items[idx].rot = state.decor.rot;
         saveDecor(items);
+  window.StoryEngine?.fireStoryEvent?.("decor_placed");
       }
     }
   } else if (key === "[" || key === "]") {
@@ -596,6 +597,7 @@ function handleDecorKey(key) {
     const idx = state.decor.selected.userData.decorIndex;
     const items = loadDecor().filter((_, j) => j !== idx);
     saveDecor(items);
+  window.StoryEngine?.fireStoryEvent?.("decor_placed");
     state.decor.selected.removeFromParent();
     state.decor.selected = null;
     refreshDecorMeshes();
@@ -615,6 +617,7 @@ function placeDecorAt(wx, wz, type) {
   };
   items.push(item);
   saveDecor(items);
+  window.StoryEngine?.fireStoryEvent?.("decor_placed");
   if (state.decor.group) spawnDecorMesh(state.decor.group, item, items.length - 1);
   state.decor.rot = 0;
   return true;

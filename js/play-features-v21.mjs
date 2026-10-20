@@ -11,6 +11,26 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function applyJobShift(me, hooks, opts) {
+  if (!window.isOwner && opts.pay) me.coins += opts.pay;
+  if (opts.xp) me.xp += opts.xp;
+  if (opts.rep) me.rep += opts.rep;
+  me.energy = Math.max(0, Math.min(100, (me.energy ?? 100) + (opts.energy || -10)));
+  if (me.story) me.story.energy = me.energy;
+  if (opts.rewardEnergy) {
+    me.energy = Math.min(100, me.energy + opts.rewardEnergy);
+    if (me.story) me.story.energy = me.energy;
+  }
+  if (opts.materials && window.StoryEngine) {
+    const st = window.StoryEngine.ensureStoryState(me);
+    Object.entries(opts.materials).forEach(([k, v]) => {
+      st.materials[k] = (st.materials[k] || 0) + v;
+    });
+  }
+  hooks.save();
+  window.StoryEngine?.fireStoryEvent?.("job_shift_done");
+}
+
 export function initPlayV21(ctx) {
   const api = {
     tryInteract(me, hooks) {
@@ -25,9 +45,14 @@ export function initPlayV21(ctx) {
         }
       }
       if (loc === "kitchen" && me.y < 40) {
-        me.energy = Math.min(100, (me.energy || 50) + 18);
+        me.energy = Math.min(100, (me.energy || 50) + 25);
+        if (me.story) me.story.energy = me.energy;
         hooks.toast(t("interact_snack"));
         hooks.save();
+        if (window.StoryEngine?.ensureStoryState(me).earn?.mode === "snack") {
+          window.StoryEngine.ensureStoryState(me).earn = null;
+          window.StoryEngine.renderObjectivePanel?.();
+        }
         return true;
       }
       if (loc === "kitchen" && me.y >= 40) {
@@ -59,6 +84,7 @@ export function initPlayV21(ctx) {
         me.xp += 10 + (success ? 20 : 5);
         hooks.save();
         hooks.toast(t("job_cemetery_done") + " +" + pay);
+        window.StoryEngine?.fireStoryEvent?.("job_cemetery_done");
       };
       if (window.World3D?.startCemeteryJobMini?.()) {
         hooks.toast(t("job_cemetery_start"));
@@ -71,10 +97,37 @@ export function initPlayV21(ctx) {
         hooks.toast(t("job_go_city"));
         return;
       }
-      me.coins += 35;
-      me.xp += 15;
-      hooks.save();
-      hooks.toast(t("job_pizza_done"));
+      const pay = 40 + Math.floor(Math.random() * 30);
+      applyJobShift(me, hooks, { pay, xp: 15, energy: -10 });
+      hooks.toast(t("job_pizza_done") + " +" + pay);
+      window.StoryEngine?.fireStoryEvent?.("job_pizza_done");
+    },
+    startStoryJob(me, action, hooks) {
+      const jobs = window.StoryEngine?.getJobs?.() || [];
+      const def = jobs.find(j => j.action === action);
+      const loc = def?.loc;
+      if (loc && me.location !== loc) {
+        hooks.toast(t("job_go_" + loc) || loc);
+        return;
+      }
+      if ((me.energy ?? 100) < 10) {
+        hooks.toast(t("story_low_energy") || "Low energy — snack first");
+        window.StoryEngine?.beginEarnCoins?.(0, {});
+        return;
+      }
+      const pay = def?.payMin ? def.payMin + Math.floor(Math.random() * Math.max(0, (def.payMax || def.payMin) - def.payMin)) : 30;
+      applyJobShift(me, hooks, {
+        pay,
+        xp: def?.xp || 10,
+        energy: def?.energy || -10,
+        rep: def?.rep || 0,
+        materials: def?.rewardMaterials,
+        rewardEnergy: def?.rewardEnergy
+      });
+      const evt = action === "flyer_post" ? "flyers_done" : action === "construction_helper" ? "job_construction_done" : "job_dishes_done";
+      if (action === "flyer_post") window.StoryEngine?.fireStoryEvent?.("flyers_done");
+      else window.StoryEngine?.fireStoryEvent?.(evt);
+      hooks.toast((def?.title?.en ? def.title[window.getLanguage?.() || "en"] || def.title.en : action) + " +" + pay);
     },
     ensureDailyQuests(me) {
       const day = todayKey();

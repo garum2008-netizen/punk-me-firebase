@@ -1,0 +1,439 @@
+{
+  "quests": [
+    {
+      "id": "q_initiation_pay",
+      "chapter": 1,
+      "type": "main",
+      "title": {
+        "ru": "Прописка: взнос",
+        "en": "Initiation: the fee",
+        "da": "Optagelse: gebyret"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Заработай 150 монет — работа в Городе или на Улице",
+            "en": "Earn 150 coins — work in the City or on Gang Street",
+            "da": "Tjen 150 mønter — arbejde i Byen eller på Bandegaden"
+          },
+          "beacon": "npc_tony",
+          "complete_on": "coins>=150",
+          "hint_60s": {
+            "ru": "Тони у пиццерии или Рейзор с флаерами — смена 2–3 мин.",
+            "en": "Tony at the pizzeria or Razor's flyer shift — 2–3 min.",
+            "da": "Tony ved pizzeriaet eller Razors plakattur — 2–3 min."
+          }
+        },
+        {
+          "id": "s2",
+          "objective": {
+            "ru": "Отдай взнос Рейзору — Улица банды",
+            "en": "Pay Razor the fee — Gang Street",
+            "da": "Betal gebyret til Razor — Bandegaden"
+          },
+          "beacon": "npc_razor",
+          "complete_on": "event:pay_initiation_fee"
+        }
+      ],
+      "rewards": [
+        { "type": "rel", "target": "gang_rust", "value": 10 },
+        { "type": "flag", "value": "joined_gang" },
+        { "type": "xp", "value": 50 }
+      ]
+    },
+    {
+      "id": "q_initiation_duel",
+      "chapter": 1,
+      "type": "main",
+      "title": {
+        "ru": "Прописка: дуэль",
+        "en": "Initiation: chain duel",
+        "da": "Optagelse: kædeduel"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Выиграй дуэль цепями у Рейзора",
+            "en": "Win the chain duel against Razor",
+            "da": "Vind kædeduellen mod Razor"
+          },
+          "beacon": "npc_razor",
+          "complete_on": "event:duel_razor_win"
+        }
+      ],
+      "rewards": [
+        { "type": "rel", "target": "gang_rust", "value": 15 },
+        { "type": "flag", "value": "joined_gang" },
+        { "type": "xp", "value": 60 }
+      ]
+    },
+    {
+      "id": "q_initiation_graffiti",
+      "chapter": 1,
+      "type": "main",
+      "title": {
+        "ru": "Прописка: знак банды",
+        "en": "Initiation: gang tags",
+        "da": "Optagelse: bandetegn"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Расклей 8 флаеров на Улице (смена у Рейзора)",
+            "en": "Post 8 flyers on Gang Street (shift with Razor)",
+            "da": "Sæt 8 plakater op på Bandegaden"
+          },
+          "beacon": "npc_razor",
+          "complete_on": "event:flyers_done"
+        }
+      ],
+      "rewards": [
+        { "type": "rep", "value": 10 },
+        { "type": "flag", "value": "joined_gang" },
+        { "type": "xp", "value": 45 }
+      ]
+    },
+    {
+      "id": "q_hangout_build",
+      "chapter": 2,
+      "type": "main",
+      "title": {
+        "ru": "Тусовка банды",
+        "en": "Gang hangout",
+        "da": "Bandehæng"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Построй Тусовку на Стройке — 4 этапа",
+            "en": "Build the hangout on the Construction site — 4 stages",
+            "da": "Byg hænget på Byggepladsen — 4 etaper"
+          },
+          "beacon": "obj_hangout_site",
+          "complete_on": "hangout_stage>=4"
+        }
+      ],
+      "rewards": [{ "type": "rep", "value": 20 }, { "type": "xp", "value": 80 }]
+    },
+    {
+      "id": "q_room_morning",
+      "loc": "room",
+      "chapter": 1,
+      "type": "daily",
+      "title": {
+        "ru": "Утро панка",
+        "en": "Punk morning",
+        "da": "Punk-morgen"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Погладь щенка и брось мяч 3 раза",
+            "en": "Pet the pup and throw the ball 3 times",
+            "da": "Kæl hunden og kast bolden 3 gange"
+          },
+          "beacon": "obj_dog_bowl",
+          "complete_on": "event:dog_morning"
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 10 }]
+    },
+    {
+      "id": "q_room_decor",
+      "loc": "room",
+      "chapter": 1,
+      "type": "side",
+      "title": {
+        "ru": "Комната — лицо панка",
+        "en": "Room — punk face",
+        "da": "Værelse — punk-ansigt"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Поставь постер и мебель в режиме Декор",
+            "en": "Place a poster and furniture in Decor mode",
+            "da": "Placer en plakat og møbel i Dekor-tilstand"
+          },
+          "beacon": "obj_decor_btn",
+          "complete_on": "event:decor_placed"
+        }
+      ],
+      "choices": [
+        {
+          "id": "clean",
+          "text": {
+            "ru": "Ладно, приберусь",
+            "en": "Fine, I'll tidy up",
+            "da": "Okay, jeg rydder op"
+          },
+          "effects": [{ "type": "coins", "value": 20 }, { "type": "mood", "value": 10 }]
+        },
+        {
+          "id": "style",
+          "text": {
+            "ru": "Это не бардак, это стиль!",
+            "en": "It's not mess — it's style!",
+            "da": "Det er ikke rod — det er stil!"
+          },
+          "effects": [{ "type": "rep", "value": 5 }]
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 15 }]
+    },
+    {
+      "id": "q_kitchen_pie",
+      "loc": "kitchen",
+      "chapter": 1,
+      "type": "side",
+      "title": {
+        "ru": "Пирог для банды",
+        "en": "Pie for the gang",
+        "da": "Tærte til banden"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Возьми тыкву в холодильнике и испеки пирог",
+            "en": "Get pumpkin from the fridge and bake a pie",
+            "da": "Tag græskar fra køleskabet og bag en tærte"
+          },
+          "beacon": "obj_fridge",
+          "complete_on": "event:pie_baked"
+        }
+      ],
+      "choices": [
+        {
+          "id": "razor",
+          "text": { "ru": "Отдать Рейзору", "en": "Give to Razor", "da": "Giv til Razor" },
+          "effects": [{ "type": "rel", "target": "gang_rust", "value": 10 }]
+        },
+        {
+          "id": "self",
+          "text": { "ru": "Съесть самому", "en": "Eat it myself", "da": "Spise selv" },
+          "effects": [{ "type": "energy", "value": 40 }]
+        }
+      ],
+      "rewards": [{ "type": "coins", "value": 15 }, { "type": "xp", "value": 20 }]
+    },
+    {
+      "id": "q_wc_plukh",
+      "loc": "toilet",
+      "chapter": 1,
+      "type": "side",
+      "title": {
+        "ru": "Потерянный призрак",
+        "en": "Lost ghost",
+        "da": "Fortabt spøgelse"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Поговори с Плюхом и выбери судьбу",
+            "en": "Talk to Plukh and choose his fate",
+            "da": "Tal med Plukh og vælg skæbne"
+          },
+          "beacon": "npc_plukh",
+          "complete_on": "event:plukh_choice"
+        }
+      ],
+      "choices": [
+        {
+          "id": "home",
+          "text": {
+            "ru": "Отведу тебя на Кладбище",
+            "en": "I'll take you to the Cemetery",
+            "da": "Jeg tager dig til Kirkegården"
+          },
+          "effects": [{ "type": "unlock_location", "id": "cemetery" }, { "type": "xp", "value": 20 }]
+        },
+        {
+          "id": "stay",
+          "text": {
+            "ru": "Оставайся соседом",
+            "en": "Stay as my neighbor",
+            "da": "Bliv som nabo"
+          },
+          "effects": [{ "type": "flag", "value": "plukh_stays" }, { "type": "coins", "value": 10 }]
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 15 }]
+    },
+    {
+      "id": "q_elevator_package",
+      "loc": "elevator",
+      "chapter": 1,
+      "type": "side",
+      "title": {
+        "ru": "Посылка для Агаты",
+        "en": "Package for Agatha",
+        "da": "Pakke til Agatha"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Доставь посылку на Крышу (кнопка «Крыша»)",
+            "en": "Deliver the package to the Roof (Roof button)",
+            "da": "Lever pakken til Taget"
+          },
+          "beacon": "portal_roof",
+          "complete_on": "event:package_roof"
+        }
+      ],
+      "rewards": [{ "type": "coins", "value": 25 }, { "type": "xp", "value": 15 }]
+    },
+    {
+      "id": "q_street_flyers",
+      "loc": "street",
+      "chapter": 1,
+      "type": "job",
+      "title": {
+        "ru": "Флаеры банды",
+        "en": "Gang flyers",
+        "da": "Bandeplakater"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Расклей флаеры — смена у Рейзора",
+            "en": "Post flyers — shift with Razor",
+            "da": "Sæt plakater op — vagt med Razor"
+          },
+          "beacon": "npc_razor",
+          "complete_on": "event:flyers_done"
+        }
+      ],
+      "rewards": [{ "type": "coins", "value": 30 }, { "type": "rep", "value": 5 }]
+    },
+    {
+      "id": "q_city_pizza",
+      "loc": "city",
+      "chapter": 1,
+      "type": "job",
+      "title": {
+        "ru": "Доставка пиццы",
+        "en": "Pizza run",
+        "da": "Pizza-tur"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Смена у Тони — 3 минуты",
+            "en": "Tony's shift — 3 minutes",
+            "da": "Tonys vagt — 3 minutter"
+          },
+          "beacon": "npc_tony",
+          "complete_on": "event:job_pizza_done"
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 15 }]
+    },
+    {
+      "id": "q_cemetery_shift",
+      "loc": "cemetery",
+      "chapter": 1,
+      "type": "job",
+      "title": {
+        "ru": "Ночная смена",
+        "en": "Night shift",
+        "da": "Nattevagt"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Помоги Смотрителю — ночная смена 4 мин",
+            "en": "Help the Keeper — 4 min night shift",
+            "da": "Hjælp Vogteren — 4 min nattevagt"
+          },
+          "beacon": "npc_gravedigger",
+          "complete_on": "event:job_cemetery_done"
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 20 }]
+    },
+    {
+      "id": "q_roof_scrap",
+      "loc": "roof",
+      "chapter": 2,
+      "type": "side",
+      "title": {
+        "ru": "Металлолом на крыше",
+        "en": "Roof scrap",
+        "da": "Skrot på taget"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Собери 5 ед. лома на Крыше",
+            "en": "Collect 5 scrap on the Roof",
+            "da": "Saml 5 skrot på Taget"
+          },
+          "beacon": "obj_scrap_roof",
+          "complete_on": "material:scrap>=5"
+        }
+      ],
+      "rewards": [{ "type": "material", "id": "board", "value": 2 }, { "type": "xp", "value": 25 }]
+    },
+    {
+      "id": "q_parkour_race",
+      "loc": "parkour",
+      "chapter": 1,
+      "type": "side",
+      "title": {
+        "ru": "Гонка по крышам",
+        "en": "Rooftop race",
+        "da": "Tagløb"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Пройди паркур до финиша",
+            "en": "Clear the parkour to the finish",
+            "da": "Gennemfør parkour til mål"
+          },
+          "beacon": "obj_parkour_finish",
+          "complete_on": "event:parkour_win"
+        }
+      ],
+      "rewards": [{ "type": "rep", "value": 8 }, { "type": "xp", "value": 35 }]
+    },
+    {
+      "id": "q_construction_helper",
+      "loc": "construction",
+      "chapter": 2,
+      "type": "job",
+      "title": {
+        "ru": "Подсобник",
+        "en": "Site helper",
+        "da": "Byggehjælper"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Смена у Винтика — 3 мин, +2 доски",
+            "en": "Shift with Vintik — 3 min, +2 boards",
+            "da": "Vagt med Vintik — 3 min, +2 brædder"
+          },
+          "beacon": "npc_vintik",
+          "complete_on": "event:job_construction_done"
+        }
+      ],
+      "rewards": [{ "type": "coins", "value": 45 }, { "type": "material", "id": "board", "value": 2 }]
+    }
+  ]
+}

@@ -34,6 +34,8 @@ import {
   clearQuestMarkers
 } from "./world/quest-markers.mjs";
 import { initTouchControls } from "./touch-controls.mjs";
+import { buildHangoutVisual } from "./world/construction-hangout.mjs";
+import { tickStory } from "./story/story-engine.mjs";
 import {
   getInputState,
   consumeJump,
@@ -924,6 +926,7 @@ function processInput(dt) {
       player._gameSyncT = 0.1;
       const g = worldToGameLoc(px, pz, bounds);
       hooks.onMove?.(g.x, g.y, { sync3d: false });
+      window.StoryEngine?.onPlayerMove?.();
     }
   } else {
     player._locoSpeed = (player._locoSpeed || 0) * 0.55;
@@ -1027,7 +1030,7 @@ function sync(data) {
     if (n.id === heroId) return;
     const id = "npc_" + n.id;
     keep.add(id);
-    const a = ensureActor(id, n.id, true);
+    const a = ensureActor(id, n.characterId || n.id, true);
     const wp = NPC_WORLD[location]?.[n.id] || gameToWorldLoc(n.x, n.y, bounds);
     const path = NPC_PATROL[location]?.[n.id];
     if (path?.length) {
@@ -1193,6 +1196,7 @@ function loop() {
   if (particles) particles.rotation.y += dt * 0.02;
   if (motionProbe?.active && pl) notePlayerMotion(pl);
   tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
+  tickStory(dt);
   lastCameraDt = dt;
   if (!captureFrameLock) updateThirdPersonCamera(dt);
   else if (captureHideActors?.length) {
@@ -1315,6 +1319,9 @@ const api = {
   getNearestDog: getNearestDogId,
   getNearPortal,
   setGuideTarget: t => { guideTarget = t; },
+  refreshHangoutStage: stage => {
+    if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
+  },
   releaseCaptureFrame: () => {
     const a = actors.get("player");
     if (a) a.group.rotation.y = captureSavedRotY;
@@ -1652,4 +1659,5 @@ bindGameplayToWorld3D(api, () => ({
 }));
 window.World3D = api;
 window.Scene3D = api;
+window.PORTALS_LIST = PORTALS;
 window.dispatchEvent(new Event("scene3d-ready"));

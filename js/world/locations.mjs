@@ -27,6 +27,7 @@ import {
 } from "./location-enrich.mjs";
 import { addV21Clutter } from "./location-clutter-v21.mjs";
 import { addShowcaseProps } from "./location-showcase-props.mjs";
+import { buildHangoutVisual } from "./construction-hangout.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
 export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
@@ -48,6 +49,7 @@ export const LOCATION_BOUNDS = {
   cemetery: { minX: -11, maxX: 11, minZ: -9, maxZ: 9 },
   city: { minX: -10, maxX: 10, minZ: -9, maxZ: 9 },
   parkour: { minX: -8, maxX: 8, minZ: -10, maxZ: 10 },
+  construction: { minX: -11, maxX: 11, minZ: -10, maxZ: 10 },
   default: { minX: -8, maxX: 8, minZ: -8, maxZ: 8 }
 };
 
@@ -70,6 +72,20 @@ export const NPC_WORLD = {
   cemetery: {
     gravedigger: { x: 0, z: 2 },
     cobalt: { x: -4, z: -1 }
+  },
+  kitchen: {
+    zoya: { x: -2.5, z: 1.5 }
+  },
+  toilet: {
+    plukh: { x: 0, z: -1.2 }
+  },
+  city: {
+    tony: { x: -4.5, z: 3.2 },
+    bolt: { x: 5.2, z: -2.8 }
+  },
+  construction: {
+    foreman: { x: -3.5, z: 1.5 },
+    vintik: { x: 3.8, z: 2.2 }
   }
 };
 
@@ -145,6 +161,12 @@ export const NPC_PATROL = {
 };
 
 export const PORTALS = {
+  elevator: [
+    { to: "room", labelKey: "door_room", x: 0, z: 1.15, r: 1.1 },
+    { to: "roof", labelKey: "door_roof", x: -0.85, z: -0.45, r: 1.05 },
+    { to: "street", labelKey: "door_street", x: 0.85, z: -0.45, r: 1.05 }
+  ],
+  roof: [{ to: "elevator", labelKey: "door_elevator", x: 0, z: 6.5, r: 1.4 }],
   room: [
     { to: "kitchen", labelKey: "door_kitchen", x: -6.2, z: 0, r: 1.2 },
     { to: "toilet", labelKey: "door_toilet", x: 6.2, z: 0, r: 1.2 },
@@ -155,7 +177,12 @@ export const PORTALS = {
     { to: "elevator", labelKey: "door_home", x: -10, z: 0, r: 1.5 },
     { to: "cemetery", labelKey: "door_cemetery", x: 10, z: -2, r: 1.5 },
     { to: "city", labelKey: "door_city", x: 0, z: 8, r: 1.5 }
-  ]
+  ],
+  city: [
+    { to: "street", labelKey: "door_street", x: -8, z: 7, r: 1.5 },
+    { to: "construction", labelKey: "door_construction", x: 8, z: -6, r: 1.5 }
+  ],
+  construction: [{ to: "city", labelKey: "door_city", x: 0, z: 8.5, r: 1.5 }]
 };
 
 export const LOCATION_THEME = {
@@ -167,7 +194,8 @@ export const LOCATION_THEME = {
   toilet: { bg: 0x182838, fog: 0x121828, fogD: 0.0055, hemi: 0x99ccff, ground: 0x2a3040 },
   elevator: { bg: 0x2a2a38, fog: 0x2a2a38, fogD: 0.11, hemi: 0xccccff, ground: 0x3a3a48 },
   city: { bg: 0x221028, fog: 0x1a0c18, fogD: 0.0055, hemi: 0xff99cc, ground: 0x2a2030 },
-  parkour: { bg: 0x182040, fog: 0x121830, fogD: 0.0045, hemi: 0x99ddff, ground: 0x2a3850 }
+  parkour: { bg: 0x182040, fog: 0x121830, fogD: 0.0045, hemi: 0x99ddff, ground: 0x2a3850 },
+  construction: { bg: 0x281818, fog: 0x201010, fogD: 0.006, hemi: 0xffaa88, ground: 0x3a3028 }
 };
 
 function wall(w, h, d, mat) {
@@ -548,6 +576,29 @@ export function buildLocationScene(locId, texLoader) {
     addLights(root, [
       { type: "point", color: 0xff66ff, intensity: 2.8, x: 0, y: 3.5, z: 0 },
       { type: "point", color: 0x00ffff, intensity: 2, x: -6, y: 2.5, z: 4 }
+    ]);
+  } else if (locId === "construction") {
+    floor = tiledFloor(22, 20, theme.ground, false);
+    root.add(floor);
+    addRoomShell(root, 22, 20, 5, wallMat, colliders);
+    root.add(neonSign("СТРОЙКА", 0xff8800).translateY(3.8).translateZ(-9.2));
+    const crane = wall(0.5, 6, 0.5, new THREE.MeshStandardMaterial({ color: 0xffcc00 }));
+    crane.position.set(-7, 3, -4);
+    root.add(crane);
+    pushCollider(colliders, -7, -4, 0.3, 0.3);
+    const truck = wall(3.5, 1.4, 2, new THREE.MeshStandardMaterial({ color: 0x445566 }));
+    truck.position.set(6, 0.7, 3);
+    root.add(truck);
+    pushCollider(colliders, 6, 3, 1.8, 1);
+    const blueprint = wall(1.8, 0.05, 1.2, new THREE.MeshStandardMaterial({ color: 0xaaccff, emissive: 0x4488ff, emissiveIntensity: 0.3 }));
+    blueprint.position.set(-1, 0.9, 2.5);
+    blueprint.rotation.y = 0.4;
+    root.add(blueprint);
+    root.userData.hangoutStage = 0;
+    buildHangoutVisual(0, root);
+    addLights(root, [
+      { type: "point", color: 0xffaa66, intensity: 4.5, x: 0, y: 4, z: 0 },
+      { type: "point", color: 0xffffcc, intensity: 3.2, x: -6, y: 3, z: -3 }
     ]);
   } else if (locId === "parkour") {
     floor = tiledFloor(16, 22, theme.ground, false);

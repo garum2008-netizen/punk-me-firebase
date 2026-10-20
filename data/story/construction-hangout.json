@@ -1,0 +1,51 @@
+{
+  "blueprintId": "bp_hangout",
+  "title": { "ru": "Тусовка банды", "en": "Gang hangout", "da": "Bandehæng" },
+  "siteLoc": "construction",
+  "stages": [
+    {
+      "id": 1,
+      "name": { "ru": "Фундамент", "en": "Foundation", "da": "Fundament" },
+      "need": { "brick": 10, "nails": 2 },
+      "hint": {
+        "ru": "Нужно: 10 кирпичей — Скобяная лавка, Город (8 монет) или задание «Список прораба»",
+        "en": "Need: 10 bricks — Hardware stall, City (8 coins) or quest \"Foreman's list\"",
+        "da": "Brug for: 10 mursten — Hardwarebod, By (8 mønter) eller opgaven \"Formandens liste\""
+      },
+      "beacon": "obj_hangout_site"
+    },
+    {
+      "id": 2,
+      "name": { "ru": "Каркас", "en": "Frame", "da": "Skelet" },
+      "need": { "board": 10, "nails": 2 },
+      "hint": {
+        "ru": "Нужно: 10 досок — купи у Дяди Болта (10), найди на Крыше или смена «Подсобник» (+2)",
+        "en": "Need: 10 boards — buy from Uncle Bolt (10), find on Roof, or Helper shift (+2)",
+        "da": "Brug for: 10 brædder — køb af Onkel Bolt (10), find på Tag, eller hjælper (+2)"
+      },
+      "beacon": "npc_bolt"
+    },
+    {
+      "id": 3,
+      "name": { "ru": "Стены и крыша", "en": "Walls & roof", "da": "Vægge og tag" },
+      "need": { "board": 8, "brick": 6, "chain": 2 },
+      "hint": {
+        "ru": "Не хватает цепей — купи (15) или переплавь 5 лома у Дяди Болта",
+        "en": "Short on chains — buy (15) or smelt 5 scrap at Uncle Bolt",
+        "da": "Mangler kæder — køb (15) eller smelt 5 skrot hos Onkel Bolt"
+      },
+      "beacon": "obj_hangout_site"
+    },
+    {
+      "id": 4,
+      "name": { "ru": "Стиль панк", "en": "Punk style", "da": "Punk-stil" },
+      "need": { "neon_tube": 2, "spray": 3 },
+      "hint": {
+        "ru": "Последний шаг! Неон-трубки — в Скобяной лавке (25) или у Неоны за флаеры",
+        "en": "Last step! Neon tubes — hardware stall (25) or Neon after flyer shifts",
+        "da": "Sidste skridt! Neonrør — hardwarebod (25)"
+      },
+      "beacon": "obj_hangout_site"
+    }
+  ]
+}
