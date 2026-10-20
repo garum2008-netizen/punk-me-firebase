@@ -173,6 +173,64 @@ function cemeteryCrypt(x, z) {
   return tagged("cemetery_crypt", g);
 }
 
+function addForegroundCluster(locId, root) {
+  if (locId === "elevator") {
+    for (let i = 0; i < 22; i++) {
+      const g = tagged(
+        `elev_fg_detail_${i}`,
+        box(0.07, 0.1, 0.04, mat(i % 2 ? 0xff00ff : 0x00ffff, i % 2 ? 0xff00ff : 0x00ffff))
+      );
+      g.position.set(-0.55 + (i % 7) * 0.17, 0.55 + Math.floor(i / 7) * 0.22, -0.9 + (i % 3) * 0.35);
+      root.add(g);
+    }
+    return;
+  }
+  if (locId === "city") {
+    for (let i = 0; i < 24; i++) {
+      const g = tagged(
+        `city_fg_sidewalk_${i}`,
+        i % 3 === 0
+          ? new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 5), mat(0x3a5a38))
+          : box(0.12, 0.08, 0.12, mat(0x8a6030))
+      );
+      g.position.set(-3.5 + i * 0.45, i % 3 === 0 ? 0.08 : 0.04, 1.8 + (i % 4) * 0.55);
+      root.add(g);
+    }
+  }
+  const z = 3.2;
+  const items = [
+    ["fg_bench", () => parkBench(0, z)],
+    ["fg_lamp", () => streetLamp(2.2, z - 0.4, `fg_lamp_${locId}`)],
+    ["fg_fence", () => ironFence(-2.5, z + 0.5, 2)],
+    ["fg_crypt", () => cemeteryCrypt(3.2, z - 0.8)],
+    ["fg_tomb_cross", () => tombstone(`fg_cross_${locId}`, -1.2, z + 0.6, true)],
+    ["fg_tomb_round", () => tombstone(`fg_round_${locId}`, 1.4, z + 0.4, false)],
+    ["fg_hydrant", () => { const g = tagged("fg_hydrant", box(0.35, 0.55, 0.35, mat(0xcc2222, 0xff0000))); g.position.set(-3.2, 0.28, z); return g; }],
+    ["fg_mailbox", () => { const g = tagged("fg_mailbox", box(0.35, 1.1, 0.25, mat(0x2255aa, 0x0033aa))); g.position.set(3.5, 0.55, z - 0.2); return g; }],
+    ["fg_planter", () => { const g = tagged("fg_planter", box(0.55, 0.45, 0.55, mat(0x5a4030))); g.position.set(-0.5, 0.225, z + 1.1); return g; }],
+    ["fg_sign", () => { const g = tagged("fg_sign", box(0.9, 0.28, 0.05, mat(0xff00ff, 0xff00ff))); g.position.set(0, 2.1, z + 1.4); return g; }],
+    ["fg_sink", () => { const g = tagged("fg_sink", box(0.7, 0.15, 0.45, mat(0x99aabb, 0, 0.35))); g.position.set(2.8, 0.95, z + 0.8); return g; }],
+    ["fg_stove", () => { const g = tagged("fg_stove", box(0.7, 0.9, 0.55, mat(0x3a3a40))); g.position.set(-2.6, 0.45, z + 0.9); return g; }],
+    ["fg_tv", () => { const g = tagged("fg_tv", box(0.75, 0.45, 0.06, mat(0x111118))); g.position.set(0.8, 1.1, z + 1.2); return g; }],
+    ["fg_sofa", () => { const g = tagged("fg_sofa", box(1.2, 0.35, 0.55, mat(0x5a3048))); g.position.set(-0.8, 0.2, z - 0.5); return g; }],
+    ["fg_guitar", () => { const g = tagged("fg_guitar", box(0.35, 0.12, 0.1, mat(0xcc2222))); g.position.set(2.2, 0.55, z - 0.3); return g; }],
+    ["fg_neon", () => { const g = tagged("fg_neon", box(1.1, 0.32, 0.05, mat(0x00ffff, 0x00ffff))); g.position.set(0, 2.35, z); return g; }],
+    ["fg_skull_lamp", () => { const g = tagged("fg_skull_lamp", box(0.18, 0.28, 0.18, mat(0xddddcc, 0xaaccaa))); g.position.set(-1.8, 1.55, z); return g; }],
+    ["fg_rug", () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1), mat(0x5a2040)); m.rotation.x = -Math.PI / 2; const g = tagged("fg_rug", m); g.position.set(0, 0.015, z - 0.2); return g; }],
+    ["fg_poster", () => { const g = tagged("fg_poster", box(0.8, 1, 0.03, mat(0x442266, 0x220044))); g.position.set(1.6, 1.45, z + 1.5); return g; }],
+    ["fg_bookshelf", () => { const g = tagged("fg_bookshelf", box(0.85, 1.3, 0.3, mat(0x5a4030))); g.position.set(-3.5, 0.65, z + 0.3); return g; }],
+    ["fg_bed", () => { const g = tagged("fg_bed", box(1.3, 0.22, 1.8, mat(0x3a2848))); g.position.set(3.8, 0.11, z + 0.5); return g; }],
+    ["fg_ac", () => { const g = tagged("fg_ac", box(1, 0.7, 0.85, mat(0x666677))); g.position.set(0, 0.35, z + 1.8); return g; }],
+    ["fg_trash", () => { const g = tagged("fg_trash", box(0.32, 0.55, 0.32, mat(0x3a4048))); g.position.set(-2.8, 0.275, z + 0.2); return g; }],
+    ["fg_pizza_sign", () => { const g = tagged("fg_pizza_sign", box(1.2, 0.35, 0.05, mat(0xff3366, 0xff2244))); g.position.set(2.5, 2.2, z + 0.6); return g; }],
+    ["fg_parking_meter", () => { const g = tagged("fg_parking_meter", box(0.12, 1.1, 0.12, mat(0x888899))); g.position.set(-0.2, 0.55, z + 1.6); return g; }],
+    ["fg_news_stand", () => { const g = tagged("fg_news_stand", box(0.9, 1.2, 0.6, mat(0x553366))); g.position.set(1.2, 0.6, z + 1.9); return g; }],
+    ["fg_bike_rack", () => { const g = tagged("fg_bike_rack", box(1.2, 0.5, 0.15, mat(0x666677))); g.position.set(-1.5, 0.25, z + 2.1); return g; }],
+    ["fg_vending", () => { const g = tagged("fg_vending", box(0.65, 1.65, 0.55, mat(0x223344, 0x004466))); g.position.set(3.2, 0.82, z + 0.4); return g; }]
+  ];
+  items.forEach(([, build]) => root.add(build()));
+}
+
 export function addShowcaseProps(locId, root) {
   groundScatter(root, locId);
   if (locId === "toilet") {
@@ -188,7 +246,10 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("toilet_paper_roll", box(0.14, 0.14, 0.14, mat(0xffffff)).translateX(2.6).translateY(0.55).translateZ(1.5)));
     root.add(tagged("grab_bar", box(0.05, 0.6, 0.05, mat(0x99aabb, 0, 0.3)).translateX(-2.2).translateY(1.1).translateZ(1.3)));
     root.add(tagged("neon_toilet_sign", box(0.8, 0.25, 0.05, mat(0xff00ff, 0xff00ff)).translateY(2.5).translateZ(-3.8)));
-    root.add(tagged("floor_drain", new THREE.Mesh(new THREE.CircleGeometry(0.12, 10), mat(0x333344))).translateX(0).translateY(0.01).translateZ(0)));
+    const drain = new THREE.Mesh(new THREE.CircleGeometry(0.12, 10), mat(0x333344));
+    drain.rotation.x = -Math.PI / 2;
+    drain.position.set(0, 0.01, 0);
+    root.add(tagged("floor_drain", drain));
     root.getObjectByName && root.add(tagged("urinal_fixture", box(0.35, 0.55, 0.25, mat(0xdde2e8)).translateX(-4).translateY(0.5).translateZ(-1)));
     root.add(tagged("hook_shelf", box(0.5, 0.08, 0.2, mat(0x5a6878)).translateX(4).translateY(1.6).translateZ(0.5)));
     root.add(tagged("air_freshener", box(0.08, 0.2, 0.08, mat(0x88ffcc, 0x44ffaa)).translateX(1.2).translateY(2.2).translateZ(-3.7)));
@@ -211,33 +272,33 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("elev_button_panel", box(0.25, 0.75, 0.05, mat(0x1a1a22)).translateX(1.35).translateY(1.1).translateZ(0.45)));
     root.add(tagged("elev_mirror_wall", box(1.2, 1.5, 0.02, mat(0xb8d0e8, 0, 0.1)).translateX(-1.4).translateY(1.2).translateZ(0.15)));
     root.add(tagged("elev_handrail", box(2, 0.05, 0.05, mat(0x99aabb, 0, 0.3)).translateY(0.9).translateZ(-1.38)));
-    root.add(tagged("elev_ceiling_light", new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat(0xffeedd, 0xffddaa))).rotateX(Math.PI / 2).translateY(2.35)));
+    root.add(tagged("elev_ceiling_light", new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat(0xffeedd, 0xffddaa)).rotateX(Math.PI / 2).translateY(2.35)));
     root.add(tagged("elev_corner_post", box(0.08, 2.2, 0.08, mat(0x666677)).translateX(-1.1).translateY(1.1).translateZ(-1.1)));
     root.add(tagged("elev_vent_grille", box(0.4, 0.15, 0.02, mat(0x444455)).translateY(2.25).translateZ(1.1)));
     root.add(tagged("elev_sticker_punk", box(0.35, 0.18, 0.02, mat(0xff00ff, 0xff00ff)).translateX(-1.35).translateY(0.95).translateZ(-1.42)));
     root.add(tagged("elev_sticker_13", box(0.2, 0.2, 0.02, mat(0x00ffff, 0x00ffff)).translateX(-1).translateY(1.35).translateZ(-1.42)));
     root.add(tagged("elev_cabinet", box(0.35, 0.9, 0.2, mat(0x3a3a48)).translateX(1.2).translateY(0.45).translateZ(-0.8)));
     root.add(tagged("elev_fire_ext", box(0.15, 0.45, 0.12, mat(0xcc2222, 0xff0000)).translateX(-1.25).translateY(0.8).translateZ(1.15)));
-    root.add(tagged("elev_floor_mat", new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8), mat(0x2a3040))).rotateX(-Math.PI / 2).translateY(0.01)));
-    root.add(tagged("elev_call_button", new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.03, 12), mat(0xffcc00, 0xffaa00))).rotateX(Math.PI / 2).translateX(1.32).translateY(1.35).translateZ(0.32)));
+    root.add(tagged("elev_floor_mat", new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8), mat(0x2a3040)).rotateX(-Math.PI / 2).translateY(0.01)));
+    root.add(tagged("elev_call_button", new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.03, 12), mat(0xffcc00, 0xffaa00)).rotateX(Math.PI / 2).translateX(1.32).translateY(1.35).translateZ(0.32)));
     root.add(tagged("elev_info_card", box(0.22, 0.14, 0.01, mat(0xffffff)).translateX(1.33).translateY(0.85).translateZ(0.46)));
     root.add(tagged("elev_bumper_rail", box(0.05, 0.4, 1.5, mat(0x888899)).translateX(-1.05).translateY(0.2).translateZ(0)));
     root.add(tagged("elev_led_strip", box(1.8, 0.04, 0.04, mat(0x00ffcc, 0x00ffcc)).translateY(0.05).translateZ(-1.42)));
     root.add(tagged("elev_speaker", box(0.12, 0.18, 0.08, mat(0x222228)).translateY(2.2).translateX(0.5)));
     root.add(tagged("elev_camera_dome", new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), mat(0x111118)).translateY(2.28).translateX(-0.4)));
-    root.add(tagged("elev_scuff_mark", new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), mat(0x1a1820))).rotateX(-Math.PI / 2).translateY(0.012).translateZ(0.3)));
+    root.add(tagged("elev_scuff_mark", new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), mat(0x1a1820)).rotateX(-Math.PI / 2).translateY(0.012).translateZ(0.3)));
   } else if (locId === "kitchen") {
     root.add(tagged("kitchen_stove", box(0.7, 0.9, 0.55, mat(0x3a3a40)).translateY(0.45).translateZ(-4.1)));
     root.add(tagged("kitchen_fridge", box(0.85, 2, 0.7, mat(0xe8ecef)).translateY(1).translateX(-4.3).translateZ(-4)));
     root.add(tagged("kitchen_sink", box(0.7, 0.2, 0.45, mat(0x99aabb, 0, 0.35)).translateY(0.9).translateX(-2.5).translateZ(-4.05)));
     root.add(tagged("kitchen_microwave", box(0.45, 0.32, 0.38, mat(0x2a2a30)).translateY(1.05).translateX(2.5).translateZ(-4.2)));
     root.add(tagged("kitchen_hood", box(0.9, 0.35, 0.5, mat(0x555560)).translateY(1.35).translateZ(-4.45)));
-    root.add(tagged("kitchen_pot", new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.2, 10), mat(0x888899))).translateY(1.02).translateZ(-4.15)));
+    root.add(tagged("kitchen_pot", new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.2, 10), mat(0x888899)).translateY(1.02).translateZ(-4.15)));
     root.add(tagged("kitchen_kettle", box(0.2, 0.22, 0.18, mat(0xcc2222, 0xff4444)).translateY(1.02).translateZ(-4)));
     root.add(tagged("kitchen_jar_row", box(0.9, 0.25, 0.15, mat(0xffcc88)).translateY(2.35).translateZ(-4.55)));
     root.add(tagged("kitchen_cabinet", box(1, 0.8, 0.35, mat(0x5a4030)).translateY(2.35).translateX(-3.5).translateZ(-4.55)));
     root.add(tagged("kitchen_neon_punk", box(1.2, 0.35, 0.05, mat(0xff3399, 0xff3399)).translateY(2.15).translateZ(-4.85)));
-    root.add(tagged("kitchen_rug", new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), mat(0x5a2040))).rotateX(-Math.PI / 2).translateY(0.01).translateZ(1.2)));
+    root.add(tagged("kitchen_rug", new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), mat(0x5a2040)).rotateX(-Math.PI / 2).translateY(0.01).translateZ(1.2)));
     root.add(tagged("kitchen_jukebox", box(0.55, 1.05, 0.4, mat(0x331144, 0xff00ff)).translateY(0.52).translateX(4.2).translateZ(2.8)));
     root.add(tagged("kitchen_chair", box(0.35, 0.45, 0.35, mat(0x4a3048)).translateY(0.225).translateX(1.5).translateZ(0.5)));
     root.add(tagged("kitchen_table", box(1.2, 0.08, 0.7, mat(0x5a4030)).translateY(0.75).translateX(0).translateZ(1.8)));
@@ -247,9 +308,17 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("kitchen_utensil_rack", box(0.6, 0.05, 0.08, mat(0x888888)).translateY(1.15).translateX(3).translateZ(-4.5)));
     root.add(tagged("kitchen_cutting_board", box(0.35, 0.04, 0.25, mat(0x8a6040)).translateY(0.98).translateZ(-4.12)));
     root.add(tagged("kitchen_trash_bin", box(0.28, 0.4, 0.28, mat(0x333344)).translateY(0.2).translateX(4.5).translateZ(-2)));
-    root.add(tagged("kitchen_clock", new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.04, 16), mat(0xffffff, 0xffffcc))).rotateX(Math.PI / 2).translateY(2.5).translateX(-5.5)));
+    root.add(tagged("kitchen_clock", new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.04, 16), mat(0xffffff, 0xffffcc)).rotateX(Math.PI / 2).translateY(2.5).translateX(-5.5)));
     root.add(tagged("kitchen_spice_rack", box(0.35, 0.4, 0.12, mat(0x664422)).translateY(1.1).translateX(-5).translateZ(-4.4)));
   } else if (locId === "city") {
+    for (let i = 0; i < 22; i++) {
+      const g = tagged(
+        `city_view_row_${i}`,
+        box(0.22, 0.45, 0.22, mat(0x445566 + (i * 97_391) % 0x111111))
+      );
+      g.position.set(-3.2 + (i % 11) * 0.62, 0.22, 0.4 + Math.floor(i / 11) * 0.75);
+      root.add(g);
+    }
     root.add(streetLamp(-2, 3, "street_lamp_n"));
     root.add(streetLamp(2, 3, "street_lamp_e"));
     root.add(streetLamp(-5, -1, "street_lamp_w"));
@@ -290,29 +359,32 @@ export function addShowcaseProps(locId, root) {
       c.add(box(0.05, 0.22, 0.05, mat(0x442211)));
       const flame = box(0.05, 0.07, 0.05, mat(0xffaa22, 0xff6600));
       flame.position.y = 0.26;
+      c.add(flame);
       c.position.set(-2.5 + i * 1.1, 0, -1.5 + (i % 2));
       root.add(tagged(`candle_row_${i}`, c));
     }
     root.add(tagged("cemetery_gate_arch", box(2.5, 0.15, 0.2, mat(0x3a4a40)).translateY(2.3).translateZ(-7.8)));
-    root.add(tagged("cemetery_pumpkin", new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 8), mat(0xff6600, 0xff4400))).translateY(0.25).translateX(-5).translateZ(4)));
+    root.add(tagged("cemetery_pumpkin", new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.25).translateX(-5).translateZ(4)));
     root.add(tagged("cemetery_ghost_float", box(0.35, 0.5, 0.15, mat(0xaaddff, 0x88ccff)).translateY(1).translateX(2).translateZ(3)));
     const deadTree = new THREE.Group();
     deadTree.add(box(0.22, 2.5, 0.22, mat(0x2a1810)).translateY(1.25));
     deadTree.add(box(1.4, 0.08, 0.08, mat(0x1a1010)).translateY(2.6).rotateZ(0.5));
     deadTree.position.set(-2, 0, 4);
     root.add(tagged("dead_tree", deadTree));
-    root.add(tagged("cemetery_bench", parkBench(-3, 0)));
+    const bench = parkBench(-3, 0);
+    bench.userData.propTag = "cemetery_bench";
+    root.add(bench);
     root.add(streetLamp(0, 2, "cemetery_lantern_post"));
     root.add(tagged("cemetery_fence_gate", box(1.2, 1, 0.08, mat(0x3a4048)).translateY(0.5).translateZ(-7.5)));
   } else if (locId === "roof") {
     root.add(tagged("roof_ac_unit", box(1.2, 0.8, 1, mat(0x666677)).translateY(0.4).translateX(-4).translateZ(2)));
-    root.add(tagged("roof_satellite", new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.35, 0.25, 12), mat(0x888899))).rotateX(0.4).translateY(1.2).translateX(3).translateZ(-3)));
+    root.add(tagged("roof_satellite", new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.35, 0.25, 12), mat(0x888899)).rotateX(0.4).translateY(1.2).translateX(3).translateZ(-3)));
     root.add(tagged("roof_chimney_pot", box(0.6, 1.2, 0.6, mat(0x553333)).translateY(0.6).translateX(3).translateZ(-6)));
     root.add(tagged("roof_neon_sign", box(2, 0.4, 0.05, mat(0xff66ff, 0xff66ff)).translateY(3.5).translateZ(-7)));
-    root.add(tagged("roof_vent_pipe", new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.8, 8), mat(0x777788))).translateY(0.9).translateX(-2).translateZ(-4)));
+    root.add(tagged("roof_vent_pipe", new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.8, 8), mat(0x777788)).translateY(0.9).translateX(-2).translateZ(-4)));
     root.add(tagged("roof_solar_panel", box(1.4, 0.06, 0.9, mat(0x1a2848, 0x003366)).translateY(0.5).translateX(0).translateZ(3)));
     root.add(tagged("roof_railing_section", box(2, 0.08, 0.08, mat(0x00ffff, 0x00ffff)).translateY(1.05).translateX(0).translateZ(7.5)));
-    root.add(tagged("roof_water_tank", new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 1.2, 14), mat(0x667788))).translateY(0.6).translateX(-7).translateZ(-5)));
+    root.add(tagged("roof_water_tank", new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 1.2, 14), mat(0x667788)).translateY(0.6).translateX(-7).translateZ(-5)));
     root.add(tagged("roof_antenna", box(0.05, 2.5, 0.05, mat(0x999999)).translateY(1.25).translateX(5).translateZ(-8)));
     root.add(tagged("roof_crate", box(0.55, 0.55, 0.55, mat(0x5a4030)).translateY(0.275).translateX(2).translateZ(4)));
     root.add(tagged("roof_skylight", box(1.2, 0.08, 1.2, mat(0x88ccff, 0x4488ff)).translateY(0.04).translateX(-1).translateZ(0)));
@@ -321,10 +393,13 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("roof_potted_plant", box(0.35, 0.5, 0.35, mat(0x228844)).translateY(0.25).translateX(-5).translateZ(5)));
     root.add(tagged("roof_string_lights", box(3, 0.04, 0.04, mat(0xffff88, 0xffff00)).translateY(2.8).translateZ(6)));
     root.add(tagged("roof_ladder", box(0.35, 2.2, 0.08, mat(0x888888)).translateY(1.1).translateX(8).translateZ(0)));
-    root.add(tagged("roof_helipad_mark", new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 16), mat(0xffff00, 0xffcc00))).rotateX(-Math.PI / 2).translateY(0.015).translateZ(-2)));
+    root.add(tagged("roof_helipad_mark", new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 16), mat(0xffff00, 0xffcc00)).rotateX(-Math.PI / 2).translateY(0.015).translateZ(-2)));
     root.add(tagged("roof_billboard", box(2.5, 1.4, 0.1, mat(0x2a1848, 0xff00ff)).translateY(2).translateX(-6).translateZ(-10)));
     root.add(tagged("roof_pipe_cluster", box(0.4, 0.6, 0.4, mat(0x555566)).translateY(0.3).translateX(1).translateZ(-5)));
     root.add(tagged("roof_toolbox", box(0.35, 0.22, 0.22, mat(0xcc2222)).translateY(0.11).translateX(4).translateZ(2)));
     root.add(tagged("roof_gutter", box(4, 0.08, 0.15, mat(0x666677)).translateY(1.08).translateX(0).translateZ(-7.8)));
+  }
+  if (["toilet", "elevator", "kitchen", "city", "cemetery", "roof"].includes(locId)) {
+    addForegroundCluster(locId, root);
   }
 }

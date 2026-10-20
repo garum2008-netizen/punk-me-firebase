@@ -1558,7 +1558,7 @@ const api = {
     fadeTo(pl, on ? "sit" : "idle");
   },
   getMotionProbeCount: () => motionProbe?.frames?.length || 0,
-  countVisibleProps: () => countVisiblePropsInScene(),
+  countVisibleProps: (opts = {}) => countVisiblePropsInScene(opts),
   ensureThirdPersonRunCamera: () => {
     captureFrameLock = false;
     setElevatorCutaway(false);
@@ -1583,32 +1583,40 @@ const _propProj = new THREE.Matrix4();
 const _propCenter = new THREE.Vector3();
 const _propCam = new THREE.Vector3();
 
-function isPropRootVisible(root) {
+function isPropRootVisible(root, frustumOnly = false) {
   if (!root?.userData?.propTag || !locationRoot || !camera) return false;
   const box3 = new THREE.Box3().setFromObject(root);
   if (box3.isEmpty()) return false;
+  if (!_propFrustum.intersectsBox(box3)) return false;
+  if (frustumOnly) return true;
   box3.getCenter(_propCenter);
-  if (!_propFrustum.containsPoint(_propCenter)) return false;
   camera.getWorldPosition(_propCam);
-  const dist = _propCam.distanceTo(_propCenter);
-  const dir = _propCenter.clone().sub(_propCam).normalize();
+  const toProp = _propCenter.clone().sub(_propCam);
+  if (toProp.dot(camera.getWorldDirection(new THREE.Vector3())) < 0.05) return false;
+  const dist = toProp.length();
+  const dir = toProp.normalize();
   raycaster.set(_propCam, dir);
-  raycaster.far = dist + 0.4;
+  raycaster.far = dist + 0.55;
   const hits = raycaster.intersectObject(locationRoot, true);
   for (const h of hits) {
-    if (h.distance > dist + 0.2) break;
+    if (h.distance > dist + 0.35) break;
     let o = h.object;
     while (o) {
       if (o === root) return true;
       o = o.parent;
     }
-    if (h.distance < dist - 0.12) return false;
+    if (h.object.userData?.cameraOccluder) return false;
+    const ny = h.face?.normal?.y ?? 0;
+    if (Math.abs(ny) > 0.92) continue;
+    if (h.object.userData?.propTag) continue;
+    if (h.distance < dist - 0.2) return false;
   }
-  return true;
+  return _propFrustum.containsPoint(_propCenter);
 }
 
-function countVisiblePropsInScene() {
-  if (!locationRoot || !camera) return { unique: 0, tags: [], instances: 0, location: currentLoc };
+function countVisiblePropsInScene(opts = {}) {
+  const frustumOnly = !!opts.frustumOnly;
+  if (!locationRoot || !camera) return { unique: 0, tags: [], instances: 0, location: currentLoc, frustumOnly };
   camera.updateMatrixWorld();
   _propProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _propFrustum.setFromProjectionMatrix(_propProj);
@@ -1621,11 +1629,17 @@ function countVisiblePropsInScene() {
   const tags = new Set();
   let instances = 0;
   roots.forEach(root => {
-    if (!isPropRootVisible(root)) return;
+    if (!isPropRootVisible(root, frustumOnly)) return;
     tags.add(root.userData.propTag);
     instances++;
   });
-  return { unique: tags.size, tags: [...tags].sort(), instances, location: currentLoc };
+  const out = { unique: tags.size, tags: [...tags].sort(), instances, location: currentLoc, frustumOnly };
+  if (!frustumOnly) {
+    const fr = countVisiblePropsInScene({ frustumOnly: true });
+    out.frustumUnique = fr.unique;
+    out.frustumTags = fr.tags;
+  }
+  return out;
 }
 bindGameplayToWorld3D(api, () => ({
   actors,

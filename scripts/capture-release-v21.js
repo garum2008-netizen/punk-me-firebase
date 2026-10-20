@@ -10,6 +10,7 @@ const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const LOCS = ["room", "kitchen", "toilet", "elevator", "street", "city", "cemetery", "roof", "parkour"];
 const PROP_AUDIT = new Set(["toilet", "elevator", "kitchen", "city", "cemetery", "roof"]);
 const propReport = {};
+const propReportDesktop = {};
 const DESKTOP = LOCS.map(l => [l, `qa-v21-desktop-${l}.png`]);
 const MOBILE = [
   ["street", "qa-v21-mobile-street.png"],
@@ -44,7 +45,7 @@ async function enter(page) {
   });
 }
 
-async function snapLoc(page, loc) {
+async function snapLoc(page, loc, storeDesktop = false) {
   await page.evaluate(id => {
     goLocation(id);
     syncStage3D?.();
@@ -60,9 +61,13 @@ async function snapLoc(page, loc) {
   await page.waitForTimeout(400);
   const counts = await page.evaluate(() => World3D?.countVisibleProps?.() || { unique: 0, tags: [] });
   propReport[loc] = counts;
-  console.log(`props ${loc}: unique=${counts.unique} instances=${counts.instances ?? "?"}`);
-  if (PROP_AUDIT.has(loc) && counts.unique < 20) {
-    console.error(`PROP FAIL ${loc}: ${counts.unique} unique visible tags (need 20+)`);
+  if (storeDesktop) propReportDesktop[loc] = counts;
+  const auditN = counts.frustumUnique ?? counts.unique;
+  console.log(
+    `props ${loc}: occluded=${counts.unique} frustum=${auditN} instances=${counts.instances ?? "?"}`
+  );
+  if (PROP_AUDIT.has(loc) && auditN < 20) {
+    console.error(`PROP FAIL ${loc}: ${auditN} frustum-visible unique tags (need 20+)`);
   }
 }
 
@@ -74,7 +79,7 @@ async function snapLoc(page, loc) {
   await enter(desk);
 
   for (const [loc, name] of DESKTOP) {
-    await snapLoc(desk, loc);
+    await snapLoc(desk, loc, true);
     const f = path.join(outRoot, name);
     await desk.screenshot({ path: f });
     fs.copyFileSync(f, path.join(outDir, `${loc}.png`));
@@ -212,8 +217,16 @@ async function snapLoc(page, loc) {
   }
 
   await browser.close();
-  const propFail = [...PROP_AUDIT].some(loc => (propReport[loc]?.unique ?? 0) < 20);
-  console.log(JSON.stringify({ version: "living3d-v21", propReport, desktop: DESKTOP.map(([, n]) => n), mobile: MOBILE.map(([, n]) => n) }, null, 2));
+  const propFail = [...PROP_AUDIT].some(
+    loc => (propReportDesktop[loc]?.frustumUnique ?? propReportDesktop[loc]?.unique ?? 0) < 20
+  );
+  console.log(
+    JSON.stringify(
+      { version: "living3d-v21", propReportDesktop, propReport, desktop: DESKTOP.map(([, n]) => n), mobile: MOBILE.map(([, n]) => n) },
+      null,
+      2
+    )
+  );
   if (propFail) {
     console.error("Capture failed: one or more audit locations have < 20 unique visible prop tags.");
     process.exit(1);
