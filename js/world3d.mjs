@@ -472,7 +472,10 @@ function separateActors() {
 function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   const offX = isPlayer ? 0 : (actor._visPushX || 0);
   const offZ = isPlayer ? 0 : (actor._visPushZ || 0);
-  const c = clampWorld(wx + offX, wz + offZ);
+  const c =
+    isPlayer && actor._fromLocomotion
+      ? { x: wx, z: wz }
+      : clampWorld(wx + offX, wz + offZ);
   if (isPlayer) {
     actor.group.position.x = c.x;
     actor.group.position.z = c.z;
@@ -978,7 +981,9 @@ function processInput(dt) {
     const px = moved.x;
     const pz = moved.z;
     player._intentRun = motionProbe ? true : input.run;
+    player._fromLocomotion = true;
     placeActorWorld(player, px, pz, true);
+    player._fromLocomotion = false;
     player._gameSyncT = (player._gameSyncT || 0) - dt;
     if (!motionProbe && player._gameSyncT <= 0) {
       player._gameSyncT = 0.1;
@@ -1623,17 +1628,21 @@ const api = {
     const cz = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 : -1.2;
     const pickFreeSpawn = () => {
       if (!bounds) return { x: 0, z: -1.4 };
-      for (let z = bounds.minZ + 1.1; z < bounds.minZ + 3.5; z += 0.25) {
-        let clear = true;
-        for (let s = 0; s < 90; s++) {
-          const pz = z + s * 0.12;
-          if (pz > bounds.maxZ - 1.05) break;
-          if (pointInsideCollider(cx, pz, cols, 0.38)) {
-            clear = false;
-            break;
+      const xs = [];
+      for (let x = bounds.minX + 1.4; x <= bounds.maxX - 1.4; x += 0.85) xs.push(x);
+      for (const sx of xs) {
+        for (let z = bounds.minZ + 1.1; z < bounds.minZ + 3.2; z += 0.3) {
+          let clear = true;
+          for (let s = 0; s < 90; s++) {
+            const pz = z + s * 0.12;
+            if (pz > bounds.maxZ - 1.05) break;
+            if (pointInsideCollider(sx, pz, cols, 0.38)) {
+              clear = false;
+              break;
+            }
           }
+          if (clear) return resolveWorldPosition(sx, z, bounds, cols, 0.42);
         }
-        if (clear) return resolveWorldPosition(cx, z, bounds, cols, 0.42);
       }
       return findClearSpawn(bounds, cols, { x: cx, z: bounds.minZ + 1.2 });
     };
@@ -1642,7 +1651,11 @@ const api = {
     let moveZ = 1;
     const baseYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
     if (bounds && scenario === "free") {
-      spawn = pickFreeSpawn();
+      if (currentLoc === "room") {
+        spawn = resolveWorldPosition(bounds.maxX - 1.75, bounds.minZ + 1.15, bounds, cols, 0.42);
+      } else {
+        spawn = pickFreeSpawn();
+      }
       moveZ = 1;
     } else if (bounds && scenario === "wall") {
       spawn = resolveWorldPosition(cx, bounds.maxZ - 1.05, bounds, cols, 0.42);
@@ -1650,6 +1663,7 @@ const api = {
     } else if (bounds && scenario === "slide") {
       spawn = resolveWorldPosition(bounds.maxX - 1.05, bounds.minZ + 1.15, bounds, cols, 0.42);
       moveZ = 1;
+      moveX = 0;
     }
     if (pl) {
       pl._visPushX = 0;

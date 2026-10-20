@@ -725,40 +725,52 @@ export function resolveWorldPosition(x, z, bounds, colliders, radius = 0.42) {
   return clampToBoundsOnce(c.x, c.z, bounds);
 }
 
-/** Single motion sample: axis slide against bounds, then colliders (no clamp-then-step oscillation). */
-export function moveWithCollision(fromX, fromZ, dx, dz, bounds, colliders, radius = 0.42) {
-  if (Math.abs(dx) < 1e-10 && Math.abs(dz) < 1e-10) return { x: fromX, z: fromZ };
+function slideDelta(fromX, fromZ, dx, dz, colliders, radius) {
+  let mx = dx;
+  let mz = dz;
   let px = fromX;
   let pz = fromZ;
-  if (Math.abs(dx) > 1e-10) {
-    let nx = px + dx;
-    if (bounds) {
-      nx = Math.max(bounds.minX + BOUNDS_PAD, Math.min(bounds.maxX - BOUNDS_PAD, nx));
+  for (let pass = 0; pass < 5; pass++) {
+    if (Math.hypot(mx, mz) < 1e-8) break;
+    const tx = px + mx;
+    const tz = pz + mz;
+    const resolved = resolveCollidersAt(tx, tz, colliders, radius);
+    const corrX = resolved.x - tx;
+    const corrZ = resolved.z - tz;
+    if (Math.hypot(corrX, corrZ) < 1e-5) {
+      px = resolved.x;
+      pz = resolved.z;
+      break;
     }
-    const rx = resolveCollidersAt(nx, pz, colliders, radius);
-    px = rx.x;
-    pz = rx.z;
-    if (bounds) {
-      const b = clampToBoundsOnce(px, pz, bounds);
-      px = b.x;
-      pz = b.z;
-    }
-  }
-  if (Math.abs(dz) > 1e-10) {
-    let nz = pz + dz;
-    if (bounds) {
-      nz = Math.max(bounds.minZ + BOUNDS_PAD, Math.min(bounds.maxZ - BOUNDS_PAD, nz));
-    }
-    const rz = resolveCollidersAt(px, nz, colliders, radius);
-    px = rz.x;
-    pz = rz.z;
-    if (bounds) {
-      const b = clampToBoundsOnce(px, pz, bounds);
-      px = b.x;
-      pz = b.z;
-    }
+    const cl = Math.hypot(corrX, corrZ) || 1;
+    const nx = corrX / cl;
+    const nz = corrZ / cl;
+    const dot = mx * nx + mz * nz;
+    mx -= nx * dot;
+    mz -= nz * dot;
+    px = resolved.x;
+    pz = resolved.z;
   }
   return { x: px, z: pz };
+}
+
+/** Single motion sample: bounds axis clamp + collider slide (no snap-back oscillation). */
+export function moveWithCollision(fromX, fromZ, dx, dz, bounds, colliders, radius = 0.42) {
+  if (Math.abs(dx) < 1e-10 && Math.abs(dz) < 1e-10) return { x: fromX, z: fromZ };
+  let mx = dx;
+  let mz = dz;
+  if (bounds) {
+    const maxX = bounds.maxX - BOUNDS_PAD;
+    const minX = bounds.minX + BOUNDS_PAD;
+    const maxZ = bounds.maxZ - BOUNDS_PAD;
+    const minZ = bounds.minZ + BOUNDS_PAD;
+    if (fromX + mx > maxX) mx = maxX - fromX;
+    if (fromX + mx < minX) mx = minX - fromX;
+    if (fromZ + mz > maxZ) mz = maxZ - fromZ;
+    if (fromZ + mz < minZ) mz = minZ - fromZ;
+  }
+  const slid = slideDelta(fromX, fromZ, mx, mz, colliders, radius);
+  return clampToBoundsOnce(slid.x, slid.z, bounds);
 }
 
 export function findClearSpawn(bounds, colliders, preferred = { x: 0, z: -1.5 }) {
