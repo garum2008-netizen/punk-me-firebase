@@ -3,63 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PUNK ME — Банда и диалоги</title>
+<title>PUNK ME — Живая неоновая ночь</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0a0a12; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; }
   #game { width: 100vw; height: 100vh; position: relative; }
-  .room { position: absolute; inset: 0; }
-  .room img.bg { width: 100%; height: 100%; object-fit: cover; opacity: 0.85; }
-  .hotspot { position: absolute; cursor: pointer; border-radius: 50%; opacity: 0.3; background: #ff00ff; }
-  .hotspot:hover { opacity: 0.6; }
-  .player-char { position: absolute; width: 65px; height: 85px; z-index: 5; filter: drop-shadow(0 0 6px #ff00ff); }
-  .ui { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; z-index: 10; flex-wrap: wrap; }
-  .badge { background: rgba(45,10,78,0.9); padding: 6px 14px; border-radius: 20px; font-size: 14px; }
-  .panel { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; }
-  .btn { background: #ff00ff; color: #fff; border: none; padding: 10px 16px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+  .room { position: absolute; inset: 0; transition: opacity 0.4s; }
+  .room img.bg { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+  .player { position: absolute; width: 70px; height: 90px; z-index: 6; filter: drop-shadow(0 0 8px #ff00ff); transition: all 0.5s ease; cursor: pointer; }
+  .dog { position: absolute; width: 80px; height: 60px; z-index: 5; animation: wag 1.2s infinite; cursor: pointer; }
+  @keyframes wag { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(5deg); } }
+  .night-thing { position: absolute; font-size: 28px; animation: float 3s ease-in-out infinite; cursor: pointer; z-index: 4; }
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .hotspot { position: absolute; cursor: pointer; border-radius: 8px; opacity: 0.35; background: #ff00ff; transition: 0.2s; }
+  .hotspot:hover { opacity: 0.7; transform: scale(1.05); }
+  .ui { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; z-index: 20; flex-wrap: wrap; }
+  .badge { background: rgba(45,10,78,0.92); padding: 6px 14px; border-radius: 20px; font-size: 14px; }
+  .panel { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 20; flex-wrap: wrap; justify-content: center; }
+  .btn { background: #ff00ff; color: #fff; border: none; padding: 9px 14px; border-radius: 12px; font-weight: bold; cursor: pointer; }
   .btn:hover { filter: brightness(1.15); }
-  .chat { position: absolute; bottom: 80px; left: 10px; width: min(280px, 38vw); background: rgba(20,8,40,0.92); border-radius: 14px; padding: 10px; z-index: 10; }
-  .chat-messages { height: 100px; overflow-y: auto; font-size: 13px; margin-bottom: 8px; }
-  .chat input { width: 100%; padding: 8px; border: none; border-radius: 8px; background: #1a0a2e; color: #fff; }
-  .players-list { position: absolute; top: 55px; right: 10px; background: rgba(20,8,40,0.9); padding: 10px; border-radius: 12px; z-index: 10; max-width: 190px; }
-  .modal { position: absolute; inset: 12px; background: rgba(10,10,18,0.97); border: 2px solid #ff00ff; border-radius: 16px; padding: 18px; display: none; z-index: 30; overflow: auto; }
+  .chat { position: absolute; bottom: 70px; left: 10px; width: min(270px, 36vw); background: rgba(20,8,40,0.94); border-radius: 14px; padding: 8px; z-index: 20; }
+  .chat-messages { height: 90px; overflow-y: auto; font-size: 12px; margin-bottom: 6px; }
+  .chat input { width: 100%; padding: 6px; border: none; border-radius: 8px; background: #1a0a2e; color: #fff; }
+  .players-list { position: absolute; top: 50px; right: 10px; background: rgba(20,8,40,0.9); padding: 8px; border-radius: 12px; z-index: 20; max-width: 180px; font-size: 13px; }
+  .modal { position: absolute; inset: 10px; background: rgba(10,10,18,0.97); border: 2px solid #ff00ff; border-radius: 16px; padding: 16px; display: none; z-index: 40; overflow: auto; }
   .modal.active { display: block; }
-  .gang-member { display: flex; gap: 12px; background: #1a0a2e; padding: 10px; border-radius: 10px; margin: 8px 0; cursor: pointer; }
-  .gang-member img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
-  .dialog-box { background: #1a0a2e; padding: 12px; border-radius: 10px; margin: 10px 0; line-height: 1.4; }
-  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ff00ff; color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 100; opacity: 0; transition: 0.3s; }
+  .gang-member, .job-card { display: flex; gap: 10px; background: #1a0a2e; padding: 10px; border-radius: 10px; margin: 6px 0; cursor: pointer; }
+  .gang-member img, .job-card img { width: 55px; height: 55px; object-fit: cover; border-radius: 8px; }
+  .dialog-box { background: #1a0a2e; padding: 10px; border-radius: 10px; margin: 8px 0; }
+  .toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: #ff00ff; color: #000; padding: 8px 18px; border-radius: 20px; font-weight: bold; z-index: 100; opacity: 0; transition: 0.3s; }
   .toast.show { opacity: 1; }
-  .close { float: right; background: #444; color: #fff; border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+  .close { float: right; background: #444; color: #fff; border: none; padding: 5px 9px; border-radius: 8px; cursor: pointer; }
+  .exit { position: absolute; background: rgba(255,0,255,0.4); color: #fff; padding: 4px 8px; border-radius: 8px; font-size: 12px; cursor: pointer; z-index: 7; }
 </style>
 </head>
 <body>
 <div id="game">
-  <div class="room">
+  <div class="room" id="room">
     <img class="bg" id="bg" src="imagine_images/q4BXV.jpg" alt="room">
-    <img class="player-char" id="player" src="imagine_images/LTPb8.jpg" style="left:38%;top:58%;" alt="ты">
-    <div class="hotspot" style="left:48%;top:48%;width:70px;height:55px;" onclick="talkDog()" title="Пёс"></div>
-    <div class="hotspot" style="left:65%;top:35%;width:80px;height:60px;" onclick="openModal('gang')" title="Банда"></div>
+    <img class="player" id="player" src="imagine_images/LTPb8.jpg" style="left:35%;top:55%;" onclick="movePlayer()" alt="ты">
+    <img class="dog" id="dog" src="imagine_images/q4BXV.jpg" style="left:50%;top:50%;display:none;" onclick="petDog()" title="Good Boy">
+    <div id="exits"></div>
+    <div id="nightLayer"></div>
   </div>
   <div class="ui">
     <div class="badge">Монеты: <span id="coins">…</span></div>
+    <div class="badge" id="loc">Комната</div>
     <div class="badge">Онлайн: <span id="online">0</span></div>
   </div>
   <div class="players-list" id="playersList"></div>
   <div class="panel">
     <button class="btn" onclick="openModal('gang')">Банда</button>
+    <button class="btn" onclick="openModal('jobs')">Работа</button>
     <button class="btn" onclick="openModal('shop')">Магазин</button>
-    <button class="btn" onclick="doJob()">Работа</button>
+    <button class="btn" onclick="goLocation('room')">Домой</button>
+    <button class="btn" onclick="openModal('story')">Сюжет</button>
   </div>
   <div class="chat">
     <div class="chat-messages" id="chat"></div>
     <input id="msg" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')send()">
   </div>
-  <div class="modal" id="gang"><button class="close" onclick="closeModal('gang')">✕</button>
-    <h3 style="color:#0ff">Банда на улице</h3>
-    <div id="gangList"></div>
-    <div id="dialogArea"></div>
-  </div>
+  <div class="modal" id="gang"><button class="close" onclick="closeModal('gang')">✕</button><h3 style="color:#0ff">Банда</h3><div id="gangList"></div><div id="dialogArea"></div></div>
+  <div class="modal" id="jobs"><button class="close" onclick="closeModal('jobs')">✕</button><h3 style="color:#0ff">Работы</h3><div id="jobList"></div></div>
   <div class="modal" id="shop"><button class="close" onclick="closeModal('shop')">✕</button><h3 style="color:#0ff">Магазин</h3><div id="shopItems"></div></div>
+  <div class="modal" id="story"><button class="close" onclick="closeModal('story')">✕</button><h3 style="color:#0ff">Сюжет</h3><div id="storyText"></div></div>
 </div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -77,115 +84,152 @@ const FIREBASE_CONFIG = {
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
 let auth, db, uid, isOwner = false;
-let me = { name: "Панк" + Math.floor(Math.random()*99), coins: 200, owned: [], lastJob: 0 };
+let me = { name: "Панк"+Math.floor(Math.random()*99), coins: 200, owned: [], lastJob: 0 };
+let currentLoc = "room";
+const locations = {
+  room: { name: "Комната", bg: "imagine_images/q4BXV.jpg", exits: [
+    {name:"Кухня", loc:"kitchen", left:"8%", top:"20%"},
+    {name:"Туалет", loc:"toilet", left:"8%", top:"40%"},
+    {name:"Лифт", loc:"elevator", left:"82%", top:"25%"},
+    {name:"Крыша", loc:"roof", left:"82%", top:"45%"}
+  ]},
+  kitchen: { name: "Кухня", bg: "imagine_images/Lix06.jpg", exits: [{name:"Назад", loc:"room", left:"10%", top:"70%"}] },
+  toilet: { name: "Туалет", bg: "imagine_images/Oo040.jpg", exits: [{name:"Назад", loc:"room", left:"10%", top:"70%"}] },
+  elevator: { name: "Лифт", bg: "imagine_images/LTPb8.jpg", exits: [{name:"Назад", loc:"room", left:"10%", top:"70%"}, {name:"Крыша", loc:"roof", left:"70%", top:"30%"}] },
+  roof: { name: "Крыша", bg: "imagine_images/Oo040.jpg", exits: [{name:"Домой", loc:"room", left:"10%", top:"70%"}, {name:"Паркур", loc:"parkour", left:"60%", top:"40%"}] },
+  parkour: { name: "Паркур по крышам", bg: "imagine_images/Lix06.jpg", exits: [{name:"Назад", loc:"roof", left:"10%", top:"70%"}] },
+  street: { name: "Улица", bg: "imagine_images/Lix06.jpg", exits: [{name:"Домой", loc:"room", left:"10%", top:"70%"}] },
+  cemetery: { name: "Кладбище", bg: "imagine_images/Oo040.jpg", exits: [{name:"Домой", loc:"room", left:"10%", top:"70%"}] }
+};
+const jobs = [
+  {id:"grave", name:"Копать могилы", loc:"cemetery", pay:70},
+  {id:"wash", name:"Мыть ноги мертвецам", loc:"cemetery", pay:55},
+  {id:"cobweb", name:"Убирать паутину у Адамсов", loc:"street", pay:65},
+  {id:"parkour", name:"Паркур по крышам", loc:"parkour", pay:80}
+];
 const gang = [
-  { id: "pink", name: "Розовый", img: "imagine_images/LTPb8.jpg", lines: [
-    "Йо, новенький! Неоновая ночь только начинается.",
-    "Видел банду на улице? Они ждут, пока ты наберёшь цепи.",
-    "Пёс в комнате — хороший знак. Гладь его чаще."
-  ]},
-  { id: "green", name: "Зелёный", img: "imagine_images/Lix06.jpg", lines: [
-    "Pet Shop открыт. Призраки сегодня спокойные.",
-    "Хочешь на крышу? Сначала докажи, что свой.",
-    "Монеты копятся быстро, если не ленишься."
-  ]},
-  { id: "purple", name: "Фиолетовый", img: "imagine_images/Oo040.jpg", lines: [
-    "На кладбище написано NOT DEAD YET. Это про нас.",
-    "Цепи — ключ к улице. Без них банда не пустит.",
-    "Ночью коты и полиция гуляют. Смотри внимательно."
-  ]}
+  {id:"pink", name:"Розовый", img:"imagine_images/LTPb8.jpg", lines:["Йо! Неоновая ночь только началась.","Пёс — твой лучший друг.","Цепи открывают улицу."]},
+  {id:"green", name:"Зелёный", img:"imagine_images/Lix06.jpg", lines:["Pet Shop работает. Призраки спокойные.","На крыше можно прыгать.","Монеты сами не придут."]},
+  {id:"purple", name:"Фиолетовый", img:"imagine_images/Oo040.jpg", lines:["NOT DEAD YET — наш девиз.","Ночью коты и полиция гуляют.","До кладбища ещё далеко."]}
 ];
 const shopItems = [
-  { id:"jacket", name:"Неоновая куртка", price:250, img:"imagine_images/LTPb8.jpg" },
-  { id:"chains", name:"Цепи", price:150, img:"imagine_images/Lix06.jpg" },
-  { id:"pet", name:"Питомец", price:350, img:"imagine_images/q4BXV.jpg" }
+  {id:"jacket", name:"Неоновая куртка", price:250, img:"imagine_images/LTPb8.jpg"},
+  {id:"chains", name:"Цепи", price:150, img:"imagine_images/Lix06.jpg"},
+  {id:"pet", name:"Питомец (живой)", price:350, img:"imagine_images/q4BXV.jpg"}
 ];
-function toast(msg) {
-  const t = document.getElementById("toast");
-  t.textContent = msg; t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 1800);
-}
-function init() {
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800);}
+function init(){
   firebase.initializeApp(FIREBASE_CONFIG);
-  auth = firebase.auth(); db = firebase.database();
-  auth.onAuthStateChanged(u => {
-    if (u) { uid = u.uid; isOwner = u.email === OWNER_EMAIL && u.emailVerified; loadMe(); listenPlayers(); listenChat(); }
-    else auth.signInAnonymously().catch(e => alert(e.message));
+  auth=firebase.auth();db=firebase.database();
+  auth.onAuthStateChanged(u=>{
+    if(u){uid=u.uid;isOwner=u.email===OWNER_EMAIL&&u.emailVerified;loadMe();listenPlayers();listenChat();}
+    else auth.signInAnonymously().catch(e=>alert(e.message));
   });
 }
-function loadMe() {
-  db.ref("players/"+uid).once("value").then(s => {
-    if (s.exists()) me = {...me, ...s.val()};
-    me.lastSeen = Date.now(); saveMe(); updateUI();
+function loadMe(){
+  db.ref("players/"+uid).once("value").then(s=>{
+    if(s.exists()) me={...me,...s.val()};
+    me.lastSeen=Date.now();saveMe();updateUI();goLocation("room");
   });
 }
-function saveMe() { if (uid) db.ref("players/"+uid).update({name:me.name, coins:me.coins, owned:me.owned, owner:isOwner, lastSeen:Date.now()}); }
-function listenPlayers() {
-  db.ref("players").on("value", s => {
-    const p = s.val() || {};
-    document.getElementById("online").textContent = Object.keys(p).length;
-    document.getElementById("playersList").innerHTML = Object.values(p).map(x => `<div>● ${escapeHtml(x.name)}</div>`).join("");
-  });
-}
-function listenChat() {
-  db.ref("chat").limitToLast(20).on("child_added", s => {
-    const m = s.val();
-    document.getElementById("chat").innerHTML += `<div><b>${escapeHtml(m.name)}:</b> ${escapeHtml(m.text)}</div>`;
-    document.getElementById("chat").scrollTop = 9999;
-  });
-}
+function saveMe(){if(uid)db.ref("players/"+uid).update({name:me.name,coins:me.coins,owned:me.owned,owner:isOwner,lastSeen:Date.now()});}
+function listenPlayers(){db.ref("players").on("value",s=>{const p=s.val()||{};document.getElementById("online").textContent=Object.keys(p).length;document.getElementById("playersList").innerHTML=Object.values(p).map(x=>`● ${escapeHtml(x.name)}`).join("<br>");});}
+function listenChat(){db.ref("chat").limitToLast(15).on("child_added",s=>{const m=s.val();document.getElementById("chat").innerHTML+=`<div><b>${escapeHtml(m.name)}:</b> ${escapeHtml(m.text)}</div>`;document.getElementById("chat").scrollTop=9999;});}
 function escapeHtml(s){return String(s||"").replace(/[&<>]/g,c=>({'&':'&','<':'<','>':'>'}[c]));}
-function updateUI() { document.getElementById("coins").textContent = isOwner ? "∞" : me.coins; }
-function openModal(id) {
+function updateUI(){document.getElementById("coins").textContent=isOwner?"∞":me.coins;document.getElementById("dog").style.display=me.owned.includes("pet")?"block":"none";}
+function goLocation(loc){
+  currentLoc=loc;
+  const L=locations[loc];
+  document.getElementById("bg").src=L.bg;
+  document.getElementById("loc").textContent=L.name;
+  const exits=document.getElementById("exits");
+  exits.innerHTML=L.exits.map(e=>`<div class="exit" style="left:${e.left};top:${e.top};" onclick="goLocation('${e.loc}')">${e.name}</div>`).join("");
+  renderNight();
+  toast("Локация: "+L.name);
+}
+function renderNight(){
+  const layer=document.getElementById("nightLayer");
+  layer.innerHTML="";
+  if(["roof","parkour","street","cemetery"].includes(currentLoc)){
+    layer.innerHTML=`<div class="night-thing" style="left:20%;top:30%;" onclick="nightAction('cat')">🐱</div>
+                     <div class="night-thing" style="left:60%;top:25%;" onclick="nightAction('police')">🚓</div>
+                     <div class="night-thing" style="left:40%;top:60%;" onclick="nightAction('trash')">🗑️</div>
+                     <div class="night-thing" style="left:75%;top:40%;" onclick="nightAction('light')">💡</div>`;
+  }
+}
+function nightAction(what){
+  const msgs={cat:"Кот мяукнул и убежал +5",police:"Полиция проехала мимо +3",trash:"Нашёл монету в мусоре +8",light:"Неоновый огонь мигнул +4"};
+  const gain=what==="trash"?8:what==="cat"?5:4;
+  if(!isOwner) me.coins+=gain;
+  saveMe();updateUI();toast(msgs[what]);
+}
+function movePlayer(){
+  const p=document.getElementById("player");
+  p.style.left=(30+Math.random()*40)+"%";
+  p.style.top=(40+Math.random()*30)+"%";
+}
+function petDog(){
+  if(!me.owned.includes("pet")){toast("Сначала купи питомца");return;}
+  const gain=Math.floor(Math.random()*8)+4;
+  if(!isOwner) me.coins+=gain;
+  saveMe();updateUI();toast("Пёс доволен! +"+gain);
+}
+function openModal(id){
   document.getElementById(id).classList.add("active");
-  if (id === "gang") renderGang();
-  if (id === "shop") renderShop();
+  if(id==="gang") renderGang();
+  if(id==="jobs") renderJobs();
+  if(id==="shop") renderShop();
+  if(id==="story") document.getElementById("storyText").innerHTML="<p>Ты — панк в неоновой ночи. Обустрой комнату, купи живого пса, выйди через лифт на крышу, поговори с бандой, выполни работы (копай могилы, убирай паутину у Адамсов, прыгай паркур) и доберись до кладбища. Ночью встречаются коты, полиция, мусор и огни.</p>";
 }
-function closeModal(id){ document.getElementById(id).classList.remove("active"); }
-function renderGang() {
-  document.getElementById("gangList").innerHTML = gang.map(g => `
-    <div class="gang-member" onclick="talk('${g.id}')">
-      <img src="${g.img}"><div><b>${g.name}</b><br><small>Нажми, чтобы поговорить</small></div>
-    </div>`).join("");
-  document.getElementById("dialogArea").innerHTML = "<p style='opacity:.7'>Выбери кого-нибудь из банды</p>";
+function closeModal(id){document.getElementById(id).classList.remove("active");}
+function renderGang(){
+  document.getElementById("gangList").innerHTML=gang.map(g=>`<div class="gang-member" onclick="talk('${g.id}')"><img src="${g.img}"><div><b>${g.name}</b><br><small>Поговорить</small></div></div>`).join("");
+  document.getElementById("dialogArea").innerHTML="<p style='opacity:.7'>Выбери персонажа</p>";
 }
-function talk(id) {
-  const member = gang.find(g => g.id === id);
-  const line = member.lines[Math.floor(Math.random() * member.lines.length)];
-  document.getElementById("dialogArea").innerHTML = `<div class="dialog-box"><b>${member.name}:</b> ${line}</div>`;
-  toast(member.name + " говорит...");
+function talk(id){
+  const m=gang.find(g=>g.id===id);
+  const line=m.lines[Math.floor(Math.random()*m.lines.length)];
+  document.getElementById("dialogArea").innerHTML=`<div class="dialog-box"><b>${m.name}:</b> ${line}</div>`;
 }
-function talkDog() { toast("Пёс виляет хвостом и даёт +" + (Math.floor(Math.random()*8)+2) + " монет"); if (!isOwner) { me.coins += 5; saveMe(); updateUI(); } }
-function renderShop() {
-  document.getElementById("shopItems").innerHTML = shopItems.map(it => {
-    const own = me.owned.includes(it.id);
-    return `<div style="background:#1a0a2e;padding:8px;border-radius:8px;margin:6px 0">
-      <img src="${it.img}" style="width:100%;height:50px;object-fit:cover;border-radius:6px"><br>${it.name} — ${isOwner?"FREE":it.price}
-      <button class="btn" style="margin-top:6px" ${own?"disabled":""} onclick="buy('${it.id}')">${own?"Есть":"Купить"}</button></div>`;
+function renderJobs(){
+  document.getElementById("jobList").innerHTML=jobs.map(j=>`<div class="job-card" onclick="startJob('${j.id}')"><div><b>${j.name}</b><br>+${j.pay} монет</div></div>`).join("");
+}
+function startJob(id){
+  const now=Date.now();
+  if(!isOwner&&now-(me.lastJob||0)<15000){toast("Подожди");return;}
+  const j=jobs.find(x=>x.id===id);
+  goLocation(j.loc);
+  closeModal("jobs");
+  setTimeout(()=>{
+    const gain=j.pay+Math.floor(Math.random()*15);
+    if(!isOwner) me.coins+=gain;
+    me.lastJob=Date.now();saveMe();updateUI();
+    toast(j.name+" завершено! +"+gain);
+    setTimeout(()=>goLocation("room"),1500);
+  },800);
+}
+function renderShop(){
+  document.getElementById("shopItems").innerHTML=shopItems.map(it=>{
+    const own=me.owned.includes(it.id);
+    return `<div style="background:#1a0a2e;padding:8px;border-radius:8px;margin:6px 0"><img src="${it.img}" style="width:100%;height:50px;object-fit:cover;border-radius:6px"><br>${it.name} — ${isOwner?"FREE":it.price}<br><button class="btn" ${own?"disabled":""} onclick="buy('${it.id}')">${own?"Есть":"Купить"}</button></div>`;
   }).join("");
 }
-function buy(id) {
-  const it = shopItems.find(x=>x.id===id);
-  if (!it || me.owned.includes(id)) return;
-  if (!isOwner && me.coins < it.price) { toast("Не хватает монет"); return; }
-  if (!isOwner) me.coins -= it.price;
-  me.owned.push(id); saveMe(); updateUI(); toast("Куплено: " + it.name); openModal("shop");
+function buy(id){
+  const it=shopItems.find(x=>x.id===id);
+  if(!it||me.owned.includes(id))return;
+  if(!isOwner&&me.coins<it.price){toast("Не хватает");return;}
+  if(!isOwner) me.coins-=it.price;
+  me.owned.push(id);saveMe();updateUI();toast("Куплено: "+it.name);openModal("shop");
+  if(id==="pet") document.getElementById("dog").style.display="block";
 }
-function doJob() {
-  const now = Date.now();
-  if (!isOwner && now - (me.lastJob||0) < 20000) { toast("Подожди"); return; }
-  const gain = 55 + Math.floor(Math.random()*20);
-  if (!isOwner) me.coins += gain;
-  me.lastJob = now; saveMe(); updateUI(); toast("Заработал(а) +" + gain); 
+function send(){
+  const t=document.getElementById("msg").value.trim();
+  if(!t)return;
+  db.ref("chat").push({name:me.name,text:t,time:Date.now()});
+  document.getElementById("msg").value="";
 }
-function send() {
-  const t = document.getElementById("msg").value.trim();
-  if (!t) return;
-  db.ref("chat").push({name:me.name, text:t, time:Date.now()});
-  document.getElementById("msg").value = "";
-}
-setInterval(updateUI, 1000);
-document.addEventListener("DOMContentLoaded", init);
+setInterval(updateUI,1000);
+document.addEventListener("DOMContentLoaded",init);
 </script>
 </body>
 </html>
