@@ -13,7 +13,8 @@ import {
   addAmpStack,
   addBats,
   addTvFlicker,
-  addSpinningVinyl,
+  addTurntableOnDesk,
+  addBeanbag,
   addRoofDressing,
   addParkourDressing,
   addCemeteryDressing,
@@ -196,18 +197,40 @@ function neonSign(text, color = 0xff00ff, opts = {}) {
 }
 
 function portalMesh(label, portalX = 0, portalZ = 0) {
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.85, 0.07, 8, 24),
-    new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 1.1, metalness: 0.35 })
-  );
-  ring.rotation.x = Math.PI / 2;
-  const sign = neonSign(label, 0x00ffff, { frontSide: true });
-  sign.position.y = 1.5;
-  sign.scale.set(0.5, 0.5, 1);
-  sign.rotation.y = Math.atan2(-portalX, -portalZ);
   const g = new THREE.Group();
-  g.add(ring);
-  g.add(sign);
+  const metal = new THREE.MeshStandardMaterial({ color: 0x556677, metalness: 0.72, roughness: 0.38 });
+  const neon = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 1.15 });
+  const mat = new THREE.Mesh(
+    new THREE.BoxGeometry(1.35, 0.04, 0.85),
+    new THREE.MeshStandardMaterial({ color: 0x1a2030, emissive: 0x003344, emissiveIntensity: 0.35 })
+  );
+  mat.position.y = 0.02;
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.06, 0.92), neon);
+  trim.position.y = 0.05;
+  const frameL = wall(0.1, 2.15, 0.12, metal);
+  frameL.position.set(-0.62, 1.08, 0);
+  const frameR = frameL.clone();
+  frameR.position.x = 0.62;
+  const lintel = wall(1.34, 0.1, 0.12, metal);
+  lintel.position.set(0, 2.18, 0);
+  const lamp = new THREE.Group();
+  lamp.position.set(0.95, 0, 0.35);
+  const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.05, 12), metal);
+  lampBase.position.y = 0.025;
+  const lampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.05, 8), metal);
+  lampPole.position.y = 0.55;
+  const lampRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.18, 0.025, 8, 20),
+    new THREE.MeshStandardMaterial({ color: 0xff66ff, emissive: 0xff66ff, emissiveIntensity: 1.25 })
+  );
+  lampRing.rotation.x = Math.PI / 2;
+  lampRing.position.y = 1.08;
+  lamp.add(lampBase, lampPole, lampRing);
+  const sign = neonSign(label, 0x00ffff, { frontSide: true });
+  sign.position.y = 1.65;
+  sign.scale.set(0.45, 0.45, 1);
+  sign.rotation.y = Math.atan2(-portalX, -portalZ);
+  g.add(mat, trim, frameL, frameR, lintel, lamp, sign);
   return g;
 }
 
@@ -330,12 +353,13 @@ export function buildLocationScene(locId, texLoader) {
     sign.position.set(3.8, 2.6, -5.65);
     root.add(sign);
     addSofa(root, -1, 3.2, colliders);
+    addBeanbag(root, 0.35, 3.05);
     addNeonTube(root, -4, 2.8, -5.5, 2.5, 0xff00ff);
     addNeonTube(root, 4, 2.5, -5.5, 2, 0x00ffff);
     addPumpkin(root, 4.5, 2.5, colliders);
     addFloatingGhost(root);
     addTvFlicker(root, -3.8, 1.1, -5.5);
-    addSpinningVinyl(root, 3.5, 0.78, -0.5);
+    addTurntableOnDesk(root, 3.2, 0.76, -1);
     props.cats.push(buildCat(-2, -2, 0x5533aa));
     addLights(root, [
       { type: "point", color: 0xff66ff, intensity: 4.2, x: -2, y: 2.8, z: 1 },

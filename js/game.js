@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v8";
+const GAME_VERSION = "living3d-v9";
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
 
@@ -949,7 +949,7 @@ function renderQuest() {
     document.getElementById("questBox").innerHTML =
       `<div class="quest-tracker"><b>${escapeHtml(t("onboard_title"))}</b>
        <div class="quest-step-title">${escapeHtml(t("onboard_all_done"))}</div>
-       <div class="quest-step-text">${escapeHtml(QUESTS.intro.text)}</div></div>`;
+       <div class="quest-step-text">${escapeHtml(questText("intro"))}</div></div>`;
     return;
   }
   const q = QUESTS[qid];

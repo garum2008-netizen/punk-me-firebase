@@ -206,16 +206,99 @@ export function addTvFlicker(root, x, y, z) {
   root.add(tv);
 }
 
-export function addSpinningVinyl(root, x, y, z) {
+export function addTurntableOnDesk(root, x, y, z) {
   const g = new THREE.Group();
   g.position.set(x, y, z);
+  const plinth = wall(0.55, 0.08, 0.42, new THREE.MeshStandardMaterial({ color: 0x222228 }));
+  plinth.position.y = 0.04;
   const disc = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.22, 0.02, 24),
-    new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0xff00ff, emissiveIntensity: 0.25 })
+    new THREE.CylinderGeometry(0.2, 0.2, 0.018, 24),
+    new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x331133, emissiveIntensity: 0.2 })
   );
-  disc.rotation.x = Math.PI / 2;
-  disc.userData.spin = 1.4;
-  g.add(disc);
+  disc.position.y = 0.1;
+  disc.userData.spin = 1.2;
+  const arm = wall(0.04, 0.04, 0.22, new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.6 }));
+  arm.position.set(0.18, 0.12, 0);
+  g.add(plinth, disc, arm);
+  root.add(g);
+}
+
+export function addBeanbag(root, x, z) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x6a28a8, roughness: 0.88 });
+  const bag = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), mat);
+  bag.scale.set(1.1, 0.72, 1);
+  bag.position.y = 0.28;
+  g.add(bag);
+  g.position.set(x, 0, z);
+  root.add(g);
+}
+
+function buildLowPolyCar(color, emissive = 0x000000) {
+  const g = new THREE.Group();
+  const paint = new THREE.MeshStandardMaterial({ color, metalness: 0.55, roughness: 0.32, emissive, emissiveIntensity: emissive ? 0.12 : 0 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x99bbdd, metalness: 0.15, roughness: 0.08, transparent: true, opacity: 0.72 });
+  const tire = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.92 });
+  const body = wall(1.85, 0.44, 0.95, paint);
+  body.position.y = 0.4;
+  const cabin = wall(0.9, 0.4, 0.86, glass);
+  cabin.position.set(-0.12, 0.76, 0);
+  const bumper = wall(1.9, 0.12, 0.98, new THREE.MeshStandardMaterial({ color: 0x222228, metalness: 0.7 }));
+  bumper.position.y = 0.18;
+  const wheelGeo = new THREE.CylinderGeometry(0.19, 0.19, 0.15, 12);
+  [[-0.58, 0.19, 0.4], [-0.58, 0.19, -0.4], [0.58, 0.19, 0.4], [0.58, 0.19, -0.4]].forEach(p => {
+    const w = new THREE.Mesh(wheelGeo, tire);
+    w.rotation.z = Math.PI / 2;
+    w.position.set(...p);
+    g.add(w);
+  });
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.09, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffffdd, emissive: 0xffffaa, emissiveIntensity: 1.3 })
+  );
+  head.position.set(0.95, 0.44, 0.3);
+  const head2 = head.clone();
+  head2.position.z = -0.3;
+  g.add(body, cabin, bumper, head, head2);
+  return g;
+}
+
+function addPedestrian(root, x, z, rotY, coatColor) {
+  const g = new THREE.Group();
+  const cloth = new THREE.MeshStandardMaterial({ color: coatColor, roughness: 0.75 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xd4a574, roughness: 0.8 });
+  const legs = wall(0.14, 0.55, 0.14, new THREE.MeshStandardMaterial({ color: 0x222233 }));
+  legs.position.set(0, 0.28, 0);
+  const torso = wall(0.32, 0.5, 0.22, cloth);
+  torso.position.y = 0.78;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), skin);
+  head.position.y = 1.12;
+  g.add(legs, torso, head);
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+  g.userData.pedestrian = true;
+  root.add(g);
+}
+
+function addTrafficLight(root, x, z) {
+  const g = new THREE.Group();
+  const pole = wall(0.1, 3.4, 0.1, new THREE.MeshStandardMaterial({ color: 0x333344, metalness: 0.6 }));
+  pole.position.y = 1.7;
+  const box = wall(0.28, 0.75, 0.22, new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.5 }));
+  box.position.y = 3.15;
+  const colors = [0xff2222, 0xffcc22, 0x22ff66];
+  colors.forEach((c, i) => {
+    const lens = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 8, 8),
+      new THREE.MeshStandardMaterial({
+        color: c, emissive: c, emissiveIntensity: i === 0 ? 1.4 : 0.25
+      })
+    );
+    lens.position.set(0, 3.35 - i * 0.22, 0.12);
+    g.add(lens);
+  });
+  g.add(pole, box);
+  g.position.set(x, 0, z);
   root.add(g);
 }
 
@@ -383,6 +466,13 @@ export function addCemeteryDressing(root, helpers) {
 
 export function addCityDressing(root, helpers) {
   const { wall, neonSign, addNeonTube, colliders, pushCollider } = helpers;
+  const asphalt = new THREE.Mesh(
+    new THREE.PlaneGeometry(8, 16),
+    new THREE.MeshStandardMaterial({ color: 0x2a2a32, roughness: 0.92 })
+  );
+  asphalt.rotation.x = -Math.PI / 2;
+  asphalt.position.set(0, 0.008, 1);
+  root.add(asphalt);
   for (let i = -2; i <= 2; i++) {
     const h = 5 + Math.abs(i) * 1.2;
     const facade = wall(5, h, 0.4, new THREE.MeshStandardMaterial({
@@ -391,12 +481,23 @@ export function addCityDressing(root, helpers) {
     facade.position.set(i * 6, h / 2, -8.5);
     facade.userData.cameraOccluder = true;
     root.add(facade);
-    for (let w = 0; w < 4; w++) {
+    const shop = wall(3.8, 1.35, 0.15, new THREE.MeshStandardMaterial({ color: 0x3a3548 }));
+    shop.position.set(i * 6, 0.68, -8.2);
+    root.add(shop);
+    for (let w = 0; w < 3; w++) {
       const win = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.55, 0.7),
-        new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffaa66, emissiveIntensity: 1 })
+        new THREE.PlaneGeometry(0.65, 0.85),
+        new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffaa66, emissiveIntensity: 1.15 })
       );
-      win.position.set(i * 6 + (w - 1.5) * 0.9, 1.4 + w * 1.1, -8.25);
+      win.position.set(i * 6 + (w - 1) * 1.05, 0.95, -8.12);
+      root.add(win);
+    }
+    for (let w = 0; w < 2; w++) {
+      const win = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.5, 0.55),
+        new THREE.MeshStandardMaterial({ color: 0xaaccff, emissive: 0x6688ff, emissiveIntensity: 0.85 })
+      );
+      win.position.set(i * 6 + (w - 0.5) * 1.1, 2.2 + w * 0.9, -8.12);
       root.add(win);
     }
   }
@@ -416,32 +517,95 @@ export function addCityDressing(root, helpers) {
     lamp.position.set(i * 2.8, 0, 3.5);
     root.add(lamp);
   }
-  const cross = wall(3.5, 0.06, 0.8, new THREE.MeshStandardMaterial({ color: 0xeeeeee, emissive: 0xffffff, emissiveIntensity: 0.5 }));
-  cross.position.set(0, 0.03, 2);
-  root.add(cross);
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, emissive: 0xffffff, emissiveIntensity: 0.35 });
+  for (let s = -4; s <= 4; s++) {
+    const stripe = wall(0.35, 0.04, 0.12, stripeMat);
+    stripe.position.set(s * 0.42, 0.025, 2.05);
+    root.add(stripe);
+  }
   const hydrant = wall(0.35, 0.55, 0.35, new THREE.MeshStandardMaterial({ color: 0xcc2222 }));
   hydrant.position.set(-3, 0.28, 1.5);
   root.add(hydrant);
-  const bench = wall(1.8, 0.35, 0.55, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
-  bench.position.set(4, 0.18, 2.2);
-  root.add(bench);
+  const benchSeat = wall(1.8, 0.08, 0.55, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
+  benchSeat.position.set(4, 0.42, 2.2);
+  const benchLegL = wall(0.08, 0.42, 0.5, benchSeat.material);
+  benchLegL.position.set(3.2, 0.21, 2.2);
+  const benchLegR = benchLegL.clone();
+  benchLegR.position.x = 4.8;
+  root.add(benchSeat, benchLegL, benchLegR);
   pushCollider(colliders, 4, 2.2, 0.9, 0.3);
-  const car = wall(2.2, 0.65, 1, new THREE.MeshStandardMaterial({ color: 0x2244aa, metalness: 0.5 }));
-  car.position.set(-5, 0.33, -1);
-  root.add(car);
-  pushCollider(colliders, -5, -1, 1.1, 0.5);
+  const can = wall(0.45, 0.75, 0.45, new THREE.MeshStandardMaterial({ color: 0x3a4a55, metalness: 0.55 }));
+  can.position.set(-1.5, 0.38, 3.8);
+  const canLid = wall(0.48, 0.06, 0.48, new THREE.MeshStandardMaterial({ color: 0x556677, metalness: 0.65 }));
+  canLid.position.set(-1.5, 0.78, 3.8);
+  root.add(can, canLid);
+  pushCollider(colliders, -1.5, 3.8, 0.28, 0.28);
+  addTrafficLight(root, 2.2, 3.2);
+  const carA = buildLowPolyCar(0x2244aa);
+  carA.position.set(-5.5, 0, -0.8);
+  carA.rotation.y = 0.35;
+  root.add(carA);
+  pushCollider(colliders, -5.5, -0.8, 1.1, 0.55);
+  const carB = buildLowPolyCar(0xcc3333, 0x440000);
+  carB.position.set(5, 0, 0.5);
+  carB.rotation.y = -1.1;
+  root.add(carB);
+  pushCollider(colliders, 5, 0.5, 1.1, 0.55);
+  addPedestrian(root, -2, -2.5, 0.6, 0x445588);
+  addPedestrian(root, 1.2, -3.2, -0.4, 0x884455);
+  addPedestrian(root, 6.5, 2, -1.2, 0x556644);
   addNeonTube(root, 0, 3.5, -6, 4, 0xff00ff);
 }
 
 export function addKitchenDressing(root, helpers) {
   const { wall, colliders, pushCollider } = helpers;
+  const fridge = new THREE.Group();
+  const fridgeBody = wall(0.85, 2.05, 0.72, new THREE.MeshStandardMaterial({ color: 0xe8ecef, metalness: 0.35, roughness: 0.4 }));
+  fridgeBody.position.y = 1.02;
+  const fridgeDoor = wall(0.82, 0.95, 0.04, new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: 0.4 }));
+  fridgeDoor.position.set(0, 1.55, 0.38);
+  const freezer = wall(0.82, 0.55, 0.04, fridgeDoor.material);
+  freezer.position.set(0, 0.72, 0.38);
+  const handle = wall(0.06, 0.35, 0.05, new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.75 }));
+  handle.position.set(0.32, 1.45, 0.42);
+  const handle2 = handle.clone();
+  handle2.position.y = 0.72;
+  handle2.scale.y = 0.65;
+  fridge.add(fridgeBody, fridgeDoor, freezer, handle, handle2);
+  fridge.position.set(-5.2, 0, -3.8);
+  root.add(fridge);
+  pushCollider(colliders, -5.2, -3.8, 0.45, 0.38);
   const stove = wall(1.1, 0.9, 0.65, new THREE.MeshStandardMaterial({ color: 0x333338, metalness: 0.5 }));
   stove.position.set(2.5, 0.45, -4);
   root.add(stove);
   pushCollider(colliders, 2.5, -4, 0.55, 0.35);
+  for (let b = 0; b < 4; b++) {
+    const burner = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.1, 0.03, 12),
+      new THREE.MeshStandardMaterial({ color: 0x222228, metalness: 0.7 })
+    );
+    burner.position.set(2.15 + (b % 2) * 0.45, 0.92, -4.15 + Math.floor(b / 2) * 0.35);
+    root.add(burner);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.08, 0.012, 6, 16),
+      new THREE.MeshStandardMaterial({ color: 0xff4422, emissive: 0xff2200, emissiveIntensity: b === 1 ? 0.9 : 0.35 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.copy(burner.position);
+    ring.position.y += 0.02;
+    root.add(ring);
+  }
   const hood = wall(1.2, 0.15, 0.7, new THREE.MeshStandardMaterial({ color: 0x888899 }));
   hood.position.set(2.5, 1.35, -4);
   root.add(hood);
+  for (let c = 0; c < 3; c++) {
+    const cab = wall(0.95, 0.55, 0.32, new THREE.MeshStandardMaterial({ color: 0x6a5040 }));
+    cab.position.set(-5.5 + c * 1.05, 2.35, -4.55);
+    root.add(cab);
+    const cabDoor = wall(0.88, 0.48, 0.03, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
+    cabDoor.position.set(cab.position.x, 2.32, -4.38);
+    root.add(cabDoor);
+  }
   const shelves = wall(3.5, 0.12, 0.35, new THREE.MeshStandardMaterial({ color: 0x6a5040 }));
   shelves.position.set(-4, 2.1, -4.6);
   root.add(shelves);
@@ -453,9 +617,18 @@ export function addKitchenDressing(root, helpers) {
     jar.position.set(-4.8 + j * 0.45, 2.35, -4.55);
     root.add(jar);
   }
-  const sinkBasin = wall(0.9, 0.25, 0.55, new THREE.MeshStandardMaterial({ color: 0x99aabb, metalness: 0.4 }));
-  sinkBasin.position.set(-2.5, 0.72, -4.1);
-  root.add(sinkBasin);
+  const sinkUnit = new THREE.Group();
+  const sinkCab = wall(1.2, 0.85, 0.55, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
+  sinkCab.position.y = 0.42;
+  const sinkBasin = wall(0.75, 0.22, 0.45, new THREE.MeshStandardMaterial({ color: 0x99aabb, metalness: 0.55 }));
+  sinkBasin.position.set(0, 0.88, 0.05);
+  const faucet = wall(0.06, 0.22, 0.06, new THREE.MeshStandardMaterial({ color: 0xbbbbcc, metalness: 0.85 }));
+  faucet.position.set(0, 1.02, -0.12);
+  const spout = wall(0.18, 0.04, 0.04, faucet.material);
+  spout.position.set(0, 1.08, -0.02);
+  sinkUnit.add(sinkCab, sinkBasin, faucet, spout);
+  sinkUnit.position.set(-2.5, 0, -4.1);
+  root.add(sinkUnit);
   for (let c = 0; c < 3; c++) {
     const chair = wall(0.45, 0.55, 0.45, new THREE.MeshStandardMaterial({ color: 0x4a3020 }));
     chair.position.set(-0.8 + c * 0.9, 0.28, 2.2);
@@ -496,15 +669,27 @@ export function addKitchenDressing(root, helpers) {
 
 export function addElevatorDressing(root, helpers) {
   const { wall, neonSign, colliders, pushCollider } = helpers;
-  const doors = wall(2.4, 2.5, 0.08, new THREE.MeshStandardMaterial({
-    color: 0x99aabb, metalness: 0.75, roughness: 0.35
-  }));
-  doors.position.set(0, 1.25, 4.15);
-  root.add(doors);
+  const doorMat = new THREE.MeshStandardMaterial({
+    color: 0x99aabb, metalness: 0.82, roughness: 0.28
+  });
+  const doorL = wall(1.15, 2.5, 0.06, doorMat);
+  doorL.position.set(-0.58, 1.25, 4.12);
+  const doorR = doorL.clone();
+  doorR.position.x = 0.58;
+  const seam = wall(0.04, 2.45, 0.02, new THREE.MeshStandardMaterial({ color: 0x222228 }));
+  seam.position.set(0, 1.25, 4.14);
+  const frame = wall(2.55, 2.65, 0.12, new THREE.MeshStandardMaterial({ color: 0x666677, metalness: 0.7 }));
+  frame.position.set(0, 1.32, 4.08);
+  root.add(doorL, doorR, seam, frame);
   pushCollider(colliders, 0, 4.15, 1.2, 0.06);
-  const panel = wall(0.35, 0.9, 0.08, new THREE.MeshStandardMaterial({ color: 0x222228 }));
+  const panel = wall(0.35, 0.9, 0.08, new THREE.MeshStandardMaterial({ color: 0x222228, metalness: 0.4 }));
   panel.position.set(3.8, 1.4, 3.5);
   root.add(panel);
+  const panelGlow = wall(0.32, 0.82, 0.02, new THREE.MeshStandardMaterial({
+    color: 0x112233, emissive: 0x003344, emissiveIntensity: 0.5
+  }));
+  panelGlow.position.set(3.8, 1.4, 3.46);
+  root.add(panelGlow);
   ["3", "2", "1"].forEach((n, i) => {
     const btn = new THREE.Mesh(
       new THREE.BoxGeometry(0.12, 0.12, 0.03),
@@ -526,7 +711,11 @@ export function addElevatorDressing(root, helpers) {
   root.add(mirror);
   const rail = wall(2.8, 0.06, 0.06, new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.7 }));
   rail.position.set(0, 1, -3.8);
-  root.add(rail);
+  const railPostL = wall(0.06, 0.9, 0.06, rail.material);
+  railPostL.position.set(-1.35, 0.55, -3.8);
+  const railPostR = railPostL.clone();
+  railPostR.position.x = 1.35;
+  root.add(rail, railPostL, railPostR);
   const ceil = new THREE.Mesh(
     new THREE.PlaneGeometry(8, 8),
     new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffffcc, emissiveIntensity: 0.35 })

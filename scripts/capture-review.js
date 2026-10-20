@@ -4,7 +4,6 @@ const out = "/opt/cursor/artifacts";
 fs.mkdirSync(out, { recursive: true });
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const HOWTO_KEY = "punkme_howto_seen";
-const LOCS = ["room", "street", "cemetery", "city", "kitchen", "elevator"];
 
 async function prep(page) {
   await page.addInitScript(k => { try { localStorage.setItem(k, "1"); } catch (e) {} }, HOWTO_KEY);
@@ -21,6 +20,7 @@ async function enter(page) {
   await page.waitForFunction(() => window.World3D?.isReady?.(), { timeout: 120000 });
   await page.evaluate(() => {
     document.getElementById("howToOverlay")?.classList.remove("active");
+    if (typeof setLanguage === "function") setLanguage("en", true);
     if (!window.me) return;
     me.owned = me.owned || [];
     if (!me.owned.includes("pet_dog")) me.owned.push("pet_dog");
@@ -32,13 +32,21 @@ async function enter(page) {
   await page.waitForTimeout(1000);
 }
 
-async function snap(page) {
-  await page.evaluate(() => {
-    me.x = 50; me.y = 50;
-    syncStage3D?.();
-    World3D?.snapScreenshotView?.();
-  });
-  await page.waitForTimeout(400);
+async function snap(page, useDogCloseup) {
+  if (useDogCloseup) {
+    await page.evaluate(async () => {
+      syncStage3D?.();
+      World3D?.captureDogCloseup?.();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    });
+  } else {
+    await page.evaluate(() => {
+      me.x = 50; me.y = 50;
+      syncStage3D?.();
+      World3D?.snapScreenshotView?.();
+    });
+  }
+  await page.waitForTimeout(200);
 }
 
 (async () => {
@@ -46,27 +54,27 @@ async function snap(page) {
   const files = [];
   const page = await browser.newPage({ viewport: { width: 1024, height: 576 } });
   await prep(page);
-  await page.goto(`${base}/?dev=1&solo=1&v=review`, { waitUntil: "networkidle", timeout: 120000 });
+  await page.goto(`${base}/?dev=1&solo=1&v=review-v9`, { waitUntil: "networkidle", timeout: 120000 });
   await enter(page);
-  for (const loc of LOCS) {
-    await page.evaluate(id => goLocation(id), loc);
+
+  const shots = [
+    { loc: "room", file: "review-dog-closeup.png", dog: true },
+    { loc: "city", file: "review-city.png" },
+    { loc: "kitchen", file: "review-kitchen.png" },
+    { loc: "elevator", file: "review-elevator.png" },
+    { loc: "room", file: "review-home-gang.png" }
+  ];
+
+  for (const s of shots) {
+    await page.evaluate(id => goLocation(id), s.loc);
     await page.waitForTimeout(2800);
-    const f = `${out}/review-${loc}.png`;
-    await snap(page);
+    const f = `${out}/${s.file}`;
+    await snap(page, !!s.dog);
     await page.screenshot({ path: f });
     files.push(f);
     await page.evaluate(() => World3D?.releaseCaptureFrame?.());
   }
-  await page.evaluate(() => {
-    me.onboarding = { step: 0, progress: {}, done: false };
-    goLocation("room");
-    Onboarding?.init?.();
-  });
-  await page.waitForTimeout(2000);
-  await snap(page);
-  const quest = `${out}/review-quest-beacon.png`;
-  await page.screenshot({ path: quest });
-  files.push(quest);
+
   console.log(JSON.stringify({ screenshots: files.map(f => f.replace(`${out}/`, "")) }, null, 2));
   await browser.close();
 })();

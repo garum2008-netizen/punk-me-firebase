@@ -1,6 +1,4 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import {
   buildLocationScene,
   gameToWorldLoc,
@@ -28,6 +26,7 @@ import {
   clearQuestMarkers
 } from "./world/quest-markers.mjs";
 import { initTouchControls } from "./touch-controls.mjs";
+import { createProceduralDog, updateProceduralDogAnim } from "./world/procedural-dog.mjs";
 import {
   getInputState,
   consumeJump,
@@ -40,14 +39,10 @@ function resolveAnimName(name) {
   return name;
 }
 
-const MODEL_DOG = "assets/models/dog.glb";
-const DOG_TARGET_HEIGHT = 0.68;
 const DOG_FOLLOW_DIST = 1.25;
 const DOG_FOLLOW_SIDE = 0.55;
-
-const DOG_ANIM = { idle: "Survey", walk: "Walk", run: "Run" };
 let renderer, scene, camera, clock, raycaster, pointer;
-let dogTemplate, hooks = {};
+let hooks = {};
 let actors = new Map();
 let car = null;
 let locationRoot = null;
@@ -65,6 +60,7 @@ let playerAnimState = "idle";
 let modelsReady = false;
 let captureFrameLock = false;
 let captureSavedRotY = 0;
+let captureHideActors = null;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 let guideTarget = null;
@@ -202,54 +198,8 @@ function playOneShot(actor, name, ms = 1400) {
   }, ms);
 }
 
-function fitDogToGround(root) {
-  root.rotation.set(0, 0, 0);
-  root.scale.setScalar(1);
-  root.updateMatrixWorld(true);
-  let box = new THREE.Box3().setFromObject(root);
-  let size = box.getSize(new THREE.Vector3());
-  if (size.y < size.z * 0.55) root.rotation.x = -Math.PI / 2;
-  root.updateMatrixWorld(true);
-  box = new THREE.Box3().setFromObject(root);
-  size = box.getSize(new THREE.Vector3());
-  const h = Math.max(size.y, 0.001);
-  const scl = DOG_TARGET_HEIGHT / h;
-  root.scale.setScalar(scl);
-  root.updateMatrixWorld(true);
-  const box2 = new THREE.Box3().setFromObject(root);
-  root.position.y = -box2.min.y;
-}
-
 function createDog() {
-  if (!dogTemplate) return null;
-  const root = cloneSkinned(dogTemplate.scene);
-  fitDogToGround(root);
-  root.traverse(o => {
-    if (!o.isMesh || !o.material) return;
-    const m = o.material.clone();
-    if (!m.map) m.color.set(0x8a5530);
-    m.emissive = new THREE.Color(0x2a1508);
-    m.emissiveIntensity = 0.08;
-    o.material = m;
-  });
-  root.add(makeShadow());
-  const mixer = new THREE.AnimationMixer(root);
-  const clips = dogTemplate.animations || [];
-  const pick = n => clips.find(c => c.name === n) || clips[0];
-  const actions = {
-    idle: mixer.clipAction(pick(DOG_ANIM.idle)),
-    walk: mixer.clipAction(pick(DOG_ANIM.walk)),
-    run: mixer.clipAction(pick(DOG_ANIM.run))
-  };
-  Object.values(actions).forEach(a => { a?.setLoop(THREE.LoopRepeat, Infinity); });
-  actions.idle?.play();
-  const group = new THREE.Group();
-  group.add(root);
-  scene.add(group);
-  return {
-    group, root, mixer, actions, current: "idle", isDog: true,
-    wx: 0, wz: 0, _sitUntil: 0, _wagPhase: Math.random() * Math.PI * 2
-  };
+  return createProceduralDog(scene);
 }
 
 function updateDogFollow(dt, pl) {
@@ -279,10 +229,11 @@ function updateDogFollow(dt, pl) {
   dog.group.rotation.y = Math.atan2(pl.wx - dog.wx, pl.wz - dog.wz);
   const spd = sitting ? 0 : Math.max(move / Math.max(dt, 0.001), playerSpd * 0.85);
   dog._spd = spd;
-  if (sitting) fadeToDog(dog, "idle");
-  else fadeToDog(dog, spd > 1.35 ? "run" : spd > 0.2 ? "walk" : "idle");
-  dog._wagPhase += dt * (spd > 0.2 ? 14 : 8);
-  if (dog.root) dog.root.rotation.z = Math.sin(dog._wagPhase) * (sitting ? 0.02 : 0.05);
+  const anim = sitting ? "sit" : spd > 1.35 ? "run" : spd > 0.2 ? "walk" : "idle";
+  dog._anim = anim;
+  if (dog._proceduralDog) updateProceduralDogAnim(dog, dt, anim);
+  else if (sitting) fadeToDog(dog, "idle");
+  else fadeToDog(dog, anim);
 }
 
 function ensureCar(show) {
@@ -310,8 +261,6 @@ function ensureCar(show) {
 
 async function loadModels() {
   await loadAllCc0Templates();
-  const loader = new GLTFLoader();
-  dogTemplate = await loader.loadAsync(MODEL_DOG);
   modelsReady = true;
 }
 
@@ -457,7 +406,7 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   if (Math.hypot(dx, dz) > 0.01) {
     actor.group.rotation.y = Math.atan2(dx, dz);
   }
-  if (actor.isDog) {
+  if (actor.isDog && !actor._proceduralDog) {
     fadeToDog(actor, speed > 0.8 ? "run" : speed > 0.08 ? "walk" : "idle");
   } else if (actor.actions || actor._meshy) {
     const talking = talkingIds.has(actor.characterId) || talkingIds.has(actor.id.replace("npc_", ""));
@@ -474,7 +423,7 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
 }
 
 function fadeToDog(dog, name) {
-  if (!dog.actions[name] || dog.current === name) return;
+  if (dog._proceduralDog || !dog.actions?.[name] || dog.current === name) return;
   dog.actions[dog.current]?.fadeOut(0.15);
   dog.actions[name].reset().fadeIn(0.15).play();
   dog.current = name;
@@ -690,7 +639,7 @@ function sync(data) {
   if (hasDog) {
     if (!actors.get("dog")) {
       const d = createDog();
-      if (d) actors.set("dog", { ...d, id: "dog", wx: 0, wz: 0 });
+      if (d) actors.set("dog", { ...d, id: "dog", isDog: true, wx: 0, wz: 0 });
     }
     const dog = actors.get("dog");
     const pl = actors.get("player");
@@ -790,6 +739,7 @@ function loop() {
       });
     }
     markActorVisibleWhenReady(a);
+    if (a._proceduralDog) updateProceduralDogAnim(a, dt, a._anim || "idle");
     if (a.root && !a.isDog) {
       const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));
       updateProcedural(a, dt, a.isNpc ? playerPos : null, talk);
@@ -804,6 +754,11 @@ function loop() {
   if (particles) particles.rotation.y += dt * 0.02;
   separateActors();
   if (!captureFrameLock) updateThirdPersonCamera();
+  else if (captureHideActors?.length) {
+    renderer.render(scene, camera);
+    checkPortals();
+    return;
+  }
   checkPortals();
   renderer.render(scene, camera);
 }
@@ -890,7 +845,39 @@ const api = {
   releaseCaptureFrame: () => {
     const a = actors.get("player");
     if (a) a.group.rotation.y = captureSavedRotY;
+    if (captureHideActors) {
+      captureHideActors.forEach(act => { act.group.visible = true; });
+      captureHideActors = null;
+    }
     captureFrameLock = false;
+  },
+  captureDogCloseup: () => {
+    const dog = actors.get("dog");
+    const pl = actors.get("player");
+    if (!dog?.group || !pl || !renderer || !camera || !bounds) return false;
+    captureFrameLock = true;
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cz = (bounds.minZ + bounds.maxZ) / 2;
+    captureHideActors = [];
+    pl.group.visible = false;
+    captureHideActors.push(pl);
+    actors.forEach(a => {
+      if (a.id.startsWith("npc_")) {
+        a.group.visible = false;
+        captureHideActors.push(a);
+      }
+    });
+    dog.wx = cx;
+    dog.wz = cz;
+    dog.group.position.set(cx, 0, cz);
+    dog.group.rotation.y = Math.PI / 2;
+    updateProceduralDogAnim(dog, 1 / 60, "idle");
+    const p = dog.group.position;
+    camera.position.set(p.x + 1.55, p.y + 0.48, p.z);
+    camera.lookAt(p.x, p.y + 0.42, p.z);
+    if (locationRoot) pulseScene(locationRoot, sceneTime);
+    renderer.render(scene, camera);
+    return true;
   },
   captureCloseup: (pose = "idle") => {
     const a = actors.get("player");
