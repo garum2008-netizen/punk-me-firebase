@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import {
   buildLocationScene,
@@ -10,21 +9,18 @@ import {
   PORTALS,
   LOCATION_THEME
 } from "./world/locations.mjs";
+import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs";
 import {
-  applyCharacterLook,
-  createAnimActions,
-  updateProcedural,
-  prepareTeenScene,
-  markActorVisibleWhenReady
-} from "./character-rig.mjs";
+  loadAllCc0Templates,
+  getTemplateForCharacter,
+  createCc0Actor
+} from "./world/cc0-characters.mjs";
 
-const MODEL_TEEN = "assets/models/punk-teen.glb";
-const MODEL_DOG = "assets/models/dog.glb";
-const MODEL_DOG_FALLBACK = "assets/models/fox.glb";
+const MODEL_DOG = "assets/models/cc0/fox.glb";
 
 const DOG_ANIM = { idle: "Survey", walk: "Walk", run: "Run" };
 let renderer, scene, camera, clock, raycaster, pointer;
-let teenTemplate, dogTemplate, hooks = {};
+let dogTemplate, hooks = {};
 let actors = new Map();
 let car = null;
 let locationRoot = null;
@@ -38,7 +34,6 @@ let cameraYaw = 0;
 let meLastDx = 0;
 let meLastDy = 0;
 let playerAnimState = "idle";
-let teenFootLift = 0;
 let modelsReady = false;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
@@ -50,10 +45,6 @@ function charDef(id) {
 function setTalking(characterId, on) {
   if (on) talkingIds.add(characterId);
   else talkingIds.delete(characterId);
-}
-
-function characterScale() {
-  return 1.05;
 }
 
 function makeShadow() {
@@ -73,37 +64,34 @@ function spawnOffsetForId(id, index) {
   return { x: Math.cos(angle) * r, z: Math.sin(angle) * r };
 }
 
-function createActorFromTeen(id, characterId) {
+function createActorFromCatalog(id, characterId) {
   const def = charDef(characterId || "razor");
-  const root = cloneSkinned(teenTemplate.scene);
-  const scl = characterScale() * (def.look?.scale || 1);
-  root.scale.setScalar(scl);
-  root.position.y = teenFootLift * scl;
-  root.visible = false;
-  applyCharacterLook(root, def);
+  const tpl = getTemplateForCharacter(characterId || "razor");
+  if (!tpl?.gltf) return null;
+  const { root, mixer, actions } = createCc0Actor(tpl, characterId, def.look || {});
   root.add(makeShadow());
-  const mixer = new THREE.AnimationMixer(root);
-  const actions = createAnimActions(mixer, teenTemplate.animations, def);
   const group = new THREE.Group();
   group.add(root);
   scene.add(group);
   const actor = {
     id, characterId: characterId || "razor", group, root, mixer, actions,
-    current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false
+    current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
+    _tplKey: tpl.key
   };
   actors.set(id, actor);
   return actor;
 }
 
 function ensureActor(id, characterId, isNpc) {
+  const tplKey = getTemplateForCharacter(characterId || "razor").key;
   let a = actors.get(id);
-  if (a && a.characterId !== characterId) {
+  if (a && (a.characterId !== characterId || a._tplKey !== tplKey)) {
     scene.remove(a.group);
     a.mixer?.stopAllAction();
     actors.delete(id);
     a = null;
   }
-  if (!a) a = createActorFromTeen(id, characterId);
+  if (!a) a = createActorFromCatalog(id, characterId);
   a.isNpc = isNpc;
   return a;
 }
@@ -142,8 +130,15 @@ function playOneShot(actor, name, ms = 1400) {
 function createDog() {
   if (!dogTemplate) return null;
   const root = cloneSkinned(dogTemplate.scene);
-  root.scale.setScalar(characterScale() * 0.3);
-  root.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.set(0x553322); } });
+  root.scale.setScalar(0.008);
+  root.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const m = o.material.clone();
+    if (!m.map) m.color.set(0xc4783a);
+    m.emissive = new THREE.Color(0x331808);
+    m.emissiveIntensity = 0.12;
+    o.material = m;
+  });
   root.add(makeShadow());
   const mixer = new THREE.AnimationMixer(root);
   const clips = dogTemplate.animations;
@@ -183,22 +178,9 @@ function ensureCar(show) {
 }
 
 async function loadModels() {
+  await loadAllCc0Templates();
   const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  const teenGltf = await loader.loadAsync(MODEL_TEEN);
-  let rigRoot = teenGltf.scene.getObjectByName("Rig");
-  if (!rigRoot) {
-    const altScene = await teenGltf.parser.getDependency("scene", 1);
-    rigRoot = altScene.getObjectByName("Rig") || altScene;
-  }
-  teenGltf.scene = rigRoot;
-  teenFootLift = prepareTeenScene(teenGltf.scene);
-  teenTemplate = teenGltf;
-  try {
-    dogTemplate = await loader.loadAsync(MODEL_DOG);
-  } catch (e) {
-    dogTemplate = await loader.loadAsync(MODEL_DOG_FALLBACK);
-  }
+  dogTemplate = await loader.loadAsync(MODEL_DOG);
   modelsReady = true;
 }
 
@@ -343,7 +325,7 @@ function processInput(dt) {
 }
 
 function sync(data) {
-  if (!teenTemplate || !modelsReady) return;
+  if (!modelsReady) return;
   const { player, others, npcs, location, hasDog, carVisible } = data;
   if (location !== currentLoc) rebuildLocation(location);
 
@@ -531,18 +513,27 @@ function resize() {
   }
 }
 
-function getTeenTemplate() {
-  return teenTemplate;
-}
-
 const api = {
-  init, sync, resize, setLocation: rebuildLocation, setTalking, getTeenTemplate,
+  init, sync, resize, setLocation: rebuildLocation, setTalking,
   playEmote: (id, name) => {
     const a = actors.get(id || "player");
     if (a) playOneShot(a, name === "wave" ? "wave" : name === "sit" ? "sit" : "interact", 1500);
   },
   isReady: () => modelsReady,
-  getLocation: () => currentLoc
+  getLocation: () => currentLoc,
+  captureCloseup: (pose = "idle") => {
+    const a = actors.get("player");
+    if (!a?.root) return false;
+    fadeTo(a, pose === "walk" ? "walk" : "idle");
+    for (let i = 0; i < 40; i++) a.mixer.update(1 / 30);
+    markActorVisibleWhenReady(a);
+    a.root.visible = true;
+    const p = a.group.position;
+    camera.position.set(p.x + 1.35, p.y + 1.42, p.z + 2.15);
+    camera.lookAt(p.x, p.y + 1.22, p.z);
+    renderer.render(scene, camera);
+    return true;
+  }
 };
 window.World3D = api;
 window.Scene3D = api;

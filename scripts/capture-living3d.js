@@ -4,68 +4,61 @@ const out = "/opt/cursor/artifacts";
 fs.mkdirSync(out, { recursive: true });
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 
-async function waitGame(page) {
-  const URL = `${base}/?dev=1&v=living3d2`;
-  await page.goto(URL, { waitUntil: "networkidle", timeout: 120000 });
+async function boot(page, qs) {
+  await page.goto(`${base}/${qs}`, { waitUntil: "networkidle", timeout: 120000 });
   await page.waitForFunction(
-    () => document.getElementById("gameVersion")?.textContent?.includes("living3d-v2"),
+    () => document.getElementById("gameVersion")?.textContent?.includes("living3d-v3"),
     { timeout: 120000 }
   );
   const sel = page.locator("#charSelectConfirm");
   if (await sel.isVisible({ timeout: 8000 }).catch(() => false)) {
     await page.click('.char-pick[data-id="razor"]').catch(() => {});
     await sel.click();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(2000);
   }
-  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), { timeout: 60000 });
-  await page.waitForFunction(
-    () => window.World3D?.isReady?.(),
-    { timeout: 90000 }
-  );
-  await page.waitForTimeout(2000);
+  await page.waitForFunction(() => window.World3D?.isReady?.(), { timeout: 90000 });
+  await page.waitForTimeout(1500);
 }
 
 async function goLoc(page, locId) {
-  await page.evaluate(id => {
-    if (typeof goLocation === "function") goLocation(id);
-  }, locId);
+  await page.evaluate(id => goLocation(id), locId);
   await page.waitForFunction(
     id => window.World3D?.getLocation?.() === id,
     locId,
     { timeout: 20000 }
   );
-  await page.waitForTimeout(3500);
+  await page.waitForTimeout(3000);
 }
 
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  await waitGame(page);
 
-  const locs = ["room", "kitchen", "roof", "street", "cemetery"];
-  for (const loc of locs) {
+  await boot(page, "?dev=1&solo=1&v=cap");
+  await goLoc(page, "room");
+
+  await page.evaluate(() => World3D.captureCloseup("idle"));
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/living3d-v3-closeup-idle.png` });
+
+  await page.evaluate(() => World3D.captureCloseup("walk"));
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/living3d-v3-closeup-walk.png` });
+
+  for (const loc of ["room", "kitchen", "roof", "street", "cemetery"]) {
     await goLoc(page, loc);
-    const info = await page.evaluate(id => ({
-      loc: window.World3D?.getLocation?.(),
-      title: document.getElementById("locTitle")?.textContent
-    }), loc);
-    console.log("shot", loc, info);
-    await page.screenshot({ path: `${out}/living3d-v2-${loc}.png` });
+    await page.screenshot({ path: `${out}/living3d-v3-${loc}.png` });
   }
 
-  await page.goto(`${base}/?dev=1&demo3=1&solo=1&v=living3d2party`, { waitUntil: "networkidle", timeout: 120000 });
-  await page.waitForFunction(() => window.World3D?.isReady?.(), { timeout: 90000 });
-  await page.evaluate(() => {
-    if (typeof buyItem === "function") buyItem("pet_dog");
-  });
-  await goLoc(page, "street");
-  await page.waitForTimeout(2000);
-  await page.screenshot({ path: `${out}/living3d-v2-street-party-dog.png` });
+  await boot(page, "?dev=1&demo3=1&solo=1&v=party");
+  await page.evaluate(() => { if (typeof buyItem === "function") buyItem("pet_dog"); });
+  await goLoc(page, "room");
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: `${out}/living3d-v3-room-party-dog.png` });
 
-  const summary = await page.evaluate(() => ({
-    version: document.getElementById("gameVersion")?.textContent,
-    loc: window.World3D?.getLocation?.()
-  }));
-  console.log(JSON.stringify(summary, null, 2));
+  console.log(JSON.stringify({
+    version: await page.textContent("#gameVersion"),
+    loc: await page.evaluate(() => World3D.getLocation())
+  }, null, 2));
   await browser.close();
 })();
