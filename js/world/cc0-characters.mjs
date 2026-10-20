@@ -86,17 +86,20 @@ export function applyPunkMaterials(root, look = {}) {
       const n = (o.name || "").toLowerCase();
       if (mat.map) {
         mat.emissive.copy(emissive);
-        mat.emissiveIntensity = 0.06;
+        mat.emissiveIntensity = 0.04;
+      } else if (n.includes("visor") || n.includes("glass")) {
+        mat.emissive.copy(emissive);
+        mat.emissiveIntensity = 0.25;
       } else if (n.includes("hair") || n.includes("mohawk")) {
         mat.color.copy(hairCol);
         mat.emissive.copy(hairCol);
         mat.emissiveIntensity = 0.35;
       } else if (look.tint && (n.includes("skin") || n.includes("face"))) {
         mat.color.lerp(new THREE.Color(look.tint), 0.2);
-      } else {
-        mat.color.lerp(jacket, 0.22);
+      } else if (n.includes("body") || n.includes("cloth") || n.includes("outfit")) {
+        mat.color.lerp(jacket, 0.18);
         mat.emissive.copy(emissive);
-        mat.emissiveIntensity = 0.1;
+        mat.emissiveIntensity = 0.08;
       }
       mat.transparent = false;
       mat.depthWrite = true;
