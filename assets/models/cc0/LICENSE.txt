@@ -1,0 +1,12 @@
+CC0 / Three.js example models (vendored for PUNK ME living3d-v3)
+
+- soldier.glb, xbot.glb, michelle.glb, robot-expressive.glb
+  Source: https://github.com/mrdoob/three.js/tree/r174/examples/models/gltf
+  (Mixamo-derived samples distributed with three.js examples.)
+
+- fox.glb
+  Source: Khronos glTF Sample Assets — Fox (CC0)
+  https://github.com/KhronosGroup/glTF-Sample-Assets
+
+Quaternius "Ultimate Animated Character Pack" (CC0) was downloaded from OpenGameArt
+as FBX/Blend only; this VM has no FBX→GLB pipeline, so those files are not vendored.

@@ -161,7 +161,7 @@ const I18N = {
     voice_mute: "Sluk stemmer", voice_unmute: "Stemmer på", char_change_btn: "Skift helt",
     spell_neon_flash: "Neon-burst", spell_graffiti: "Graffiti-skærm", spell_shadow: "Skygge-spring", spell_spark: "Kæde-gnist",
     prog_talk_razor: "Tal med Razor", prog_win_fight: "Vind en kamp", prog_parkour_win: "Klare parkour", prog_built: "Byg"
-  },
+  }
 };
 
 const QUEST_I18N = {
@@ -260,11 +260,63 @@ function setLanguage(lang, persist) {
     btn.classList.toggle("active", btn.dataset.lang === currentLang);
   });
   if (typeof window.onLanguageChanged === "function") window.onLanguageChanged();
+  const loadingSub = document.querySelector("#loading div:last-child");
+  if (loadingSub) loadingSub.textContent = t("loading");
 }
 
 function initLanguage(saved) {
   const stored = saved || (() => { try { return localStorage.getItem("punkme_lang"); } catch (e) { return null; } })();
   setLanguage(stored || detectBrowserLang(), false);
+}
+
+function tShop(id) {
+  return t("shop_" + id) || id;
+}
+
+function tSpell(spellId) {
+  return t("spell_" + spellId) || spellId;
+}
+
+function tNpcName(npcId) {
+  return t("npc_" + npcId) || npcId;
+}
+
+function questTitle(qid) {
+  const v = tQuestField(qid, "title");
+  return v || (QUEST_FALLBACK[qid]?.title) || qid;
+}
+
+function tProg(key) {
+  return t("prog_" + key) || key;
+}
+
+function questText(qid) {
+  const v = tQuestField(qid, "text");
+  return v || (QUEST_FALLBACK[qid]?.text) || "";
+}
+
+const QUEST_FALLBACK = {
+  intro: { title: "Night begins", text: "Talk to Razor on the street and win a chain duel." },
+  chain_duel: { title: "Chain challenge", text: "Win a chain fight." },
+  parkour_rep: { title: "Rep jump", text: "Clear parkour." },
+  build_crypts: { title: "Three crypts", text: "Place 3 builds." }
+};
+
+function tQuestField(qid, field) {
+  const q = QUEST_I18N[qid];
+  if (!q) return "";
+  const l = q[currentLang] || q.en;
+  return l[field] || "";
+}
+
+function npcLinesI18n(npcId) {
+  const n = NPC_I18N[npcId];
+  if (!n) return [];
+  return n[currentLang] || n.en || n.ru;
+}
+
+function doorT(key) {
+  return t(key) || key;
 }
 
 function applyI18nDom() {
@@ -277,6 +329,14 @@ function applyI18nDom() {
   });
   const side = document.querySelector("#playersSide b");
   if (side) side.textContent = t("onlineSide");
+  document.querySelectorAll(".tab[data-tab]").forEach(tab => {
+    const k = "tab_" + tab.dataset.tab;
+    if (I18N[currentLang][k]) tab.textContent = t(k);
+  });
+  const jt = document.getElementById("jobModalTitle");
+  if (jt) jt.textContent = t("jobTitle");
+  const jd = document.getElementById("jobModalDesc");
+  if (jd) jd.textContent = t("jobDesc");
 }
 
 window.t = t;
@@ -285,3 +345,12 @@ window.setLanguage = setLanguage;
 window.initLanguage = initLanguage;
 window.getLanguage = () => currentLang;
 window.applyI18nDom = applyI18nDom;
+window.tShop = tShop;
+window.tQuestField = tQuestField;
+window.npcLinesI18n = npcLinesI18n;
+window.doorT = doorT;
+window.tSpell = tSpell;
+window.tNpcName = tNpcName;
+window.questTitle = questTitle;
+window.questText = questText;
+window.tProg = tProg;

@@ -9,69 +9,104 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "cartoon-v1";
+const GAME_VERSION = "living3d-v6";
+let portalCooldown = 0;
+let lastPresenceAnimPush = 0;
+
+function soloMode() {
+  try {
+    return new URLSearchParams(location.search).has("solo");
+  } catch (e) {
+    return false;
+  }
+}
+
+function demoPartyMode() {
+  try {
+    return new URLSearchParams(location.search).has("demo3");
+  } catch (e) {
+    return false;
+  }
+}
+
+function othersForStage3D() {
+  if (demoPartyMode()) {
+    return {
+      demo_mohawk: { name: "Mohawk", x: 56, y: 58, characterId: "mohawk", anim: "idle" },
+      demo_vienna: { name: "Vienna", x: 40, y: 64, characterId: "vienna", anim: "idle" }
+    };
+  }
+  if (soloMode()) return {};
+  return others;
+}
+
+function devCoinsEnabled() {
+  try {
+    return new URLSearchParams(location.search).has("dev") || localStorage.getItem("punkme_dev") === "1";
+  } catch (e) { return false; }
+}
 
 const LOCATIONS = {
   room: {
     id: "room", title: "Комната панка", bg: "imagine_images/q4BXV.jpg",
     doors: [
-      { x: 8, y: 42, w: 10, h: 18, to: "kitchen", label: "Кухня" },
-      { x: 82, y: 38, w: 10, h: 20, to: "toilet", label: "Туалет" },
-      { x: 44, y: 72, w: 14, h: 14, to: "elevator", label: "Лифт" },
-      { x: 68, y: 18, w: 12, h: 14, to: "roof", label: "Крыша" }
+      { x: 8, y: 42, w: 10, h: 18, to: "kitchen", labelKey: "door_kitchen" },
+      { x: 82, y: 38, w: 10, h: 20, to: "toilet", labelKey: "door_toilet" },
+      { x: 44, y: 72, w: 14, h: 14, to: "elevator", labelKey: "door_elevator" },
+      { x: 68, y: 18, w: 12, h: 14, to: "roof", labelKey: "door_roof" }
     ],
     npcs: [],
     job: false, buildZone: "room_private"
   },
   kitchen: {
     id: "kitchen", title: "Кухня", bg: "imagine_images/kwt1b.jpg",
-    doors: [{ x: 4, y: 50, w: 8, h: 16, to: "room", label: "Комната" }],
+    doors: [{ x: 4, y: 50, w: 8, h: 16, to: "room", labelKey: "door_room" }],
     npcs: []
   },
   toilet: {
     id: "toilet", title: "Туалет", bg: "imagine_images/ocVdL.jpg",
-    doors: [{ x: 6, y: 48, w: 8, h: 16, to: "room", label: "Комната" }]
+    doors: [{ x: 6, y: 48, w: 8, h: 16, to: "room", labelKey: "door_room" }]
   },
   elevator: {
     id: "elevator", title: "Лифт", bg: "imagine_images/VmOQt.jpg",
     doors: [
-      { x: 20, y: 55, w: 18, h: 20, to: "room", label: "Этаж" },
-      { x: 42, y: 30, w: 16, h: 18, to: "roof", label: "Крыша" },
-      { x: 62, y: 30, w: 16, h: 18, to: "street", label: "Улица" }
+      { x: 20, y: 55, w: 18, h: 20, to: "room", labelKey: "door_room" },
+      { x: 42, y: 30, w: 16, h: 18, to: "roof", labelKey: "door_roof" },
+      { x: 62, y: 30, w: 16, h: 18, to: "street", labelKey: "door_street" }
     ]
   },
   roof: {
     id: "roof", title: "Крыша", bg: "imagine_images/SXE19.jpg",
     doors: [
-      { x: 10, y: 60, w: 12, h: 16, to: "elevator", label: "Лифт" },
-      { x: 78, y: 35, w: 12, h: 18, to: "parkour", label: "Паркур" }
+      { x: 10, y: 60, w: 12, h: 16, to: "elevator", labelKey: "door_elevator" },
+      { x: 78, y: 35, w: 12, h: 18, to: "parkour", labelKey: "door_parkour" }
     ],
     night: true
   },
   street: {
     id: "street", title: "Улица банды", bg: "imagine_images/77Mdp.jpg",
     doors: [
-      { x: 6, y: 55, w: 10, h: 16, to: "elevator", label: "Дом" },
-      { x: 85, y: 45, w: 10, h: 18, to: "cemetery", label: "Кладбище" },
-      { x: 45, y: 70, w: 14, h: 14, to: "city", label: "Город" }
+      { x: 6, y: 55, w: 10, h: 16, to: "elevator", labelKey: "door_home" },
+      { x: 85, y: 45, w: 10, h: 18, to: "cemetery", labelKey: "door_cemetery" },
+      { x: 45, y: 70, w: 14, h: 14, to: "city", labelKey: "door_city" }
     ],
     npcs: ["razor", "mohawk", "vienna", "ghost"],
     night: true
   },
   cemetery: {
     id: "cemetery", title: "Кладбище у Вены", bg: "imagine_images/RgdDh.jpg",
-    doors: [{ x: 4, y: 52, w: 10, h: 16, to: "street", label: "Улица" }],
+    doors: [{ x: 4, y: 52, w: 10, h: 16, to: "street", labelKey: "door_street" }],
     job: true, night: true,
     npcs: ["gravedigger"]
   },
   city: {
     id: "city", title: "Стройка кварталов", bg: "imagine_images/Z7wM3.jpg",
-    doors: [{ x: 5, y: 58, w: 10, h: 14, to: "street", label: "Улица" }],
+    doors: [{ x: 5, y: 58, w: 10, h: 14, to: "street", labelKey: "door_street" }],
     buildZone: "city", night: true
   },
   parkour: {
     id: "parkour", title: "Крышный паркур", bg: "imagine_images/tvSdj.jpg",
-    doors: [{ x: 8, y: 62, w: 12, h: 14, to: "roof", label: "Крыша" }],
+    doors: [{ x: 8, y: 62, w: 12, h: 14, to: "roof", labelKey: "door_roof" }],
     parkour: true, night: true
   }
 };
@@ -207,16 +242,16 @@ let dogWag = false;
 let pendingJobAction = null;
 
 const JOB_BOARD = [
-  { id: "dig", title: "Копать могилы", loc: "cemetery", action: "dig", desc: "Кладбище у Вены" },
-  { id: "cobwebs", title: "Снять паутину", loc: "cemetery", action: "cobwebs", desc: "Углы кладбища" },
-  { id: "parkour_run", title: "Паркур-забег", loc: "parkour", action: "parkour", desc: "Крышный маршрут" }
+  { id: "dig", titleKey: "job_dig", loc: "cemetery", action: "dig", descKey: "job_cemetery_spot" },
+  { id: "cobwebs", titleKey: "job_cobwebs", loc: "cemetery", action: "cobwebs", descKey: "job_corners" },
+  { id: "parkour_run", titleKey: "job_parkour", loc: "parkour", action: "parkour", descKey: "job_roof_route" }
 ];
 
 function defaultPlayer() {
   const n = Math.floor(Math.random() * 900) + 100;
   return {
     name: "Панк" + n,
-    coins: 200,
+    coins: devCoinsEnabled() ? 9999 : 200,
     xp: 0,
     level: 1,
     rep: 0,
@@ -235,6 +270,7 @@ function defaultPlayer() {
     built: 0,
     decor: [],
     dog: { x: 38, y: 65 },
+    characterId: null,
     lastSeen: Date.now()
   };
 }
@@ -266,6 +302,8 @@ function applyItemStats(item) {
 }
 
 function npcLines(npc) {
+  const i18n = npcLinesI18n(npc.id);
+  if (i18n.length) return i18n;
   const lang = getLanguage();
   if (npc.linesI18n) return npc.linesI18n[lang] || npc.linesI18n.en || npc.linesI18n.ru;
   return npc.lines || [];
@@ -273,6 +311,7 @@ function npcLines(npc) {
 
 function formatCoinsDisplay() {
   if (isOwner) return me.coins + " · " + t("ownerCoinsHint");
+  if (devCoinsEnabled()) return me.coins + " · " + t("devCoins");
   return String(me.coins);
 }
 
@@ -290,12 +329,16 @@ function syncStage3D() {
   const npcData = (loc.npcs || []).map((nid, i) => ({
     id: nid,
     img: NPCS[nid].img,
-    x: 14 + i * 20,
-    y: 54 + (i % 2) * 8
+    x: 18 + i * 18,
+    y: 58 + (i % 2) * 6
   }));
   Scene3D.sync({
-    player: { x: me.x, y: me.y, avatar: me.avatar },
-    others,
+    player: {
+      x: me.x, y: me.y, avatar: me.avatar,
+      characterId: me.characterId || "razor",
+      anim: me._animState || "idle"
+    },
+    others: othersForStage3D(),
     npcs: npcData,
     location: me.location,
     hasDog: hasDog(),
@@ -323,7 +366,7 @@ function init() {
       loadMe();
     } else {
       auth.signInAnonymously().catch(e => {
-        document.getElementById("loading").innerHTML = "<p>Ошибка входа: " + escapeHtml(e.message) + "</p>";
+        document.getElementById("loading").innerHTML = "<p>" + escapeHtml(t("login_error")) + " " + escapeHtml(e.message) + "</p>";
       });
     }
   });
@@ -332,12 +375,31 @@ function init() {
   window.addEventListener("hashchange", applyHashRoute);
   setInterval(tickPresence, 2500);
   setInterval(tickNight, 4000);
-  Scene3D.init({
-    onMove: (x, y) => {
-      me.x = x; me.y = y; saveMe(); syncStage3D();
-    },
-    onNpcClick: (nid) => openNpcDialog(nid)
-  });
+  function bootScene3D() {
+    if (!window.Scene3D) return;
+    Scene3D.init({
+      onMove: (x, y) => {
+        me.x = x; me.y = y; saveMe(); syncStage3D();
+      },
+      onNpcClick: (nid) => openNpcDialog(nid),
+      onPortal: (to) => {
+        if (Date.now() < portalCooldown) return;
+        portalCooldown = Date.now() + 1500;
+        if (LOCATIONS[to]) goLocation(to);
+      },
+      onReady: () => syncStage3D(),
+      onAnimState: (st) => {
+        me._animState = st;
+        const now = Date.now();
+        if (now - lastPresenceAnimPush > 280) {
+          lastPresenceAnimPush = now;
+          pushPresence();
+        }
+      }
+    });
+  }
+  window.addEventListener("scene3d-ready", bootScene3D);
+  if (window.Scene3D) bootScene3D();
   LifeEngine.init({
     getMe: () => me,
     hasDog,
@@ -346,10 +408,10 @@ function init() {
       if (!isOwner) me.coins += 5;
       me.xp += 2;
       saveMe();
-      toast("+5 за мусор");
+      toast(t("trash_coins"));
       document.getElementById("coins").textContent = formatCoinsDisplay();
     },
-    onCatPet: () => toast("Кот шипит и убегает")
+    onCatPet: () => toast(t("cat_hiss"))
   });
   const ver = document.getElementById("gameVersion");
   if (ver) ver.textContent = GAME_VERSION;
@@ -360,6 +422,7 @@ function loadMe() {
     if (s.exists()) {
       const v = s.val();
       me = { ...defaultPlayer(), ...v };
+      if (devCoinsEnabled()) me.coins = 9999;
       me.inventory = { materials: {}, spells: [], ...(v.inventory || {}) };
       me.inventory.materials = v.inventory?.materials || {};
       me.inventory.spells = v.inventory?.spells || [];
@@ -371,16 +434,39 @@ function loadMe() {
     me.level = levelFromXp(me.xp || 0);
     me.lastSeen = Date.now();
     saveMe();
-    hideLoading();
-    renderAll();
-    initMultiplayer();
-    listenChat();
-    listenBuildings();
-    refreshLifeScene();
-    if (me.dog) dogPos = { ...me.dog };
-    else dogPos = { x: me.x - 4, y: me.y + 2 };
-    applyHashRoute();
+    if (!me.characterId) {
+      document.getElementById("loading").style.display = "none";
+      const openSelect = () => {
+        if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
+        else setTimeout(openSelect, 120);
+      };
+      openSelect();
+      return;
+    }
+    continueGameBoot();
   });
+}
+
+function pickCharacterAndContinue(id) {
+  me.characterId = id;
+  const def = getCharacterDef(id);
+  me.avatar = def.poster;
+  me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
+  saveMe();
+  continueGameBoot();
+}
+
+function continueGameBoot() {
+  hideLoading();
+  renderAll();
+  initMultiplayer();
+  listenChat();
+  listenBuildings();
+  refreshLifeScene();
+  if (me.dog) dogPos = { ...me.dog };
+  else dogPos = { x: me.x - 4, y: me.y + 2 };
+  applyHashRoute();
+  syncStage3D();
 }
 
 function applyHashRoute() {
@@ -398,7 +484,7 @@ function renderMapModal() {
       <div><b>${escapeHtml(locTitle(loc.id))}</b></div>
       <button class="btn" style="margin-top:6px;width:100%" ${me.location === loc.id ? "disabled" : ""}
         onclick="goLocation('${loc.id}'); closeModal('mapModal');">
-        ${me.location === loc.id ? "Ты здесь" : "Идти"}
+        ${me.location === loc.id ? t("here") : t("go")}
       </button>
     </div>`).join("");
 }
@@ -407,10 +493,10 @@ function renderQuickNav() {
   const el = document.getElementById("navQuick");
   if (!el) return;
   const picks = ["room", "street", "cemetery", "city", "roof", "parkour"].filter(id => id !== me.location);
-  el.innerHTML = picks.slice(0, 5).map(id => {
-    const short = { room: "Дом", street: "Улица", cemetery: "Кладбище", city: "Город", roof: "Крыша", parkour: "Паркур" }[id];
-    return `<button type="button" class="btn secondary" onclick="goLocation('${id}')">${short}</button>`;
-  }).join("");
+  const navKey = { room: "nav_room", street: "nav_street", cemetery: "nav_cemetery", city: "nav_city", roof: "nav_roof", parkour: "nav_parkour" };
+  el.innerHTML = picks.map(id =>
+    `<button type="button" class="btn secondary" onclick="goLocation('${id}')">${t(navKey[id])}</button>`
+  ).join("");
 }
 
 function hideLoading() {
@@ -449,6 +535,7 @@ function sanitizePlayer(p) {
     decor: p.decor,
     dog: dogPos,
     lang: getLanguage(),
+    characterId: p.characterId || "razor",
     owner: isOwner,
     lastSeen: p.lastSeen
   };
@@ -478,6 +565,8 @@ function pushPresence() {
     y: me.y,
     avatar: me.avatar,
     level: me.level,
+    characterId: me.characterId || "razor",
+    anim: me._animState || "idle",
     ts: Date.now()
   };
   const ref = db.ref("presence/" + loc + "/" + uid);
@@ -506,7 +595,20 @@ function listenPresence() {
   const loc = me.location;
   presenceListenRef = db.ref("presence/" + loc);
   presenceListenRef.on("value", snap => {
-    others = snap.val() || {};
+    const raw = snap.val() || {};
+    others = {};
+    Object.entries(raw).forEach(([id, p]) => {
+      if (id === uid || !p || p.probe) return;
+      others[id] = {
+        name: p.name,
+        x: p.x || 50,
+        y: p.y || 55,
+        avatar: p.avatar,
+        level: p.level || 1,
+        characterId: p.characterId || "cobalt",
+        anim: p.anim || "idle"
+      };
+    });
     renderPlayers();
     renderPlayersList();
     updateOnlineCount();
@@ -528,7 +630,9 @@ function listenPlayersInLocation() {
         x: p.x || 50,
         y: p.y || 55,
         avatar: p.avatar,
-        level: p.level || 1
+        level: p.level || 1,
+        characterId: p.characterId || "cobalt",
+        anim: "idle"
       };
     });
     renderPlayers();
@@ -544,13 +648,30 @@ function renderPlayersList() {
   el.innerHTML = rows.length ? rows.join("<br>") : `<span style='opacity:.6'>${t("alone")}</span>`;
 }
 
+function localizeChatText(text) {
+  if (!text || getLanguage() === "ru") return text;
+  let out = String(text);
+  const pairs = [
+    [/Система:/gi, "System:"],
+    [/Игрок/g, getLanguage() === "da" ? "Spiller" : "Player"],
+    [/заработал\(а\)/g, getLanguage() === "da" ? "tjente" : "earned"],
+    [/купил\(а\):/g, getLanguage() === "da" ? "købte:" : "bought:"],
+    [/Неоновая куртка/g, tShop("jacket_neon")],
+    [/Панковый пёс/g, tShop("pet_dog")],
+    [/Неоновая цепь/g, tShop("chain_neon")],
+    [/и что делать надо/g, getLanguage() === "da" ? "hvad skal jeg gøre?" : "what do I do?"]
+  ];
+  pairs.forEach(([re, rep]) => { out = out.replace(re, rep); });
+  return out;
+}
+
 function listenChat() {
   db.ref("chat").limitToLast(25).on("child_added", s => {
     const m = s.val();
     if (!m) return;
     const box = document.getElementById("chatMessages");
     const line = document.createElement("div");
-    line.innerHTML = "<b>" + escapeHtml(m.name) + ":</b> " + escapeHtml(m.text);
+    line.innerHTML = "<b>" + escapeHtml(m.name) + ":</b> " + escapeHtml(localizeChatText(m.text));
     box.appendChild(line);
     box.scrollTop = box.scrollHeight;
   });
@@ -603,7 +724,8 @@ function goLocation(id, fromHash) {
   listenBuildings();
   refreshLifeScene();
   renderAll();
-  toast(LOCATIONS[id].title);
+  syncStage3D();
+  toast(locTitle(id));
   if (pendingJobAction) {
     const act = pendingJobAction;
     pendingJobAction = null;
@@ -612,6 +734,7 @@ function goLocation(id, fromHash) {
 }
 
 function onRoomClick(e) {
+  if (document.body.classList.contains("mode-world3d")) return;
   if (e.target.closest(".hotspot, .entity, .btn, .modal, .chat, .ambient, .ambient-life, .build-piece, #dogEntity, .life-dog")) return;
   const rect = document.getElementById("roomLayer").getBoundingClientRect();
   const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -627,6 +750,7 @@ function onRoomClick(e) {
 }
 
 function onKey(e) {
+  if (document.body.classList.contains("mode-world3d")) return;
   const step = 4;
   if (["w", "a", "s", "d", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
     if (e.key === "w" || e.key === "ArrowUp") me.y -= step;
@@ -643,9 +767,12 @@ function onKey(e) {
 
 function renderAll() {
   const loc = LOCATIONS[me.location];
-  document.getElementById("bg").src = loc.bg;
-  const bgDup = document.getElementById("bgDup");
-  if (bgDup) bgDup.src = loc.bg;
+  const world3d = document.body.classList.contains("mode-world3d");
+  if (!world3d) {
+    document.getElementById("bg").src = loc.bg;
+    const bgDup = document.getElementById("bgDup");
+    if (bgDup) bgDup.src = loc.bg;
+  }
   document.getElementById("locTitle").textContent = locTitle(loc.id);
   document.getElementById("coins").textContent = formatCoinsDisplay();
   document.getElementById("xp").textContent = String(me.xp);
@@ -654,8 +781,9 @@ function renderAll() {
   document.getElementById("chainStat").textContent = String(me.stats.chain);
 
   const doors = document.getElementById("doors");
-  doors.innerHTML = loc.doors.map(d =>
-    `<div class="hotspot door" data-label="${escapeHtml(d.label)}" style="left:${d.x}%;top:${d.y}%;width:${d.w}%;height:${d.h}%;" data-to="${d.to}"></div>`
+  if (world3d) doors.innerHTML = "";
+  else doors.innerHTML = loc.doors.map(d =>
+    `<div class="hotspot door" data-label="${escapeHtml(doorT(d.labelKey || d.label))}" style="left:${d.x}%;top:${d.y}%;width:${d.w}%;height:${d.h}%;" data-to="${d.to}"></div>`
   ).join("");
   doors.querySelectorAll(".hotspot").forEach(el => {
     el.onpointerdown = (e) => e.stopPropagation();
@@ -678,6 +806,7 @@ function renderAll() {
   renderQuickNav();
   renderQuest();
   renderNpcMarkers();
+  applyI18nDom();
 }
 
 function refreshLifeScene() {
@@ -687,15 +816,20 @@ function refreshLifeScene() {
 
 function renderPlayers() {
   const layer = document.getElementById("entities");
+  if (document.body.classList.contains("mode-world3d")) {
+    layer.innerHTML = "";
+    syncStage3D();
+    return;
+  }
   let html = `<div class="entity me" style="left:${me.x}%;top:${me.y}%;">
     <div class="sprite-wrap breathe sway"><img class="avatar" src="${me.avatar}" alt=""><span class="blink-overlay"></span></div>
-    <div class="tag">${escapeHtml(me.name)} (ты)</div></div>`;
+    <div class="tag">${escapeHtml(me.name)} ${t("you")}</div></div>`;
 
   Object.entries(others).forEach(([id, p]) => {
     if (id === uid || !p) return;
     html += `<div class="entity breathe sway" style="left:${p.x}%;top:${p.y}%;">
       <div class="sprite-wrap"><img class="avatar" src="${escapeHtml(p.avatar || "imagine_images/Lix06.jpg")}" alt=""></div>
-      <div class="tag">${escapeHtml(p.name)} · ур.${p.level || 1}</div></div>`;
+      <div class="tag">${escapeHtml(p.name)} · ${t("lvl_short")}${p.level || 1}</div></div>`;
   });
 
   (LOCATIONS[me.location].npcs || []).forEach(nid => {
@@ -705,7 +839,7 @@ function renderPlayers() {
     const py = 48 + (nid.length * 3) % 20;
     html += `<div class="entity npc breathe sway" style="left:${px}%;top:${py}%;" data-npc="${nid}">
       <div class="sprite-wrap"><img class="avatar" src="${n.img}" alt=""><span class="blink-overlay npc-blink"></span></div>
-      <div class="tag">${escapeHtml(n.name)}</div></div>`;
+      <div class="tag">${escapeHtml(tNpcName(nid))}</div></div>`;
   });
 
   layer.innerHTML = html;
@@ -718,7 +852,7 @@ function renderPlayers() {
 
 function petDog(fromLife) {
   if (!fromLife) LifeEngine.barkAndPet();
-  toast("Пёс рад! +6 монет");
+  toast(t("petHappy"));
   if (!isOwner) me.coins += 6;
   me.xp += 3;
   saveMe();
@@ -739,13 +873,13 @@ function renderQuest() {
   const qid = me.quests.active;
   const q = QUESTS[qid];
   if (!q) {
-    document.getElementById("questBox").innerHTML = "<b>Квесты</b><br>Все задания выполнены!";
+    document.getElementById("questBox").innerHTML = `<b>${escapeHtml(t("quests_label"))}</b><br>${escapeHtml(t("quest_done"))}`;
     return;
   }
   const prog = me.quests.progress || {};
-  let status = Object.entries(q.need).map(([k, v]) => `${k}: ${prog[k] || 0}/${v}`).join(", ");
+  let status = Object.entries(q.need).map(([k, v]) => `${tProg(k)}: ${prog[k] || 0}/${v}`).join(", ");
   document.getElementById("questBox").innerHTML =
-    `<b>${escapeHtml(q.title)}</b><br>${escapeHtml(q.text)}<br><small>${status}</small>`;
+    `<b>${escapeHtml(questTitle(qid))}</b><br>${escapeHtml(questText(qid))}<br><small>${status}</small>`;
 }
 
 function questBump(key, amt = 1) {
@@ -761,7 +895,7 @@ function questBump(key, amt = 1) {
     if (!isOwner && r.coins) me.coins += r.coins;
     if (r.xp) me.xp += r.xp;
     if (r.rep) me.rep += r.rep;
-    toast("Квест выполнен: " + QUESTS[qid].title);
+    toast(t("quest_complete") + " " + questTitle(qid));
     const order = ["intro", "chain_duel", "parkour_rep", "build_crypts"];
     const idx = order.indexOf(qid);
     me.quests.active = order[idx + 1] || null;
@@ -791,7 +925,7 @@ function renderGangList() {
   document.getElementById("gangList").innerHTML = ids.map(nid => {
     const n = NPCS[nid];
     return `<div class="npc-row" data-npc="${nid}">
-      <img src="${n.img}" alt=""><div><b>${escapeHtml(n.name)}</b><br><small>Диалог / квест</small></div></div>`;
+      <img src="${n.img}" alt=""><div><b>${escapeHtml(tNpcName(nid))}</b><br><small>${escapeHtml(t("gang_dialog_hint"))}</small></div></div>`;
   }).join("");
   document.getElementById("gangList").querySelectorAll(".npc-row").forEach(el => {
     el.onclick = () => openNpcDialog(el.dataset.npc);
@@ -804,19 +938,39 @@ function openNpcDialog(nid) {
   const lines = npcLines(n);
   const line = lines[Math.floor(Math.random() * lines.length)];
   document.getElementById("dialogArea").innerHTML =
-    `<div class="dialog-box"><b>${escapeHtml(n.name)}:</b> ${escapeHtml(line)}</div>
-     <button class="btn danger" onclick="closeModal('gangModal'); startNpcFight('${nid}')">Цепная дуэль</button>
-     ${n.quest ? `<button class="btn secondary" onclick="acceptQuest('${n.quest}')">Взять задание</button>` : ""}`;
+    `<div class="dialog-box"><b>${escapeHtml(tNpcName(nid))}:</b> ${escapeHtml(line)}</div>
+     <button class="btn danger" onclick="closeModal('gangModal'); startNpcFight('${nid}')">${escapeHtml(t("chain_fight"))}</button>
+     ${n.quest ? `<button class="btn secondary" onclick="acceptQuest('${n.quest}')">${escapeHtml(t("accept_quest"))}</button>` : ""}`;
   openModal("gangModal");
+  if (window.Voice) Voice.speakCharacter(nid, line);
+  if (window.World3D?.setTalking) World3D.setTalking(nid, true);
   if (nid === "razor") questBump("talk_razor");
 }
+
+window.changeCharacter = function () {
+  if (!window.CharSelect) return;
+  CharSelect.open(id => {
+    me.characterId = id;
+    me.avatar = getCharacterDef(id).poster;
+    saveMe();
+    syncStage3D();
+    toast(t("char_changed"));
+  });
+};
+
+window.toggleVoiceMute = function () {
+  if (!window.Voice) return;
+  Voice.setMuted(!Voice.getMuted());
+  const btn = document.getElementById("btnVoiceMute");
+  if (btn) btn.textContent = Voice.getMuted() ? t("voice_unmute") : t("voice_mute");
+};
 
 function acceptQuest(qid) {
   me.quests.active = qid;
   me.quests.progress = {};
   saveMe();
   renderQuest();
-  toast("Новое задание: " + QUESTS[qid].title);
+  toast(t("quest_new") + " " + questTitle(qid));
 }
 
 function renderShop() {
@@ -825,10 +979,10 @@ function renderShop() {
     const own = me.owned.includes(it.id);
     return `<div class="card">
       <img src="${it.img}" alt="">
-      <div><b>${escapeHtml(it.name)}</b></div>
-      <div class="price">${isOwner ? "FREE" : it.price + " монет"}</div>
+      <div><b>${escapeHtml(tShop(it.id))}</b></div>
+      <div class="price">${isOwner ? t("free") : it.price + " " + t("coins_word")}</div>
       <button class="btn" ${own && it.cat !== "materials" ? "disabled" : ""} onclick="buyItem('${it.id}')">
-        ${own && it.cat !== "materials" ? "Есть" : "Купить"}
+        ${own && it.cat !== "materials" ? t("owned") : t("buy")}
       </button></div>`;
   }).join("");
   document.querySelectorAll(".tab").forEach(t => {
@@ -841,7 +995,7 @@ function buyItem(id) {
   const it = ALL_SHOP.find(x => x.id === id);
   if (!it) return;
   if (it.cat !== "materials" && me.owned.includes(id)) return;
-  if (!isOwner && me.coins < it.price) { toast("Не хватает монет"); return; }
+  if (!isOwner && me.coins < it.price) { toast(t("notEnough")); return; }
   if (!isOwner) me.coins -= it.price;
   if (it.cat === "materials") {
     me.inventory.materials[it.build] = (me.inventory.materials[it.build] || 0) + 1;
@@ -853,7 +1007,7 @@ function buyItem(id) {
     if (!me.owned.includes(id)) me.owned.push(id);
     if (it.id === "pet_dog") {
       dogPos = { x: me.x - 5, y: me.y + 3 };
-      toast("Пёс теперь с тобой!");
+      toast(t("dog_with_you"));
     }
   } else {
     me.owned.push(id);
@@ -867,16 +1021,16 @@ function buyItem(id) {
   saveMe();
   renderAll();
   renderShop();
-  toast("Куплено: " + it.name);
+  toast(t("bought_item") + " " + tShop(it.id));
 }
 
 function renderInventory() {
-  const mats = Object.entries(me.inventory.materials || {}).map(([k, v]) => `${k}: ${v}`).join(", ") || "нет";
+  const mats = Object.entries(me.inventory.materials || {}).map(([k, v]) => `${k}: ${v}`).join(", ") || t("inv_none");
   document.getElementById("invContent").innerHTML = `
-    <p><b>Цепь:</b> ${me.equipment.chains || "—"}</p>
-    <p><b>Питомец:</b> ${me.pet || "—"}</p>
-    <p><b>Материалы:</b> ${escapeHtml(mats)}</p>
-    <p><b>Свитки:</b> ${(me.inventory.spells || []).join(", ") || "—"}</p>`;
+    <p><b>${escapeHtml(t("inv_chain"))}:</b> ${me.equipment.chains || t("inv_dash")}</p>
+    <p><b>${escapeHtml(t("inv_pet"))}:</b> ${me.pet ? escapeHtml(tShop(me.pet)) : t("inv_dash")}</p>
+    <p><b>${escapeHtml(t("inv_materials"))}:</b> ${escapeHtml(mats)}</p>
+    <p><b>${escapeHtml(t("inv_spells"))}:</b> ${(me.inventory.spells || []).map(s => escapeHtml(tSpell(s))).join(", ") || t("inv_dash")}</p>`;
 }
 
 function renderMagic() {
@@ -884,15 +1038,15 @@ function renderMagic() {
   document.getElementById("magicList").innerHTML = spells.length
     ? spells.map(s => {
         const sp = SPELLS[s];
-        return `<button class="btn" onclick="castWorldSpell('${s}')">${sp.name}</button>`;
+        return `<button class="btn" onclick="castWorldSpell('${s}')">${escapeHtml(tSpell(s))}</button>`;
       }).join(" ")
-    : "<p>Купи свитки в лавке (раздел Магия).</p>";
+    : `<p>${escapeHtml(t("magic_empty"))}</p>`;
 }
 
 function castWorldSpell(spellId) {
   const now = Date.now();
   if ((spellCooldowns[spellId] || 0) > now) {
-    toast("Перезарядка...");
+    toast(t("cooldown"));
     return;
   }
   const sp = SPELLS[spellId];
@@ -906,16 +1060,16 @@ function castWorldSpell(spellId) {
   setTimeout(() => fx.remove(), 700);
   if (spellId === "neon_flash") {
     me.xp += 5;
-    toast(sp.name + " — неон взрывается!");
+    toast(tSpell(spellId) + t("neon_burst"));
   } else if (spellId === "graffiti_shield") {
     me.stats._shield = (me.stats._shield || 0) + sp.shield;
-    toast("Щит активен");
+    toast(t("shield_on"));
   } else if (spellId === "shadow_dash") {
     me.x = Math.min(95, me.x + 12);
-    toast("Теневой рывок!");
+    toast(t("shadow_dash_toast"));
   } else if (spellId === "chain_spark") {
     me.stats.chain += 2;
-    toast("Искра усиливает цепь!");
+    toast(t("spark_chain"));
   }
   saveMe();
   renderAll();
@@ -944,7 +1098,7 @@ function runJobAction(action) {
   }
   const now = Date.now();
   const cd = me.jobCooldowns[action] || 0;
-  if (!isOwner && now < cd) { toast("Отдых..."); return; }
+  if (!isOwner && now < cd) { toast(t("rest")); return; }
   const base = { dig: 55, cobwebs: 42, clean: 35, water: 30 }[action] || 30;
   let gain = base + Math.floor(Math.random() * 22);
   if (me.pet === "pet_cat") gain = Math.floor(gain * 1.15);
@@ -955,18 +1109,17 @@ function runJobAction(action) {
   me.lastJob = now;
   saveMe();
   renderAll();
-  const labels = { dig: "Выкопал яму", cobwebs: "Снял паутину", clean: "Убрал мусор", water: "Полил цветы" };
-  toast(`${labels[action] || "Работа"} (+${gain})`);
+  const labels = { dig: t("job_dig_done"), cobwebs: t("job_cobwebs_done"), clean: t("job_clean_done"), water: t("job_water_done") };
+  toast(`${labels[action] || t("job_generic")} (+${gain})`);
 }
 
 function openJobPanel() {
-  document.getElementById("jobModalTitle").textContent = "Подработки банды";
-  document.getElementById("jobModalDesc").textContent =
-    "Выбери смену — тебя отвезут на локацию, потом начнётся работа.";
+  document.getElementById("jobModalTitle").textContent = t("jobTitle");
+  document.getElementById("jobModalDesc").textContent = t("jobDesc");
   document.getElementById("jobActions").innerHTML = JOB_BOARD.map(j =>
     `<div class="card" style="margin-bottom:8px">
-      <b>${escapeHtml(j.title)}</b><br><small>${escapeHtml(j.desc)}</small><br>
-      <button class="btn" style="margin-top:6px" onclick="travelJob('${j.action}','${j.loc}')">Ехать и работать</button>
+      <b>${escapeHtml(t(j.titleKey))}</b><br><small>${escapeHtml(t(j.descKey))}</small><br>
+      <button class="btn" style="margin-top:6px" onclick="travelJob('${j.action}','${j.loc}')">${escapeHtml(t("job_go"))}</button>
     </div>`
   ).join("");
   openModal("jobModal");
@@ -983,20 +1136,20 @@ function travelJob(action, loc) {
 
 function toggleBuildMode() {
   buildMode = !buildMode;
-  toast(buildMode ? "Режим стройки: кликни на землю" : "Стройка выкл");
+  toast(buildMode ? t("build_mode_on") : t("build_mode_off"));
 }
 
 function tryPlaceBuild(x, y) {
   const type = selectedBuild;
   const count = me.inventory.materials[type] || 0;
-  if (count < 1) { toast("Купи материалы в лавке"); return; }
+  if (count < 1) { toast(t("buy_materials")); return; }
   me.inventory.materials[type]--;
   const piece = { type, x, y, owner: uid, ts: Date.now() };
   db.ref("buildings/city").push(piece);
   me.built = (me.built || 0) + 1;
   saveMe();
   questBump("built", 1);
-  toast("Построено!");
+  toast(t("built"));
 }
 
 function tryDecorPlace() {
@@ -1007,13 +1160,13 @@ function tryDecorPlace() {
   me.decor.push(piece);
   saveMe();
   loadPrivateDecor();
-  toast("Декор в комнате!");
+  toast(t("decor_room"));
 }
 
 function startNpcFight(nid) {
-  const npc = NPCS[nid] || { name: "Хулиган", img: "imagine_images/MRgTC.jpg" };
+  const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
   fight = {
-    npcName: npc.name,
+    npcName: tNpcName(npc.id || nid),
     npcHp: 55 + Math.floor(Math.random() * 30),
     npcMax: 85,
     playerHp: me.stats.hp,
@@ -1045,21 +1198,21 @@ function fightAttack(kind) {
   if (kind === "kick") dmg = Math.floor(dmg * 0.7) + 4;
   if (kind === "heavy") dmg = Math.floor(dmg * 1.3);
   fight.npcHp -= dmg;
-  fight.log.push(`Ты бьёшь (−${dmg})`);
+  fight.log.push(`${t("fight_hit_you")} (−${dmg})`);
   if (fight.npcHp <= 0) return endFight(true);
   npcTurn();
 }
 
 function fightSpell() {
   const spells = me.inventory.spells || [];
-  if (!spells.length) { toast("Нет свитков"); return; }
+  if (!spells.length) { toast(t("no_scrolls")); return; }
   const s = spells[0];
   const sp = SPELLS[s];
   const dmg = sp.dmg || 10;
   fight.npcHp -= dmg;
-  fight.log.push(sp.name + ` (−${dmg})`);
+  fight.log.push(tSpell(s) + ` (−${dmg})`);
   if (fight.npcHp <= 0) return endFight(true);
-  if (sp.skip) fight.log.push("Соперник пропускает ход");
+  if (sp.skip) fight.log.push(t("fight_skip_turn"));
   else npcTurn();
 }
 
@@ -1069,10 +1222,10 @@ function npcTurn() {
     const block = Math.min(fight.shield, dmg);
     fight.shield -= block;
     dmg -= block;
-    fight.log.push("Щит блокирует " + block);
+    fight.log.push(t("fight_shield_block") + " " + block);
   }
   fight.playerHp -= dmg;
-  fight.log.push(fight.npcName + ` бьёт (−${dmg})`);
+  fight.log.push(fight.npcName + ` ${t("fight_hit_npc")} (−${dmg})`);
   updateFightUi();
   if (fight.playerHp <= 0) endFight(false);
 }
@@ -1085,10 +1238,10 @@ function endFight(win) {
     if (!isOwner) me.coins += reward;
     me.xp += 25;
     me.rep += 8;
-    toast("Победа! +" + reward);
+    toast(t("win_fight") + " +" + reward);
     questBump("win_fight");
   } else {
-    toast("Поражение... отдыхай");
+    toast(t("lose_fight"));
     me.stats.hp = me.stats.maxHp;
   }
   fight = null;
@@ -1112,7 +1265,7 @@ function runParkour() {
 }
 
 function runParkourJob() {
-  const steps = ["Прыжок!", "Баланс!", "Рывок!", "Финиш!"];
+  const steps = [t("parkour_step1"), t("parkour_step2"), t("parkour_step3"), t("parkour_step4")];
   let i = 0;
   const next = () => {
     if (i >= steps.length) {
@@ -1123,13 +1276,13 @@ function runParkourJob() {
       saveMe();
       renderAll();
       questBump("parkour_win");
-      toast("Паркур пройден! +" + pay);
+      toast(t("parkour_done") + " +" + pay);
       return;
     }
     if (confirm(steps[i] + " — нажми OK вовремя")) {
       i++;
       setTimeout(next, 280);
-    } else toast("Сорвался...");
+    } else toast(t("parkour_fail"));
   };
   next();
 }
@@ -1169,7 +1322,7 @@ window.castWorldSpell = castWorldSpell;
 window.startNpcFight = startNpcFight;
 window.acceptQuest = acceptQuest;
 window.tryDecorPlace = tryDecorPlace;
-window.setBuildType = function (t) { selectedBuild = t; toast("Строим: " + t); };
+window.setBuildType = function (bt) { selectedBuild = bt; toast(t("building") + " " + bt); };
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
 
