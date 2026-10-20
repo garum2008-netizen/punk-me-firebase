@@ -79,19 +79,28 @@ function analyze(sample) {
       fs.writeFileSync(f, JSON.stringify({ ...sample, ...stats }, null, 2));
       reports.push({ hero, loc, ...stats, file: path.basename(f) });
       if (hero === "cobalt" && loc === "street") {
+        await page.evaluate(() => {
+          World3D?.releaseCaptureFrame?.();
+          World3D?.ensureThirdPersonRunCamera?.();
+        });
+        await page.keyboard.down("w");
+        await page.keyboard.down("Shift");
         for (let i = 0; i < 8; i++) {
+          await page.evaluate(() => World3D?.ensureThirdPersonRunCamera?.());
+          await page.waitForTimeout(140);
           const shot = path.join(outRoot, `_jitter-frame-${i}.png`);
           await page.screenshot({ path: shot });
           stripFrames.push(shot);
-          await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
         }
+        await page.keyboard.up("w");
+        await page.keyboard.up("Shift");
       }
     }
   }
 
   if (stripFrames.length === 8) {
-    const tw = 160;
-    const th = 90;
+    const tw = 320;
+    const th = 180;
     const tiles = await Promise.all(
       stripFrames.map(async (f, i) => ({
         input: await sharp(f).resize(tw, th).png().toBuffer(),

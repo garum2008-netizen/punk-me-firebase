@@ -26,6 +26,7 @@ import {
   addToiletDressing
 } from "./location-enrich.mjs";
 import { addV21Clutter } from "./location-clutter-v21.mjs";
+import { addShowcaseProps } from "./location-showcase-props.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
 export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
@@ -567,6 +568,7 @@ export function buildLocationScene(locId, texLoader) {
   }
 
   addV21Clutter(locId, root, texLoader, colliders, pushCollider);
+  addShowcaseProps(locId, root);
 
   const portals = new THREE.Group();
   (PORTALS[locId] || []).forEach(p => {

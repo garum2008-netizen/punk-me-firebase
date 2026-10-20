@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { buildFurnitureMesh, FURNITURE_CATALOG } from "./room-furniture-catalog.mjs";
 
 const DECOR_KEY = "punkme_room_decor_v21";
 let ctxGet = null;
@@ -6,7 +7,7 @@ let state = {
   cemetery: null,
   duel: null,
   fetch: null,
-  decor: { mode: false, ghost: null, group: null, pick: "crate" },
+  decor: { mode: false, ghost: null, group: null, pick: "sofa", rot: 0, selected: null, keyHandler: null },
   jukeboxTrack: 0,
   bgmCtx: null
 };
@@ -44,6 +45,11 @@ export function bindGameplayToWorld3D(api, getCtx) {
   api.throwFetchBall = () => throwFetchBall();
   api.setDecorMode = on => setDecorMode(!!on);
   api.placeDecorAt = (wx, wz, type) => placeDecorAt(wx, wz, type);
+  api.getDecorPick = () => state.decor.pick;
+  api.setDecorPick = id => setDecorPick(id);
+  api.updateDecorGhostFromEvent = e => updateDecorGhostFromEvent(e);
+  api.decorPointerDown = (wx, wz) => decorPointerDown(wx, wz);
+  api.handleDecorKey = key => handleDecorKey(key);
   api.cycleJukebox = () => cycleJukebox();
   api.snapHeroForShop = bare => snapHeroCosmetics(!!bare);
 }
@@ -55,14 +61,41 @@ export function onGameplayLocationBuilt(locId, root, bounds) {
   g.name = "roomDecorPlaced";
   root.add(g);
   state.decor.group = g;
-  loadDecor().forEach(item => spawnDecorMesh(g, item));
+  loadDecor().forEach((item, i) => spawnDecorMesh(g, item, i));
 }
 
-function spawnDecorMesh(parent, item) {
-  const m = box(0.55, 0.45, 0.55, item.type === "sofa" ? 0x5a3048 : 0x3a4858);
-  m.position.set(item.x, 0.225, item.z);
-  m.rotation.y = item.rot || 0;
-  parent.add(m);
+function spawnDecorMesh(parent, item, idx) {
+  const g = buildFurnitureMesh(item.type || "sofa");
+  g.position.set(item.x, 0, item.z);
+  g.rotation.y = item.rot || 0;
+  g.userData.decorIndex = idx;
+  g.userData.decorType = item.type;
+  parent.add(g);
+  return g;
+}
+
+function refreshDecorMeshes() {
+  const g = state.decor.group;
+  if (!g) return;
+  while (g.children.length) g.children[0].removeFromParent();
+  loadDecor().forEach((item, i) => spawnDecorMesh(g, item, i));
+}
+
+function setDecorHighlight(mesh, on) {
+  if (!mesh) return;
+  mesh.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m.emissive) return;
+      if (on) {
+        m.emissive.set(0x00ffcc);
+        m.emissiveIntensity = 0.45;
+      } else {
+        m.emissiveIntensity = m.userData._baseEmi ?? 0;
+      }
+    });
+  });
 }
 
 export function tickGameplayV21(dt, ctx) {
@@ -195,10 +228,18 @@ function startDuel3D(nid) {
     plMax: 100,
     npcMax: 100,
     cd: 0,
-    npcCd: 0
+    npcCd: 0,
+    plBlock: 0,
+    trail: null,
+    flashPl: 0,
+    flashNpc: 0,
+    plLunge: 0,
+    npcLunge: 0,
+    dodgeT: 0
   };
   document.getElementById("fightOverlay")?.classList.remove("active");
   document.getElementById("duel3dHud")?.classList.remove("hidden");
+  document.getElementById("duel3dResult")?.classList.add("hidden");
   return true;
 }
 
@@ -207,9 +248,57 @@ function ensureActorNpc(ctx, nid) {
 }
 
 function stopDuel3D(win) {
+  const d = state.duel;
+  if (d?.trail) {
+    d.trail.removeFromParent();
+    d.trail = null;
+  }
   state.duel = null;
   document.getElementById("duel3dHud")?.classList.add("hidden");
+  const reward = win ? 70 + Math.floor(Math.random() * 40) : 0;
+  const res = document.getElementById("duel3dResult");
+  if (res) {
+    res.classList.remove("hidden");
+    res.innerHTML = win
+      ? `<b>${t("win_fight")}</b><div>+${reward} coins · +25 XP</div>`
+      : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
+    setTimeout(() => res.classList.add("hidden"), 3200);
+  }
   window._duel3dEnd?.(win);
+}
+
+function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x00ffff,
+    emissive: 0x00ffff,
+    emissiveIntensity: 1.2,
+    transparent: true,
+    opacity: 0.85
+  });
+  for (let i = 0; i < 6; i++) {
+    const seg = new THREE.Mesh(new THREE.TorusGeometry(0.14 - i * 0.015, 0.03, 6, 12), mat);
+    const t = i / 5;
+    seg.position.set(fromX + (toX - fromX) * t, 1.1 + Math.sin(t * 6) * 0.15, fromZ + (toZ - fromZ) * t);
+    seg.rotation.y = Math.atan2(toX - fromX, toZ - fromZ);
+    g.add(seg);
+  }
+  ctx.scene.add(g);
+  return g;
+}
+
+function flashActor(actor, dur = 0.35) {
+  if (!actor?.group) return;
+  actor.group.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m.emissive) return;
+      m.emissive.set(0xffffff);
+      m.emissiveIntensity = 1.4;
+    });
+  });
+  actor._hitFlash = dur;
 }
 
 function tickDuel(dt, ctx) {
@@ -220,24 +309,83 @@ function tickDuel(dt, ctx) {
   if (!pl || !npc) return;
   d.cd = Math.max(0, d.cd - dt);
   d.npcCd = Math.max(0, d.npcCd - dt);
-  if (window._duelAttack) {
-    d.npcHp -= 12 + Math.floor(Math.random() * 8);
-    pl.group.position.z -= 0.15;
+  d.plBlock = Math.max(0, d.plBlock - dt);
+  d.plLunge = Math.max(0, d.plLunge - dt);
+  d.npcLunge = Math.max(0, d.npcLunge - dt);
+  d.dodgeT = Math.max(0, d.dodgeT - dt);
+  d.flashPl = Math.max(0, d.flashPl - dt);
+  d.flashNpc = Math.max(0, d.flashNpc - dt);
+  if (d.trail) {
+    d.trail.rotation.y += dt * 8;
+    d.trail.children.forEach(c => { c.material.opacity = Math.max(0, c.material.opacity - dt * 2.5); });
+    if (d.trail.children[0]?.material.opacity < 0.05) {
+      d.trail.removeFromParent();
+      d.trail = null;
+    }
+  }
+  [pl, npc].forEach(a => {
+    if (a._hitFlash > 0) {
+      a._hitFlash -= dt;
+      if (a._hitFlash <= 0) {
+        a.group.traverse(o => {
+          if (!o.isMesh || !o.material) return;
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          mats.forEach(m => { m.emissiveIntensity = 0; });
+        });
+      }
+    }
+  });
+  if (window._duelAttack && d.cd <= 0) {
+    const dmg = 12 + Math.floor(Math.random() * 8);
+    d.npcHp -= dmg;
+    d.plLunge = 0.32;
+    const dx = npc.wx - pl.wx;
+    const dz = npc.wz - pl.wz;
+    const len = Math.hypot(dx, dz) || 1;
+    pl.wx += (dx / len) * 0.35;
+    pl.wz += (dz / len) * 0.35;
+    pl.group.position.set(pl.wx, pl.group.position.y, pl.wz);
+    npc.wx -= (dx / len) * 0.55;
+    npc.wz -= (dz / len) * 0.55;
+    npc.group.position.set(npc.wx, 0, npc.wz);
+    d.trail = spawnChainTrail(ctx, pl.wx, pl.wz, npc.wx, npc.wz);
+    flashActor(npc, 0.35);
+    d.flashNpc = 0.35;
     fadeEmote(pl, "interact");
     window._duelAttack = false;
-    d.cd = 0.45;
+    d.cd = 0.55;
   }
   if (window._duelDodge) {
-    d._dodge = 1.2;
+    d.dodgeT = 0.85;
+    const side = pl.group.rotation.y + Math.PI / 2;
+    pl.wx += Math.sin(side) * 0.9;
+    pl.wz += Math.cos(side) * 0.9;
+    pl.group.position.set(pl.wx, pl.group.position.y, pl.wz);
+    fadeEmote(pl, "walk");
     window._duelDodge = false;
   }
-  if (d._dodge) d._dodge -= dt;
+  if (window._duelBlock) {
+    d.plBlock = 1.1;
+    pl.group.rotation.x = -0.12;
+    window._duelBlock = false;
+  } else if (d.plBlock <= 0) {
+    pl.group.rotation.x *= 0.85;
+  }
   if (d.npcCd <= 0 && d.npcHp > 0) {
-    d.npcCd = 1.1;
-    if (!d._dodge) {
-      d.plHp -= 8 + Math.floor(Math.random() * 6);
-      npc.group.position.z += 0.12;
-      pl.group.position.z += 0.08;
+    d.npcCd = 1.15;
+    d.npcLunge = 0.28;
+    if (d.dodgeT <= 0 && d.plBlock <= 0) {
+      let dmg = 8 + Math.floor(Math.random() * 6);
+      if (d.plBlock > 0) dmg = Math.floor(dmg * 0.25);
+      d.plHp -= dmg;
+      const dx = pl.wx - npc.wx;
+      const dz = pl.wz - npc.wz;
+      const len = Math.hypot(dx, dz) || 1;
+      pl.wx += (dx / len) * 0.22;
+      pl.wz += (dz / len) * 0.22;
+      pl.group.position.set(pl.wx, pl.group.position.y, pl.wz);
+      flashActor(pl, 0.35);
+      d.flashPl = 0.35;
     }
     fadeEmote(npc, "interact");
   }
@@ -321,30 +469,154 @@ function tickFetch(dt, ctx) {
   }
 }
 
+function rebuildDecorGhost(ctx) {
+  if (state.decor.ghost) state.decor.ghost.removeFromParent();
+  state.decor.ghost = buildFurnitureMesh(state.decor.pick);
+  state.decor.ghost.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      m.transparent = true;
+      m.opacity = 0.42;
+      m.depthWrite = false;
+    });
+  });
+  state.decor.ghost.rotation.y = state.decor.rot;
+  ctx.locationRoot.add(state.decor.ghost);
+}
+
+function setDecorPick(id) {
+  if (!FURNITURE_CATALOG.some(f => f.id === id)) return;
+  state.decor.pick = id;
+  const ctx = ctxGet?.();
+  if (state.decor.mode && ctx?.locationRoot) rebuildDecorGhost(ctx);
+}
+
 function setDecorMode(on) {
   state.decor.mode = on;
   const ctx = ctxGet?.();
   if (!ctx?.locationRoot || ctx.currentLoc !== "room") return;
-  if (on && !state.decor.ghost) {
-    state.decor.ghost = box(0.55, 0.45, 0.55, 0x00ffaa, 0x00ffaa);
-    state.decor.ghost.material.transparent = true;
-    state.decor.ghost.material.opacity = 0.45;
-    ctx.locationRoot.add(state.decor.ghost);
-  }
-  if (!on && state.decor.ghost) {
-    state.decor.ghost.removeFromParent();
-    state.decor.ghost = null;
+  if (on) {
+    if (!state.decor.ghost) rebuildDecorGhost(ctx);
+    if (!state.decor.keyHandler) {
+      state.decor.keyHandler = e => {
+        if (!state.decor.mode || e.target?.matches?.("input, textarea")) return;
+        handleDecorKey(e.key);
+      };
+      window.addEventListener("keydown", state.decor.keyHandler);
+    }
+    const label = FURNITURE_CATALOG.find(f => f.id === state.decor.pick)?.label || state.decor.pick;
+    setHud(`<b>${t("decor_mode_on")}</b> · ${label} · R rotate · [ ] catalog · Del remove`);
+  } else {
+    if (state.decor.ghost) {
+      state.decor.ghost.removeFromParent();
+      state.decor.ghost = null;
+    }
+    if (state.decor.selected) {
+      setDecorHighlight(state.decor.selected, false);
+      state.decor.selected = null;
+    }
+    setHud("");
   }
 }
 
-function placeDecorAt(wx, wz, type = "crate") {
+function rayFloorFromEvent(e, ctx) {
+  const canvas = document.getElementById("stage3d");
+  if (!canvas || !ctx.camera) return null;
+  const rect = canvas.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2(x, y), ctx.camera);
+  const floor = ctx.locationRoot?.getObjectByName?.("floor") || ctx.locationRoot?.children?.find(c => c.isMesh);
+  const hits = rc.intersectObject(ctx.locationRoot, true);
+  const hit = hits.find(h => h.object.isMesh && Math.abs(h.face?.normal?.y ?? 1) > 0.5);
+  return hit?.point || null;
+}
+
+function updateDecorGhostFromEvent(e) {
+  if (!state.decor.mode) return;
+  const ctx = ctxGet?.();
+  if (!ctx?.locationRoot || !state.decor.ghost) return;
+  const pt = rayFloorFromEvent(e, ctx);
+  if (!pt) return;
+  const snap = 0.5;
+  state.decor.ghost.position.set(
+    Math.round(pt.x / snap) * snap,
+    0,
+    Math.round(pt.z / snap) * snap
+  );
+  state.decor.ghost.rotation.y = state.decor.rot;
+}
+
+function decorPointerDown(wx, wz) {
+  if (!state.decor.mode) return false;
+  const ctx = ctxGet?.();
+  if (!ctx?.locationRoot) return false;
+  const rc = new THREE.Raycaster();
+  const from = ctx.camera.position.clone();
+  const to = new THREE.Vector3(wx, 0.1, wz);
+  rc.set(from, to.sub(from).normalize());
+  const hits = rc.intersectObject(state.decor.group, true);
+  const hit = hits.find(h => h.object.userData.decorItem || h.object.parent?.userData?.decorItem);
+  if (hit) {
+    let g = hit.object;
+    while (g.parent && !g.userData.decorIndex && g.parent !== state.decor.group) g = g.parent;
+    if (state.decor.selected) setDecorHighlight(state.decor.selected, false);
+    state.decor.selected = g.userData.decorItem ? g : g.parent;
+    setDecorHighlight(state.decor.selected, true);
+    return true;
+  }
+  return false;
+}
+
+function handleDecorKey(key) {
+  if (!state.decor.mode) return;
+  const k = key.toLowerCase();
+  if (k === "r") {
+    state.decor.rot += Math.PI / 2;
+    if (state.decor.ghost) state.decor.ghost.rotation.y = state.decor.rot;
+    if (state.decor.selected) {
+      state.decor.selected.rotation.y = state.decor.rot;
+      const idx = state.decor.selected.userData.decorIndex;
+      const items = loadDecor();
+      if (items[idx]) {
+        items[idx].rot = state.decor.rot;
+        saveDecor(items);
+      }
+    }
+  } else if (key === "[" || key === "]") {
+    const ids = FURNITURE_CATALOG.map(f => f.id);
+    let i = ids.indexOf(state.decor.pick);
+    i = key === "[" ? (i - 1 + ids.length) % ids.length : (i + 1) % ids.length;
+    setDecorPick(ids[i]);
+    setDecorMode(true);
+  } else if (key === "Delete" || key === "Backspace") {
+    if (!state.decor.selected) return;
+    const idx = state.decor.selected.userData.decorIndex;
+    const items = loadDecor().filter((_, j) => j !== idx);
+    saveDecor(items);
+    state.decor.selected.removeFromParent();
+    state.decor.selected = null;
+    refreshDecorMeshes();
+  }
+}
+
+function placeDecorAt(wx, wz, type) {
   const items = loadDecor();
   if (items.length >= 12) return false;
   const snap = 0.5;
-  const item = { type, x: Math.round(wx / snap) * snap, z: Math.round(wz / snap) * snap, rot: 0 };
+  const pick = type || state.decor.pick;
+  const item = {
+    type: pick,
+    x: Math.round(wx / snap) * snap,
+    z: Math.round(wz / snap) * snap,
+    rot: state.decor.rot
+  };
   items.push(item);
   saveDecor(items);
-  if (state.decor.group) spawnDecorMesh(state.decor.group, item);
+  if (state.decor.group) spawnDecorMesh(state.decor.group, item, items.length - 1);
+  state.decor.rot = 0;
   return true;
 }
 

@@ -1291,7 +1291,7 @@ function tryDecorPlace() {
 }
 
 function decorPlaceAtWorld(wx, wz) {
-  window.World3D?.placeDecorAt?.(wx, wz, "crate");
+  window.World3D?.placeDecorAt?.(wx, wz);
 }
 
 function startNpcFight(nid) {
@@ -1325,7 +1325,10 @@ function startNpcFight(nid) {
 
 function duel3dAttack() { window._duelAttack = true; }
 function duel3dDodge() { window._duelDodge = true; }
-function duel3dBlock() { if (fight) fight.shield = (fight.shield || 0) + 10; }
+function duel3dBlock() {
+  window._duelBlock = true;
+  if (fight) fight.shield = (fight.shield || 0) + 10;
+}
 
 function startFightUi() {
   const loc = LOCATIONS[me.location];

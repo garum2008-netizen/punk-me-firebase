@@ -586,6 +586,13 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   background: linear-gradient(90deg, #22c55e, #86efac);
 }
 .duel-3d-hud.hidden { display: none; }
+.duel-3d-result {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  z-index: 40; padding: 18px 28px; border-radius: 14px;
+  background: rgba(12, 6, 22, 0.92); border: 2px solid #ff00ff;
+  text-align: center; font-size: 1.1rem; box-shadow: 0 0 24px rgba(255, 0, 255, 0.35);
+}
+.duel-3d-result.hidden { display: none; }
 .level-up-popup {
   position: absolute; left: 50%; top: 30%; transform: translateX(-50%); z-index: 50;
   background: rgba(20,8,40,0.96); border: 2px solid #00ffff; border-radius: 14px;

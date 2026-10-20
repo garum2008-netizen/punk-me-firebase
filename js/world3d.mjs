@@ -627,6 +627,10 @@ const LOCATION_CAMERA = {
       dog: { dx: 0.7, dz: -0.04 }
     }
   },
+  street: { dist: 6.85, height: 2.55, lookY: 1.32, yaw: 0.38 },
+  city: { dist: 7.2, height: 2.62, lookY: 1.34, yaw: 0.28 },
+  cemetery: { dist: 7.0, height: 2.5, lookY: 1.3, yaw: 0.32 },
+  roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: {
     fixed: true,
@@ -1112,8 +1116,9 @@ function onPointer(e) {
   const hits = raycaster.intersectObject(floorMesh, true);
   const hit = hits.find(h => h.object.isMesh);
   if (hit && bounds) {
-    if (window.me?._decorMode && window.decorPlaceAtWorld) {
-      window.decorPlaceAtWorld(hit.point.x, hit.point.z);
+    if (window.me?._decorMode) {
+      if (api.decorPointerDown?.(hit.point.x, hit.point.z)) return;
+      window.decorPlaceAtWorld?.(hit.point.x, hit.point.z);
       return;
     }
     const g = worldToGameLoc(hit.point.x, hit.point.z, bounds);
@@ -1234,6 +1239,10 @@ function init(h) {
   atmospherePipe = createAtmospherePipeline(renderer, scene, camera, !mobileQuality);
 
   canvas.addEventListener("pointerdown", onPointer);
+  canvas.addEventListener("pointermove", e => {
+    if (e.target !== canvas) return;
+    api.updateDecorGhostFromEvent?.(e);
+  });
   initControls3D(canvas, delta => { cameraYaw += delta; });
   initTouchControls({ onCameraOrbit: delta => { cameraYaw += delta; } });
   window.addEventListener("resize", resize);
@@ -1548,8 +1557,76 @@ const api = {
     pl._sitting = on;
     fadeTo(pl, on ? "sit" : "idle");
   },
-  getMotionProbeCount: () => motionProbe?.frames?.length || 0
+  getMotionProbeCount: () => motionProbe?.frames?.length || 0,
+  countVisibleProps: () => countVisiblePropsInScene(),
+  ensureThirdPersonRunCamera: () => {
+    captureFrameLock = false;
+    setElevatorCutaway(false);
+    const pl = actors.get("player");
+    if (pl) {
+      fadeTo(pl, "run");
+      pl._spd = 2.4;
+      updateLocomotionTimeScale(pl);
+    }
+    cameraYaw = LOCATION_CAMERA.street?.yaw ?? 0.38;
+    positionCameraBehindPlayer(true);
+    if (camera) {
+      camera.fov = 42;
+      camera.updateProjectionMatrix();
+    }
+    return true;
+  }
 };
+
+const _propFrustum = new THREE.Frustum();
+const _propProj = new THREE.Matrix4();
+const _propCenter = new THREE.Vector3();
+const _propCam = new THREE.Vector3();
+
+function isPropRootVisible(root) {
+  if (!root?.userData?.propTag || !locationRoot || !camera) return false;
+  const box3 = new THREE.Box3().setFromObject(root);
+  if (box3.isEmpty()) return false;
+  box3.getCenter(_propCenter);
+  if (!_propFrustum.containsPoint(_propCenter)) return false;
+  camera.getWorldPosition(_propCam);
+  const dist = _propCam.distanceTo(_propCenter);
+  const dir = _propCenter.clone().sub(_propCam).normalize();
+  raycaster.set(_propCam, dir);
+  raycaster.far = dist + 0.4;
+  const hits = raycaster.intersectObject(locationRoot, true);
+  for (const h of hits) {
+    if (h.distance > dist + 0.2) break;
+    let o = h.object;
+    while (o) {
+      if (o === root) return true;
+      o = o.parent;
+    }
+    if (h.distance < dist - 0.12) return false;
+  }
+  return true;
+}
+
+function countVisiblePropsInScene() {
+  if (!locationRoot || !camera) return { unique: 0, tags: [], instances: 0, location: currentLoc };
+  camera.updateMatrixWorld();
+  _propProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  _propFrustum.setFromProjectionMatrix(_propProj);
+  const roots = [];
+  locationRoot.traverse(obj => {
+    if (!obj.userData?.propTag) return;
+    if (obj.parent?.userData?.propTag) return;
+    roots.push(obj);
+  });
+  const tags = new Set();
+  let instances = 0;
+  roots.forEach(root => {
+    if (!isPropRootVisible(root)) return;
+    tags.add(root.userData.propTag);
+    instances++;
+  });
+  return { unique: tags.size, tags: [...tags].sort(), instances, location: currentLoc };
+}
 bindGameplayToWorld3D(api, () => ({
   actors,
   scene,

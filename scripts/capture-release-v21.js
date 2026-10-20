@@ -8,6 +8,8 @@ const outDir = path.join(outRoot, "v21");
 fs.mkdirSync(outDir, { recursive: true });
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const LOCS = ["room", "kitchen", "toilet", "elevator", "street", "city", "cemetery", "roof", "parkour"];
+const PROP_AUDIT = new Set(["toilet", "elevator", "kitchen", "city", "cemetery", "roof"]);
+const propReport = {};
 const DESKTOP = LOCS.map(l => [l, `qa-v21-desktop-${l}.png`]);
 const MOBILE = [
   ["street", "qa-v21-mobile-street.png"],
@@ -56,6 +58,12 @@ async function snapLoc(page, loc) {
     World3D?.snapScreenshotView?.();
   });
   await page.waitForTimeout(400);
+  const counts = await page.evaluate(() => World3D?.countVisibleProps?.() || { unique: 0, tags: [] });
+  propReport[loc] = counts;
+  console.log(`props ${loc}: unique=${counts.unique} instances=${counts.instances ?? "?"}`);
+  if (PROP_AUDIT.has(loc) && counts.unique < 20) {
+    console.error(`PROP FAIL ${loc}: ${counts.unique} unique visible tags (need 20+)`);
+  }
 }
 
 (async () => {
@@ -102,18 +110,25 @@ async function snapLoc(page, loc) {
     localStorage.removeItem("punkme_room_decor_v21");
     goLocation("room");
     syncStage3D?.();
+    World3D?.snapScreenshotView?.();
   });
   await desk.waitForTimeout(800);
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-room-decor-before.png") });
-  await desk.evaluate(() => {
+  const decorTypes = ["sofa", "beanbag", "lamp", "rug", "plant", "bookshelf", "guitar", "tv", "bed", "neon_sign"];
+  await desk.evaluate(types => {
     me._decorMode = true;
     World3D.setDecorMode?.(true);
-    const pts = [[-2, 2], [1, 3], [2, 1], [-1, 4], [0, 2.5]];
-    pts.forEach(([x, z]) => World3D.placeDecorAt?.(x, z, "crate"));
+    const pts = [[-2, 2], [1, 3], [2, 1], [-1, 4], [0, 2.5], [-2.5, 3.5], [2.5, 3], [0, 4], [-1, 2], [1.5, 2]];
+    types.forEach((type, i) => {
+      World3D.setDecorPick?.(type);
+      const [x, z] = pts[i % pts.length];
+      World3D.placeDecorAt?.(x, z, type);
+    });
     me._decorMode = false;
     World3D.setDecorMode?.(false);
     syncStage3D?.();
-  });
+    World3D?.snapScreenshotView?.();
+  }, decorTypes);
   await desk.waitForTimeout(800);
   const decorAfter = path.join(outRoot, "qa-v21-room-decor.png");
   await desk.screenshot({ path: decorAfter });
@@ -197,5 +212,10 @@ async function snapLoc(page, loc) {
   }
 
   await browser.close();
-  console.log(JSON.stringify({ version: "living3d-v21", desktop: DESKTOP.map(([, n]) => n), mobile: MOBILE.map(([, n]) => n) }, null, 2));
+  const propFail = [...PROP_AUDIT].some(loc => (propReport[loc]?.unique ?? 0) < 20);
+  console.log(JSON.stringify({ version: "living3d-v21", propReport, desktop: DESKTOP.map(([, n]) => n), mobile: MOBILE.map(([, n]) => n) }, null, 2));
+  if (propFail) {
+    console.error("Capture failed: one or more audit locations have < 20 unique visible prop tags.");
+    process.exit(1);
+  }
 })();
