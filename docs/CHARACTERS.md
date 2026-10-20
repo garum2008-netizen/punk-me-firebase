@@ -1,6 +1,6 @@
 # PUNK ME — Character Bible
 
-Original punk-gang teens for **PUNK ME** (not Adopt Me). Visual references live in `imagine_images/` as posters/UI only.
+Original punk-gang teens for **PUNK ME**. Visual references live in `imagine_images/` as posters/UI only.
 
 ## Playable gang
 

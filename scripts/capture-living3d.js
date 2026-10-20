@@ -49,8 +49,6 @@ async function shot(page, pose, file) {
   await shot(page, "walk", `${out}/living3d-v6-closeup-walk.png`);
   await page.evaluate(() => World3D.nudgePlayer(0.12, 0, 12));
   await shot(page, "run", `${out}/living3d-v6-closeup-run.png`);
-  await shot(page, "wave", `${out}/living3d-v6-closeup-wave.png`);
-
   for (const loc of ["kitchen", "street"]) {
     await goLoc(page, loc);
     await page.screenshot({ path: `${out}/living3d-v6-${loc}.png` });

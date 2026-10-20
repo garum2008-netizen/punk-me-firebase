@@ -24,11 +24,10 @@ function locomotionActive(actor) {
   return (act?.getEffectiveWeight?.() ?? 0) > 0.28;
 }
 
-/** Subtle breathing on idle / wave clips (does not touch arms). */
+/** Subtle breathing on idle clip (does not touch arms). */
 export function updateProcedural(actor, dt, _playerPos, _talking) {
   if (!actor._meshy || !actor._proc) return;
   if (locomotionActive(actor)) return;
-  if (actor.current === "wave") return;
 
   const t = performance.now() * 0.001;
   const { bones, rest } = actor._proc;

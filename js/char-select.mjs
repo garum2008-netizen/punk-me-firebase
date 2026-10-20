@@ -54,11 +54,14 @@ function buildUi() {
       showCharacter(btn.dataset.id);
     };
   });
-  document.getElementById("charSelectConfirm")?.onclick = () => {
-    const id = PLAYABLE_CHARACTER_IDS[selectedIdx];
-    close();
-    onPickCb?.(id);
-  };
+  const confirmBtn = document.getElementById("charSelectConfirm");
+  if (confirmBtn) {
+    confirmBtn.onclick = () => {
+      const id = PLAYABLE_CHARACTER_IDS[selectedIdx];
+      close();
+      onPickCb?.(id);
+    };
+  }
 }
 
 function open(onPick) {

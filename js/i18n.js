@@ -49,6 +49,7 @@ const I18N = {
     npc_razor: "Рейзор", npc_mohawk: "Ирокез", npc_vienna: "Вена", npc_ghost: "Призрак Сцены", npc_gravedigger: "Смотритель",
     npc_cobalt: "Кобальт",
     char_select_title: "Выбери своего панка", char_select_confirm: "В бой", char_changed: "Персонаж сменён",
+    age_13: "13+", footer_subscribe: "Цена и условия",
     voice_mute: "Без голоса", voice_unmute: "Голос вкл", char_change_btn: "Сменить героя",
     spell_neon_flash: "Неоновый всплеск", spell_graffiti: "Граффити-щит", spell_shadow: "Теневой рывок", spell_spark: "Искра цепи",
     prog_talk_razor: "Поговорить с Рейзором", prog_win_fight: "Победить в драке", prog_parkour_win: "Пройти паркур", prog_built: "Построить"
@@ -102,6 +103,7 @@ const I18N = {
     npc_razor: "Razor", npc_mohawk: "Mohawk", npc_vienna: "Vienna", npc_ghost: "Stage Ghost", npc_gravedigger: "Gravedigger",
     npc_cobalt: "Cobalt",
     char_select_title: "Pick your punk", char_select_confirm: "Join the gang", char_changed: "Character changed",
+    age_13: "13+", footer_subscribe: "Price & terms",
     voice_mute: "Mute voices", voice_unmute: "Voices on", char_change_btn: "Change hero",
     spell_neon_flash: "Neon burst", spell_graffiti: "Graffiti shield", spell_shadow: "Shadow dash", spell_spark: "Chain spark",
     prog_talk_razor: "Talk to Razor", prog_win_fight: "Win a fight", prog_parkour_win: "Clear parkour", prog_built: "Build"
@@ -155,6 +157,7 @@ const I18N = {
     npc_razor: "Razor", npc_mohawk: "Mohawk", npc_vienna: "Vienna", npc_ghost: "Scenegåst", npc_gravedigger: "Gravvogter",
     npc_cobalt: "Cobalt",
     char_select_title: "Vælg din punk", char_select_confirm: "Gå med banden", char_changed: "Karakter skiftet",
+    age_13: "13+", footer_subscribe: "Pris og vilkår",
     voice_mute: "Sluk stemmer", voice_unmute: "Stemmer på", char_change_btn: "Skift helt",
     spell_neon_flash: "Neon-burst", spell_graffiti: "Graffiti-skærm", spell_shadow: "Skygge-spring", spell_spark: "Kæde-gnist",
     prog_talk_razor: "Tal med Razor", prog_win_fight: "Vind en kamp", prog_parkour_win: "Klare parkour", prog_built: "Byg"
