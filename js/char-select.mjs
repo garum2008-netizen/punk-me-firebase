@@ -6,7 +6,8 @@ import {
 } from "./world/meshy-punk.mjs";
 import { updateProcedural } from "./character-rig.mjs";
 
-const PREVIEW_FILL = 0.72;
+/** Vertical padding inside the canvas (hair top / boots bottom). */
+const PREVIEW_MARGIN_Y = 0.08;
 /** Camera on +Z; model forward is -Z — quarter-turn toward lens. */
 const PREVIEW_FACE_YAW = 0.24;
 
@@ -22,21 +23,29 @@ let previewLights = null;
 
 function framePreviewActor(root, cam, canvas) {
   root.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(root);
-  const size = box.getSize(new THREE.Vector3());
+  let box = new THREE.Box3().setFromObject(root);
   const center = box.getCenter(new THREE.Vector3());
   root.position.x -= center.x;
   root.position.z -= center.z;
   root.position.y -= box.min.y;
 
-  const h = Math.max(size.y, 0.01);
+  root.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(root);
+  const h = Math.max(box.max.y - box.min.y, 0.01);
+  const centerY = (box.min.y + box.max.y) * 0.5;
+  const wXZ = Math.max(box.max.x - box.min.x, box.max.z - box.min.z, 0.01);
+
   const vFov = (cam.fov * Math.PI) / 180;
-  const dist = (h / PREVIEW_FILL) / (2 * Math.tan(vFov / 2));
   const aspect = canvas.clientWidth / Math.max(canvas.clientHeight, 1);
-  const distAdj = dist / Math.min(1, aspect * 0.92);
-  cam.position.set(0, h * 0.44, distAdj * 0.78);
-  cam.lookAt(0, h * 0.4, 0);
-  root.rotation.y = PREVIEW_FACE_YAW;
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+  const vertFill = 1 - PREVIEW_MARGIN_Y * 2;
+
+  const distV = h / (vertFill * 2 * Math.tan(vFov / 2));
+  const distH = wXZ / (vertFill * 2 * Math.tan(hFov / 2));
+  const dist = Math.max(distV, distH) * 1.02;
+
+  cam.position.set(0, centerY, dist);
+  cam.lookAt(0, centerY, 0);
 }
 
 function ensurePreviewLights() {
@@ -70,6 +79,13 @@ function showCharacter(id) {
   previewProc = built._proc;
   actions.idle?.reset().setEffectiveWeight(1).play();
   mixer.update(0);
+  actorRoot.rotation.y = PREVIEW_FACE_YAW;
+  updateProcedural(
+    { _meshy: true, _proc: previewProc, current: "idle", root: actorRoot },
+    0,
+    null,
+    false
+  );
   const canvas = document.getElementById("charSelect3d");
   if (canvas && camera) framePreviewActor(actorRoot, camera, canvas);
   previewPhase = 0;
@@ -156,7 +172,12 @@ function resize() {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
-  if (actorRoot && camera) framePreviewActor(actorRoot, camera, canvas);
+  if (actorRoot && camera) {
+    const savedY = actorRoot.rotation.y;
+    actorRoot.rotation.y = PREVIEW_FACE_YAW;
+    framePreviewActor(actorRoot, camera, canvas);
+    actorRoot.rotation.y = savedY;
+  }
 }
 
 function close() {

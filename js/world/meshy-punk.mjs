@@ -13,8 +13,13 @@ export const MESHY_FALLBACK_GLB = "assets/models/meshy/punk_pink.glb";
 export const MESHY_PUNK_URL = MESHY_FALLBACK_GLB;
 export const DEFAULT_MESHY_CHARACTER = "vienna";
 
-const CLIPS = {
+const CLIPS_FALLBACK = {
   idle: ["IdleStand"],
+  walk: ["Walking"],
+  run: ["Running"]
+};
+const CLIPS_MESHY_IDLE = {
+  idle: ["Idle"],
   walk: ["Walking"],
   run: ["Running"]
 };
@@ -45,10 +50,19 @@ function computeFootLift(scene) {
   return Math.max(0, -box.min.y + 0.002);
 }
 
+function gltfHasIdleClip(gltf) {
+  return (gltf.animations || []).some(c => c.name === "Idle" && !SKIP_CLIP.test(c.name));
+}
+
+function clipMapForGltf(gltf) {
+  return gltfHasIdleClip(gltf) ? CLIPS_MESHY_IDLE : CLIPS_FALLBACK;
+}
+
 function buildTemplateFromGltf(gltf, url, usesFallback) {
   gltf.scene.updateMatrixWorld(true);
   const foot = computeFootLift(gltf.scene);
-  const idleClip = buildIdleStandClip(gltf);
+  const hasNativeIdle = gltfHasIdleClip(gltf);
+  const idleClip = hasNativeIdle ? null : buildIdleStandClip(gltf);
   const animations = [...gltf.animations];
   if (idleClip) animations.push(idleClip);
   return {
@@ -56,8 +70,22 @@ function buildTemplateFromGltf(gltf, url, usesFallback) {
     foot,
     idleClip,
     usesFallback,
-    def: { url, scale: 1.0, yRot: 0, clips: CLIPS }
+    hasNativeIdle,
+    def: { url, scale: 1.0, yRot: 0, clips: clipMapForGltf({ animations }) }
   };
+}
+
+let shippedMeshyIds = null;
+
+async function getShippedMeshyIds() {
+  if (shippedMeshyIds) return shippedMeshyIds;
+  try {
+    const res = await fetch("assets/models/meshy/shipped.json");
+    shippedMeshyIds = res.ok ? await res.json() : ["vienna"];
+  } catch {
+    shippedMeshyIds = ["vienna"];
+  }
+  return shippedMeshyIds;
 }
 
 export async function loadMeshyTemplateForCharacter(characterId) {
@@ -65,19 +93,24 @@ export async function loadMeshyTemplateForCharacter(characterId) {
   if (templateByCharacter.has(id)) return templateByCharacter.get(id);
 
   const loader = new GLTFLoader();
+  const shipped = await getShippedMeshyIds();
   const primary = meshyGlbPathForHero(id);
-  let entry;
+  let url;
+  let usesFallback;
 
-  try {
-    const gltf = await loader.loadAsync(primary);
-    const usesFallback = id !== "vienna" && primary === MESHY_FALLBACK_GLB;
-    entry = buildTemplateFromGltf(gltf, primary, usesFallback);
-  } catch (primaryErr) {
-    if (primary === MESHY_FALLBACK_GLB) throw primaryErr;
-    const gltf = await loader.loadAsync(MESHY_FALLBACK_GLB);
-    entry = buildTemplateFromGltf(gltf, MESHY_FALLBACK_GLB, id !== "vienna");
+  if (id === "vienna") {
+    url = MESHY_FALLBACK_GLB;
+    usesFallback = false;
+  } else if (shipped.includes(id)) {
+    url = primary;
+    usesFallback = false;
+  } else {
+    url = MESHY_FALLBACK_GLB;
+    usesFallback = true;
   }
 
+  const gltf = await loader.loadAsync(url);
+  const entry = buildTemplateFromGltf(gltf, url, usesFallback);
   if (id === "vienna") entry.usesFallback = false;
 
   templateByCharacter.set(id, entry);

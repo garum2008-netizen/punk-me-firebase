@@ -30,6 +30,7 @@ Original punk-gang teens for **PUNK ME**. Visual references live in `imagine_ima
 - **Catchphrases (DA):** “Hop højere end neonen!” · “Jeg ser en genvej.”
 
 ### Mohawk (Ирокез) — green flame
+- **3D:** Meshy `assets/models/meshy/mohawk.glb` (Inna; original texture, clips Idle / Walking / Running).
 - **Look:** Lime-green mohawk, spell scrolls, neon gloves. Ref: `imagine_images/Lix06.jpg`
 - **Personality:** Reckless mage, loves flashy magic and shop scrolls.
 - **Role:** Magic shop hype, parkour rep ally, spell VFX in fights.

@@ -53,7 +53,18 @@ const I18N = {
     age_13: "13+", footer_subscribe: "Цена и условия",
     voice_mute: "Без голоса", voice_unmute: "Голос вкл", char_change_btn: "Сменить героя",
     spell_neon_flash: "Неоновый всплеск", spell_graffiti: "Граффити-щит", spell_shadow: "Теневой рывок", spell_spark: "Искра цепи",
-    prog_talk_razor: "Поговорить с Рейзором", prog_win_fight: "Победить в драке", prog_parkour_win: "Пройти паркур", prog_built: "Построить"
+    prog_talk_razor: "Поговорить с Рейзором", prog_win_fight: "Победить в драке", prog_parkour_win: "Пройти паркур", prog_built: "Построить",
+    howto_title: "Как играть", howto_goal: "Цель: пройти обучение и освоить ночной мир банды.", howto_gotit: "Понятно",
+    howto_body_desktop: "WASD / стрелки — ходьба\nShift — бег\nПробел — прыжок\nE — разговор / действие\nПКМ + движение мыши — камера\nКлик по полу — идти",
+    howto_body_touch: "Джойстик слева — ходьба (дальше = бег)\nE справа — действие\nСвайп справа — камера",
+    hint_talk_npc: "E — поговорить", hint_portal: "Зайди в неоновое кольцо — переход", hint_portal_named: "Портал: {dest}",
+    onboard_title: "Обучение", onboard_step_done: "Шаг готов!", onboard_all_done: "Обучение пройдено!",
+    onboard_move_title: "Шаг 1: Осмотрись", onboard_move_text: "Пройдись по комнате (WASD или джойстик).",
+    onboard_go_street_title: "Шаг 2: Улица", onboard_go_street_text: "Из дома войди в портал «Улица».",
+    onboard_talk_razor_title: "Шаг 3: Рейзор", onboard_talk_razor_text: "На улице найди Рейзора и нажми E.",
+    onboard_visit_cemetery_title: "Шаг 4: Кладбище", onboard_visit_cemetery_text: "С улицы зайди на кладбище.",
+    onboard_win_fight_title: "Шаг 5: Дуэль", onboard_win_fight_text: "Победи в цепной драке с NPC.",
+    onboard_shop_buy_title: "Шаг 6: Лавка", onboard_shop_buy_text: "Купи что-нибудь в лавке (кнопка Shop)."
   },
   en: {
     coins: "Coins", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
@@ -108,7 +119,18 @@ const I18N = {
     age_13: "13+", footer_subscribe: "Price & terms",
     voice_mute: "Mute voices", voice_unmute: "Voices on", char_change_btn: "Change hero",
     spell_neon_flash: "Neon burst", spell_graffiti: "Graffiti shield", spell_shadow: "Shadow dash", spell_spark: "Chain spark",
-    prog_talk_razor: "Talk to Razor", prog_win_fight: "Win a fight", prog_parkour_win: "Clear parkour", prog_built: "Build"
+    prog_talk_razor: "Talk to Razor", prog_win_fight: "Win a fight", prog_parkour_win: "Clear parkour", prog_built: "Build",
+    howto_title: "How to play", howto_goal: "Goal: finish onboarding and explore the gang's night world.", howto_gotit: "Got it",
+    howto_body_desktop: "WASD / arrows — move\nShift — run\nSpace — jump\nE — talk / interact\nRight-drag — orbit camera\nClick floor — walk",
+    howto_body_touch: "Left joystick — move (far = run)\nE button — interact\nRight-side swipe — camera",
+    hint_talk_npc: "E — talk", hint_portal: "Step into the neon ring to travel", hint_portal_named: "Portal: {dest}",
+    onboard_title: "Training", onboard_step_done: "Step complete!", onboard_all_done: "Training complete!",
+    onboard_move_title: "Step 1: Look around", onboard_move_text: "Walk around your room (WASD or joystick).",
+    onboard_go_street_title: "Step 2: Street", onboard_go_street_text: "From home, use the Street portal.",
+    onboard_talk_razor_title: "Step 3: Razor", onboard_talk_razor_text: "On the street, find Razor and press E.",
+    onboard_visit_cemetery_title: "Step 4: Cemetery", onboard_visit_cemetery_text: "From the street, enter the cemetery.",
+    onboard_win_fight_title: "Step 5: Duel", onboard_win_fight_text: "Win a chain duel against an NPC.",
+    onboard_shop_buy_title: "Step 6: Shop", onboard_shop_buy_text: "Buy something in the Shop."
   },
   da: {
     coins: "Mønter", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
@@ -163,7 +185,18 @@ const I18N = {
     age_13: "13+", footer_subscribe: "Pris og vilkår",
     voice_mute: "Sluk stemmer", voice_unmute: "Stemmer på", char_change_btn: "Skift helt",
     spell_neon_flash: "Neon-burst", spell_graffiti: "Graffiti-skærm", spell_shadow: "Skygge-spring", spell_spark: "Kæde-gnist",
-    prog_talk_razor: "Tal med Razor", prog_win_fight: "Vind en kamp", prog_parkour_win: "Klare parkour", prog_built: "Byg"
+    prog_talk_razor: "Tal med Razor", prog_win_fight: "Vind en kamp", prog_parkour_win: "Klare parkour", prog_built: "Byg",
+    howto_title: "Sådan spiller du", howto_goal: "Mål: fuldfør onboarding og udforsk bandens nat.", howto_gotit: "Forstået",
+    howto_body_desktop: "WASD / pile — gå\nShift — løb\nMellemrum — hop\nE — tal / interager\nHøjreklik+træk — kamera\nKlik gulv — gå",
+    howto_body_touch: "Venstre joystick — gå (langt = løb)\nE-knap — interager\nSwipe til højre — kamera",
+    hint_talk_npc: "E — tal", hint_portal: "Gå ind i neonringen for at rejse", hint_portal_named: "Portal: {dest}",
+    onboard_title: "Træning", onboard_step_done: "Trin klaret!", onboard_all_done: "Træning færdig!",
+    onboard_move_title: "Trin 1: Kig rundt", onboard_move_text: "Gå rundt i værelset (WASD eller joystick).",
+    onboard_go_street_title: "Trin 2: Gade", onboard_go_street_text: "Fra hjem, brug Gade-portalen.",
+    onboard_talk_razor_title: "Trin 3: Razor", onboard_talk_razor_text: "På gaden, find Razor og tryk E.",
+    onboard_visit_cemetery_title: "Trin 4: Kirkegård", onboard_visit_cemetery_text: "Fra gaden, gå til kirkegården.",
+    onboard_win_fight_title: "Trin 5: Duel", onboard_win_fight_text: "Vind en kæde-duel mod en NPC.",
+    onboard_shop_buy_title: "Trin 6: Butik", onboard_shop_buy_text: "Køb noget i butikken (Shop)."
   }
 };
 

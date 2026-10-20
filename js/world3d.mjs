@@ -6,6 +6,7 @@ import {
   gameToWorldLoc,
   worldToGameLoc,
   NPC_WORLD,
+  NPC_PATROL,
   PORTALS,
   LOCATION_THEME,
   resolveWorldPosition,
@@ -20,6 +21,19 @@ import {
   updateLocomotionTimeScale,
   WAVE_EMOTE_ENABLED
 } from "./world/meshy-punk.mjs";
+import { pulseScene } from "./world/location-enrich.mjs";
+import {
+  ensureMarkerRoot,
+  setQuestMarkerTarget,
+  clearQuestMarkers
+} from "./world/quest-markers.mjs";
+import { initTouchControls } from "./touch-controls.mjs";
+import {
+  getInputState,
+  consumeJump,
+  consumeInteract,
+  initControls3D
+} from "./controls-3d.mjs";
 
 function resolveAnimName(name) {
   if (name === "wave" && !WAVE_EMOTE_ENABLED) return "idle";
@@ -40,8 +54,8 @@ let floorMesh = null;
 let currentLoc = "";
 let locationProps = { showCar: false };
 let particles = null;
-let keys = { w: false, a: false, s: false, d: false };
 let cameraYaw = 0;
+let sceneTime = 0;
 let meLastDx = 0;
 let meLastDy = 0;
 let playerAnimState = "idle";
@@ -50,6 +64,8 @@ let captureFrameLock = false;
 let captureSavedRotY = 0;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
+let guideTarget = null;
+let mobileQuality = false;
 
 function charDef(id) {
   return (typeof getCharacterDef === "function" ? getCharacterDef(id) : null) || { look: {}, anim: {} };
@@ -255,6 +271,7 @@ function rebuildLocation(locId) {
   });
   actors.clear();
   if (car) { scene.remove(car.group); car = null; }
+  guideTarget = null;
   currentLoc = locId;
   const built = buildLocationScene(locId, texLoader);
   locationRoot = built.root;
@@ -268,6 +285,7 @@ function rebuildLocation(locId) {
   furnitureColliders = built.colliders || [];
   (locationProps.cats || []).forEach(c => locationRoot.add(c));
   spawnParticles(locId === "street" || locId === "cemetery");
+  ensureMarkerRoot(scene);
 }
 
 function spawnParticles(night) {
@@ -399,6 +417,36 @@ function updateThirdPersonCamera() {
   camera.lookAt(p.x, 1.28, p.z);
 }
 
+function tickNpcPatrols(dt) {
+  actors.forEach((a, id) => {
+    if (!id.startsWith("npc_") || !a._patrol?.length) return;
+    const path = a._patrol;
+    let idx = a._patrolIdx || 0;
+    const tgt = path[idx];
+    const dx = tgt.x - a.wx;
+    const dz = tgt.z - a.wz;
+    const dist = Math.hypot(dx, dz);
+    const step = 1.55 * dt;
+    if (dist < 0.4) {
+      a._patrolIdx = (idx + 1) % path.length;
+      if (dist < 0.08) return;
+    }
+    const ux = dx / (dist || 1);
+    const uz = dz / (dist || 1);
+    const move = Math.min(step, dist);
+    const c = clampWorld(a.wx + ux * move, a.wz + uz * move);
+    a.wx = c.x;
+    a.wz = c.z;
+    a.group.rotation.y = Math.atan2(ux, uz);
+    const spd = move / Math.max(dt, 0.001);
+    a._spd = spd;
+    fadeTo(a, spd > 1.15 ? "run" : "walk");
+    updateLocomotionTimeScale(a);
+    a.group.position.x = a.wx;
+    a.group.position.z = a.wz;
+  });
+}
+
 function checkPortals() {
   const player = actors.get("player");
   if (!player || !bounds) return;
@@ -416,20 +464,58 @@ function checkPortals() {
 function processInput(dt) {
   const player = actors.get("player");
   if (!player || !bounds) return;
-  let mx = 0;
-  let mz = 0;
-  const speed = 4.5 * dt;
+  const input = getInputState();
+  const speed = (input.run ? 7.2 : 4.5) * dt;
   const fwd = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
   const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
-  if (keys.w) { mx += fwd.x * speed; mz += fwd.z * speed; }
-  if (keys.s) { mx -= fwd.x * speed; mz -= fwd.z * speed; }
-  if (keys.a) { mx -= right.x * speed; mz -= right.z * speed; }
-  if (keys.d) { mx += right.x * speed; mz += right.z * speed; }
+  let mx = 0;
+  let mz = 0;
+  const mag = Math.hypot(input.moveX, input.moveZ);
+  if (mag > 0.05) {
+    const nx = input.moveX / mag;
+    const nz = input.moveZ / mag;
+    mx = (fwd.x * nz + right.x * nx) * speed;
+    mz = (fwd.z * nz + right.z * nx) * speed;
+  }
   if (mx !== 0 || mz !== 0) {
     const np = clampWorld(player.wx + mx, player.wz + mz);
     const g = worldToGameLoc(np.x, np.z, bounds);
     hooks.onMove?.(g.x, g.y);
   }
+  if (consumeJump() && (player._onGround ?? true)) {
+    player._vy = 5.2;
+    player._onGround = false;
+  }
+  if (consumeInteract()) hooks.onInteract?.();
+}
+
+function getNearestNpcId() {
+  const pl = actors.get("player");
+  if (!pl) return null;
+  let best = null;
+  let bestD = 2.4;
+  actors.forEach((a, id) => {
+    if (!id.startsWith("npc_")) return;
+    const d = Math.hypot(pl.wx - a.wx, pl.wz - a.wz);
+    if (d < bestD) { bestD = d; best = id.replace("npc_", ""); }
+  });
+  return best;
+}
+
+function getNearPortal() {
+  const pl = actors.get("player");
+  if (!pl) return null;
+  const portals = PORTALS[currentLoc] || [];
+  let best = null;
+  let bestD = Infinity;
+  for (const portal of portals) {
+    const d = Math.hypot(pl.wx - portal.x, pl.wz - portal.z);
+    if (d < portal.r + 0.35 && d < bestD) {
+      bestD = d;
+      best = portal;
+    }
+  }
+  return best;
 }
 
 function sync(data) {
@@ -472,7 +558,21 @@ function sync(data) {
     keep.add(id);
     const a = ensureActor(id, n.id, true);
     const wp = NPC_WORLD[location]?.[n.id] || gameToWorldLoc(n.x, n.y, bounds);
-    placeActorWorld(a, wp.x, wp.z, false, true);
+    const path = NPC_PATROL[location]?.[n.id];
+    if (path?.length) {
+      if (!a._patrol || a._patrolLoc !== location) {
+        a._patrol = path;
+        a._patrolLoc = location;
+        a._patrolIdx = 0;
+        a.wx = path[0].x;
+        a.wz = path[0].z;
+      }
+    } else {
+      a._patrol = null;
+      a.wx = wp.x;
+      a.wz = wp.z;
+    }
+    placeActorWorld(a, a.wx, a.wz, false, true);
   });
 
   actors.forEach((a, id) => {
@@ -528,7 +628,7 @@ function applyNetworkAnim(actor, anim) {
 
 function onPointer(e) {
   const canvas = document.getElementById("stage3d");
-  if (!canvas || e.target !== canvas || !floorMesh) return;
+  if (!canvas || e.target !== canvas || !floorMesh || e.button !== 0) return;
   const rect = canvas.getBoundingClientRect();
   pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -549,23 +649,26 @@ function onPointer(e) {
   if (best) hooks.onNpcClick?.(best);
 }
 
-function onKeyDown(e) {
-  const k = e.key.toLowerCase();
-  if (k in keys) keys[k] = true;
-  if (e.key === "ArrowLeft") cameraYaw += 0.08;
-  if (e.key === "ArrowRight") cameraYaw -= 0.08;
-}
-function onKeyUp(e) {
-  const k = e.key.toLowerCase();
-  if (k in keys) keys[k] = false;
-}
-
 function loop() {
   requestAnimationFrame(loop);
   if (!renderer || !modelsReady) return;
   const dt = Math.min(clock.getDelta(), 0.05);
+  sceneTime += dt;
   processInput(dt);
+  tickNpcPatrols(dt);
   const pl = actors.get("player");
+  if (pl) {
+    pl._vy = (pl._vy || 0) - 14 * dt;
+    let y = (pl.group.position.y || 0) + pl._vy * dt;
+    if (y <= 0) { y = 0; pl._vy = 0; pl._onGround = true; }
+    else pl._onGround = false;
+    pl.group.position.y = y;
+  }
+  if (locationRoot) pulseScene(locationRoot, sceneTime);
+  setQuestMarkerTarget(guideTarget, actors, sceneTime);
+  const nearNpc = getNearestNpcId();
+  const nearPortal = getNearPortal();
+  hooks.onHints?.({ nearNpc, nearPortal, location: currentLoc });
   const playerPos = pl ? pl.group.position : null;
   actors.forEach(a => {
     a.mixer?.update(dt);
@@ -600,9 +703,14 @@ function init(h) {
   hooks = h;
   const canvas = document.getElementById("stage3d");
   if (!canvas) return Promise.resolve(false);
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.shadowMap.enabled = true;
+  mobileQuality = window.matchMedia("(max-width: 900px)").matches;
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: !mobileQuality,
+    powerPreference: "high-performance"
+  });
+  renderer.setPixelRatio(mobileQuality ? 1 : Math.min(window.devicePixelRatio, 1.5));
+  renderer.shadowMap.enabled = !mobileQuality;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
   clock = new THREE.Clock();
@@ -615,16 +723,18 @@ function init(h) {
   scene.add(fill);
   const sun = new THREE.DirectionalLight(0xffffff, 1.55);
   sun.position.set(5, 12, 5);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  if (!mobileQuality) {
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+  }
   scene.add(sun);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.42;
 
   canvas.addEventListener("pointerdown", onPointer);
-  window.addEventListener("keydown", onKeyDown);
-  window.addEventListener("keyup", onKeyUp);
+  initControls3D(canvas, delta => { cameraYaw += delta; });
+  initTouchControls({ onCameraOrbit: delta => { cameraYaw += delta; } });
   window.addEventListener("resize", resize);
   document.body.classList.add("mode-world3d");
 
@@ -665,6 +775,9 @@ const api = {
   },
   isReady: () => modelsReady,
   getLocation: () => currentLoc,
+  getNearestNpc: getNearestNpcId,
+  getNearPortal,
+  setGuideTarget: t => { guideTarget = t; },
   releaseCaptureFrame: () => {
     const a = actors.get("player");
     if (a) a.group.rotation.y = captureSavedRotY;

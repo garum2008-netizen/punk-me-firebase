@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v7">
+<link rel="stylesheet" href="css/game.css?v=living3d-v8">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -40,6 +40,13 @@
     <div id="entities"></div>
   </div>
   <div class="loc-name" id="locTitle" data-i18n-loc="room">Комната панка</div>
+  <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
+  <div id="contextHint" class="context-hint" aria-live="polite"></div>
+  <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
+  <div id="touchControls" class="touch-controls" aria-hidden="true">
+    <div id="touchJoystick" class="touch-joystick"><div id="touchJoystickKnob" class="touch-joystick-knob"></div></div>
+    <button type="button" id="touchInteract" class="touch-interact">E</button>
+  </div>
   <div class="hud">
     <div class="badge"><span data-i18n="coins">Монеты</span>: <strong id="coins">…</strong></div>
     <div class="badge"><span data-i18n="xp">XP</span>: <strong id="xp">0</strong></div>
@@ -154,6 +161,7 @@
     </div>
   </div>
 </div>
+<div id="howToOverlay" class="howto-overlay"></div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -161,13 +169,16 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v7"></script>
-<script src="js/i18n.js?v=living3d-v7"></script>
-<script src="js/voice.js?v=living3d-v7"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v7"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v7"></script>
-<script src="js/life.js?v=living3d-v7"></script>
-<script src="js/game.js?v=living3d-v7"></script>
+<script src="js/characters.js?v=living3d-v8"></script>
+<script src="js/i18n.js?v=living3d-v8"></script>
+<script src="js/voice.js?v=living3d-v8"></script>
+<script src="js/onboarding.js?v=living3d-v8"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v8"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v8"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v8"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v8"></script>
+<script src="js/life.js?v=living3d-v8"></script>
+<script src="js/game.js?v=living3d-v8"></script>
 <p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
   3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0
 </p>

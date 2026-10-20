@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v7";
+const GAME_VERSION = "living3d-v8";
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
 
@@ -55,7 +55,7 @@ const LOCATIONS = {
       { x: 44, y: 72, w: 14, h: 14, to: "elevator", labelKey: "door_elevator" },
       { x: 68, y: 18, w: 12, h: 14, to: "roof", labelKey: "door_roof" }
     ],
-    npcs: [],
+    npcs: ["vienna", "mohawk"],
     job: false, buildZone: "room_private"
   },
   kitchen: {
@@ -81,6 +81,7 @@ const LOCATIONS = {
       { x: 10, y: 60, w: 12, h: 16, to: "elevator", labelKey: "door_elevator" },
       { x: 78, y: 35, w: 12, h: 18, to: "parkour", labelKey: "door_parkour" }
     ],
+    npcs: ["mohawk"],
     night: true
   },
   street: {
@@ -265,6 +266,7 @@ function defaultPlayer() {
     pet: null,
     stats: { chain: 10, magic: 8, hp: 100, maxHp: 100 },
     quests: { active: "intro", progress: {} },
+    onboarding: { step: 0, progress: {}, done: false },
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -415,15 +417,25 @@ function init() {
     if (!window.Scene3D) return;
     Scene3D.init({
       onMove: (x, y) => {
-        me.x = x; me.y = y; saveMe(); syncStage3D();
+        me.x = x; me.y = y;
+        window.Onboarding?.onMove?.(x, y);
+        saveMe(); syncStage3D();
       },
       onNpcClick: (nid) => openNpcDialog(nid),
+      onInteract: () => {
+        const nid = window.World3D?.getNearestNpc?.();
+        if (nid) openNpcDialog(nid);
+      },
+      onHints: h => window.updateContextHints?.(h),
       onPortal: (to) => {
         if (Date.now() < portalCooldown) return;
         portalCooldown = Date.now() + 1500;
         if (LOCATIONS[to]) goLocation(to);
       },
-      onReady: () => syncStage3D(),
+      onReady: () => {
+        syncStage3D();
+        window.Onboarding?.syncGuideTarget?.();
+      },
       onAnimState: (st) => {
         me._animState = st;
         const now = Date.now();
@@ -463,6 +475,7 @@ function loadMe() {
       me.inventory.materials = v.inventory?.materials || {};
       me.inventory.spells = v.inventory?.spells || [];
       me.quests = v.quests || me.quests;
+      me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
       me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
       if (v.lang) initLanguage(v.lang);
     }
@@ -495,6 +508,9 @@ function pickCharacterAndContinue(id) {
 function continueGameBoot() {
   hideLoading();
   initResponsiveHud();
+  if (window.Onboarding) Onboarding.init();
+  if (window.initHowToPlay) initHowToPlay();
+  if (window.initContextHints) initContextHints();
   renderAll();
   initMultiplayer();
   listenChat();
@@ -602,7 +618,7 @@ function pushPresence() {
     y: me.y,
     avatar: me.avatar,
     level: me.level,
-    characterId: me.characterId || "razor",
+    characterId: me.characterId || "vienna",
     anim: me._animState || "idle",
     ts: Date.now()
   };
@@ -747,6 +763,11 @@ function updateOnlineCount() {
   });
 }
 
+function afterLocationChange() {
+  window.Onboarding?.onEnterLocation?.(me.location);
+  window.Onboarding?.syncGuideTarget?.();
+}
+
 function goLocation(id, fromHash) {
   if (!LOCATIONS[id]) return;
   if (!fromHash && location.hash !== "#" + id) {
@@ -769,6 +790,7 @@ function goLocation(id, fromHash) {
     pendingJobAction = null;
     setTimeout(() => runJobAction(act), 350);
   }
+  afterLocationChange();
 }
 
 function onRoomClick(e) {
@@ -908,6 +930,10 @@ function renderBuildings() {
 }
 
 function renderQuest() {
+  if (window.Onboarding?.isActive?.()) {
+    Onboarding.render();
+    return;
+  }
   const qid = me.quests.active;
   const q = QUESTS[qid];
   if (!q) {
@@ -982,7 +1008,10 @@ function openNpcDialog(nid) {
   openModal("gangModal");
   if (window.Voice) Voice.speakCharacter(nid, line);
   if (window.World3D?.setTalking) World3D.setTalking(nid, true);
-  if (nid === "razor") questBump("talk_razor");
+  if (nid === "razor") {
+    questBump("talk_razor");
+    window.Onboarding?.onTalkRazor?.();
+  }
 }
 
 window.changeCharacter = function () {
@@ -1060,6 +1089,7 @@ function buyItem(id) {
   renderAll();
   renderShop();
   toast(t("bought_item") + " " + tShop(it.id));
+  window.Onboarding?.onShopBuy?.();
 }
 
 function renderInventory() {
@@ -1278,6 +1308,7 @@ function endFight(win) {
     me.rep += 8;
     toast(t("win_fight") + " +" + reward);
     questBump("win_fight");
+    window.Onboarding?.onWinFight?.();
   } else {
     toast(t("lose_fight"));
     me.stats.hp = me.stats.maxHp;
