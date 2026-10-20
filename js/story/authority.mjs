@@ -119,11 +119,18 @@ export function startAuthorityPath(p = me()) {
   renderAuthorityHud(p);
 }
 
-export function openStage1Dialog() {
+export function openStage1Dialog(opts = {}) {
   const st = ensureAuthority(me());
   if (st.auth.s1Done || st.flags?.joined_gang) return;
   const stage = pathData?.stages?.[0];
   if (!stage) return;
+  if (!opts.force) {
+    if (me().location !== "street") return;
+    if (window.World3D?.getNearestNpc?.() !== "mohawk") return;
+    if (window.StoryEngine?.canOpenStoryModal && !window.StoryEngine.canOpenStoryModal()) return;
+  } else if (me().location !== "street") return;
+  window.StoryEngine?.dismissAllStoryUi?.();
+  document.querySelectorAll(".modal.active").forEach(el => el.classList.remove("active"));
   const dlg = document.getElementById("storyDialog");
   if (!dlg) return;
   dlg.classList.add("active");
@@ -208,9 +215,14 @@ export function completeAuthTrial(trialId, p = me()) {
   window.StoryEngine?.renderObjectivePanel?.();
 }
 
-export function runInitiationCeremony() {
+export function runInitiationCeremony(opts = {}) {
   const st = ensureAuthority(me());
   if (st.flags?.joined_gang) return;
+  if (!opts.force) {
+    if (me().location !== "street") return;
+    if (window.World3D?.getNearestNpc?.() !== "razor") return;
+    if (window.StoryEngine?.canOpenStoryModal && !window.StoryEngine.canOpenStoryModal()) return;
+  } else if (me().location !== "street") return;
   if (!stage3Complete(st) || st.authority < 80) {
     window.toast?.(L({ ru: "Сначала испытания", en: "Finish the trials first", da: "Fuldfør prøverne først" }));
     return;
@@ -412,11 +424,23 @@ function openNoRatChoice() {
   });
 }
 
+const STAGE1_CALLOUT_MS = 9000;
+
+export function tryStage1ProximityCallout(p = me()) {
+  const st = ensureAuthority(p);
+  if (st.auth.stage !== 1 || st.auth.s1Done || st.flags?.joined_gang) return;
+  if (p.location !== "street") return;
+  if (window.World3D?.getNearestNpc?.() !== "mohawk") return;
+  if (!window.StoryEngine?.canOpenStoryModal?.()) return;
+  const now = Date.now();
+  if (now - (st.auth.s1CalloutAt || 0) < STAGE1_CALLOUT_MS) return;
+  st.auth.s1CalloutAt = now;
+  const intro = pathData?.stages?.[0]?.intro?.text;
+  if (intro) window.StoryEngine?.showNpcProximityCallout?.("mohawk", L(intro));
+}
+
 export function onEnterStreetForTeasing() {
-  const st = ensureAuthority(me());
-  if (!st.auth.s1Done && st.auth.stage === 1 && me().location === "street") {
-    setTimeout(() => openStage1Dialog(), 600);
-  }
+  /* legacy no-op: stage 1 opens via proximity callout or E on Mohawk only */
 }
 
 export function openTrialsChooserDialog() {
@@ -454,6 +478,7 @@ export const Authority = {
   runInitiationCeremony,
   maybeChapter2Bullying,
   onEnterStreetForTeasing,
+  tryStage1ProximityCallout,
   syncGangRank
 };
 

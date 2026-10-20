@@ -198,13 +198,18 @@ function addForegroundCluster(locId, root) {
     }
   }
   const z = 3.2;
+  const urbanOnly = ["street", "room", "construction", "parkour", "kitchen"].includes(locId);
   const items = [
     ["fg_bench", () => parkBench(0, z)],
     ["fg_lamp", () => streetLamp(2.2, z - 0.4, `fg_lamp_${locId}`)],
-    ["fg_fence", () => ironFence(-2.5, z + 0.5, 2)],
-    ["fg_crypt", () => cemeteryCrypt(3.2, z - 0.8)],
-    ["fg_tomb_cross", () => tombstone(`fg_cross_${locId}`, -1.2, z + 0.6, true)],
-    ["fg_tomb_round", () => tombstone(`fg_round_${locId}`, 1.4, z + 0.4, false)],
+    ...(urbanOnly
+      ? []
+      : [
+          ["fg_fence", () => ironFence(-2.5, z + 0.5, 2)],
+          ["fg_crypt", () => cemeteryCrypt(3.2, z - 0.8)],
+          ["fg_tomb_cross", () => tombstone(`fg_cross_${locId}`, -1.2, z + 0.6, true)],
+          ["fg_tomb_round", () => tombstone(`fg_round_${locId}`, 1.4, z + 0.4, false)]
+        ]),
     ["fg_hydrant", () => { const g = tagged("fg_hydrant", box(0.35, 0.55, 0.35, mat(0xcc2222, 0xff0000))); g.position.set(-3.2, 0.28, z); return g; }],
     ["fg_mailbox", () => { const g = tagged("fg_mailbox", box(0.35, 1.1, 0.25, mat(0x2255aa, 0x0033aa))); g.position.set(3.5, 0.55, z - 0.2); return g; }],
     ["fg_planter", () => { const g = tagged("fg_planter", box(0.55, 0.45, 0.55, mat(0x5a4030))); g.position.set(-0.5, 0.225, z + 1.1); return g; }],
@@ -310,6 +315,125 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("kitchen_trash_bin", box(0.28, 0.4, 0.28, mat(0x333344)).translateY(0.2).translateX(4.5).translateZ(-2)));
     root.add(tagged("kitchen_clock", new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.04, 16), mat(0xffffff, 0xffffcc)).rotateX(Math.PI / 2).translateY(2.5).translateX(-5.5)));
     root.add(tagged("kitchen_spice_rack", box(0.35, 0.4, 0.12, mat(0x664422)).translateY(1.1).translateX(-5).translateZ(-4.4)));
+    for (let i = 0; i < 12; i++) {
+      const g = tagged(
+        `kitchen_mobile_fg_${i}`,
+        box(0.14, 0.1 + (i % 3) * 0.06, 0.14, mat(0xff6600 + (i * 11_371) % 0x222222))
+      );
+      g.position.set(-2.8 + (i % 6) * 0.55, 0.05 + (i % 2) * 0.08, 0.4 + Math.floor(i / 6) * 0.65);
+      root.add(g);
+    }
+    root.add(tagged("kitchen_pumpkin_fg", new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.22).translateX(-1.2).translateZ(1.1)));
+    root.add(tagged("kitchen_graffiti_fg", box(1.4, 0.9, 0.03, mat(0x442266, 0xff00ff)).translateY(1.35).translateX(2.2).translateZ(0.8)));
+    root.add(tagged("kitchen_bike_fg", box(0.9, 0.45, 0.2, mat(0x666677)).translateY(0.22).translateX(-0.5).translateZ(1.6)));
+    for (let i = 0; i < 10; i++) {
+      const g = tagged(
+        `kitchen_portrait_fg_${i}`,
+        box(0.16, 0.12 + (i % 2) * 0.08, 0.16, mat(0xff6600 + (i * 17_371) % 0x222222))
+      );
+      g.position.set(-2.2 + (i % 5) * 0.48, 0.06 + (i % 2) * 0.06, -1.2 + Math.floor(i / 5) * 0.85);
+      root.add(g);
+    }
+    root.add(tagged("kitchen_portrait_bin", box(0.3, 0.45, 0.3, mat(0x333344)).translateY(0.22).translateX(1.8).translateZ(-0.6)));
+    root.add(tagged("kitchen_portrait_lamp", box(0.12, 0.9, 0.12, mat(0xffcc00, 0xffaa00)).translateY(0.45).translateX(-1.5).translateZ(-0.2)));
+    root.add(tagged("kitchen_portrait_poster", box(0.9, 0.7, 0.03, mat(0x442266, 0xff00ff)).translateY(1.35).translateX(0.5).translateZ(-0.4)));
+  } else if (locId === "room") {
+    root.add(tagged("room_graffiti_wall", box(2.4, 1.6, 0.04, mat(0x331144, 0xff00ff)).translateY(1.45).translateZ(-5.7)));
+    root.add(tagged("room_neon_punk", box(1.4, 0.35, 0.05, mat(0x00ffff, 0x00ffff)).translateY(2.35).translateZ(-5.65)));
+    root.add(tagged("room_poster_punk", box(1.1, 1.5, 0.03, mat(0x552266, 0x220044)).translateY(1.55).translateX(-5.5).translateZ(-2)));
+    root.add(tagged("room_beanbag_fg", box(0.9, 0.35, 0.9, mat(0x5a2048)).translateY(0.18).translateX(-1.2).translateZ(2.8)));
+    root.add(tagged("room_sofa_fg", box(1.3, 0.38, 0.6, mat(0x4a2848)).translateY(0.2).translateX(0.8).translateZ(3.2)));
+    root.add(tagged("room_guitar_stand", box(0.35, 0.12, 0.1, mat(0xcc2222)).translateY(0.55).translateX(2.5).translateZ(2.2)));
+    root.add(tagged("room_amp_stack", box(0.5, 0.75, 0.4, mat(0x111122, 0x00ffff)).translateY(0.38).translateX(3.1).translateZ(2.4)));
+    root.add(tagged("room_tv_crt", box(0.75, 0.5, 0.08, mat(0x111118, 0x224466)).translateY(1.05).translateX(-3.5).translateZ(-5.5)));
+    root.add(tagged("room_bookshelf_fg", box(0.9, 1.35, 0.28, mat(0x5a4030)).translateY(0.68).translateX(-5).translateZ(1.5)));
+    root.add(tagged("room_rug_fg", new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), mat(0x5a2040)).rotateX(-Math.PI / 2).translateY(0.015).translateZ(1.5)));
+    root.add(tagged("room_skull_lamp", box(0.2, 0.32, 0.2, mat(0xddddcc, 0xaaccaa)).translateY(1.6).translateX(-2).translateZ(-5.5)));
+    root.add(tagged("room_pumpkin", new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.24).translateX(4.5).translateZ(2.5)));
+    root.add(tagged("room_trash_bin", box(0.32, 0.55, 0.32, mat(0x3a4048)).translateY(0.275).translateX(3.8).translateZ(3.5)));
+    root.add(tagged("room_plant_pot", box(0.28, 0.55, 0.28, mat(0x228844)).translateY(0.28).translateX(-3.8).translateZ(3.8)));
+    root.add(tagged("room_chain_lamp", box(0.08, 1.2, 0.08, mat(0x888899, 0xffcc00)).translateY(1.8).translateX(1.5).translateZ(0.5)));
+    root.add(streetLamp(-4.2, 4.5, "room_floor_lamp_w"));
+    root.add(streetLamp(4.5, 3.8, "room_floor_lamp_e"));
+    root.add(parkBench(-2.5, 4.2));
+    root.add(tagged("room_sticker_cluster", box(0.4, 0.35, 0.02, mat(0xff00ff, 0xff00ff)).translateY(1.7).translateX(5.2).translateZ(-5.6)));
+    for (let i = 0; i < 8; i++) {
+      const g = tagged(`room_floor_clutter_${i}`, box(0.12, 0.08, 0.12, mat(0x8a6030 + (i * 9137) % 0x111111)));
+      g.position.set(-3.5 + i * 0.42, 0.04, 0.5 + (i % 3) * 0.55);
+      root.add(g);
+    }
+  } else if (locId === "street") {
+    root.add(tagged("street_graffiti_mural", box(3.2, 2, 0.05, mat(0x442266, 0xff00ff)).translateY(1.5).translateX(-1).translateZ(-6.5)));
+    root.add(tagged("street_neon_gang", box(2.2, 0.45, 0.05, mat(0xff00ff, 0xff00ff)).translateY(3.2).translateZ(-5.8)));
+    root.add(tagged("street_neon_shop", box(1.8, 0.35, 0.05, mat(0x00ffff, 0x00ffff)).translateY(2.8).translateX(4.5).translateZ(-4.2)));
+    root.add(streetLamp(-3.5, 2.5, "street_lamp_sw"));
+    root.add(streetLamp(3.2, 1.8, "street_lamp_se"));
+    root.add(streetLamp(-1.2, 4.2, "street_lamp_n"));
+    root.add(parkBench(2.8, 3.5));
+    root.add(tagged("street_dumpster", box(1.1, 0.95, 0.75, mat(0x3a4048)).translateY(0.48).translateX(-4.5).translateZ(2.2)));
+    root.add(tagged("street_hydrant", box(0.35, 0.55, 0.35, mat(0xcc2222, 0xff0000)).translateY(0.28).translateX(1.2).translateZ(3.8)));
+    root.add(tagged("street_trash_can", box(0.45, 0.75, 0.45, mat(0x3a4048)).translateY(0.38).translateX(-2.2).translateZ(4.5)));
+    root.add(tagged("street_bike_rack", box(1.2, 0.5, 0.15, mat(0x666677)).translateY(0.25).translateX(0.5).translateZ(4.8)));
+    root.add(tagged("street_bike_prop", box(0.9, 0.45, 0.2, mat(0xcc2222, 0xff4444)).translateY(0.35).translateX(0.5).translateZ(4.9)));
+    root.add(tagged("street_pumpkin_row", new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.22).translateX(-3).translateZ(1.5)));
+    root.add(tagged("street_news_stand", box(0.9, 1.2, 0.6, mat(0x553366)).translateY(0.6).translateX(4.2).translateZ(1.2)));
+    root.add(tagged("street_vending", box(0.65, 1.65, 0.55, mat(0x223344, 0x004466)).translateY(0.82).translateX(-5.2).translateZ(0.5)));
+    root.add(tagged("street_mailbox", box(0.35, 1.1, 0.25, mat(0x2255aa, 0x0033aa)).translateY(0.55).translateX(5.5).translateZ(3.2)));
+    root.add(tagged("street_crate_stack", box(0.5, 0.8, 0.5, mat(0x6a5030)).translateY(0.4).translateX(-5.8).translateZ(3.8)));
+    root.add(tagged("street_parking_meter", box(0.12, 1.1, 0.12, mat(0x888899)).translateY(0.55).translateX(2.5).translateZ(2.2)));
+    root.add(tagged("street_poster_band", box(0.9, 1.2, 0.03, mat(0x662244, 0xff00ff)).translateY(1.4).translateX(-5.5).translateZ(-3.5)));
+    root.add(tagged("street_scaffold", box(0.12, 2.8, 0.12, mat(0x888888)).translateY(1.4).translateX(6).translateZ(-2)));
+    root.add(tagged("street_brick_pile", box(1.2, 0.45, 0.8, mat(0x884422)).translateY(0.22).translateX(-2.5).translateZ(-1.5)));
+    root.add(tagged("street_barrel", new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.55, 10), mat(0x553322)).translateY(0.28).translateX(3.5).translateZ(-0.5)));
+    for (let i = 0; i < 6; i++) {
+      const g = tagged(`street_litter_${i}`, box(0.1, 0.06, 0.14, mat(0x8a6030)));
+      g.position.set(-2 + i * 0.55, 0.03, 2.5 + (i % 2) * 0.4);
+      root.add(g);
+    }
+  } else if (locId === "construction") {
+    root.add(tagged("con_scaffold_tower", box(0.15, 3.2, 0.15, mat(0x888888)).translateY(1.6).translateX(-3).translateZ(2.5)));
+    root.add(tagged("con_scaffold_beam", box(2.5, 0.12, 0.12, mat(0x999999)).translateY(2.4).translateX(-2).translateZ(2.5)));
+    root.add(tagged("con_brick_pile_a", box(1.4, 0.5, 0.9, mat(0x884422)).translateY(0.25).translateX(2.2).translateZ(1.8)));
+    root.add(tagged("con_brick_pile_b", box(1.1, 0.4, 0.7, mat(0x774422)).translateY(0.2).translateX(2.8).translateZ(2.6)));
+    root.add(tagged("con_tool_crate", box(0.55, 0.45, 0.45, mat(0xcc2222)).translateY(0.22).translateX(-1.5).translateZ(3.2)));
+    root.add(tagged("con_barrel", new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.6, 10), mat(0x553322)).translateY(0.3).translateX(0.8).translateZ(3.5)));
+    root.add(tagged("con_caution_sign", box(0.5, 0.65, 0.05, mat(0xffcc00, 0xffaa00)).translateY(0.35).translateX(-2.8).translateZ(1.2)));
+    root.add(tagged("con_neon_site", box(1.6, 0.35, 0.05, mat(0xff8800, 0xff6600)).translateY(2.5).translateZ(-3.5)));
+    root.add(tagged("con_pumpkin", new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.24).translateX(-4).translateZ(2.8)));
+    root.add(tagged("con_graffiti", box(2, 1.2, 0.04, mat(0x442266, 0xff00ff)).translateY(1.3).translateX(4.5).translateZ(-2.8)));
+    root.add(streetLamp(-4.5, 3.5, "con_lamp_w"));
+    root.add(streetLamp(4, 2.8, "con_lamp_e"));
+    root.add(parkBench(0, 4));
+    root.add(tagged("con_dumpster", box(1.1, 0.95, 0.75, mat(0x3a4048)).translateY(0.48).translateX(-5).translateZ(0.5)));
+    root.add(tagged("con_wood_pallet", box(1.2, 0.12, 1, mat(0x6a5030)).translateY(0.06).translateX(1.5).translateZ(-1.2)));
+    root.add(tagged("con_cement_bags", box(0.9, 0.35, 0.5, mat(0xaaaaaa)).translateY(0.18).translateX(-0.5).translateZ(-2)));
+    root.add(tagged("con_hard_hat", box(0.35, 0.18, 0.35, mat(0xffcc00, 0xffaa00)).translateY(0.5).translateX(3.2).translateZ(0.8)));
+    root.add(tagged("con_chain_fence", box(2.2, 0.9, 0.06, mat(0x666677)).translateY(0.45).translateX(-3.5).translateZ(-1.5)));
+    for (let i = 0; i < 8; i++) {
+      const g = tagged(`con_debris_${i}`, box(0.15, 0.1, 0.15, mat(0x555566 + (i * 9973) % 0x111111)));
+      g.position.set(-2.5 + i * 0.45, 0.05, 1.2 + (i % 3) * 0.5);
+      root.add(g);
+    }
+  } else if (locId === "parkour") {
+    root.add(tagged("park_ramp_a", box(2.2, 0.35, 1.2, mat(0x666677)).translateY(0.18).translateX(-2).translateZ(2.5).rotateY(0.2)));
+    root.add(tagged("park_ramp_b", box(1.8, 0.28, 1, mat(0x555566)).translateY(0.14).translateX(2.5).translateZ(1.8).rotateY(-0.15)));
+    root.add(tagged("park_neon_finish", box(1.6, 0.35, 0.05, mat(0x00ffff, 0x00ffff)).translateY(2.4).translateZ(-4.5)));
+    root.add(tagged("park_graffiti", box(2.4, 1.5, 0.04, mat(0x442266, 0xff00ff)).translateY(1.4).translateX(-4).translateZ(-5.5)));
+    root.add(tagged("park_pumpkin", new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.22).translateX(3.5).translateZ(3.2)));
+    root.add(streetLamp(-3, 3.5, "park_lamp_w"));
+    root.add(streetLamp(3.5, 2.8, "park_lamp_e"));
+    root.add(parkBench(-1, 4.2));
+    root.add(tagged("park_trash", box(0.32, 0.55, 0.32, mat(0x3a4048)).translateY(0.275).translateX(1.2).translateZ(4.2)));
+    root.add(tagged("park_bike", box(0.9, 0.45, 0.2, mat(0xcc2222)).translateY(0.22).translateX(-4).translateZ(1.5)));
+    root.add(tagged("park_crate", box(0.55, 0.55, 0.55, mat(0x6a5030)).translateY(0.275).translateX(4.2).translateZ(0.5)));
+    root.add(tagged("park_barrel", new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.55, 10), mat(0x553322)).translateY(0.28).translateX(0.5).translateZ(-2.5)));
+    root.add(tagged("park_poster", box(1, 1.3, 0.03, mat(0x662244, 0xff00ff)).translateY(1.45).translateX(5).translateZ(-3)));
+    root.add(tagged("park_chain_rail", box(2.5, 0.08, 0.08, mat(0x00ffff, 0x00ffff)).translateY(1.05).translateX(0).translateZ(5.5)));
+    for (let i = 0; i < 10; i++) {
+      const g = tagged(`park_obstacle_${i}`, box(0.35, 0.25 + (i % 3) * 0.12, 0.35, mat(0x445566 + (i * 12_371) % 0x111111)));
+      g.position.set(-3.5 + (i % 5) * 1.1, 0.12 + (i % 3) * 0.12, -1 + Math.floor(i / 5) * 2.2);
+      root.add(g);
+    }
   } else if (locId === "city") {
     for (let i = 0; i < 22; i++) {
       const g = tagged(
@@ -399,7 +523,7 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("roof_toolbox", box(0.35, 0.22, 0.22, mat(0xcc2222)).translateY(0.11).translateX(4).translateZ(2)));
     root.add(tagged("roof_gutter", box(4, 0.08, 0.15, mat(0x666677)).translateY(1.08).translateX(0).translateZ(-7.8)));
   }
-  if (["toilet", "elevator", "kitchen", "city", "cemetery", "roof"].includes(locId)) {
+  if (["toilet", "elevator", "kitchen", "city", "cemetery", "roof", "room", "street", "construction", "parkour"].includes(locId)) {
     addForegroundCluster(locId, root);
   }
 }

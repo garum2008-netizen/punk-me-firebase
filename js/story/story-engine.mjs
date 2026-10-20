@@ -795,6 +795,32 @@ function closeDialogue() {
   hideDirection();
 }
 
+export function dismissAllStoryUi() {
+  closeDialogue();
+  document.getElementById("storyDialog")?.classList.remove("active");
+  const body = document.getElementById("storyDialog")?.querySelector(".story-dialog-body");
+  if (body && !activeDlg) body.innerHTML = "";
+  document.getElementById("storyBubbles")?.replaceChildren?.();
+  document.getElementById("storyDirection")?.classList.remove("visible");
+  const sub = document.getElementById("voiceSubtitle");
+  if (sub) sub.textContent = "";
+}
+
+export function canOpenStoryModal() {
+  if (activeDlg) return false;
+  if (document.getElementById("storyDialog")?.classList.contains("active")) return false;
+  if (document.getElementById("howToOverlay")?.classList.contains("active")) return false;
+  if (document.querySelector(".modal.active")) return false;
+  if (window.World3D?.isGameplayActivityActive?.()) return false;
+  return true;
+}
+
+export function showNpcProximityCallout(npcId, text) {
+  if (!canOpenStoryModal()) return;
+  showBubble(npcId, text);
+  setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(npcId) : npcId);
+}
+
 export function tryStoryNpc(npcId) {
   if (Authority.tryAuthorityNpc(npcId)) return true;
   if (!STORY_NPC_IDS.has(npcId)) return false;
@@ -828,12 +854,12 @@ function payInitiationFee() {
 }
 
 export function onLocationChange(loc) {
+  dismissAllStoryUi();
   const p = me();
   p._storyJustEntered = loc;
   setTimeout(() => {
     if (me()) me()._storyJustEntered = null;
   }, 1200);
-  if (loc === "street") Authority.onEnterStreetForTeasing();
   tryCallouts();
   renderObjectivePanel();
   syncBeacon();
@@ -863,6 +889,7 @@ export function tickStory(dt) {
   }
   checkStepComplete();
   if (Math.random() < dt * 0.15) tryCallouts();
+  Authority.tryStage1ProximityCallout?.();
 }
 
 export function onPlayerMove() {
@@ -921,6 +948,9 @@ const api = {
   startQuest,
   ensureStoryState,
   onOnboardingComplete,
+  dismissAllStoryUi,
+  canOpenStoryModal,
+  showNpcProximityCallout,
   applyEffect,
   Authority,
   getJobs: () => data.jobs,

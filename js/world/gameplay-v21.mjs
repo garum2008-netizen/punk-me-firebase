@@ -47,11 +47,34 @@ export function bindGameplayToWorld3D(api, getCtx) {
   api.placeDecorAt = (wx, wz, type) => placeDecorAt(wx, wz, type);
   api.getDecorPick = () => state.decor.pick;
   api.setDecorPick = id => setDecorPick(id);
+  api.setDecorGhostAt = (wx, wz) => setDecorGhostAt(wx, wz);
   api.updateDecorGhostFromEvent = e => updateDecorGhostFromEvent(e);
+  api.endAllGameplayActivities = endAllGameplayActivities;
+  api.isGameplayActivityActive = isGameplayActivityActive;
   api.decorPointerDown = (wx, wz) => decorPointerDown(wx, wz);
   api.handleDecorKey = key => handleDecorKey(key);
   api.cycleJukebox = () => cycleJukebox();
   api.snapHeroForShop = bare => snapHeroCosmetics(!!bare);
+}
+
+export function endAllGameplayActivities() {
+  if (state.cemetery?.active) endCemeteryJob(false);
+  if (state.duel?.active) stopDuel3D(false);
+  state.fetch = null;
+  setHud("");
+  document.getElementById("duel3dHud")?.classList.add("hidden");
+  document.getElementById("duel3dResult")?.classList.add("hidden");
+  document.getElementById("fightOverlay")?.classList.remove("active");
+  if (state.decor.mode) setDecorMode(false);
+}
+
+export function onGameplayLocationChanged(nextLocId, prevLocId) {
+  if (!prevLocId || prevLocId === nextLocId) return;
+  endAllGameplayActivities();
+}
+
+export function isGameplayActivityActive() {
+  return !!(state.cemetery?.active || state.duel?.active || state.fetch?.active || state.decor.mode);
 }
 
 export function onGameplayLocationBuilt(locId, root, bounds) {
@@ -504,6 +527,16 @@ function setDecorPick(id) {
   state.decor.pick = id;
   const ctx = ctxGet?.();
   if (state.decor.mode && ctx?.locationRoot) rebuildDecorGhost(ctx);
+}
+
+function setDecorGhostAt(wx, wz) {
+  const ctx = ctxGet?.();
+  if (!ctx?.locationRoot || ctx.currentLoc !== "room") return false;
+  if (!state.decor.ghost) rebuildDecorGhost(ctx);
+  if (!state.decor.ghost) return false;
+  state.decor.ghost.position.set(wx, 0, wz);
+  state.decor.ghost.rotation.y = state.decor.rot;
+  return true;
 }
 
 function setDecorMode(on) {

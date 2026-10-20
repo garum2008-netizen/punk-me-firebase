@@ -8,15 +8,29 @@ const outDir = path.join(outRoot, "v21");
 fs.mkdirSync(outDir, { recursive: true });
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const LOCS = ["room", "kitchen", "toilet", "elevator", "street", "city", "construction", "cemetery", "roof", "parkour"];
-const PROP_AUDIT = new Set(["toilet", "elevator", "kitchen", "city", "cemetery", "roof"]);
+const PROP_AUDIT = new Set([
+  "toilet",
+  "elevator",
+  "kitchen",
+  "city",
+  "cemetery",
+  "roof",
+  "room",
+  "street",
+  "construction",
+  "parkour"
+]);
 const propReport = {};
 const propReportDesktop = {};
+const propReportMobile = {};
+const MOBILE_PROP_AUDIT = new Set(["street", "room", "kitchen", "cemetery", "construction"]);
 const DESKTOP = LOCS.map(l => [l, `qa-v21-desktop-${l}.png`]);
 const MOBILE = [
   ["street", "qa-v21-mobile-street.png"],
   ["kitchen", "qa-v21-mobile-kitchen.png"],
   ["room", "qa-v21-mobile-room.png"],
-  ["cemetery", "qa-v21-mobile-cemetery.png"]
+  ["cemetery", "qa-v21-mobile-cemetery.png"],
+  ["construction", "qa-v21-mobile-construction.png"]
 ];
 
 async function prep(page) {
@@ -42,10 +56,30 @@ async function enter(page) {
     saveMe?.();
     World3D?.resize?.();
     PlayV21?.syncCosmetics?.(me);
+    PlayV21?.endAllActivities?.();
+    StoryEngine?.dismissAllStoryUi?.();
+    const qb = document.getElementById("questBox");
+    if (qb) qb.style.display = "none";
+  });
+}
+
+async function cleanCaptureState(page) {
+  await page.evaluate(() => {
+    PlayV21?.endAllActivities?.();
+    StoryEngine?.dismissAllStoryUi?.();
+    document.getElementById("storyDialog")?.classList.remove("active");
+    const qb = document.getElementById("questBox");
+    if (qb) qb.style.display = "none";
+    const gh = document.getElementById("gameplayHud");
+    if (gh) {
+      gh.replaceChildren?.();
+      gh.textContent = "";
+    }
   });
 }
 
 async function snapLoc(page, loc, storeDesktop = false) {
+  await cleanCaptureState(page);
   await page.evaluate(id => {
     goLocation(id);
     syncStage3D?.();
@@ -111,6 +145,7 @@ async function snapLoc(page, loc, storeDesktop = false) {
     .png()
     .toFile(shopOutfit);
 
+  await cleanCaptureState(desk);
   await desk.evaluate(() => {
     localStorage.removeItem("punkme_room_decor_v21");
     goLocation("room");
@@ -121,16 +156,17 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-room-decor-before.png") });
   const decorTypes = ["sofa", "beanbag", "lamp", "rug", "plant", "bookshelf", "guitar", "tv", "bed", "neon_sign"];
   await desk.evaluate(types => {
-    me._decorMode = true;
-    World3D.setDecorMode?.(true);
+    StoryEngine?.dismissAllStoryUi?.();
     const pts = [[-2, 2], [1, 3], [2, 1], [-1, 4], [0, 2.5], [-2.5, 3.5], [2.5, 3], [0, 4], [-1, 2], [1.5, 2]];
     types.forEach((type, i) => {
       World3D.setDecorPick?.(type);
       const [x, z] = pts[i % pts.length];
       World3D.placeDecorAt?.(x, z, type);
     });
-    me._decorMode = false;
-    World3D.setDecorMode?.(false);
+    me._decorMode = true;
+    World3D.setDecorMode?.(true);
+    World3D.setDecorPick?.("beanbag");
+    World3D.setDecorGhostAt?.(0.5, 2.6);
     syncStage3D?.();
     World3D?.snapScreenshotView?.();
   }, decorTypes);
@@ -160,12 +196,17 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await desk.waitForTimeout(3500);
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-cemetery-job.png") });
 
+  await cleanCaptureState(desk);
   await desk.evaluate(() => {
     goLocation("street");
     syncStage3D?.();
     startNpcFight?.("razor");
   });
-  await desk.waitForTimeout(1200);
+  await desk.waitForTimeout(500);
+  await desk.evaluate(() => {
+    window._duelAttack = true;
+  });
+  await desk.waitForTimeout(420);
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
 
   const fetchFrames = [];
@@ -211,15 +252,25 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await enter(mob);
   for (const [loc, name] of MOBILE) {
     await snapLoc(mob, loc);
+    const counts = await mob.evaluate(() => World3D?.countVisibleProps?.() || { unique: 0 });
+    propReportMobile[loc] = counts;
+    const auditN = counts.frustumUnique ?? counts.unique;
+    if (MOBILE_PROP_AUDIT.has(loc) && auditN < 20) {
+      console.error(`MOBILE PROP FAIL ${loc}: ${auditN} frustum-visible unique tags (need 20+)`);
+    }
     await mob.screenshot({ path: path.join(outRoot, name) });
     await mob.evaluate(() => World3D?.releaseCaptureFrame?.());
     console.log("mobile", loc);
   }
 
   await browser.close();
-  const propFail = [...PROP_AUDIT].some(
-    loc => (propReportDesktop[loc]?.frustumUnique ?? propReportDesktop[loc]?.unique ?? 0) < 20
-  );
+  const propFail =
+    [...PROP_AUDIT].some(
+      loc => (propReportDesktop[loc]?.frustumUnique ?? propReportDesktop[loc]?.unique ?? 0) < 20
+    ) ||
+    [...MOBILE_PROP_AUDIT].some(
+      loc => (propReportMobile[loc]?.frustumUnique ?? propReportMobile[loc]?.unique ?? 0) < 20
+    );
   console.log(
     JSON.stringify(
       { version: "living3d-v21", propReportDesktop, propReport, desktop: DESKTOP.map(([, n]) => n), mobile: MOBILE.map(([, n]) => n) },

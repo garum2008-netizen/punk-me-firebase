@@ -140,7 +140,9 @@ async function captureStage(page, stage, prefix) {
     await page.evaluate(() => {
       const st = StoryEngine.ensureStoryState(me);
       st.auth.s1Done = false;
-      StoryEngine.Authority.openStage1Dialog();
+      StoryEngine.dismissAllStoryUi?.();
+      StoryEngine.Authority.openStage1Dialog({ force: true });
+      World3D?.snapDialogueNpcShot?.("mohawk");
     });
   } else if (stage === 2) {
     await prepareScene(page, "cemetery");
@@ -175,7 +177,9 @@ async function captureStage(page, stage, prefix) {
       st.auth.trials = { cemetery: true, roof_parkour: true, duel_mohawk: true };
       st.authority = 88;
       StoryEngine.Authority.syncGangRank(me);
-      StoryEngine.Authority.runInitiationCeremony();
+      StoryEngine.dismissAllStoryUi?.();
+      StoryEngine.Authority.runInitiationCeremony({ force: true });
+      World3D?.snapDialogueNpcShot?.("razor");
     });
   }
   await page.waitForTimeout(900);
@@ -217,7 +221,9 @@ async function captureStage(page, stage, prefix) {
     st.authority = 92;
     st.flags.joined_gang = false;
     StoryEngine.Authority.syncGangRank(me);
-    StoryEngine.Authority.runInitiationCeremony();
+    StoryEngine.dismissAllStoryUi?.();
+    StoryEngine.Authority.runInitiationCeremony({ force: true });
+    World3D?.snapDialogueNpcShot?.("razor");
   });
   await desk.waitForTimeout(900);
   await snap(desk, "desktop-razor-initiation-patch.png");

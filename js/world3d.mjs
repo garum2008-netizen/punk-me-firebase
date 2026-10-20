@@ -26,6 +26,7 @@ import { pulseScene } from "./world/location-enrich.mjs";
 import {
   bindGameplayToWorld3D,
   onGameplayLocationBuilt,
+  onGameplayLocationChanged,
   tickGameplayV21
 } from "./world/gameplay-v21.mjs";
 import {
@@ -346,6 +347,7 @@ function clearLocation() {
 }
 
 function rebuildLocation(locId) {
+  if (locId !== currentLoc) onGameplayLocationChanged(locId, currentLoc);
   clearLocation();
   actors.forEach((a, id) => {
     scene.remove(a.group);
@@ -1416,6 +1418,45 @@ const api = {
       camera.position.set(p.x + 1.35, p.y + 1.42, p.z + 2.15);
       camera.lookAt(p.x, p.y + 1.22, p.z);
     }
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
+  snapDialogueNpcShot: (npcId = "mohawk") => {
+    const pl = actors.get("player");
+    const npc = actors.get(`npc_${npcId}`);
+    if (!pl || !npc || !camera || !renderer) return false;
+    npc._patrol = null;
+    const ax = NPC_WORLD[currentLoc]?.[npcId]?.x ?? npc.wx;
+    const az = NPC_WORLD[currentLoc]?.[npcId]?.z ?? npc.wz;
+    npc.wx = ax;
+    npc.wz = az;
+    placeActorWorld(npc, ax, az, false, true);
+    pl.wx = ax + 1.35;
+    pl.wz = az + 0.4;
+    placeActorWorld(pl, pl.wx, pl.wz, true);
+    pl.group.lookAt(npc.group.position.x, pl.group.position.y + 0.9, npc.group.position.z);
+    npc.group.lookAt(pl.group.position.x, pl.group.position.y + 0.9, pl.group.position.z);
+    const midX = (pl.wx + npc.wx) * 0.5;
+    const midZ = (pl.wz + npc.wz) * 0.5;
+    const yaw = Math.atan2(pl.wx - npc.wx, pl.wz - npc.wz);
+    camera.position.set(midX + Math.sin(yaw + 0.85) * 4.5, 2.08, midZ + Math.cos(yaw + 0.85) * 4.5);
+    camera.lookAt(midX, 1.12, midZ);
+    camera.fov = mobileQuality ? 48 : 42;
+    camera.updateProjectionMatrix();
+    guideTarget = { npcId };
+    setTalking(npcId, true);
+    freezeActorIdleForCapture(pl);
+    freezeActorIdleForCapture(npc);
+    const dogActor = actors.get("dog");
+    if (dogActor) {
+      dogActor.wx = pl.wx - 1.1;
+      dogActor.wz = pl.wz - 0.6;
+      dogActor.group.position.set(dogActor.wx, 0, dogActor.wz);
+      freezeActorIdleForCapture(dogActor);
+    }
+    captureFrameLock = true;
+    setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    if (locationRoot) pulseScene(locationRoot, sceneTime);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
   },

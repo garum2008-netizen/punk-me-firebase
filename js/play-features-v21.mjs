@@ -202,6 +202,10 @@ export function initPlayV21(ctx) {
     },
     syncCosmetics(me) {
       window.World3D?.applyHeroCosmetics?.(me.owned || [], me.equipped || {});
+    },
+    endAllActivities() {
+      window.World3D?.endAllGameplayActivities?.();
+      window.StoryEngine?.dismissAllStoryUi?.();
     }
   };
   window.PlayV21 = api;
