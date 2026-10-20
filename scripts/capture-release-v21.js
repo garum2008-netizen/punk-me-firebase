@@ -49,6 +49,8 @@ async function enter(page) {
   await page.waitForFunction(() => window.World3D?.isReady?.(), { timeout: 120000 });
   await page.evaluate(() => {
     typeof setLanguage === "function" && setLanguage("en", true);
+    document.getElementById("charSelect")?.classList.remove("active");
+    document.getElementById("loading")?.style.setProperty("display", "none");
     document.getElementById("howToOverlay")?.classList.remove("active");
     me.owned = ["pet_dog", "jacket_neon", "chain_neon", "hat_spike"];
     me.pet = "pet_dog";
