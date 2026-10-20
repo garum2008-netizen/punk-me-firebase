@@ -576,8 +576,8 @@ const LOCATION_CAMERA = {
     fov: 56,
     pos: [0.34, 2.48, 5.85],
     look: [0.08, 1.26, -2.55],
-    player: { x: -0.1, z: 0.28, yaw: Math.PI },
-    dog: { dx: 0.8, dz: 0.14 },
+    player: { x: 0, z: 0.28, yaw: Math.PI },
+    dog: { dx: 0.82, dz: 0.22 },
     mobile: {
       fov: 58,
       pos: [0.35, 2.68, 5.75],
