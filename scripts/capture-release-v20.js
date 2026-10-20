@@ -83,6 +83,17 @@ async function snapLoc(page, loc) {
   const mobilePaths = [];
   for (const [loc, name] of MOBILE) {
     await snapLoc(mob, loc);
+    if (loc === "kitchen") {
+      const frame = await mob.evaluate(() => World3D?.getShowcaseScreenProjection?.());
+      const fail = (msg) => {
+        throw new Error(`mobile kitchen frame assert failed: ${msg} — ${JSON.stringify(frame)}`);
+      };
+      if (!frame?.ok || frame.location !== "kitchen") fail("missing projection");
+      if (frame.hero.x < 150 || frame.hero.x > 240) fail(`hero x=${frame.hero.x}`);
+      if (frame.hero.y > 540) fail(`hero foot y=${frame.hero.y}`);
+      if (!frame.dog || frame.dog.y > 540) fail(`dog y=${frame.dog?.y}`);
+      console.log("mobile kitchen frame", frame);
+    }
     const f = path.join(outRoot, name);
     await mob.screenshot({ path: f });
     mobilePaths.push(f);

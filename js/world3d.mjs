@@ -577,13 +577,13 @@ const LOCATION_CAMERA = {
     pos: [0.34, 2.48, 5.85],
     look: [0.08, 1.26, -2.55],
     player: { x: -0.1, z: 0.28, yaw: Math.PI },
-    dog: { dx: 0.78, dz: 0.04 },
+    dog: { dx: 0.82, dz: 0.1 },
     mobile: {
-      fov: 64,
-      pos: [0.98, 2.82, 6.65],
-      look: [0.38, 1.14, -2.3],
-      player: { x: 0.38, z: 0.28, yaw: Math.PI },
-      dog: { dx: 0.52, dz: 0.06 }
+      fov: 58,
+      pos: [0.35, 2.68, 5.75],
+      look: [0, 1.06, 0.34],
+      player: { x: 0, z: 0.34, yaw: Math.PI * 0.68 },
+      dog: { dx: 1.12, dz: 0.02 }
     }
   }
 };
@@ -601,6 +601,71 @@ function getFixedLocationShot() {
     player: { ...spec.player, ...m.player },
     dog: { ...spec.dog, ...m.dog }
   };
+}
+
+function projectWorldToScreen(wx, wy, wz) {
+  const canvas = document.getElementById("stage3d");
+  if (!canvas || !camera) return null;
+  const v = new THREE.Vector3(wx, wy, wz);
+  v.project(camera);
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  return { x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h };
+}
+
+function freezeActorIdleForCapture(actor) {
+  if (!actor) return;
+  if (!actor.isDog) {
+    fadeTo(actor, "idle");
+    actor._spd = 0;
+  } else {
+    fadeToDog(actor, "idle");
+  }
+  for (let i = 0; i < 36; i++) {
+    actor.mixer?.update(1 / 30);
+    updateProcedural(actor, 1 / 30, null, false);
+  }
+}
+
+function tuneMobileKitchenPortraitCamera(shot) {
+  const pl = actors.get("player");
+  const dog = actors.get("dog");
+  if (!pl || !camera || currentLoc !== "kitchen" || !mobileQuality) return;
+  const canvas = document.getElementById("stage3d");
+  if (!canvas) return;
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const targetX = cw * 0.5;
+  const targetFootY = ch * 0.568;
+  const px = pl.wx;
+  const pz = pl.wz;
+  let dist = shot.pos?.[2] != null ? shot.pos[2] - pz : 5.4;
+  let height = shot.pos?.[1] ?? 2.68;
+  let side = shot.pos?.[0] != null ? shot.pos[0] - px : 0.35;
+  camera.fov = shot.fov ?? 58;
+  camera.updateProjectionMatrix();
+  for (let i = 0; i < 48; i++) {
+    camera.position.set(px + side, height, pz + dist);
+    camera.lookAt(px, 1.06, pz);
+    camera.updateMatrixWorld();
+    const foot = projectWorldToScreen(px, 0.06, pz);
+    if (!foot) break;
+    const errX = foot.x - targetX;
+    const errY = foot.y - targetFootY;
+    side -= errX * 0.0038;
+    dist += errY * 0.011;
+    height -= errY * 0.0055;
+    if (Math.abs(errX) < 6 && Math.abs(errY) < 6) break;
+  }
+  if (dog) {
+    const dfoot = projectWorldToScreen(dog.wx, 0.06, dog.wz);
+    if (dfoot && dfoot.y > ch * 0.64) {
+      dist += 0.35;
+      height += 0.08;
+      camera.position.set(px + side, height, pz + dist);
+      camera.lookAt(px, 1.06, pz);
+    }
+  }
 }
 
 function cameraFollowProfile() {
@@ -1275,12 +1340,23 @@ const api = {
       a.group.rotation.y = 0.12;
       syncDogBesidePlayer(a);
     }
+    freezeActorIdleForCapture(a);
+    const dogActor = actors.get("dog");
+    if (dogActor) freezeActorIdleForCapture(dogActor);
     resetCameraForLocation();
     if (shot?.fixed) {
       if (currentLoc === "elevator") setElevatorCutaway(true);
       else setElevatorCutaway(false);
-      camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2]);
-      camera.lookAt(shot.look[0], shot.look[1], shot.look[2]);
+      if (mobileQuality && currentLoc === "kitchen") {
+        tuneMobileKitchenPortraitCamera(shot);
+      } else {
+        camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2]);
+        camera.lookAt(shot.look[0], shot.look[1], shot.look[2]);
+      }
+      if (shot.fov) {
+        camera.fov = shot.fov;
+        camera.updateProjectionMatrix();
+      }
       resetOccluderOpacity();
       if (currentLoc === "elevator" && typeof console !== "undefined") {
         console.info("[elevator-shot] ray hits " + JSON.stringify(logElevatorScreenshotRay()));
@@ -1293,6 +1369,21 @@ const api = {
     actors.forEach(act => act.mixer?.update(1 / 60));
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
+  },
+  getShowcaseScreenProjection: () => {
+    const pl = actors.get("player");
+    const dog = actors.get("dog");
+    const canvas = document.getElementById("stage3d");
+    if (!pl || !canvas || !camera) return { ok: false };
+    return {
+      ok: true,
+      location: currentLoc,
+      mobile: mobileQuality,
+      viewport: { w: canvas.clientWidth, h: canvas.clientHeight },
+      hero: projectWorldToScreen(pl.wx, 0.06, pl.wz),
+      heroChest: projectWorldToScreen(pl.wx, 1.02, pl.wz),
+      dog: dog ? projectWorldToScreen(dog.wx, 0.06, dog.wz) : null
+    };
   },
   nudgePlayer: (dx, dz, steps = 8) => {
     const a = actors.get("player");
