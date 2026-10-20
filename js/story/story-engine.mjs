@@ -885,6 +885,8 @@ export function initStoryEngine(h) {
       }
       renderObjectivePanel();
       window.StoryEngine = api;
+      window.StoryEngine.openNoRatChoice = () => Authority.openNoRatChoice();
+      window.StoryEngine.openTrialsChooserDialog = () => Authority.openTrialsChooserDialog();
       return true;
     })
     .catch(err => {

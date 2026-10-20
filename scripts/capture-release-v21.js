@@ -7,7 +7,7 @@ const outRoot = "/opt/cursor/artifacts";
 const outDir = path.join(outRoot, "v21");
 fs.mkdirSync(outDir, { recursive: true });
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
-const LOCS = ["room", "kitchen", "toilet", "elevator", "street", "city", "cemetery", "roof", "parkour"];
+const LOCS = ["room", "kitchen", "toilet", "elevator", "street", "city", "construction", "cemetery", "roof", "parkour"];
 const PROP_AUDIT = new Set(["toilet", "elevator", "kitchen", "city", "cemetery", "roof"]);
 const propReport = {};
 const propReportDesktop = {};

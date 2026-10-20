@@ -603,7 +603,7 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .story-meters { font-size: 10px; opacity: 0.85; margin-top: 4px; }
 #storyDialog {
   position: fixed; inset: 0; z-index: 55; display: none; align-items: center; justify-content: center;
-  background: rgba(4, 2, 12, 0.72);
+  background: rgba(4, 2, 12, 0.38);
 }
 #storyDialog.active { display: flex; }
 .story-dialog-panel {

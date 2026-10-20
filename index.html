@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v21r4">
+<link rel="stylesheet" href="css/game.css?v=living3d-v21r5">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -209,20 +209,20 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v21r4"></script>
-<script src="js/i18n.js?v=living3d-v21r4"></script>
-<script src="js/voice.js?v=living3d-v21r4"></script>
-<script src="js/onboarding.js?v=living3d-v21r4"></script>
-<script type="module" src="js/context-hints.mjs?v=living3d-v21r4"></script>
-<script type="module" src="js/how-to-play.mjs?v=living3d-v21r4"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v21r4"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v21r4"></script>
-<script type="module" src="js/play-features-v21.mjs?v=living3d-v21r4"></script>
-<script src="js/life.js?v=living3d-v21r4"></script>
-<script src="js/game.js?v=living3d-v21r4"></script>
+<script src="js/characters.js?v=living3d-v21r5"></script>
+<script src="js/i18n.js?v=living3d-v21r5"></script>
+<script src="js/voice.js?v=living3d-v21r5"></script>
+<script src="js/onboarding.js?v=living3d-v21r5"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v21r5"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v21r5"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v21r5"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v21r5"></script>
+<script type="module" src="js/play-features-v21.mjs?v=living3d-v21r5"></script>
+<script src="js/life.js?v=living3d-v21r5"></script>
+<script src="js/game.js?v=living3d-v21r5"></script>
 <script type="module">
-  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v21r4";
-  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v21r4";
+  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v21r5";
+  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v21r5";
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });

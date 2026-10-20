@@ -419,6 +419,25 @@ export function onEnterStreetForTeasing() {
   }
 }
 
+export function openTrialsChooserDialog() {
+  const st = ensureAuthority(me());
+  const trials = pathData?.stages?.[2]?.trials || [];
+  const dlg = document.getElementById("storyDialog");
+  if (!dlg) return;
+  dlg.classList.add("active");
+  dlg.querySelector(".story-dialog-title").textContent = L(pathData.stages[2]?.title);
+  const body = dlg.querySelector(".story-dialog-body");
+  body.innerHTML = `<p class="story-line">${escapeHtml(L({ ru: "Три испытания — провал можно повторить.", en: "Three trials — you can retry if you fail.", da: "Tre prøver — du kan prøve igen." }))}</p>`;
+  trials.forEach(t => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn story-choice";
+    btn.innerHTML = `<span class="choice-text">${escapeHtml(L(t.name))}</span><small class="choice-hint">${escapeHtml(L(t.objective))}</small>`;
+    btn.onclick = () => dlg.classList.remove("active");
+    body.appendChild(btn);
+  });
+}
+
 export const Authority = {
   setAuthorityPathData,
   ensureAuthority,
@@ -426,6 +445,8 @@ export const Authority = {
   startAuthorityPath,
   getAuthorityObjective,
   openStage1Dialog,
+  openNoRatChoice,
+  openTrialsChooserDialog,
   addAuthority,
   getNpcLinesForRank,
   onAuthStoryEvent,
