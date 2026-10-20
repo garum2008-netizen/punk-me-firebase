@@ -471,6 +471,26 @@ function resetOccluderOpacity() {
   });
 }
 
+function logElevatorScreenshotRay() {
+  const pl = actors.get("player");
+  if (!locationRoot || !camera || !raycaster || currentLoc !== "elevator" || !pl) return [];
+  const target = new THREE.Vector3(pl.wx, 0.95, pl.wz);
+  const dir = target.clone().sub(camera.position).normalize();
+  raycaster.set(camera.position, dir);
+  const meshes = [];
+  locationRoot.traverse(o => {
+    if (o.isMesh && o.visible) meshes.push(o);
+  });
+  return raycaster.intersectObjects(meshes, false).slice(0, 16).map(h => ({
+    dist: +h.distance.toFixed(3),
+    cut: !!h.object.userData.elevatorCutaway,
+    pos: h.object.position.toArray().map(v => +v.toFixed(2)),
+    geo: h.object.geometry?.parameters
+      ? `${h.object.geometry.parameters.width ?? "?"}x${h.object.geometry.parameters.height ?? "?"}x${h.object.geometry.parameters.depth ?? "?"}`
+      : h.object.type
+  }));
+}
+
 function setElevatorCutaway(active) {
   if (!locationRoot || currentLoc !== "elevator") return;
   if (!active) {
@@ -537,20 +557,20 @@ function updateCameraOccluders() {
 const LOCATION_CAMERA = {
   elevator: {
     fixed: true,
-    fov: 38,
-    pos: [0, 2.18, 5.05],
-    look: [0, 1.04, -0.42],
-    player: { x: 0, z: -0.32, yaw: 0 },
-    dog: { dx: 0.72, dz: 0.2 }
+    fov: 34,
+    pos: [0.35, 1.78, 4.25],
+    look: [0, 0.94, 0.04],
+    player: { x: 0, z: 0.02, yaw: 0 },
+    dog: { dx: 0.76, dz: -0.06 }
   },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: {
     fixed: true,
-    fov: 44,
-    pos: [0.1, 2.38, 3.05],
-    look: [0.2, 0.92, 0.52],
+    fov: 48,
+    pos: [0.55, 2.02, -3.35],
+    look: [0.05, 1.05, -1.35],
     player: { x: 0, z: 0.42, yaw: Math.PI },
-    dog: { dx: 0.42, dz: 0.52 }
+    dog: { dx: 0.7, dz: 0.02 }
   }
 };
 
@@ -803,11 +823,11 @@ function sync(data) {
     if (dogActor) dogActor._placed = false;
   }
   if (justChangedLoc && location === "elevator" && player && bounds) {
-    const g = worldToGameLoc(0, -0.32, bounds);
+    const g = worldToGameLoc(0, 0.02, bounds);
     hooks.onMove?.(g.x, g.y);
   }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
-    const g = worldToGameLoc(0, 0.42, bounds);
+    const g = worldToGameLoc(0, 0.38, bounds);
     hooks.onMove?.(g.x, g.y);
   }
 
@@ -890,9 +910,9 @@ function sync(data) {
 
   const playerActor = actors.get("player");
   const spawnPref = currentLoc === "kitchen"
-    ? { x: 0, z: 0.42 }
+    ? { x: 0, z: 0.38 }
     : currentLoc === "elevator"
-      ? { x: 0, z: -0.32 }
+      ? { x: 0, z: 0.02 }
       : { x: 0, z: -1.2 };
   if (playerActor && pointInsideCollider(playerActor.wx, playerActor.wz, furnitureColliders, 0.38)) {
     const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
@@ -1231,6 +1251,9 @@ const api = {
       camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2]);
       camera.lookAt(shot.look[0], shot.look[1], shot.look[2]);
       resetOccluderOpacity();
+      if (currentLoc === "elevator" && typeof console !== "undefined") {
+        console.info("[elevator-shot] ray hits " + JSON.stringify(logElevatorScreenshotRay()));
+      }
     }
     document.getElementById("howToOverlay")?.classList.remove("active");
     captureFrameLock = true;

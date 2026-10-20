@@ -57,7 +57,7 @@ async function snapLoc(page, loc) {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await prep(page);
-  await page.goto(`${base}/?dev=1&solo=1&v=run22-v17`, { waitUntil: "networkidle", timeout: 120000 });
+  await page.goto(`${base}/?dev=1&solo=1&v=run22-v18`, { waitUntil: "networkidle", timeout: 120000 });
   await enter(page);
 
   const tiles = [];

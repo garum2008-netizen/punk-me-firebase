@@ -501,21 +501,17 @@ export function buildLocationScene(locId, texLoader) {
     ]);
   } else if (locId === "elevator") {
     const cabMat = new THREE.MeshStandardMaterial({ color: 0x3a3a48, metalness: 0.35, roughness: 0.55 });
-    const cabTrim = new THREE.MeshStandardMaterial({ color: 0x666678, metalness: 0.72, roughness: 0.32 });
     floor = tiledFloor(3, 3, 0x52525f, true);
     root.add(floor);
     const cabH = 2.5;
     const half = 1.5;
     root.add(wall(3, cabH, 0.12, cabMat).translateZ(-half));
-    root.add(wall(3, cabH, 0.12, cabMat).translateX(-half));
-    root.add(wall(3, cabH, 0.12, cabMat).translateX(half));
-    const markCut = m => {
-      m.userData.elevatorCutaway = true;
-      return m;
-    };
-    root.add(markCut(wall(0.55, cabH, 0.12, cabTrim).translateX(-0.95).translateZ(half)));
-    root.add(markCut(wall(0.55, cabH, 0.12, cabTrim).translateX(0.95).translateZ(half)));
-    root.add(markCut(wall(3, cabH, 0.12, cabMat).translateZ(half)));
+    const sideL = wall(0.12, cabH, 3, cabMat);
+    sideL.position.set(-half, cabH / 2, 0);
+    root.add(sideL);
+    const sideR = sideL.clone();
+    sideR.position.x = half;
+    root.add(sideR);
     const ceil = wall(3, 0.12, 3, cabMat);
     ceil.position.y = cabH;
     root.add(ceil);
@@ -524,10 +520,10 @@ export function buildLocationScene(locId, texLoader) {
     pushCollider(colliders, half, 0, 0.08, 1.45);
     addElevatorDressing(root, { wall, neonSign, colliders, pushCollider });
     addLights(root, [
-      { type: "point", color: 0xffccaa, intensity: 4.5, x: 0, y: 2.2, z: 0.9 },
-      { type: "point", color: 0xffffff, intensity: 3.2, x: 0, y: 2.35, z: -0.4 },
-      { type: "point", color: 0xff66ff, intensity: 2.8, x: -1.1, y: 1.9, z: 0.2 },
-      { type: "point", color: 0x00ffff, intensity: 2.4, x: 1.05, y: 1.7, z: 0.85 }
+      { type: "point", color: 0xffccaa, intensity: 2.6, x: 0, y: 2.15, z: 0.4 },
+      { type: "point", color: 0xffffff, intensity: 1.8, x: 0, y: 2.28, z: -0.55 },
+      { type: "point", color: 0xff66ff, intensity: 1.5, x: -1.05, y: 1.85, z: 0.1 },
+      { type: "point", color: 0x00ffff, intensity: 1.35, x: 1.05, y: 1.65, z: 0.35 }
     ]);
   } else if (locId === "city") {
     floor = tiledFloor(20, 18, theme.ground, false);

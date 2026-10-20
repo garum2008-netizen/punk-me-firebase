@@ -768,24 +768,20 @@ export function addKitchenDressing(root, helpers) {
 export function addElevatorDressing(root, helpers) {
   const { wall, neonSign, colliders, pushCollider } = helpers;
   const doorMat = new THREE.MeshStandardMaterial({
-    color: 0xd8e8f8, metalness: 0.88, roughness: 0.16,
-    emissive: 0x4466aa, emissiveIntensity: 0.55
+    color: 0xc8dcf0, metalness: 0.9, roughness: 0.12,
+    emissive: 0x224466, emissiveIntensity: 0.35
   });
-  const doorZ = 1.38;
-  const markCut = m => {
-    m.userData.elevatorCutaway = true;
-    return m;
-  };
-  const doorL = markCut(wall(0.52, 2.05, 0.05, doorMat));
+  const doorZ = -1.38;
+  const doorL = wall(0.52, 2.05, 0.05, doorMat);
   doorL.position.set(-0.27, 1.02, doorZ);
-  const doorR = markCut(doorL.clone());
+  const doorR = doorL.clone();
   doorR.position.x = 0.27;
-  const seam = markCut(wall(0.04, 2, 0.025, new THREE.MeshStandardMaterial({
-    color: 0x111118, emissive: 0x00ffcc, emissiveIntensity: 0.55
-  })));
-  seam.position.set(0, 1.02, doorZ + 0.015);
-  const frame = markCut(wall(1.35, 2.15, 0.08, new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.8 })));
-  frame.position.set(0, 1.08, doorZ - 0.04);
+  const seam = wall(0.04, 2, 0.025, new THREE.MeshStandardMaterial({
+    color: 0x111118, emissive: 0x00ffcc, emissiveIntensity: 0.45
+  }));
+  seam.position.set(0, 1.02, doorZ - 0.015);
+  const frame = wall(1.35, 2.15, 0.08, new THREE.MeshStandardMaterial({ color: 0x888899, metalness: 0.8 }));
+  frame.position.set(0, 1.08, doorZ + 0.04);
   root.add(doorL, doorR, seam, frame);
   pushCollider(colliders, 0, doorZ, 0.68, 0.05);
   const floorCanvas = document.createElement("canvas");
@@ -805,7 +801,7 @@ export function addElevatorDressing(root, helpers) {
       map: floorTex, emissive: 0x00ffcc, emissiveIntensity: 0.85, transparent: true
     })
   );
-  floorDisplay.position.set(0, 2.18, doorZ - 0.05);
+  floorDisplay.position.set(0, 2.18, doorZ + 0.05);
   root.add(floorDisplay);
   const panelBody = wall(0.28, 0.82, 0.06, new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.55 }));
   panelBody.position.set(1.38, 1.12, 0.45);
@@ -852,11 +848,11 @@ export function addElevatorDressing(root, helpers) {
   postR.position.x = 1.05;
   root.add(railBack, postL, postR);
   const ceil = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.6, 2.6),
-    new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffddaa, emissiveIntensity: 0.55 })
+    new THREE.PlaneGeometry(2.4, 2.4),
+    new THREE.MeshStandardMaterial({ color: 0xeeddcc, emissive: 0xffddaa, emissiveIntensity: 0.22 })
   );
   ceil.rotation.x = Math.PI / 2;
-  ceil.position.y = 2.42;
+  ceil.position.y = 2.38;
   ceil.userData.neonFlicker = true;
   ceil.userData.pulse = 1.05;
   root.add(ceil);
@@ -886,7 +882,7 @@ export function addElevatorDressing(root, helpers) {
     sticker.position.set(1.22 + (s % 2) * 0.16, 0.75 + Math.floor(s / 2) * 0.28, 1.18);
     root.add(sticker);
   }
-  addNeonTube(root, 0, 2.05, doorZ - 0.08, 1.05, 0x00ffff);
+  addNeonTube(root, 0, 2.05, doorZ + 0.08, 1.05, 0x00ffff);
   const punkLift = neonSign("PUNK LIFT", 0xff66ff);
   punkLift.scale.set(0.42, 0.55, 1);
   punkLift.position.set(0, 2.05, -1.42);
