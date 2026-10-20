@@ -46,7 +46,7 @@
     <div class="badge"><span data-i18n="level">Уровень</span>: <strong id="level">1</strong></div>
     <div class="badge"><span data-i18n="rep">Репутация</span>: <strong id="rep">0</strong></div>
     <div class="badge"><span data-i18n="chain">Цепь</span>: <strong id="chainStat">10</strong></div>
-    <div class="badge"><span data-i18n="online">Здесь</span>: <strong id="onlineCount">0</strong> · <span data-i18n="onlineGlobal">Всего</span>: <strong id="onlineGlobal">0</strong></div>
+    <div class="badge hud-online-combined"><span data-i18n="online">Здесь</span>: <strong id="onlineCount">0</strong> · <span data-i18n="onlineGlobal">Всего</span>: <strong id="onlineGlobal">0</strong></div>
     <div class="lang-switch" id="langSwitch">
       <button type="button" class="lang-btn" data-lang="ru">RU</button>
       <button type="button" class="lang-btn" data-lang="en">EN</button>
@@ -57,14 +57,25 @@
     <div class="badge" style="font-size:11px;opacity:.85">v <strong id="gameVersion">…</strong></div>
   </div>
   <div class="quest-box" id="questBox"></div>
-  <div class="side" id="playersSide"><b data-i18n="onlineSide">В этой локации</b><div id="playersList">…</div></div>
-  <div class="chat">
-    <div class="chat-messages" id="chatMessages"></div>
-    <input id="chatInput" data-i18n-ph="chatPh" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
+  <div class="side players-panel" id="playersSide">
+    <button type="button" class="players-toggle" id="playersToggle" aria-expanded="false" aria-controls="playersDrawer">
+      <span data-i18n="here_short">Здесь</span>: <strong id="playersToggleCount">0</strong>
+    </button>
+    <div class="players-drawer" id="playersDrawer">
+      <b class="players-drawer-title" data-i18n="onlineSide">В этой локации</b>
+      <div id="playersList">…</div>
+    </div>
   </div>
-  <div class="nav-quick" id="navQuick" aria-label="Быстрый переход"></div>
-  <div class="game-bottom-bar">
-    <div class="panel-bottom">
+  <div class="chat" id="chatPanel">
+    <button type="button" class="chat-toggle" id="chatToggle" aria-expanded="false" aria-controls="chatBody" data-i18n="chat_toggle">Чат</button>
+    <div class="chat-body" id="chatBody">
+      <div class="chat-messages" id="chatMessages"></div>
+      <input id="chatInput" data-i18n-ph="chatPh" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
+    </div>
+  </div>
+  <div class="game-bottom-bar" id="gameBottomBar">
+    <div class="nav-quick scroll-row" id="navQuick" aria-label="Быстрый переход"></div>
+    <div class="panel-bottom scroll-row">
       <button class="btn" data-i18n="map" onclick="openModal('mapModal')">Карта</button>
       <button class="btn" data-i18n="gang" onclick="openModal('gangModal')">Банда</button>
       <button class="btn" data-i18n="shop" onclick="openModal('shopModal')">Лавка</button>

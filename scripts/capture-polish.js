@@ -37,24 +37,17 @@ async function enterGame(page) {
   await page.waitForTimeout(1500);
 }
 
+async function hubShot(page, file) {
+  await page.evaluate(() => {
+    if (typeof goLocation === "function") goLocation("room");
+  });
+  await page.waitForTimeout(2200);
+  await page.screenshot({ path: file, fullPage: false });
+}
+
 (async () => {
   const browser = await chromium.launch();
   const allErrors = [];
-
-  for (const id of ["razor", "vienna", "cobalt", "mohawk"]) {
-    const page = await browser.newPage({ viewport: { width: 1024, height: 576 } });
-    const errs = [];
-    trackErrors(page, errs);
-    await page.goto(`${base}/?dev=1&solo=1&v=${id}`, { waitUntil: "networkidle", timeout: 120000 });
-    await waitVersion(page);
-    await page.evaluate(() => CharSelect.open(() => {}));
-    await page.waitForSelector("#charSelect.active", { timeout: 15000 });
-    await page.click(`.char-pick[data-id="${id}"]`);
-    await page.waitForTimeout(2200);
-    await page.screenshot({ path: `${out}/polish-char-${id}.png` });
-    allErrors.push(...errs);
-    await page.close();
-  }
 
   const desk = await browser.newPage({ viewport: { width: 1024, height: 576 } });
   const deskErrs = [];
@@ -62,11 +55,7 @@ async function enterGame(page) {
   await desk.goto(`${base}/?dev=1&solo=1&v=hub`, { waitUntil: "networkidle", timeout: 120000 });
   await waitVersion(desk);
   await enterGame(desk);
-  await desk.evaluate(() => {
-    if (typeof goLocation === "function") goLocation("room");
-  });
-  await desk.waitForTimeout(2500);
-  await desk.screenshot({ path: `${out}/polish-hub-desktop.png`, fullPage: false });
+  await hubShot(desk, `${out}/polish-hub-desktop.png`);
   allErrors.push(...deskErrs);
   await desk.close();
 
@@ -76,13 +65,22 @@ async function enterGame(page) {
   await mob.goto(`${base}/?dev=1&solo=1&v=hubm`, { waitUntil: "networkidle", timeout: 120000 });
   await waitVersion(mob);
   await enterGame(mob);
-  await mob.evaluate(() => {
-    if (typeof goLocation === "function") goLocation("room");
-  });
-  await mob.waitForTimeout(2500);
-  await mob.screenshot({ path: `${out}/polish-hub-mobile.png`, fullPage: false });
+  await hubShot(mob, `${out}/polish-hub-mobile.png`);
+  await mob.click("#chatToggle");
+  await mob.waitForTimeout(600);
+  await mob.screenshot({ path: `${out}/polish-hub-mobile-chat.png`, fullPage: false });
   allErrors.push(...mobErrs);
   await mob.close();
+
+  const tab = await browser.newPage({ viewport: { width: 768, height: 1024 } });
+  const tabErrs = [];
+  trackErrors(tab, tabErrs);
+  await tab.goto(`${base}/?dev=1&solo=1&v=hubt`, { waitUntil: "networkidle", timeout: 120000 });
+  await waitVersion(tab);
+  await enterGame(tab);
+  await hubShot(tab, `${out}/polish-hub-tablet.png`);
+  allErrors.push(...tabErrs);
+  await tab.close();
 
   console.log(JSON.stringify({
     version: VERSION,

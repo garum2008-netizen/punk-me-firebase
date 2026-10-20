@@ -3,6 +3,7 @@ const I18N = {
   ru: {
     coins: "Монеты", xp: "XP", level: "Уровень", rep: "Репутация", chain: "Цепь", online: "Здесь", onlineGlobal: "Всего в игре",
     loading: "Вход в банду...", chatPh: "Чат банды...", onlineSide: "В этой локации", alone: "Пока одни…",
+    here_short: "Здесь", chat_toggle: "Чат",
     map: "Карта", gang: "Банда", shop: "Лавка", magic: "Магия", inv: "Инвентарь", job: "Работа", build: "Стройка",
     decor: "Декор", fight: "Драка", parkour: "Паркур", you: "(ты)", buy: "Купить", owned: "Есть", free: "FREE",
     mapTitle: "Карта ночи", mapDesc: "Выбери локацию — телепорт откроет сцену.",
@@ -57,6 +58,7 @@ const I18N = {
   en: {
     coins: "Coins", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
     loading: "Joining the gang...", chatPh: "Gang chat...", onlineSide: "In this location", alone: "Just you for now…",
+    here_short: "Here", chat_toggle: "Chat",
     map: "Map", gang: "Gang", shop: "Shop", magic: "Magic", inv: "Bag", job: "Jobs", build: "Build",
     decor: "Decor", fight: "Fight", parkour: "Parkour", you: "(you)", buy: "Buy", owned: "Owned", free: "FREE",
     mapTitle: "Night map", mapDesc: "Pick a location to jump there.",
@@ -111,6 +113,7 @@ const I18N = {
   da: {
     coins: "Mønter", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
     loading: "Går ind i banden...", chatPh: "Bandechat...", onlineSide: "På denne lokation", alone: "Kun dig lige nu…",
+    here_short: "Her", chat_toggle: "Chat",
     map: "Kort", gang: "Bande", shop: "Butik", magic: "Magie", inv: "Taske", job: "Job", build: "Byg",
     decor: "Dekor", fight: "Slåskamp", parkour: "Parkour", you: "(dig)", buy: "Køb", owned: "Ejet", free: "GRATIS",
     mapTitle: "Natkort", mapDesc: "Vælg et sted for at hoppe dertil.",
@@ -327,7 +330,7 @@ function applyI18nDom() {
   document.querySelectorAll("[data-i18n-ph]").forEach(el => {
     el.placeholder = t(el.getAttribute("data-i18n-ph"));
   });
-  const side = document.querySelector("#playersSide b");
+  const side = document.querySelector(".players-drawer-title");
   if (side) side.textContent = t("onlineSide");
   document.querySelectorAll(".tab[data-tab]").forEach(tab => {
     const k = "tab_" + tab.dataset.tab;

@@ -315,12 +315,48 @@ function formatCoinsDisplay() {
   return String(me.coins);
 }
 
+function updatePlayersToggleCount() {
+  const el = document.getElementById("playersToggleCount");
+  if (!el) return;
+  const inLoc = Object.keys(others).length + 1;
+  el.textContent = String(inLoc);
+}
+
 function updateOnlineUI(allPlayers) {
   const inLoc = Object.keys(others).length + 1;
   document.getElementById("onlineCount").textContent = String(inLoc);
+  updatePlayersToggleCount();
   const global = allPlayers ? Object.keys(allPlayers).length : inLoc;
   const gEl = document.getElementById("onlineGlobal");
   if (gEl) gEl.textContent = String(global);
+}
+
+function initResponsiveHud() {
+  if (window._responsiveHudInit) return;
+  window._responsiveHudInit = true;
+  const pt = document.getElementById("playersToggle");
+  const pd = document.getElementById("playersDrawer");
+  pt?.addEventListener("click", e => {
+    e.stopPropagation();
+    const open = !pd?.classList.contains("open");
+    pd?.classList.toggle("open", open);
+    pt.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  document.addEventListener("click", e => {
+    if (!pd?.classList.contains("open")) return;
+    if (!document.getElementById("playersSide")?.contains(e.target)) {
+      pd.classList.remove("open");
+      pt?.setAttribute("aria-expanded", "false");
+    }
+  });
+  const ct = document.getElementById("chatToggle");
+  const chat = document.getElementById("chatPanel");
+  ct?.addEventListener("click", e => {
+    e.stopPropagation();
+    const open = !chat?.classList.contains("chat-open");
+    chat?.classList.toggle("chat-open", open);
+    ct.setAttribute("aria-expanded", open ? "true" : "false");
+  });
 }
 
 function syncStage3D() {
@@ -458,6 +494,7 @@ function pickCharacterAndContinue(id) {
 
 function continueGameBoot() {
   hideLoading();
+  initResponsiveHud();
   renderAll();
   initMultiplayer();
   listenChat();
@@ -646,6 +683,7 @@ function renderPlayersList() {
   if (!el) return;
   const rows = Object.entries(others).filter(([id]) => id !== uid).map(([, p]) => `● ${escapeHtml(p.name)}`);
   el.innerHTML = rows.length ? rows.join("<br>") : `<span style='opacity:.6'>${t("alone")}</span>`;
+  updatePlayersToggleCount();
 }
 
 function localizeChatText(text) {

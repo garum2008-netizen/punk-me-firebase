@@ -249,21 +249,22 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 }
 .game-bottom-bar .legal-footer-game { z-index: 1; }
 .nav-quick {
-  position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);
-  z-index: 20; display: flex; gap: 4px; flex-wrap: wrap; justify-content: center;
-  max-width: 96vw; pointer-events: none;
+  display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+  max-width: 100%; pointer-events: auto;
 }
-.nav-quick .btn { pointer-events: auto; padding: 5px 10px; font-size: 11px; }
-@media (max-width: 480px) {
-  .nav-quick { bottom: 96px; }
-  .game-bottom-bar { bottom: 6px; gap: 6px; max-width: 98vw; }
-  .game-bottom-bar .panel-bottom { gap: 4px; }
-  .game-bottom-bar .btn { padding: 8px 10px; font-size: 11px; }
-  .game-bottom-bar .legal-footer-game { font-size: 10px; padding: 5px 10px; }
+.nav-quick .btn { padding: 5px 10px; font-size: 11px; }
+.scroll-row {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,255,0.35) transparent;
 }
-@media (min-width: 1024px) {
-  .nav-quick { bottom: 92px; }
+.scroll-row::-webkit-scrollbar { height: 4px; }
+.scroll-row::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.35); border-radius: 4px; }
+.players-toggle,
+.chat-toggle {
+  display: none;
 }
+.players-drawer-title { display: block; margin-bottom: 6px; }
+.players-drawer { display: block; }
 .loc-name {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
   z-index: 20; font-size: 15px; font-weight: 700; letter-spacing: 0.04em;
@@ -284,12 +285,18 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .btn.secondary { background: linear-gradient(135deg, #0ea5e9, #6366f1); }
 .btn.danger { background: linear-gradient(135deg, #ef4444, #b91c1c); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.side {
+.side.players-panel {
   position: absolute; right: 8px; top: 52px; z-index: 20;
   width: min(200px, 32vw); background: rgba(15,8,30,0.9);
   border-radius: 12px; padding: 8px; border: 1px solid rgba(0,255,255,0.25);
   font-size: 12px; max-height: 40vh; overflow-y: auto;
 }
+.players-toggle {
+  font: inherit; color: #fff; cursor: pointer;
+  background: rgba(30,10,50,0.94); border: 1px solid rgba(0,255,255,0.35);
+  border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 12px;
+}
+.players-toggle strong { color: #0ff; }
 .quest-box {
   position: absolute; left: 8px; top: 52px; z-index: 20;
   width: min(240px, 36vw); background: rgba(15,8,30,0.9);
@@ -301,6 +308,13 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   width: min(280px, 40vw); background: rgba(12,6,24,0.92);
   border-radius: 12px; padding: 8px; border: 1px solid rgba(255,0,255,0.25);
 }
+.chat-toggle {
+  width: 100%; font: inherit; color: #fff; cursor: pointer;
+  background: linear-gradient(135deg, #ff00ff, #7c3aed);
+  border: none; border-radius: 10px; padding: 8px 12px; font-weight: 700; font-size: 12px;
+  margin-bottom: 6px;
+}
+.chat-body { display: block; }
 .chat-messages { height: 88px; overflow-y: auto; font-size: 12px; margin-bottom: 6px; }
 .chat input {
   width: 100%; padding: 7px; border: none; border-radius: 8px;
@@ -369,8 +383,78 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   position: fixed; inset: 0; z-index: 200; background: #06060e;
   display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
 }
-@media (max-width: 640px) {
-  .chat { width: 46vw; bottom: 110px; }
-  .panel-bottom { bottom: 6px; }
+@media (max-width: 900px) {
+  #game { --dock-h: 148px; }
   .quest-box { display: none; }
+  .hud-online-combined { display: none; }
+  .game-bottom-bar {
+    left: 0; right: 0; bottom: 0; transform: none;
+    max-width: 100%; width: 100%;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+    gap: 6px;
+    background: linear-gradient(180deg, transparent 0%, rgba(5,0,10,0.88) 28%, rgba(5,0,10,0.96) 100%);
+    border-top: 1px solid rgba(255,0,255,0.18);
+  }
+  .game-bottom-bar .nav-quick,
+  .game-bottom-bar .panel-bottom {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    width: 100%;
+    padding-bottom: 2px;
+  }
+  .game-bottom-bar .btn {
+    min-height: 40px;
+    min-width: 40px;
+    flex-shrink: 0;
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+  .game-bottom-bar .legal-footer-game { font-size: 10px; padding: 5px 12px; }
+  .chat {
+    width: min(240px, 58vw);
+    bottom: calc(var(--dock-h) + 8px);
+    padding: 6px;
+  }
+  .chat-toggle { display: block; min-height: 40px; }
+  .chat:not(.chat-open) .chat-body { display: none; }
+  .chat:not(.chat-open) { padding: 4px; width: auto; min-width: 40px; }
+  .chat:not(.chat-open) .chat-toggle { margin-bottom: 0; min-width: 72px; }
+  .chat-open .chat-messages { height: 72px; }
+  .side.players-panel {
+    top: 36px; right: 6px; width: auto; max-width: none;
+    padding: 0; background: transparent; border: none;
+    max-height: none; overflow: visible;
+  }
+  .players-toggle { display: inline-flex; align-items: center; min-height: 40px; min-width: 40px; }
+  .players-drawer {
+    display: none;
+    position: absolute; right: 0; top: calc(100% + 4px);
+    width: min(220px, 78vw); max-height: 30vh; overflow-y: auto;
+    background: rgba(15,8,30,0.96); border-radius: 12px; padding: 8px;
+    border: 1px solid rgba(0,255,255,0.25);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  }
+  .players-drawer.open { display: block; }
+  .hud {
+    max-width: calc(100% - 108px);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 4px;
+  }
+  .loc-name { font-size: 13px; top: 6px; max-width: 42vw; text-align: center; }
+}
+@media (max-width: 600px) {
+  #game { --dock-h: 158px; }
+}
+@media (min-width: 601px) and (max-width: 900px) {
+  #game { --dock-h: 142px; }
+  .chat-open .chat-messages { height: 96px; }
+}
+@media (min-width: 901px) {
+  .chat-toggle { display: none; }
+  .chat { padding: 8px; }
 }
