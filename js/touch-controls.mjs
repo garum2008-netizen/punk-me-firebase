@@ -1,6 +1,7 @@
 import { setTouchMove, touchInteract, touchJump } from "./controls-3d.mjs";
 
 let active = false;
+const touchJoySmooth = { x: 0, y: 0 };
 let joyId = null;
 let joyOrigin = { x: 0, y: 0 };
 let camId = null;
@@ -19,6 +20,8 @@ export function initTouchControls(opts = {}) {
   const maxR = 42;
   const resetKnob = () => {
     knob.style.transform = "translate(-50%, -50%)";
+    touchJoySmooth.x = 0;
+    touchJoySmooth.y = 0;
     setTouchMove(0, 0, false);
   };
 
@@ -72,8 +75,11 @@ function moveKnob(e, knob, maxR) {
     dy = (dy / len) * maxR;
   }
   knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-  const nx = dx / maxR;
-  const ny = -dy / maxR;
-  const run = len > maxR * 0.72;
-  setTouchMove(nx, ny, run);
+  const rawNx = dx / maxR;
+  const rawNy = -dy / maxR;
+  touchJoySmooth.x = (touchJoySmooth.x || 0) * 0.55 + rawNx * 0.45;
+  touchJoySmooth.y = (touchJoySmooth.y || 0) * 0.55 + rawNy * 0.45;
+  const smLen = Math.hypot(touchJoySmooth.x, touchJoySmooth.y);
+  const run = smLen > 0.58;
+  setTouchMove(touchJoySmooth.x, touchJoySmooth.y, run);
 }

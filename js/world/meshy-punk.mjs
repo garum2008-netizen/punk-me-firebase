@@ -61,12 +61,33 @@ function clipMapForGltf(gltf) {
   return gltfHasIdleClip(gltf) ? CLIPS_MESHY_IDLE : CLIPS_FALLBACK;
 }
 
+function isRootMotionTrack(track) {
+  const n = track.name || "";
+  if (!/\.position$/i.test(n)) return false;
+  return /hips|root|pelvis/i.test(n);
+}
+
+/** Remove horizontal root translation from locomotion clips (code drives XZ). */
+function stripLocomotionRootMotion(clip) {
+  if (!clip?.tracks?.length) return clip;
+  const tracks = clip.tracks.filter(t => !isRootMotionTrack(t));
+  if (tracks.length === clip.tracks.length) return clip;
+  return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+}
+
+function sanitizeGltfAnimations(animations) {
+  return (animations || []).map(c => {
+    if (!/walk|run/i.test(c.name)) return c;
+    return stripLocomotionRootMotion(c);
+  });
+}
+
 function buildTemplateFromGltf(gltf, url, usesFallback) {
   gltf.scene.updateMatrixWorld(true);
   const foot = computeFootLift(gltf.scene);
   const hasNativeIdle = gltfHasIdleClip(gltf);
   const idleClip = hasNativeIdle ? null : buildIdleStandClip(gltf);
-  const animations = [...gltf.animations];
+  const animations = sanitizeGltfAnimations([...gltf.animations]);
   if (idleClip) animations.push(idleClip);
   return {
     gltf: { ...gltf, animations },
@@ -278,10 +299,10 @@ export function createCc0Actor(templateEntry, characterId, look, opts) {
 
 export function updateLocomotionTimeScale(actor) {
   if (!actor._meshy || !actor.actions) return;
-  const spd = actor._spd || 0;
+  const spd = actor._locoSpeed ?? actor._spd ?? 0;
   if (actor.current === "walk" && actor.actions.walk) {
-    actor.actions.walk.timeScale = THREE.MathUtils.clamp(spd / WALK_SPEED_REF, 0.55, 2.1);
+    actor.actions.walk.timeScale = THREE.MathUtils.clamp(spd / WALK_SPEED_REF, 0.72, 1.35);
   } else if (actor.current === "run" && actor.actions.run) {
-    actor.actions.run.timeScale = THREE.MathUtils.clamp(spd / RUN_SPEED_REF, 0.65, 2.4);
+    actor.actions.run.timeScale = THREE.MathUtils.clamp(spd / RUN_SPEED_REF, 0.82, 1.45);
   }
 }

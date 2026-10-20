@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v12">
+<link rel="stylesheet" href="css/game.css?v=living3d-v21">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -160,6 +160,7 @@
         <button class="btn danger" onclick="fightAttack('kick')" data-i18n="kick">Пинок</button>
         <button class="btn danger" onclick="fightAttack('heavy')" data-i18n="heavy">Тяжёлый</button>
         <button class="btn secondary" onclick="fightSpell()" data-i18n="scroll">Свиток</button>
+        <button class="btn secondary" onclick="fightDodge()" data-i18n="dodge">Уклон</button>
         <button class="btn" onclick="closeFight()" data-i18n="flee">Сбежать</button>
       </div>
     </div>
@@ -173,16 +174,23 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v8"></script>
-<script src="js/i18n.js?v=living3d-v10"></script>
-<script src="js/voice.js?v=living3d-v8"></script>
-<script src="js/onboarding.js?v=living3d-v8"></script>
-<script type="module" src="js/context-hints.mjs?v=living3d-v10"></script>
-<script type="module" src="js/how-to-play.mjs?v=living3d-v8"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v12"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v10"></script>
-<script src="js/life.js?v=living3d-v8"></script>
-<script src="js/game.js?v=living3d-v12"></script>
+<script src="js/characters.js?v=living3d-v21"></script>
+<script src="js/i18n.js?v=living3d-v21"></script>
+<script src="js/voice.js?v=living3d-v21"></script>
+<script src="js/onboarding.js?v=living3d-v21"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v21"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v21"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v21"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v21"></script>
+<script type="module" src="js/play-features-v21.mjs?v=living3d-v21"></script>
+<script src="js/life.js?v=living3d-v21"></script>
+<script src="js/game.js?v=living3d-v21"></script>
+<script type="module">
+  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v21";
+  initPlayV21();
+  window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
+  window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });
+</script>
 <p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
   3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0
 </p>

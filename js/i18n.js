@@ -65,7 +65,19 @@ const I18N = {
     onboard_talk_razor_title: "Шаг 3: Рейзор", onboard_talk_razor_text: "На улице найди Рейзора и нажми E.",
     onboard_visit_cemetery_title: "Шаг 4: Кладбище", onboard_visit_cemetery_text: "С улицы зайди на кладбище.",
     onboard_win_fight_title: "Шаг 5: Дуэль", onboard_win_fight_text: "Победи в цепной драке с NPC.",
-    onboard_shop_buy_title: "Шаг 6: Лавка", onboard_shop_buy_text: "Купи что-нибудь в лавке (кнопка Shop)."
+    onboard_shop_buy_title: "Шаг 6: Лавка", onboard_shop_buy_text: "Купи что-нибудь в лавке (кнопка Shop).",
+    dodge: "Уклон", fight_dodge: "Уклон! Щит +14",
+    interact_sit: "Отдыхаешь на диване…", interact_snack: "Перекус из холодильника (+энергия)", interact_arcade: "Аркада: +12 монет",
+    interact_tv: "Телевизор щёлкает каналами…",
+    job_cemetery_night: "Ночная смена на кладбище", job_cemetery_night_desc: "Свечи, листья и призраки — таймер 28 с",
+    job_cemetery_start: "Смена началась!", job_cemetery_tick: "Задача выполнена…", job_cemetery_done: "Смена окончена:",
+    job_go_cemetery: "Сначала иди на кладбище", job_pizza: "Доставка пиццы", job_pizza_desc: "Город — забери и доставь",
+    job_pizza_done: "Пицца доставлена! +35 монет", job_go_city: "Сначала иди в город",
+    daily_walk_street: "Погуляй по улице", daily_pet_dog: "Погладь пса", daily_win_duel: "Выиграй дуэль",
+    daily_complete: "Ежедневное задание:", decor_room_only: "Декор только в комнате", decor_mode_on: "Режим декора: кликни пол",
+    decor_mode_off: "Декор выключен", decor_placed: "Мебель поставлена", decor_limit: "Лимит мебели (12)",
+    dog_fetch: "Пёс принёс мячик!", need_dog: "Нужен пёс из лавки",
+    shop_hat_spike: "Шипастая шляпа"
   },
   en: {
     coins: "Coins", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
@@ -132,7 +144,19 @@ const I18N = {
     onboard_talk_razor_title: "Step 3: Razor", onboard_talk_razor_text: "On the street, find Razor and press E.",
     onboard_visit_cemetery_title: "Step 4: Cemetery", onboard_visit_cemetery_text: "From the street, enter the cemetery.",
     onboard_win_fight_title: "Step 5: Duel", onboard_win_fight_text: "Win a chain duel against an NPC.",
-    onboard_shop_buy_title: "Step 6: Shop", onboard_shop_buy_text: "Buy something in the Shop."
+    onboard_shop_buy_title: "Step 6: Shop", onboard_shop_buy_text: "Buy something in the Shop.",
+    dodge: "Dodge", fight_dodge: "Dodged! Shield +14",
+    interact_sit: "Chilling on the sofa…", interact_snack: "Snack from the fridge (+energy)", interact_arcade: "Arcade: +12 coins",
+    interact_tv: "TV flickers through channels…",
+    job_cemetery_night: "Cemetery night shift", job_cemetery_night_desc: "Candles, leaves, ghosts — 28s timer",
+    job_cemetery_start: "Shift started!", job_cemetery_tick: "Task done…", job_cemetery_done: "Shift complete:",
+    job_go_cemetery: "Go to the cemetery first", job_pizza: "Pizza delivery", job_pizza_desc: "City — pick up and deliver",
+    job_pizza_done: "Pizza delivered! +35 coins", job_go_city: "Go to the city first",
+    daily_walk_street: "Walk the street", daily_pet_dog: "Pet the dog", daily_win_duel: "Win a duel",
+    daily_complete: "Daily quest:", decor_room_only: "Decor only in your room", decor_mode_on: "Decor mode: tap floor",
+    decor_mode_off: "Decor off", decor_placed: "Furniture placed", decor_limit: "Furniture limit (12)",
+    dog_fetch: "Dog fetched the ball!", need_dog: "Buy the dog in the shop",
+    shop_hat_spike: "Spiked hat"
   },
   da: {
     coins: "Mønter", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
@@ -199,7 +223,19 @@ const I18N = {
     onboard_talk_razor_title: "Trin 3: Razor", onboard_talk_razor_text: "På gaden, find Razor og tryk E.",
     onboard_visit_cemetery_title: "Trin 4: Kirkegård", onboard_visit_cemetery_text: "Fra gaden, gå til kirkegården.",
     onboard_win_fight_title: "Trin 5: Duel", onboard_win_fight_text: "Vind en kæde-duel mod en NPC.",
-    onboard_shop_buy_title: "Trin 6: Butik", onboard_shop_buy_text: "Køb noget i butikken (Shop)."
+    onboard_shop_buy_title: "Trin 6: Butik", onboard_shop_buy_text: "Køb noget i butikken (Shop).",
+    dodge: "Undvig", fight_dodge: "Undveget! Skjold +14",
+    interact_sit: "Hygger på sofaen…", interact_snack: "Snack fra køleskabet (+energi)", interact_arcade: "Arkade: +12 mønter",
+    interact_tv: "TV skifter kanal…",
+    job_cemetery_night: "Nattevagt på kirkegården", job_cemetery_night_desc: "Lys, blade, spøgelser — 28 sek",
+    job_cemetery_start: "Vagt startet!", job_cemetery_tick: "Opgave…", job_cemetery_done: "Vagt slut:",
+    job_go_cemetery: "Gå til kirkegården først", job_pizza: "Pizza-levering", job_pizza_desc: "By — hent og lever",
+    job_pizza_done: "Pizza leveret! +35 mønter", job_go_city: "Gå til byen først",
+    daily_walk_street: "Gå på gaden", daily_pet_dog: "Klapp hunden", daily_win_duel: "Vind en duel",
+    daily_complete: "Daglig opgave:", decor_room_only: "Dekor kun i værelset", decor_mode_on: "Dekor-tilstand",
+    decor_mode_off: "Dekor fra", decor_placed: "Møbel placeret", decor_limit: "Møbelgrænse (12)",
+    dog_fetch: "Hunden hentede bolden!", need_dog: "Køb hunden i butikken",
+    shop_hat_spike: "Pigget hat"
   }
 };
 

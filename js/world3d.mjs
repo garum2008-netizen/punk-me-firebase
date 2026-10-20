@@ -71,6 +71,28 @@ let guideTarget = null;
 let mobileQuality = false;
 let locFillLight = null;
 let atmospherePipe = null;
+let motionProbe = null;
+const heroCosmeticGroup = new THREE.Group();
+
+function notePlayerMotion(actor) {
+  if (!motionProbe?.active || !actor?.isPlayer) return;
+  const now = performance.now();
+  const x = actor.wx;
+  const z = actor.wz;
+  const last = motionProbe.last;
+  if (last) {
+    const d = Math.hypot(x - last.x, z - last.z);
+    motionProbe.frames.push({
+      t: now - motionProbe.start,
+      x,
+      z,
+      d,
+      spd: actor._locoSpeed ?? 0,
+      anim: actor.current
+    });
+  }
+  motionProbe.last = { x, z };
+}
 
 function charDef(id) {
   return (typeof getCharacterDef === "function" ? getCharacterDef(id) : null) || { look: {}, anim: {} };
@@ -147,11 +169,21 @@ function fadeTo(actor, name) {
     }
     if (locomotion && actor.actions?.[name]) {
       const next = actor.actions[name];
-      const other = name === "walk" ? actor.actions.run : actor.actions.walk;
-      other?.stop();
-      other?.setEffectiveWeight(0);
-      actor.actions?.idle?.fadeOut(0.2);
-      next.reset().setEffectiveWeight(1).fadeIn(0.22).play();
+      const prevLoco = actor.current === "walk" || actor.current === "run" ? actor.current : null;
+      actor.actions?.idle?.fadeOut(0.18);
+      if (prevLoco && actor.actions[prevLoco] && prevLoco !== name) {
+        const prev = actor.actions[prevLoco];
+        next.setEffectiveWeight(0).play();
+        prev.crossFadeTo(next, 0.2, false);
+      } else {
+        ["walk", "run"].forEach(k => {
+          if (k === name) return;
+          const act = actor.actions?.[k];
+          act?.fadeOut(0.12);
+          act?.setEffectiveWeight(0);
+        });
+        next.reset().setEffectiveWeight(1).fadeIn(0.2).play();
+      }
       actor.current = name;
       updateLocomotionTimeScale(actor);
       return;
@@ -182,8 +214,20 @@ function pickLocomotionAnim(actor, speed, talking) {
     return resolveAnimName(actor._holdAnim);
   }
   if (talking && speed < 0.08) return "idle";
-  const walkGate = actor._meshy ? 0.16 : 0.08;
-  if (speed > 1.2) return "run";
+  if (actor.isPlayer && actor._intentRun && speed > 0.05) return "run";
+  const walkGate = actor._meshy ? 0.14 : 0.08;
+  const prev = actor.current === "walk" || actor.current === "run" ? actor.current : "idle";
+  if (prev === "run") {
+    if (speed > 0.92) return "run";
+    if (speed > walkGate * 0.75) return "walk";
+    return "idle";
+  }
+  if (prev === "walk") {
+    if (speed > 1.42) return "run";
+    if (speed > walkGate * 0.65) return "walk";
+    return "idle";
+  }
+  if (speed > 1.42) return "run";
   if (speed > walkGate) return "walk";
   return "idle";
 }
@@ -410,6 +454,7 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   if (isPlayer) {
     actor.group.position.x = c.x;
     actor.group.position.z = c.z;
+    notePlayerMotion(actor);
   } else {
     const lerp = 0.22;
     actor.group.position.x += (c.x - actor.group.position.x) * lerp;
@@ -421,11 +466,18 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   actor.group.position.y = 0;
   const dx = c.x - (actor.wx ?? c.x);
   const dz = c.z - (actor.wz ?? c.z);
-  let speed = Math.hypot(dx, dz) * (isPlayer ? 8 : 2.5);
+  const dist = Math.hypot(dx, dz);
+  const now = performance.now();
+  const lastT = actor._moveT || now;
+  const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
+  actor._moveT = now;
+  let speed = dist / dt;
   if (actor.id.startsWith("demo_")) speed = 0;
-  if (!isPlayer && isNpc && Math.hypot(dx, dz) < 0.025) speed = 0;
+  if (!isPlayer && isNpc && dist < 0.025) speed = 0;
   if (!isPlayer && actor._netAnim === "idle") speed = 0;
-  actor._spd = speed;
+  const smooth = actor._locoSpeed ?? speed;
+  actor._locoSpeed = smooth * 0.72 + speed * 0.28;
+  actor._spd = actor._locoSpeed;
   if (isPlayer) { meLastDx = dx; meLastDy = dz; }
   actor.wx = actor.group.position.x;
   actor.wz = actor.group.position.z;
@@ -707,7 +759,9 @@ function applyFixedLocationActors() {
   }
 }
 
-function positionCameraBehindPlayer(instant = false) {
+let lastCameraDt = 1 / 60;
+
+function positionCameraBehindPlayer(instant = false, dt = lastCameraDt) {
   const player = actors.get("player");
   if (!player || !camera) return;
   const fixed = getFixedLocationShot();
@@ -728,10 +782,18 @@ function positionCameraBehindPlayer(instant = false) {
   const eye = p.clone().add(new THREE.Vector3(0, lookY - 0.15, 0));
   let target = new THREE.Vector3(p.x + ox, height, p.z + oz);
   target = resolveCameraWallCollision(eye, target);
+  const t = instant ? 1 : 1 - Math.exp(-14 * Math.max(dt, 0.001));
   if (instant) camera.position.copy(target);
-  else camera.position.lerp(target, 0.12);
+  else camera.position.lerp(target, t);
   const lookAhead = LOCATION_CAMERA[currentLoc]?.lookAhead ?? 0;
-  camera.lookAt(p.x, lookY, p.z + lookAhead);
+  const look = new THREE.Vector3(p.x, lookY, p.z + lookAhead);
+  if (!instant && camera._lookTarget) {
+    camera._lookTarget.lerp(look, t);
+    camera.lookAt(camera._lookTarget);
+  } else {
+    camera._lookTarget = look.clone();
+    camera.lookAt(look);
+  }
   updateCameraOccluders();
 }
 
@@ -747,8 +809,8 @@ function resetCameraForLocation() {
   positionCameraBehindPlayer(true);
 }
 
-function updateThirdPersonCamera() {
-  positionCameraBehindPlayer(false);
+function updateThirdPersonCamera(dt = lastCameraDt) {
+  positionCameraBehindPlayer(false, dt);
 }
 
 function tickNpcPatrols(dt) {
@@ -822,7 +884,7 @@ function processInput(dt) {
   const player = actors.get("player");
   if (!player || !bounds) return;
   const input = getInputState();
-  const speed = (input.run ? 7.2 : 4.5) * dt;
+  const step = (input.run ? 7.2 : 4.5) * dt;
   const fwd = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
   const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
   let mx = 0;
@@ -831,13 +893,24 @@ function processInput(dt) {
   if (mag > 0.05) {
     const nx = input.moveX / mag;
     const nz = input.moveZ / mag;
-    mx = (fwd.x * nz + right.x * nx) * speed;
-    mz = (fwd.z * nz + right.z * nx) * speed;
+    mx = (fwd.x * nz + right.x * nx) * step;
+    mz = (fwd.z * nz + right.z * nx) * step;
   }
   if (mx !== 0 || mz !== 0) {
     const np = clampWorld(player.wx + mx, player.wz + mz);
-    const g = worldToGameLoc(np.x, np.z, bounds);
-    hooks.onMove?.(g.x, g.y);
+    player._intentRun = input.run;
+    placeActorWorld(player, np.x, np.z, true);
+    player._gameSyncT = (player._gameSyncT || 0) - dt;
+    if (player._gameSyncT <= 0) {
+      player._gameSyncT = 0.1;
+      const g = worldToGameLoc(np.x, np.z, bounds);
+      hooks.onMove?.(g.x, g.y, { sync3d: false });
+    }
+  } else {
+    player._locoSpeed = (player._locoSpeed || 0) * 0.55;
+    player._spd = player._locoSpeed;
+    fadeTo(player, pickLocomotionAnim(player, player._locoSpeed, false));
+    updateLocomotionTimeScale(player);
   }
   if (consumeJump() && (player._onGround ?? true)) {
     player._vy = 5.2;
@@ -978,8 +1051,6 @@ function sync(data) {
 
   ensureCar(location === "street" && (!!carVisible || locationProps.showCar));
 
-  separateActors();
-
   const playerActor = actors.get("player");
   const spawnPref = currentLoc === "kitchen"
     ? { x: -0.12, z: 0.36 }
@@ -1052,6 +1123,7 @@ function loop() {
     else pl._onGround = false;
     pl.group.position.y = y;
   }
+  separateActors();
   if (locationRoot) pulseScene(locationRoot, sceneTime);
   if (particles?.geometry?.attributes?.position) {
     const attr = particles.geometry.attributes.position;
@@ -1092,8 +1164,8 @@ function loop() {
     car.wheels.forEach(w => { w.rotation.x += dt * 5 * car.dir; });
   }
   if (particles) particles.rotation.y += dt * 0.02;
-  separateActors();
-  if (!captureFrameLock) updateThirdPersonCamera();
+  lastCameraDt = dt;
+  if (!captureFrameLock) updateThirdPersonCamera(dt);
   else if (captureHideActors?.length) {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     checkPortals();
@@ -1388,6 +1460,69 @@ const api = {
       a.mixer?.update(1 / 30);
       updateProcedural(a, 1 / 30, null, false);
     }
+  },
+  startMotionProbe: () => {
+    motionProbe = { active: true, start: performance.now(), frames: [], last: null };
+    return true;
+  },
+  stopMotionProbe: () => {
+    if (!motionProbe) return { frames: [] };
+    motionProbe.active = false;
+    const frames = motionProbe.frames.slice();
+    const deltas = frames.map(f => f.d).filter(d => d > 0 && d < 1.2);
+    const maxD = deltas.length ? Math.max(...deltas) : 0;
+    const med = deltas.length ? deltas.slice().sort((a, b) => a - b)[Math.floor(deltas.length / 2)] : 0;
+    const spikes = deltas.filter(d => Math.abs(d - med) > 0.045).length;
+    motionProbe = null;
+    return { frames, maxD, spikes, count: frames.length };
+  },
+  applyHeroCosmetics: (owned = [], equipped = {}) => {
+    const pl = actors.get("player");
+    if (!pl?.group) return;
+    while (heroCosmeticGroup.children.length) heroCosmeticGroup.remove(heroCosmeticGroup.children[0]);
+    if (!pl.group.children.includes(heroCosmeticGroup)) pl.group.add(heroCosmeticGroup);
+    const hat = equipped.hat || (owned.includes("hat_spike") ? "hat_spike" : null);
+    const collar = equipped.collar || (owned.includes("chain_neon") ? "chain_neon" : null);
+    if (hat) {
+      const h = new THREE.Mesh(
+        new THREE.ConeGeometry(0.22, 0.35, 8),
+        new THREE.MeshStandardMaterial({ color: 0xff00aa, emissive: 0xff0066, emissiveIntensity: 0.5 })
+      );
+      h.position.set(0, 1.72, 0);
+      heroCosmeticGroup.add(h);
+    }
+    if (collar) {
+      const c = new THREE.Mesh(
+        new THREE.TorusGeometry(0.18, 0.03, 8, 16),
+        new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.8 })
+      );
+      c.rotation.x = Math.PI / 2;
+      c.position.set(0, 1.38, 0.02);
+      heroCosmeticGroup.add(c);
+    }
+    if (owned.includes("jacket_neon") && pl.root && !pl._jacketTinted) {
+      pl.root.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach((m, i) => {
+          if (!m || m.isShaderMaterial) return;
+          const mat = m.clone();
+          if (mat.emissive) {
+            mat.emissive.set(0x330044);
+            mat.emissiveIntensity = 0.35;
+          }
+          if (Array.isArray(o.material)) o.material[i] = mat;
+          else o.material = mat;
+        });
+      });
+      pl._jacketTinted = true;
+    }
+  },
+  setPlayerSit: (on) => {
+    const pl = actors.get("player");
+    if (!pl) return;
+    pl._sitting = on;
+    fadeTo(pl, on ? "sit" : "idle");
   }
 };
 window.World3D = api;

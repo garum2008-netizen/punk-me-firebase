@@ -9,7 +9,8 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v20";
+const GAME_VERSION = "living3d-v21";
+let moveSaveTimer = null;
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
 
@@ -171,7 +172,8 @@ const SHOP = {
   clothes: [
     { id: "jacket_neon", cat: "clothes", name: "Неоновая куртка", price: 220, img: "imagine_images/LTPb8.jpg", stat: { def: 3 } },
     { id: "mohawk_dye", cat: "clothes", name: "Краситель ирокеза", price: 180, img: "imagine_images/KY3Sa.jpg", stat: { rep: 5 } },
-    { id: "boots_spike", cat: "clothes", name: "Шипованные ботинки", price: 200, img: "imagine_images/9iBXD.jpg", stat: { chain: 2 } }
+    { id: "boots_spike", cat: "clothes", name: "Шипованные ботинки", price: 200, img: "imagine_images/9iBXD.jpg", stat: { chain: 2 } },
+    { id: "hat_spike", cat: "clothes", name: "Шипастая шляпа", price: 160, img: "imagine_images/KY3Sa.jpg", stat: { rep: 3 } }
   ],
   chains: [
     { id: "chain_rust", cat: "chains", name: "Ржавая цепь", price: 120, img: "imagine_images/C34xz.jpg", stat: { chain: 8 } },
@@ -254,7 +256,9 @@ let pendingJobAction = null;
 const JOB_BOARD = [
   { id: "dig", titleKey: "job_dig", loc: "cemetery", action: "dig", descKey: "job_cemetery_spot" },
   { id: "cobwebs", titleKey: "job_cobwebs", loc: "cemetery", action: "cobwebs", descKey: "job_corners" },
-  { id: "parkour_run", titleKey: "job_parkour", loc: "parkour", action: "parkour", descKey: "job_roof_route" }
+  { id: "parkour_run", titleKey: "job_parkour", loc: "parkour", action: "parkour", descKey: "job_roof_route" },
+  { id: "cemetery_night", titleKey: "job_cemetery_night", loc: "cemetery", action: "cemetery_night", descKey: "job_cemetery_night_desc" },
+  { id: "pizza_delivery", titleKey: "job_pizza", loc: "city", action: "pizza_delivery", descKey: "job_pizza_desc" }
 ];
 
 function defaultPlayer() {
@@ -426,13 +430,21 @@ function init() {
   function bootScene3D() {
     if (!window.Scene3D) return;
     Scene3D.init({
-      onMove: (x, y) => {
+      onMove: (x, y, opts = {}) => {
         me.x = x; me.y = y;
         window.Onboarding?.onMove?.(x, y);
-        saveMe(); syncStage3D();
+        if (opts.sync3d === false) {
+          clearTimeout(moveSaveTimer);
+          moveSaveTimer = setTimeout(() => saveMe(), 450);
+          return;
+        }
+        saveMe();
+        syncStage3D();
       },
       onNpcClick: (nid) => openNpcDialog(nid),
       onInteract: () => {
+        const playCtx = { toast, save: saveMe, hasDog };
+        if (window.PlayV21?.tryInteract(me, playCtx)) return;
         if (window.World3D?.getNearestDog?.()) {
           petDog(true);
           return;
@@ -448,6 +460,7 @@ function init() {
       },
       onReady: () => {
         syncStage3D();
+        window.PlayV21?.syncCosmetics?.(me);
         window.Onboarding?.syncGuideTarget?.();
       },
       onAnimState: (st) => {
@@ -928,6 +941,8 @@ function renderPlayers() {
 function petDog(fromLife) {
   if (!fromLife) LifeEngine.barkAndPet();
   toast(t("petHappy"));
+  me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
+  window.PlayV21?.bumpDaily?.(me, "pet_dog", { toast, save: saveMe });
   if (!isOwner) me.coins += 6;
   me.xp += 3;
   saveMe();
@@ -1112,6 +1127,7 @@ function buyItem(id) {
   renderAll();
   renderShop();
   toast(t("bought_item") + " " + tShop(it.id));
+  window.PlayV21?.syncCosmetics?.(me);
   window.Onboarding?.onShopBuy?.();
 }
 
@@ -1171,6 +1187,14 @@ function doJob(action) {
 }
 
 function runJobAction(action) {
+  if (action === "cemetery_night") {
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe });
+    return;
+  }
+  if (action === "pizza_delivery") {
+    window.PlayV21?.startPizzaJob(me, { toast, save: saveMe });
+    return;
+  }
   if (action === "parkour") {
     if (me.location !== "parkour") {
       pendingJobAction = "parkour";
@@ -1283,6 +1307,14 @@ function updateFightUi() {
   document.getElementById("npcHpBar").style.width = Math.max(0, (fight.npcHp / fight.npcMax) * 100) + "%";
 }
 
+function fightDodge() {
+  if (!fight || fight._dodgeCd > Date.now()) return;
+  fight._dodgeCd = Date.now() + 1400;
+  fight.shield = (fight.shield || 0) + 14;
+  fight.log.push(t("fight_dodge"));
+  updateFightUi();
+}
+
 function fightAttack(kind) {
   if (!fight) return;
   let dmg = me.stats.chain + Math.floor(Math.random() * 10);
@@ -1331,6 +1363,7 @@ function endFight(win) {
     me.rep += 8;
     toast(t("win_fight") + " +" + reward);
     questBump("win_fight");
+    window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
     window.Onboarding?.onWinFight?.();
   } else {
     toast(t("lose_fight"));
@@ -1406,6 +1439,7 @@ window.openJobPanel = openJobPanel;
 window.toggleBuildMode = toggleBuildMode;
 window.startFightUi = startFightUi;
 window.fightAttack = fightAttack;
+window.fightDodge = fightDodge;
 window.fightSpell = fightSpell;
 window.closeFight = closeFight;
 window.runParkour = runParkour;

@@ -25,6 +25,7 @@ import {
   addElevatorDressing,
   addToiletDressing
 } from "./location-enrich.mjs";
+import { addV21Clutter } from "./location-clutter-v21.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
 export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
@@ -564,6 +565,8 @@ export function buildLocationScene(locId, texLoader) {
     root.add(neonSign("PUNK — " + locId.toUpperCase(), 0xff00ff).translateY(2.5).translateZ(-7.5));
     addLights(root, [{ type: "point", color: 0xff00ff, intensity: 2.5, x: 0, y: 3, z: 0 }]);
   }
+
+  addV21Clutter(locId, root, texLoader, colliders, pushCollider);
 
   const portals = new THREE.Group();
   (PORTALS[locId] || []).forEach(p => {
