@@ -1,0 +1,21 @@
+name: Deploy Firebase RTDB rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - database.rules.json
+      - .github/workflows/deploy-database-rules.yml
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install -g firebase-tools
+      - run: firebase deploy --only database --project punk-me-40605 --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

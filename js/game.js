@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "mvp-2026-10-20";
+const GAME_VERSION = "mvp-2026-10-20-live";
 
 const LOCATIONS = {
   room: {
@@ -200,6 +200,8 @@ let fight = null;
 let spellCooldowns = {};
 let ambients = [];
 let shopTab = "clothes";
+let presenceOk = true;
+let playersListenRef = null;
 let dogPos = { x: 38, y: 65 };
 let dogWag = false;
 let pendingJobAction = null;
@@ -355,6 +357,7 @@ function sanitizePlayer(p) {
 
 function pushPresence() {
   if (!uid) return;
+  if (!presenceOk) return;
   const loc = me.location;
   const data = {
     name: me.name,
@@ -365,15 +368,27 @@ function pushPresence() {
     ts: Date.now()
   };
   const ref = db.ref("presence/" + loc + "/" + uid);
-  ref.set(data);
+  ref.set(data).catch(() => disablePresence("write"));
   if (presenceRef && presenceRef.key !== loc) {
-    presenceRef.child(uid).remove();
+    presenceRef.child(uid).remove().catch(() => {});
   }
   presenceRef = db.ref("presence/" + loc);
-  ref.onDisconnect().remove();
+  ref.onDisconnect().remove().catch(() => {});
+}
+
+function disablePresence(reason) {
+  if (!presenceOk) return;
+  presenceOk = false;
+  console.warn("Presence disabled:", reason);
+  if (presenceListenRef) presenceListenRef.off();
+  listenPlayersInLocation();
 }
 
 function listenPresence() {
+  if (!presenceOk) {
+    listenPlayersInLocation();
+    return;
+  }
   if (presenceListenRef) presenceListenRef.off();
   const loc = me.location;
   presenceListenRef = db.ref("presence/" + loc);
@@ -382,6 +397,30 @@ function listenPresence() {
     renderPlayers();
     renderPlayersList();
     updateOnlineCount();
+  }, err => {
+    disablePresence(err?.message || "read");
+  });
+}
+
+function listenPlayersInLocation() {
+  if (playersListenRef) playersListenRef.off();
+  playersListenRef = db.ref("players");
+  playersListenRef.on("value", snap => {
+    const all = snap.val() || {};
+    others = {};
+    Object.entries(all).forEach(([id, p]) => {
+      if (id === uid || !p || p.location !== me.location) return;
+      others[id] = {
+        name: p.name,
+        x: p.x || 50,
+        y: p.y || 55,
+        avatar: p.avatar,
+        level: p.level || 1
+      };
+    });
+    renderPlayers();
+    renderPlayersList();
+    document.getElementById("onlineCount").textContent = String(Object.keys(all).length);
   });
 }
 
@@ -423,17 +462,22 @@ function loadPrivateDecor() {
 }
 
 function updateOnlineCount() {
+  if (!presenceOk) return;
   db.ref("presence").once("value").then(s => {
     let n = 0;
     const v = s.val() || {};
     Object.keys(v).forEach(k => { n += Object.keys(v[k] || {}).length; });
     document.getElementById("onlineCount").textContent = String(n);
+  }).catch(() => {
+    db.ref("players").once("value").then(s => {
+      document.getElementById("onlineCount").textContent = String(Object.keys(s.val() || {}).length);
+    });
   });
 }
 
 function goLocation(id) {
   if (!LOCATIONS[id]) return;
-  if (presenceRef) db.ref("presence/" + me.location + "/" + uid).remove();
+  if (presenceOk && presenceRef) db.ref("presence/" + me.location + "/" + uid).remove().catch(() => {});
   me.location = id;
   me.x = 45;
   me.y = 60;
@@ -981,7 +1025,9 @@ function sendChat() {
   const inp = document.getElementById("chatInput");
   const text = inp.value.trim();
   if (!text) return;
-  db.ref("chat").push({ uid, name: me.name, text, time: Date.now(), loc: me.location });
+  db.ref("chat").push({ uid, name: me.name, text, time: Date.now(), loc: me.location }).catch(() => {
+    toast("Чат временно недоступен");
+  });
   inp.value = "";
 }
 
