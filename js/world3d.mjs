@@ -1617,7 +1617,23 @@ const api = {
     const cols = furnitureColliders;
     const cx = bounds ? (bounds.minX + bounds.maxX) * 0.5 : 0;
     const cz = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 : -1.2;
-    let spawn = bounds ? findClearSpawn(bounds, cols, { x: cx, z: cz - 1.2 }) : { x: 0, z: -1.4 };
+    const pickFreeSpawn = () => {
+      if (!bounds) return { x: 0, z: -1.4 };
+      for (let z = bounds.minZ + 1.1; z < bounds.minZ + 3.5; z += 0.25) {
+        let clear = true;
+        for (let s = 0; s < 90; s++) {
+          const pz = z + s * 0.12;
+          if (pz > bounds.maxZ - 1.05) break;
+          if (pointInsideCollider(cx, pz, cols, 0.38)) {
+            clear = false;
+            break;
+          }
+        }
+        if (clear) return resolveWorldPosition(cx, z, bounds, cols, 0.42);
+      }
+      return findClearSpawn(bounds, cols, { x: cx, z: bounds.minZ + 1.2 });
+    };
+    let spawn = bounds ? pickFreeSpawn() : { x: 0, z: -1.4 };
     let moveX = 0;
     let moveZ = 1;
     const baseYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;

@@ -439,9 +439,17 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("street_barrel", new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.55, 10), mat(0x553322)).translateY(0.28).translateX(3.5).translateZ(-0.5)));
     for (let i = 0; i < 6; i++) {
       const g = tagged(`street_litter_${i}`, box(0.1, 0.06, 0.14, mat(0x8a6030)));
-      g.position.set(-2 + i * 0.55, 0.03, 2.5 + (i % 2) * 0.4);
+      g.position.set(-2 + i * 0.55, 0.03, -3.5 + (i % 2) * 0.4);
       root.add(g);
     }
+    for (let i = 0; i < 10; i++) {
+      const g = tagged(`street_back_detail_${i}`, box(0.22, 0.35 + (i % 3) * 0.08, 0.22, mat(0x445566 + (i * 12_371) % 0x111111)));
+      g.position.set(-5 + (i % 5) * 2.2, 0.18, -5.2 - Math.floor(i / 5) * 0.8);
+      root.add(g);
+    }
+    root.add(tagged("street_fence_back", ironFence(0, -5.8, 5)));
+    root.add(tagged("street_extra_bench", parkBench(-2.5, -4.8)));
+    root.add(tagged("street_extra_hydrant", box(0.35, 0.55, 0.35, mat(0xcc2222, 0xff0000)).translateY(0.28).translateX(3.8).translateZ(-4.5)));
   } else if (locId === "construction") {
     root.add(tagged("con_scaffold_tower", box(0.15, 3.2, 0.15, mat(0x888888)).translateY(1.6).translateX(-3).translateZ(2.5)));
     root.add(tagged("con_scaffold_beam", box(2.5, 0.12, 0.12, mat(0x999999)).translateY(2.4).translateX(-2).translateZ(2.5)));

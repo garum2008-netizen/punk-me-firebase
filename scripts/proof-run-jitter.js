@@ -70,11 +70,9 @@ async function runMatrix(browser, viewport, label) {
         const sample = await page.evaluate(
           async ({ frames, scenario }) => {
             World3D.startMotionProbe(frames, scenario);
-            let n = 0;
             return new Promise(resolve => {
               function step() {
-                n++;
-                if (n >= frames) resolve(World3D.stopMotionProbe());
+                if (World3D.getMotionProbeCount() >= frames) resolve(World3D.stopMotionProbe());
                 else requestAnimationFrame(step);
               }
               requestAnimationFrame(step);
