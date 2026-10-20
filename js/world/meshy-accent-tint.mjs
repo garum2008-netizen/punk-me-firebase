@@ -102,7 +102,7 @@ export function accentForActor(characterId, actorId) {
     cobalt: "green",
     ghost: "orange",
     vienna: "pink",
-    razor: "pink",
+    razor: "orange",
     gravedigger: "orange"
   };
   if (byChar[characterId]) return byChar[characterId];

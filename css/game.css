@@ -237,12 +237,33 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   font-size: 13px; border: 1px solid rgba(255,0,255,0.35);
 }
 .badge strong { color: #0ff; }
+.game-bottom-bar {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  max-width: min(96vw, 720px); pointer-events: none;
+}
+.game-bottom-bar .panel-bottom,
+.game-bottom-bar .legal-footer-game {
+  position: relative; left: auto; bottom: auto; transform: none;
+  pointer-events: auto;
+}
+.game-bottom-bar .legal-footer-game { z-index: 1; }
 .nav-quick {
-  position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);
   z-index: 20; display: flex; gap: 4px; flex-wrap: wrap; justify-content: center;
   max-width: 96vw; pointer-events: none;
 }
 .nav-quick .btn { pointer-events: auto; padding: 5px 10px; font-size: 11px; }
+@media (max-width: 480px) {
+  .nav-quick { bottom: 96px; }
+  .game-bottom-bar { bottom: 6px; gap: 6px; max-width: 98vw; }
+  .game-bottom-bar .panel-bottom { gap: 4px; }
+  .game-bottom-bar .btn { padding: 8px 10px; font-size: 11px; }
+  .game-bottom-bar .legal-footer-game { font-size: 10px; padding: 5px 10px; }
+}
+@media (min-width: 1024px) {
+  .nav-quick { bottom: 92px; }
+}
 .loc-name {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
   z-index: 20; font-size: 15px; font-weight: 700; letter-spacing: 0.04em;
@@ -250,8 +271,7 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   text-shadow: 0 0 12px #ff00ff;
 }
 .panel-bottom {
-  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-  z-index: 20; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
   max-width: 96vw;
 }
 .btn {

@@ -71,7 +71,7 @@ function poster(tex, w, h) {
   );
 }
 
-function neonSign(text, color = 0xff00ff) {
+function neonSign(text, color = 0xff00ff, opts = {}) {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 128;
@@ -86,23 +86,25 @@ function neonSign(text, color = 0xff00ff) {
   g.fillText(text, 256, 78);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  const side = opts.frontSide ? THREE.FrontSide : THREE.DoubleSide;
   return new THREE.Mesh(
     new THREE.PlaneGeometry(3.2, 0.8),
     new THREE.MeshStandardMaterial({
-      map: t, emissive: color, emissiveIntensity: 1.2, transparent: true, side: THREE.DoubleSide
+      map: t, emissive: color, emissiveIntensity: 1.2, transparent: true, side
     })
   );
 }
 
-function portalMesh(label) {
+function portalMesh(label, portalX = 0, portalZ = 0) {
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(0.85, 0.07, 8, 24),
     new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 1.1, metalness: 0.35 })
   );
   ring.rotation.x = Math.PI / 2;
-  const sign = neonSign(label, 0x00ffff);
+  const sign = neonSign(label, 0x00ffff, { frontSide: true });
   sign.position.y = 1.5;
   sign.scale.set(0.5, 0.5, 1);
+  sign.rotation.y = Math.atan2(-portalX, -portalZ);
   const g = new THREE.Group();
   g.add(ring);
   g.add(sign);
@@ -354,7 +356,7 @@ export function buildLocationScene(locId, texLoader) {
     const label = (typeof window !== "undefined" && window.doorT)
       ? window.doorT(p.labelKey)
       : p.labelKey;
-    const g = portalMesh(label);
+    const g = portalMesh(label, p.x, p.z);
     g.position.set(p.x, 0.05, p.z);
     portals.add(g);
   });

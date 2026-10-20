@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v6">
+<link rel="stylesheet" href="css/game.css?v=living3d-v7">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -63,22 +63,24 @@
     <input id="chatInput" data-i18n-ph="chatPh" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
   </div>
   <div class="nav-quick" id="navQuick" aria-label="Быстрый переход"></div>
-  <div class="panel-bottom">
-    <button class="btn" data-i18n="map" onclick="openModal('mapModal')">Карта</button>
-    <button class="btn" data-i18n="gang" onclick="openModal('gangModal')">Банда</button>
-    <button class="btn" data-i18n="shop" onclick="openModal('shopModal')">Лавка</button>
-    <button class="btn secondary" data-i18n="magic" onclick="openModal('magicModal')">Магия</button>
-    <button class="btn secondary" data-i18n="inv" onclick="openModal('invModal')">Инвентарь</button>
-    <button class="btn" id="btnJob" data-i18n="job" style="display:none" onclick="openJobPanel()">Работа</button>
-    <button class="btn" id="btnBuild" data-i18n="build" style="display:none" onclick="toggleBuildMode()">Стройка</button>
-    <button class="btn secondary" id="btnDecor" data-i18n="decor" style="display:none" onclick="tryDecorPlace()">Декор</button>
-    <button class="btn danger" id="btnFight" data-i18n="fight" style="display:none" onclick="startFightUi()">Драка</button>
-    <button class="btn" id="btnParkour" data-i18n="parkour" style="display:none" onclick="runParkour()">Паркур</button>
+  <div class="game-bottom-bar">
+    <div class="panel-bottom">
+      <button class="btn" data-i18n="map" onclick="openModal('mapModal')">Карта</button>
+      <button class="btn" data-i18n="gang" onclick="openModal('gangModal')">Банда</button>
+      <button class="btn" data-i18n="shop" onclick="openModal('shopModal')">Лавка</button>
+      <button class="btn secondary" data-i18n="magic" onclick="openModal('magicModal')">Магия</button>
+      <button class="btn secondary" data-i18n="inv" onclick="openModal('invModal')">Инвентарь</button>
+      <button class="btn" id="btnJob" data-i18n="job" style="display:none" onclick="openJobPanel()">Работа</button>
+      <button class="btn" id="btnBuild" data-i18n="build" style="display:none" onclick="toggleBuildMode()">Стройка</button>
+      <button class="btn secondary" id="btnDecor" data-i18n="decor" style="display:none" onclick="tryDecorPlace()">Декор</button>
+      <button class="btn danger" id="btnFight" data-i18n="fight" style="display:none" onclick="startFightUi()">Драка</button>
+      <button class="btn" id="btnParkour" data-i18n="parkour" style="display:none" onclick="runParkour()">Паркур</button>
+    </div>
+    <footer class="legal-footer legal-footer-game">
+      <span class="age-badge-inline" data-i18n="age_13">13+</span>
+      <a href="subscribe.html" data-i18n="footer_subscribe">Цена и условия</a>
+    </footer>
   </div>
-  <footer class="legal-footer legal-footer-game">
-    <span class="age-badge-inline" data-i18n="age_13">13+</span>
-    <a href="subscribe.html" data-i18n="footer_subscribe">Цена и условия</a>
-  </footer>
   <div class="modal" id="mapModal">
     <button class="close" onclick="closeModal('mapModal')">✕</button>
     <h2 data-i18n="mapTitle">Карта ночи</h2>
@@ -148,13 +150,13 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v6"></script>
-<script src="js/i18n.js?v=living3d-v6"></script>
-<script src="js/voice.js?v=living3d-v6"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v6"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v6"></script>
-<script src="js/life.js?v=living3d-v6"></script>
-<script src="js/game.js?v=living3d-v6"></script>
+<script src="js/characters.js?v=living3d-v7"></script>
+<script src="js/i18n.js?v=living3d-v7"></script>
+<script src="js/voice.js?v=living3d-v7"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v7"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v7"></script>
+<script src="js/life.js?v=living3d-v7"></script>
+<script src="js/game.js?v=living3d-v7"></script>
 <p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
   3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0
 </p>

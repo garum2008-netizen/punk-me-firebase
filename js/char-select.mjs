@@ -6,24 +6,71 @@ import {
 } from "./world/meshy-punk.mjs";
 import { updateProcedural } from "./character-rig.mjs";
 
+const PREVIEW_FILL = 0.72;
+/** Camera on +Z; model forward is -Z — quarter-turn toward lens. */
+const PREVIEW_FACE_YAW = 0.24;
+
 let renderer, scene, camera, clock, actorRoot, mixer, actions, previewProc;
 let selectedIdx = 0;
 let raf = 0;
 let onPickCb = null;
 let templatesReady = false;
+let previewPhase = 0;
+let previewLights = null;
+
+function framePreviewActor(root, cam, canvas) {
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  root.position.x -= center.x;
+  root.position.z -= center.z;
+  root.position.y -= box.min.y;
+
+  const h = Math.max(size.y, 0.01);
+  const vFov = (cam.fov * Math.PI) / 180;
+  const dist = (h / PREVIEW_FILL) / (2 * Math.tan(vFov / 2));
+  const aspect = canvas.clientWidth / Math.max(canvas.clientHeight, 1);
+  const distAdj = dist / Math.min(1, aspect * 0.92);
+  cam.position.set(0, h * 0.44, distAdj * 0.78);
+  cam.lookAt(0, h * 0.4, 0);
+  root.rotation.y = PREVIEW_FACE_YAW;
+}
+
+function ensurePreviewLights() {
+  if (previewLights) return;
+  previewLights = new THREE.Group();
+  previewLights.add(new THREE.HemisphereLight(0xfff0ff, 0x1a1028, 1.35));
+  const key = new THREE.DirectionalLight(0xffffff, 2.4);
+  key.position.set(2.2, 4.5, 3.8);
+  const fill = new THREE.DirectionalLight(0x99ddff, 1.05);
+  fill.position.set(-3, 2.5, 2.5);
+  const rim = new THREE.DirectionalLight(0xff66ff, 1.35);
+  rim.position.set(-0.5, 3.2, -4.2);
+  previewLights.add(key, fill, rim);
+  scene.add(previewLights);
+}
 
 function showCharacter(id) {
   if (!templatesReady) return;
   if (actorRoot) scene.remove(actorRoot);
   const def = getCharacterDef(id);
   const tpl = getTemplateForCharacter(id);
-  const built = createCc0Actor(tpl, id, def.look || {}, { isPlayer: true, actorId: "player" });
+  const built = createCc0Actor(tpl, id, def.look || {}, {
+    isPlayer: false,
+    actorId: id
+  });
   actorRoot = built.root;
   actorRoot.visible = true;
   scene.add(actorRoot);
   mixer = built.mixer;
   actions = built.actions;
   previewProc = built._proc;
+  actions.idle?.reset().setEffectiveWeight(1).play();
+  mixer.update(0);
+  const canvas = document.getElementById("charSelect3d");
+  if (canvas && camera) framePreviewActor(actorRoot, camera, canvas);
+  previewPhase = 0;
   const line = characterIntroLine(id);
   const el = document.getElementById("charSelectIntro");
   if (el) el.textContent = line;
@@ -35,9 +82,15 @@ function loop() {
   const dt = clock.getDelta();
   mixer?.update(dt);
   if (actorRoot && previewProc) {
-    updateProcedural({ _meshy: true, _proc: previewProc, current: "idle", root: actorRoot }, dt, null, false);
+    updateProcedural(
+      { _meshy: true, _proc: previewProc, current: "idle", root: actorRoot },
+      dt,
+      null,
+      false
+    );
+    previewPhase += dt;
+    actorRoot.rotation.y = PREVIEW_FACE_YAW + Math.sin(previewPhase * 0.75) * 0.18;
   }
-  if (actorRoot) actorRoot.rotation.y += dt * 0.55;
   renderer?.render(scene, camera);
 }
 
@@ -73,15 +126,13 @@ function open(onPick) {
   if (!renderer) {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.38;
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x08040f);
-    camera = new THREE.PerspectiveCamera(42, 1, 0.1, 50);
-    camera.position.set(0, 1.6, 4.2);
-    camera.lookAt(0, 1.2, 0);
-    scene.add(new THREE.AmbientLight(0x6644aa, 0.8));
-    const key = new THREE.PointLight(0xff66ff, 2, 12);
-    key.position.set(2, 3, 2);
-    scene.add(key);
+    scene.background = new THREE.Color(0x12081c);
+    camera = new THREE.PerspectiveCamera(38, 1, 0.1, 50);
+    ensurePreviewLights();
     clock = new THREE.Clock();
   }
   resize();
@@ -103,6 +154,7 @@ function resize() {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
+  if (actorRoot && camera) framePreviewActor(actorRoot, camera, canvas);
 }
 
 function close() {
