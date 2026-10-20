@@ -13,6 +13,7 @@ Original punk-gang teens for **PUNK ME**. Visual references live in `imagine_ima
 - **Catchphrases (DA):** “Kæder er vores hymne.” · “Natten tilhører banden.”
 
 ### Vienna (Вена) — pink mohawk
+- **3D:** Meshy **Neon Rebel** `assets/models/meshy/punk_pink.glb` (canonical Vienna; original texture, default hero).
 - **Look:** Hot-pink mohawk, dark punk dress, neon choker. Ref: `imagine_images/Oo040.jpg`
 - **Personality:** Bold, cemetery-side strategist, builder of the crew’s territory.
 - **Role:** Cemetery jobs, crypt-building quest, morale on the street.
@@ -21,6 +22,7 @@ Original punk-gang teens for **PUNK ME**. Visual references live in `imagine_ima
 - **Catchphrases (DA):** “NOT DEAD YET — det er os.” · “Kirkegården betaler fair.”
 
 ### Cobalt (Кобальт) — blue pigtails
+- **3D:** Meshy `assets/models/meshy/cobalt.glb` (Inna; original texture, clips Idle / Walking / Running).
 - **Look:** Cyan-blue twin tails, skull tee, spike bracelets. Inspired by blue-pigtail girl in street art (`imagine_images/77Mdp.jpg` gang lineup).
 - **Personality:** Fast talker, parkour scout, cheers the team up.
 - **Role:** Parkour rep quest, quick emotes, scout on rooftops (future).
@@ -29,6 +31,7 @@ Original punk-gang teens for **PUNK ME**. Visual references live in `imagine_ima
 - **Catchphrases (DA):** “Hop højere end neonen!” · “Jeg ser en genvej.”
 
 ### Mohawk (Ирокез) — green flame
+- **3D:** Meshy `assets/models/meshy/mohawk.glb` (Inna; original texture, clips Idle / Walking / Running).
 - **Look:** Lime-green mohawk, spell scrolls, neon gloves. Ref: `imagine_images/Lix06.jpg`
 - **Personality:** Reckless mage, loves flashy magic and shop scrolls.
 - **Role:** Magic shop hype, parkour rep ally, spell VFX in fights.

@@ -213,6 +213,13 @@ function getPlayableCharacters() {
   return PLAYABLE_CHARACTER_IDS.map(id => CHARACTERS[id]);
 }
 
+function isCharacterJoinable(id) {
+  const c = CHARACTERS[id];
+  return !!c && c.playable !== false && !c.comingSoon;
+}
+
+window.isCharacterJoinable = isCharacterJoinable;
+
 function characterIntroLine(id, lang) {
   const c = getCharacterDef(id);
   const l = lang || (typeof getLanguage === "function" ? getLanguage() : "en");

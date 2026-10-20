@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v6">
+<link rel="stylesheet" href="css/game.css?v=living3d-v12">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -40,45 +40,69 @@
     <div id="entities"></div>
   </div>
   <div class="loc-name" id="locTitle" data-i18n-loc="room">Комната панка</div>
-  <div class="hud">
-    <div class="badge"><span data-i18n="coins">Монеты</span>: <strong id="coins">…</strong></div>
-    <div class="badge"><span data-i18n="xp">XP</span>: <strong id="xp">0</strong></div>
-    <div class="badge"><span data-i18n="level">Уровень</span>: <strong id="level">1</strong></div>
-    <div class="badge"><span data-i18n="rep">Репутация</span>: <strong id="rep">0</strong></div>
-    <div class="badge"><span data-i18n="chain">Цепь</span>: <strong id="chainStat">10</strong></div>
-    <div class="badge"><span data-i18n="online">Здесь</span>: <strong id="onlineCount">0</strong> · <span data-i18n="onlineGlobal">Всего</span>: <strong id="onlineGlobal">0</strong></div>
-    <div class="lang-switch" id="langSwitch">
-      <button type="button" class="lang-btn" data-lang="ru">RU</button>
-      <button type="button" class="lang-btn" data-lang="en">EN</button>
-      <button type="button" class="lang-btn" data-lang="da">DA</button>
+  <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
+  <div id="contextHint" class="context-hint" aria-live="polite"></div>
+  <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
+  <div id="touchControls" class="touch-controls" aria-hidden="true">
+    <div id="touchJoystick" class="touch-joystick"><div id="touchJoystickKnob" class="touch-joystick-knob"></div></div>
+    <button type="button" id="touchInteract" class="touch-interact">E</button>
+  </div>
+  <div class="hud-column">
+    <div class="hud">
+      <div class="badge badge-stat" title="Coins"><span class="stat-icon" aria-hidden="true">◎</span><span class="stat-label" data-i18n="coins">Монеты</span><strong id="coins">…</strong></div>
+      <div class="badge badge-stat" title="XP"><span class="stat-icon" aria-hidden="true">★</span><span class="stat-label" data-i18n="xp">XP</span><strong id="xp">0</strong></div>
+      <div class="badge badge-stat" title="Level"><span class="stat-icon" aria-hidden="true">▲</span><span class="stat-label" data-i18n="level">Уровень</span><strong id="level">1</strong></div>
+      <div class="badge badge-stat badge-stat-rep" title="Rep"><span class="stat-icon" aria-hidden="true">◆</span><span class="stat-label" data-i18n="rep">Репутация</span><strong id="rep">0</strong></div>
+      <div class="badge badge-stat badge-stat-chain" title="Chain"><span class="stat-icon" aria-hidden="true">⛓</span><span class="stat-label" data-i18n="chain">Цепь</span><strong id="chainStat">10</strong></div>
+      <div class="badge hud-online-combined"><span data-i18n="online">Здесь</span>: <strong id="onlineCount">0</strong> · <span data-i18n="onlineGlobal">Всего</span>: <strong id="onlineGlobal">0</strong></div>
+      <div class="lang-switch" id="langSwitch">
+        <button type="button" class="lang-btn" data-lang="ru">RU</button>
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+        <button type="button" class="lang-btn" data-lang="da">DA</button>
+      </div>
+      <button type="button" class="lang-btn" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
     </div>
-    <button type="button" class="lang-btn" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
-    <button type="button" class="lang-btn" onclick="changeCharacter()" data-i18n="char_change_btn">Сменить героя</button>
-    <div class="badge" style="font-size:11px;opacity:.85">v <strong id="gameVersion">…</strong></div>
+    <div class="hud-actions">
+      <button type="button" class="lang-btn" onclick="changeCharacter()" data-i18n="char_change_btn">Сменить героя</button>
+      <div class="badge hud-version">v <strong id="gameVersion">…</strong></div>
+    </div>
+    <div class="quest-box" id="questBox"></div>
   </div>
-  <div class="quest-box" id="questBox"></div>
-  <div class="side" id="playersSide"><b data-i18n="onlineSide">В этой локации</b><div id="playersList">…</div></div>
-  <div class="chat">
-    <div class="chat-messages" id="chatMessages"></div>
-    <input id="chatInput" data-i18n-ph="chatPh" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
+  <div class="side players-panel" id="playersSide">
+    <button type="button" class="players-toggle" id="playersToggle" aria-expanded="false" aria-controls="playersDrawer">
+      <span data-i18n="here_short">Здесь</span>: <strong id="playersToggleCount">0</strong>
+    </button>
+    <div class="players-drawer" id="playersDrawer">
+      <b class="players-drawer-title" data-i18n="onlineSide">В этой локации</b>
+      <div id="playersList">…</div>
+    </div>
   </div>
-  <div class="nav-quick" id="navQuick" aria-label="Быстрый переход"></div>
-  <div class="panel-bottom">
-    <button class="btn" data-i18n="map" onclick="openModal('mapModal')">Карта</button>
-    <button class="btn" data-i18n="gang" onclick="openModal('gangModal')">Банда</button>
-    <button class="btn" data-i18n="shop" onclick="openModal('shopModal')">Лавка</button>
-    <button class="btn secondary" data-i18n="magic" onclick="openModal('magicModal')">Магия</button>
-    <button class="btn secondary" data-i18n="inv" onclick="openModal('invModal')">Инвентарь</button>
-    <button class="btn" id="btnJob" data-i18n="job" style="display:none" onclick="openJobPanel()">Работа</button>
-    <button class="btn" id="btnBuild" data-i18n="build" style="display:none" onclick="toggleBuildMode()">Стройка</button>
-    <button class="btn secondary" id="btnDecor" data-i18n="decor" style="display:none" onclick="tryDecorPlace()">Декор</button>
-    <button class="btn danger" id="btnFight" data-i18n="fight" style="display:none" onclick="startFightUi()">Драка</button>
-    <button class="btn" id="btnParkour" data-i18n="parkour" style="display:none" onclick="runParkour()">Паркур</button>
+  <div class="chat" id="chatPanel">
+    <button type="button" class="chat-toggle" id="chatToggle" aria-expanded="false" aria-controls="chatBody" data-i18n="chat_toggle">Чат</button>
+    <div class="chat-body" id="chatBody">
+      <div class="chat-messages" id="chatMessages"></div>
+      <input id="chatInput" data-i18n-ph="chatPh" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
+    </div>
   </div>
-  <footer class="legal-footer legal-footer-game">
-    <span class="age-badge-inline" data-i18n="age_13">13+</span>
-    <a href="subscribe.html" data-i18n="footer_subscribe">Цена и условия</a>
-  </footer>
+  <div class="game-bottom-bar" id="gameBottomBar">
+    <div class="nav-quick scroll-row" id="navQuick" aria-label="Быстрый переход"></div>
+    <div class="panel-bottom scroll-row">
+      <button class="btn" data-i18n="map" onclick="openModal('mapModal')">Карта</button>
+      <button class="btn" data-i18n="gang" onclick="openModal('gangModal')">Банда</button>
+      <button class="btn" data-i18n="shop" onclick="openModal('shopModal')">Лавка</button>
+      <button class="btn secondary" data-i18n="magic" onclick="openModal('magicModal')">Магия</button>
+      <button class="btn secondary" data-i18n="inv" onclick="openModal('invModal')">Инвентарь</button>
+      <button class="btn" id="btnJob" data-i18n="job" style="display:none" onclick="openJobPanel()">Работа</button>
+      <button class="btn" id="btnBuild" data-i18n="build" style="display:none" onclick="toggleBuildMode()">Стройка</button>
+      <button class="btn secondary" id="btnDecor" data-i18n="decor" style="display:none" onclick="tryDecorPlace()">Декор</button>
+      <button class="btn danger" id="btnFight" data-i18n="fight" style="display:none" onclick="startFightUi()">Драка</button>
+      <button class="btn" id="btnParkour" data-i18n="parkour" style="display:none" onclick="runParkour()">Паркур</button>
+    </div>
+    <footer class="legal-footer legal-footer-game">
+      <span class="age-badge-inline" data-i18n="age_13">13+</span>
+      <a href="subscribe.html" data-i18n="footer_subscribe">Цена и условия</a>
+    </footer>
+  </div>
   <div class="modal" id="mapModal">
     <button class="close" onclick="closeModal('mapModal')">✕</button>
     <h2 data-i18n="mapTitle">Карта ночи</h2>
@@ -141,6 +165,7 @@
     </div>
   </div>
 </div>
+<div id="howToOverlay" class="howto-overlay"></div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -148,13 +173,16 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v6"></script>
-<script src="js/i18n.js?v=living3d-v6"></script>
-<script src="js/voice.js?v=living3d-v6"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v6"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v6"></script>
-<script src="js/life.js?v=living3d-v6"></script>
-<script src="js/game.js?v=living3d-v6"></script>
+<script src="js/characters.js?v=living3d-v8"></script>
+<script src="js/i18n.js?v=living3d-v10"></script>
+<script src="js/voice.js?v=living3d-v8"></script>
+<script src="js/onboarding.js?v=living3d-v8"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v10"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v8"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v12"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v10"></script>
+<script src="js/life.js?v=living3d-v8"></script>
+<script src="js/game.js?v=living3d-v12"></script>
 <p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
   3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0
 </p>

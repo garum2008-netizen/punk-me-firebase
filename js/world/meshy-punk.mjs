@@ -8,10 +8,20 @@ import { accentForActor, hueShiftAccentTexture } from "./meshy-accent-tint.mjs";
 /** Inna-approved merge: wave emote off; clip file remains for future use. */
 export const WAVE_EMOTE_ENABLED = false;
 
-export const MESHY_PUNK_URL = "assets/models/meshy/punk_pink.glb";
+/** Neon Rebel — canonical Vienna mesh (Inna). */
+export const MESHY_FALLBACK_GLB = "assets/models/meshy/punk_pink.glb";
+export const MESHY_PUNK_URL = MESHY_FALLBACK_GLB;
+export const DEFAULT_MESHY_CHARACTER = "vienna";
 
-const CLIPS = {
+const MESHY_FOOT_LIFT_EXTRA = { razor: 0.03 };
+
+const CLIPS_FALLBACK = {
   idle: ["IdleStand"],
+  walk: ["Walking"],
+  run: ["Running"]
+};
+const CLIPS_MESHY_IDLE = {
+  idle: ["Idle"],
   walk: ["Walking"],
   run: ["Running"]
 };
@@ -19,38 +29,114 @@ const SKIP_CLIP = /tpose|bind/i;
 const WALK_SPEED_REF = 1.05;
 const RUN_SPEED_REF = 2.35;
 
-let template = null;
+/** Per-hero GLB path; drop `assets/models/meshy/<id>.glb` to replace stand-ins. */
+const MESHY_DIRECT_URL = {
+  vienna: MESHY_FALLBACK_GLB
+};
 
-export async function loadMeshyPunkTemplate() {
-  if (template) return template;
-  const loader = new GLTFLoader();
-  const gltf = await loader.loadAsync(MESHY_PUNK_URL);
-  gltf.scene.updateMatrixWorld(true);
-  const foot = computeFootLift(gltf.scene);
-  const idleClip = buildIdleStandClip(gltf);
-  const animations = [...gltf.animations];
-  if (idleClip) animations.push(idleClip);
-  template = {
-    gltf: { ...gltf, animations },
-    foot,
-    idleClip,
-    def: { url: MESHY_PUNK_URL, scale: 1.0, yRot: 0, clips: CLIPS }
-  };
-  return template;
+const templateByCharacter = new Map();
+
+export function meshyGlbPathForHero(characterId) {
+  const id = characterId || DEFAULT_MESHY_CHARACTER;
+  if (id === "razor") return "assets/models/meshy/razor.glb?v=2";
+  return MESHY_DIRECT_URL[id] || `assets/models/meshy/${id}.glb`;
 }
 
-export async function loadAllCc0Templates() {
-  await loadMeshyPunkTemplate();
-  return new Map([["meshy", template]]);
-}
-
-export function getTemplateForCharacter(_characterId) {
-  return { key: "meshy", ...template };
+/** Original albedo (no hue shift) — Vienna always; others when their dedicated GLB loaded. */
+export function meshyUsesTint(characterId, templateEntry) {
+  if ((characterId || DEFAULT_MESHY_CHARACTER) === "vienna") return false;
+  return !!templateEntry?.usesFallback;
 }
 
 function computeFootLift(scene) {
   const box = new THREE.Box3().setFromObject(scene);
   return Math.max(0, -box.min.y + 0.002);
+}
+
+function gltfHasIdleClip(gltf) {
+  return (gltf.animations || []).some(c => c.name === "Idle" && !SKIP_CLIP.test(c.name));
+}
+
+function clipMapForGltf(gltf) {
+  return gltfHasIdleClip(gltf) ? CLIPS_MESHY_IDLE : CLIPS_FALLBACK;
+}
+
+function buildTemplateFromGltf(gltf, url, usesFallback) {
+  gltf.scene.updateMatrixWorld(true);
+  const foot = computeFootLift(gltf.scene);
+  const hasNativeIdle = gltfHasIdleClip(gltf);
+  const idleClip = hasNativeIdle ? null : buildIdleStandClip(gltf);
+  const animations = [...gltf.animations];
+  if (idleClip) animations.push(idleClip);
+  return {
+    gltf: { ...gltf, animations },
+    foot,
+    idleClip,
+    usesFallback,
+    hasNativeIdle,
+    def: { url, scale: 1.0, yRot: 0, clips: clipMapForGltf({ animations }) }
+  };
+}
+
+let shippedMeshyIds = null;
+
+async function getShippedMeshyIds() {
+  if (shippedMeshyIds) return shippedMeshyIds;
+  try {
+    const res = await fetch("assets/models/meshy/shipped.json");
+    shippedMeshyIds = res.ok ? await res.json() : ["vienna"];
+  } catch {
+    shippedMeshyIds = ["vienna"];
+  }
+  return shippedMeshyIds;
+}
+
+export async function loadMeshyTemplateForCharacter(characterId) {
+  const id = characterId || DEFAULT_MESHY_CHARACTER;
+  if (templateByCharacter.has(id)) return templateByCharacter.get(id);
+
+  const loader = new GLTFLoader();
+  const shipped = await getShippedMeshyIds();
+  const primary = meshyGlbPathForHero(id);
+  let url;
+  let usesFallback;
+
+  if (id === "vienna") {
+    url = MESHY_FALLBACK_GLB;
+    usesFallback = false;
+  } else if (shipped.includes(id)) {
+    url = primary;
+    usesFallback = false;
+  } else {
+    url = MESHY_FALLBACK_GLB;
+    usesFallback = true;
+  }
+
+  const gltf = await loader.loadAsync(url);
+  const entry = buildTemplateFromGltf(gltf, url, usesFallback);
+  if (id === "vienna") entry.usesFallback = false;
+  templateByCharacter.set(id, entry);
+  return entry;
+}
+
+/** @deprecated use loadMeshyTemplateForCharacter("vienna") */
+export async function loadMeshyPunkTemplate() {
+  return loadMeshyTemplateForCharacter("vienna");
+}
+
+export async function loadAllCc0Templates() {
+  const ids = typeof PLAYABLE_CHARACTER_IDS !== "undefined"
+    ? PLAYABLE_CHARACTER_IDS
+    : ["razor", "vienna", "cobalt", "mohawk"];
+  await Promise.all(ids.map(id => loadMeshyTemplateForCharacter(id)));
+  return templateByCharacter;
+}
+
+export function getTemplateForCharacter(characterId) {
+  const id = characterId || DEFAULT_MESHY_CHARACTER;
+  const t = templateByCharacter.get(id) || templateByCharacter.get(DEFAULT_MESHY_CHARACTER);
+  if (!t) return null;
+  return { key: id, characterId: id, ...t };
 }
 
 export function findBone(root, shortName) {
@@ -77,14 +163,14 @@ export function findHeadBone(root) {
 }
 
 export function applyPunkMaterials(root, _look = {}, opts = {}) {
-  const { isPlayer = false, accent = null } = opts;
+  const { accent = null } = opts;
   root.traverse(o => {
     if (!o.isMesh || !o.material) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     mats.forEach((m, i) => {
       const mat = m.clone();
       if (mat.map) {
-        if (!isPlayer && accent) {
+        if (accent) {
           mat.map = hueShiftAccentTexture(mat.map, accent);
         } else {
           mat.map = mat.map.clone();
@@ -139,20 +225,25 @@ export function bindProceduralBones(root) {
   };
 }
 
+function accentForMeshyActor(characterId, templateEntry, opts) {
+  if (!meshyUsesTint(characterId, templateEntry)) return null;
+  const actorId = opts.actorId || "player";
+  const accentKey = actorId === "player" ? characterId : actorId;
+  return accentForActor(characterId, accentKey);
+}
+
 export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
   const { gltf, foot, def } = templateEntry;
-  const actorId = opts.actorId || "player";
-  const isPlayer = opts.isPlayer ?? actorId === "player";
-  const accent = isPlayer ? null : accentForActor(characterId, actorId);
+  const accent = accentForMeshyActor(characterId, templateEntry, opts);
 
   const root = cloneSkinned(gltf.scene);
   const scl = def.scale * (look.scale || 1);
   root.scale.setScalar(scl);
   root.rotation.y = def.yRot;
-  root.position.y = foot * scl;
+  root.position.y = foot * scl + (MESHY_FOOT_LIFT_EXTRA[characterId] || 0);
   root.visible = false;
 
-  applyPunkMaterials(root, look, { isPlayer, accent });
+  applyPunkMaterials(root, look, { accent });
 
   const mixer = new THREE.AnimationMixer(root);
   const actions = buildMeshyActions(mixer, gltf.animations, def.clips);

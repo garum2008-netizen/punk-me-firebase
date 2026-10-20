@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v6";
+const GAME_VERSION = "living3d-v20";
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
 
@@ -55,7 +55,7 @@ const LOCATIONS = {
       { x: 44, y: 72, w: 14, h: 14, to: "elevator", labelKey: "door_elevator" },
       { x: 68, y: 18, w: 12, h: 14, to: "roof", labelKey: "door_roof" }
     ],
-    npcs: [],
+    npcs: ["vienna", "mohawk", "cobalt"],
     job: false, buildZone: "room_private"
   },
   kitchen: {
@@ -81,6 +81,7 @@ const LOCATIONS = {
       { x: 10, y: 60, w: 12, h: 16, to: "elevator", labelKey: "door_elevator" },
       { x: 78, y: 35, w: 12, h: 18, to: "parkour", labelKey: "door_parkour" }
     ],
+    npcs: ["mohawk"],
     night: true
   },
   street: {
@@ -90,14 +91,14 @@ const LOCATIONS = {
       { x: 85, y: 45, w: 10, h: 18, to: "cemetery", labelKey: "door_cemetery" },
       { x: 45, y: 70, w: 14, h: 14, to: "city", labelKey: "door_city" }
     ],
-    npcs: ["razor", "mohawk", "vienna", "ghost"],
+    npcs: ["razor", "mohawk", "vienna", "cobalt", "ghost"],
     night: true
   },
   cemetery: {
     id: "cemetery", title: "Кладбище у Вены", bg: "imagine_images/RgdDh.jpg",
     doors: [{ x: 4, y: 52, w: 10, h: 16, to: "street", labelKey: "door_street" }],
     job: true, night: true,
-    npcs: ["gravedigger"]
+    npcs: ["gravedigger", "cobalt"]
   },
   city: {
     id: "city", title: "Стройка кварталов", bg: "imagine_images/Z7wM3.jpg",
@@ -120,6 +121,15 @@ const NPCS = {
       da: ["Kæder er vores hymne. Vis du ikke er blød.", "Om natten er gaden for banden.", "Fuldfør opgaven — vi husker dig."]
     },
     quest: "chain_duel"
+  },
+  cobalt: {
+    id: "cobalt", name: "Кобальт", img: "imagine_images/KY3Sa.jpg",
+    lines: [
+      "Прыгай выше неона — я прикрою с крыши.",
+      "Короткий путь через кладбище? Только если не боишься тумана.",
+      "Паркур — наш язык. Слушай ритм шагов."
+    ],
+    quest: "parkour_rep"
   },
   mohawk: {
     id: "mohawk", name: "Ирокез", img: "imagine_images/Lix06.jpg",
@@ -265,6 +275,7 @@ function defaultPlayer() {
     pet: null,
     stats: { chain: 10, magic: 8, hp: 100, maxHp: 100 },
     quests: { active: "intro", progress: {} },
+    onboarding: { step: 0, progress: {}, done: false },
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -315,27 +326,64 @@ function formatCoinsDisplay() {
   return String(me.coins);
 }
 
+function updatePlayersToggleCount() {
+  const el = document.getElementById("playersToggleCount");
+  if (!el) return;
+  const inLoc = Object.keys(others).length + 1;
+  el.textContent = String(inLoc);
+}
+
 function updateOnlineUI(allPlayers) {
   const inLoc = Object.keys(others).length + 1;
   document.getElementById("onlineCount").textContent = String(inLoc);
+  updatePlayersToggleCount();
   const global = allPlayers ? Object.keys(allPlayers).length : inLoc;
   const gEl = document.getElementById("onlineGlobal");
   if (gEl) gEl.textContent = String(global);
 }
 
+function initResponsiveHud() {
+  if (window._responsiveHudInit) return;
+  window._responsiveHudInit = true;
+  const pt = document.getElementById("playersToggle");
+  const pd = document.getElementById("playersDrawer");
+  pt?.addEventListener("click", e => {
+    e.stopPropagation();
+    const open = !pd?.classList.contains("open");
+    pd?.classList.toggle("open", open);
+    pt.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  document.addEventListener("click", e => {
+    if (!pd?.classList.contains("open")) return;
+    if (!document.getElementById("playersSide")?.contains(e.target)) {
+      pd.classList.remove("open");
+      pt?.setAttribute("aria-expanded", "false");
+    }
+  });
+  const ct = document.getElementById("chatToggle");
+  const chat = document.getElementById("chatPanel");
+  ct?.addEventListener("click", e => {
+    e.stopPropagation();
+    const open = !chat?.classList.contains("chat-open");
+    chat?.classList.toggle("chat-open", open);
+    ct.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+}
+
 function syncStage3D() {
   if (!window.Scene3D) return;
   const loc = LOCATIONS[me.location];
-  const npcData = (loc.npcs || []).map((nid, i) => ({
+  const heroId = me.characterId || "vienna";
+  const npcData = (loc.npcs || []).filter(nid => nid !== heroId).map((nid, i) => ({
     id: nid,
-    img: NPCS[nid].img,
+    img: NPCS[nid]?.img || "imagine_images/77Mdp.jpg",
     x: 18 + i * 18,
     y: 58 + (i % 2) * 6
   }));
   Scene3D.sync({
     player: {
       x: me.x, y: me.y, avatar: me.avatar,
-      characterId: me.characterId || "razor",
+      characterId: me.characterId || "vienna",
       anim: me._animState || "idle"
     },
     others: othersForStage3D(),
@@ -379,15 +427,29 @@ function init() {
     if (!window.Scene3D) return;
     Scene3D.init({
       onMove: (x, y) => {
-        me.x = x; me.y = y; saveMe(); syncStage3D();
+        me.x = x; me.y = y;
+        window.Onboarding?.onMove?.(x, y);
+        saveMe(); syncStage3D();
       },
       onNpcClick: (nid) => openNpcDialog(nid),
+      onInteract: () => {
+        if (window.World3D?.getNearestDog?.()) {
+          petDog(true);
+          return;
+        }
+        const nid = window.World3D?.getNearestNpc?.();
+        if (nid) openNpcDialog(nid);
+      },
+      onHints: h => window.updateContextHints?.(h),
       onPortal: (to) => {
         if (Date.now() < portalCooldown) return;
         portalCooldown = Date.now() + 1500;
         if (LOCATIONS[to]) goLocation(to);
       },
-      onReady: () => syncStage3D(),
+      onReady: () => {
+        syncStage3D();
+        window.Onboarding?.syncGuideTarget?.();
+      },
       onAnimState: (st) => {
         me._animState = st;
         const now = Date.now();
@@ -427,6 +489,7 @@ function loadMe() {
       me.inventory.materials = v.inventory?.materials || {};
       me.inventory.spells = v.inventory?.spells || [];
       me.quests = v.quests || me.quests;
+      me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
       me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
       if (v.lang) initLanguage(v.lang);
     }
@@ -448,6 +511,7 @@ function loadMe() {
 }
 
 function pickCharacterAndContinue(id) {
+  if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
   me.characterId = id;
   const def = getCharacterDef(id);
   me.avatar = def.poster;
@@ -458,6 +522,10 @@ function pickCharacterAndContinue(id) {
 
 function continueGameBoot() {
   hideLoading();
+  initResponsiveHud();
+  if (window.Onboarding) Onboarding.init();
+  if (window.initHowToPlay) initHowToPlay();
+  if (window.initContextHints) initContextHints();
   renderAll();
   initMultiplayer();
   listenChat();
@@ -535,7 +603,7 @@ function sanitizePlayer(p) {
     decor: p.decor,
     dog: dogPos,
     lang: getLanguage(),
-    characterId: p.characterId || "razor",
+    characterId: p.characterId || "vienna",
     owner: isOwner,
     lastSeen: p.lastSeen
   };
@@ -565,7 +633,7 @@ function pushPresence() {
     y: me.y,
     avatar: me.avatar,
     level: me.level,
-    characterId: me.characterId || "razor",
+    characterId: me.characterId || "vienna",
     anim: me._animState || "idle",
     ts: Date.now()
   };
@@ -646,6 +714,7 @@ function renderPlayersList() {
   if (!el) return;
   const rows = Object.entries(others).filter(([id]) => id !== uid).map(([, p]) => `● ${escapeHtml(p.name)}`);
   el.innerHTML = rows.length ? rows.join("<br>") : `<span style='opacity:.6'>${t("alone")}</span>`;
+  updatePlayersToggleCount();
 }
 
 function localizeChatText(text) {
@@ -709,6 +778,11 @@ function updateOnlineCount() {
   });
 }
 
+function afterLocationChange() {
+  window.Onboarding?.onEnterLocation?.(me.location);
+  window.Onboarding?.syncGuideTarget?.();
+}
+
 function goLocation(id, fromHash) {
   if (!LOCATIONS[id]) return;
   if (!fromHash && location.hash !== "#" + id) {
@@ -731,6 +805,7 @@ function goLocation(id, fromHash) {
     pendingJobAction = null;
     setTimeout(() => runJobAction(act), 350);
   }
+  afterLocationChange();
 }
 
 function onRoomClick(e) {
@@ -870,7 +945,18 @@ function renderBuildings() {
 }
 
 function renderQuest() {
+  if (window.me?.onboarding && !window.me.onboarding.done) {
+    window.Onboarding?.render?.();
+    return;
+  }
   const qid = me.quests.active;
+  if (me.onboarding?.done && qid === "intro") {
+    document.getElementById("questBox").innerHTML =
+      `<div class="quest-tracker"><b>${escapeHtml(t("onboard_title"))}</b>
+       <div class="quest-step-title">${escapeHtml(t("onboard_all_done"))}</div>
+       <div class="quest-step-text">${escapeHtml(questText("intro"))}</div></div>`;
+    return;
+  }
   const q = QUESTS[qid];
   if (!q) {
     document.getElementById("questBox").innerHTML = `<b>${escapeHtml(t("quests_label"))}</b><br>${escapeHtml(t("quest_done"))}`;
@@ -944,12 +1030,16 @@ function openNpcDialog(nid) {
   openModal("gangModal");
   if (window.Voice) Voice.speakCharacter(nid, line);
   if (window.World3D?.setTalking) World3D.setTalking(nid, true);
-  if (nid === "razor") questBump("talk_razor");
+  if (nid === "razor") {
+    questBump("talk_razor");
+    window.Onboarding?.onTalkRazor?.();
+  }
 }
 
 window.changeCharacter = function () {
   if (!window.CharSelect) return;
   CharSelect.open(id => {
+    if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
     me.characterId = id;
     me.avatar = getCharacterDef(id).poster;
     saveMe();
@@ -1022,6 +1112,7 @@ function buyItem(id) {
   renderAll();
   renderShop();
   toast(t("bought_item") + " " + tShop(it.id));
+  window.Onboarding?.onShopBuy?.();
 }
 
 function renderInventory() {
@@ -1240,6 +1331,7 @@ function endFight(win) {
     me.rep += 8;
     toast(t("win_fight") + " +" + reward);
     questBump("win_fight");
+    window.Onboarding?.onWinFight?.();
   } else {
     toast(t("lose_fight"));
     me.stats.hp = me.stats.maxHp;
