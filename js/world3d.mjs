@@ -7,7 +7,10 @@ import {
   worldToGameLoc,
   NPC_WORLD,
   PORTALS,
-  LOCATION_THEME
+  LOCATION_THEME,
+  resolveWorldPosition,
+  findClearSpawn,
+  pointInsideCollider
 } from "./world/locations.mjs";
 import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs";
 import {
@@ -26,6 +29,7 @@ let actors = new Map();
 let car = null;
 let locationRoot = null;
 let bounds = null;
+let furnitureColliders = [];
 let floorMesh = null;
 let currentLoc = "";
 let locationProps = { showCar: false };
@@ -69,7 +73,10 @@ function createActorFromCatalog(id, characterId) {
   const def = charDef(characterId || "razor");
   const tpl = getTemplateForCharacter(characterId || "razor");
   if (!tpl?.gltf) return null;
-  const built = createCc0Actor(tpl, characterId, def.look || {});
+  const built = createCc0Actor(tpl, characterId, def.look || {}, {
+    isPlayer: id === "player",
+    actorId: id
+  });
   const { root, mixer, actions } = built;
   root.add(makeShadow());
   const group = new THREE.Group();
@@ -112,6 +119,7 @@ function fadeTo(actor, name) {
       const other = name === "walk" ? actor.actions.run : actor.actions.walk;
       other?.stop();
       other?.setEffectiveWeight(0);
+      actor.actions?.idle?.fadeOut(0.2);
       next.reset().setEffectiveWeight(1).fadeIn(0.22).play();
       actor.current = name;
       updateLocomotionTimeScale(actor);
@@ -124,8 +132,8 @@ function fadeTo(actor, name) {
       act.stop();
       act.setEffectiveWeight(0);
     });
-    const procName = ["talk", "wave", "interact", "sit", "emote"].includes(name) ? name : "idle";
-    if (actor.current !== procName) actor.current = procName;
+    actor.actions?.idle?.reset().fadeIn(0.2).play();
+    actor.current = "idle";
     return;
   }
   const key = actor.actions?.[name] ? name : "idle";
@@ -142,7 +150,7 @@ function pickLocomotionAnim(actor, speed, talking) {
     if (actor._holdAnim === "walk" || actor._holdAnim === "run") return actor._holdAnim;
     return actor._holdAnim;
   }
-  if (talking && speed < 0.08) return "talk";
+  if (talking && speed < 0.08) return "idle";
   const walkGate = actor._meshy ? 0.16 : 0.08;
   if (speed > 1.2) return "run";
   if (speed > walkGate) return "walk";
@@ -245,6 +253,7 @@ function rebuildLocation(locId) {
   scene.fog = new THREE.FogExp2(theme.fog, theme.fogD);
   scene.background = new THREE.Color(theme.bg);
   locationProps = built.props || { showCar: false };
+  furnitureColliders = built.colliders || [];
   (locationProps.cats || []).forEach(c => locationRoot.add(c));
   spawnParticles(locId === "street" || locId === "cemetery");
 }
@@ -265,19 +274,59 @@ function spawnParticles(night) {
   scene.add(particles);
 }
 
-function clampWorld(x, z) {
-  if (!bounds) return { x, z };
-  return {
-    x: Math.max(bounds.minX + 0.5, Math.min(bounds.maxX - 0.5, x)),
-    z: Math.max(bounds.minZ + 0.5, Math.min(bounds.maxZ - 0.5, z))
-  };
+function clampWorld(x, z, radius = 0.42) {
+  return resolveWorldPosition(x, z, bounds, furnitureColliders, radius);
+}
+
+function separateActors() {
+  const list = [...actors.values()].filter(a => !a.isDog);
+  const minDist = 1.05;
+  for (let pass = 0; pass < 5; pass++) {
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i];
+      const b = list[j];
+      const dx = b.group.position.x - a.group.position.x;
+      const dz = b.group.position.z - a.group.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d < minDist && d > 0.001) {
+        const push = (minDist - d) * 0.5;
+        const ux = dx / d;
+        const uz = dz / d;
+        a.group.position.x -= ux * push;
+        a.group.position.z -= uz * push;
+        b.group.position.x += ux * push;
+        b.group.position.z += uz * push;
+        a.wx -= ux * push;
+        a.wz -= uz * push;
+        b.wx += ux * push;
+        b.wz += uz * push;
+      }
+    }
+  }
+  }
+  list.forEach(a => {
+    const p = clampWorld(a.group.position.x, a.group.position.z);
+    a.group.position.x = p.x;
+    a.group.position.z = p.z;
+    a.wx = p.x;
+    a.wz = p.z;
+  });
 }
 
 function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   const c = clampWorld(wx, wz);
-  const lerp = isPlayer ? 0.35 : 0.2;
-  actor.group.position.x += (c.x - actor.group.position.x) * lerp;
-  actor.group.position.z += (c.z - actor.group.position.z) * lerp;
+  if (isPlayer) {
+    actor.group.position.x = c.x;
+    actor.group.position.z = c.z;
+  } else {
+    const lerp = 0.22;
+    actor.group.position.x += (c.x - actor.group.position.x) * lerp;
+    actor.group.position.z += (c.z - actor.group.position.z) * lerp;
+    const snapped = clampWorld(actor.group.position.x, actor.group.position.z);
+    actor.group.position.x = snapped.x;
+    actor.group.position.z = snapped.z;
+  }
   actor.group.position.y = 0;
   const dx = c.x - (actor.wx ?? c.x);
   const dz = c.z - (actor.wz ?? c.z);
@@ -287,8 +336,8 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   if (!isPlayer && actor._netAnim === "idle") speed = 0;
   actor._spd = speed;
   if (isPlayer) { meLastDx = dx; meLastDy = dz; }
-  actor.wx = c.x;
-  actor.wz = c.z;
+  actor.wx = actor.group.position.x;
+  actor.wz = actor.group.position.z;
   actor.isNpc = isNpc;
   actor.isPlayer = isPlayer;
   if (Math.hypot(dx, dz) > 0.01) {
@@ -366,7 +415,13 @@ function processInput(dt) {
 function sync(data) {
   if (!modelsReady) return;
   const { player, others, npcs, location, hasDog, carVisible } = data;
-  if (location !== currentLoc) rebuildLocation(location);
+  const justChangedLoc = location !== currentLoc;
+  if (justChangedLoc) rebuildLocation(location);
+  if (justChangedLoc && location === "kitchen" && player && bounds) {
+    const clear = findClearSpawn(bounds, furnitureColliders, { x: -2.8, z: -1.2 });
+    const g = worldToGameLoc(clear.x, clear.z, bounds);
+    hooks.onMove?.(g.x, g.y);
+  }
 
   const keep = new Set(["player"]);
   if (player) {
@@ -423,6 +478,24 @@ function sync(data) {
   }
 
   ensureCar(location === "street" && (!!carVisible || locationProps.showCar));
+
+  separateActors();
+
+  const playerActor = actors.get("player");
+  const spawnPref = currentLoc === "kitchen"
+    ? { x: -2.8, z: -1.2 }
+    : { x: 0, z: -1.2 };
+  if (playerActor && pointInsideCollider(playerActor.wx, playerActor.wz, furnitureColliders, 0.38)) {
+    const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
+    playerActor.group.position.x = clear.x;
+    playerActor.group.position.z = clear.z;
+    playerActor.wx = clear.x;
+    playerActor.wz = clear.z;
+    if (bounds) {
+      const g = worldToGameLoc(clear.x, clear.z, bounds);
+      hooks.onMove?.(g.x, g.y);
+    }
+  }
 }
 
 function applyNetworkAnim(actor, anim) {
@@ -488,9 +561,6 @@ function loop() {
     if (a.root && !a.isDog) {
       const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));
       updateProcedural(a, dt, a.isNpc ? playerPos : null, talk);
-      if (a.isNpc && a._visibleReady && Math.sin(clock.elapsedTime * 0.4 + a.wx) > 0.97 && a.current === "idle") {
-        playOneShot(a, "wave", 1200);
-      }
     }
   });
   if (car) {
@@ -500,6 +570,7 @@ function loop() {
     car.wheels.forEach(w => { w.rotation.x += dt * 5 * car.dir; });
   }
   if (particles) particles.rotation.y += dt * 0.02;
+  separateActors();
   updateThirdPersonCamera();
   checkPortals();
   renderer.render(scene, camera);
@@ -568,7 +639,7 @@ const api = {
   },
   isReady: () => modelsReady,
   getLocation: () => currentLoc,
-  captureCloseup: (pose = "idle") => {
+  captureCloseup: (pose = "idle", talking = false) => {
     const a = actors.get("player");
     if (!a?.root) return false;
     const key = pose === "run" ? "run" : pose === "walk" ? "walk" : "idle";
@@ -577,15 +648,20 @@ const api = {
       a._spd = key === "run" ? 2.4 : 1.1;
       updateLocomotionTimeScale(a);
     }
+    if (talking) setTalking(a.characterId || "player", true);
     for (let i = 0; i < 48; i++) {
       a.mixer?.update(1 / 30);
-      updateProcedural(a, 1 / 30, null, false);
+      const talk = talking || talkingIds.has(a.characterId) || talkingIds.has("player");
+      updateProcedural(a, 1 / 30, null, talk);
     }
+    if (talking) setTalking(a.characterId || "player", false);
     markActorVisibleWhenReady(a);
     a.root.visible = true;
     const p = a.group.position;
-    camera.position.set(p.x + 1.35, p.y + 1.42, p.z + 2.15);
-    camera.lookAt(p.x, p.y + 1.22, p.z);
+    const side = talking ? 0.55 : 1.35;
+    const distZ = talking ? 2.05 : 2.15;
+    camera.position.set(p.x + side, p.y + 1.42, p.z + distZ);
+    camera.lookAt(p.x, p.y + (talking ? 1.35 : 1.22), p.z);
     renderer.render(scene, camera);
     return true;
   },

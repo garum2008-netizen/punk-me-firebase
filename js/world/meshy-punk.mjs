@@ -1,15 +1,13 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
+import { buildIdleStandClip } from "./meshy-idle-clip.mjs";
+import { accentForActor, hueShiftAccentTexture } from "./meshy-accent-tint.mjs";
 
 export const MESHY_PUNK_URL = "assets/models/meshy/punk_pink.glb";
 
-/** In-place clip names from Meshy / Mixamo export */
-const CLIPS = { walk: ["Walking"], run: ["Running"] };
-
+const CLIPS = { idle: ["IdleStand"], walk: ["Walking"], run: ["Running"] };
 const SKIP_CLIP = /tpose|bind/i;
-
-/** Nominal locomotion speeds (world units/s) for timeScale tuning */
 const WALK_SPEED_REF = 1.05;
 const RUN_SPEED_REF = 2.35;
 
@@ -21,11 +19,18 @@ export async function loadMeshyPunkTemplate() {
   const gltf = await loader.loadAsync(MESHY_PUNK_URL);
   gltf.scene.updateMatrixWorld(true);
   const foot = computeFootLift(gltf.scene);
-  template = { gltf, foot, def: { url: MESHY_PUNK_URL, scale: 1.0, yRot: 0, clips: CLIPS } };
+  const idleClip = buildIdleStandClip(gltf);
+  const animations = [...gltf.animations];
+  if (idleClip) animations.push(idleClip);
+  template = {
+    gltf: { ...gltf, animations },
+    foot,
+    idleClip,
+    def: { url: MESHY_PUNK_URL, scale: 1.0, yRot: 0, clips: CLIPS }
+  };
   return template;
 }
 
-/** @deprecated alias for world3d */
 export async function loadAllCc0Templates() {
   await loadMeshyPunkTemplate();
   return new Map([["meshy", template]]);
@@ -44,8 +49,7 @@ export function findBone(root, shortName) {
   const variants = [
     shortName,
     `mixamorig${shortName}`,
-    `mixamorig:${shortName}`,
-    `mixamorig${shortName.replace(/^mixamorig/i, "")}`
+    `mixamorig:${shortName}`
   ];
   for (const n of variants) {
     const b = root.getObjectByName(n);
@@ -61,31 +65,22 @@ export function findBone(root, shortName) {
 }
 
 export function findHeadBone(root) {
-  return findBone(root, "Head") || findBone(root, "head");
+  return findBone(root, "Head");
 }
 
-/** Tint single-material Meshy mesh per character look (hair / jacket accents). */
-export function applyPunkMaterials(root, look = {}) {
-  const jacket = new THREE.Color(look.jacket || 0x1a1030);
-  const emissive = new THREE.Color(look.emissive || 0xff00ff);
-  const hairCol = new THREE.Color(look.hair || 0xff3399);
-  const skinTint = look.tint ? new THREE.Color(look.tint) : null;
-
+export function applyPunkMaterials(root, _look = {}, opts = {}) {
+  const { isPlayer = false, accent = null } = opts;
   root.traverse(o => {
     if (!o.isMesh || !o.material) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     mats.forEach((m, i) => {
       const mat = m.clone();
       if (mat.map) {
-        mat.color.lerp(jacket, 0.12);
-        mat.emissive.copy(emissive);
-        mat.emissiveIntensity = 0.06;
-        if (skinTint) mat.color.lerp(skinTint, 0.08);
-        const h = hairCol.getHSL({ h: 0, s: 0, l: 0 });
-        if (h.s > 0.35) {
-          mat.color.lerp(hairCol, 0.22);
-          mat.emissive.lerp(hairCol, 0.18);
-          mat.emissiveIntensity = 0.12;
+        if (!isPlayer && accent) {
+          mat.map = hueShiftAccentTexture(mat.map, accent);
+        } else {
+          mat.map = mat.map.clone();
+          mat.map.needsUpdate = true;
         }
       }
       mat.metalness = Math.min(0.4, mat.metalness ?? 0.25);
@@ -109,61 +104,64 @@ function pickClip(clips, names) {
   return pool[0];
 }
 
-export function buildLocomotionActions(mixer, clips, clipMap) {
+export function buildMeshyActions(mixer, clips, clipMap) {
   const actions = {};
   for (const [state, names] of Object.entries(clipMap)) {
     const clip = pickClip(clips, names);
-    if (clip) {
-      const a = mixer.clipAction(clip);
-      a.enabled = true;
-      a.setLoop(THREE.LoopRepeat, Infinity);
-      a.stop();
-      actions[state] = a;
-    }
+    if (!clip) continue;
+    const a = mixer.clipAction(clip);
+    a.enabled = true;
+    a.setLoop(state === "idle" ? THREE.LoopRepeat : THREE.LoopRepeat, Infinity);
+    a.stop();
+    actions[state] = a;
   }
   return actions;
 }
 
-/** Lower arms from bind T/A-pose toward natural stand (local Z, Mixamo). */
-const ARM_REST_Z = 1.12;
-
 export function bindProceduralBones(root) {
-  const bones = {
-    hips: findBone(root, "Hips"),
-    spine: findBone(root, "Spine"),
-    spine1: findBone(root, "Spine1"),
-    spine2: findBone(root, "Spine2"),
-    neck: findBone(root, "Neck"),
-    head: findHeadBone(root),
-    leftArm: findBone(root, "LeftArm"),
-    rightArm: findBone(root, "RightArm"),
-    rightForeArm: findBone(root, "RightForeArm")
+  return {
+    bones: {
+      spine: findBone(root, "Spine"),
+      spine1: findBone(root, "Spine1"),
+      head: findHeadBone(root),
+      rightArm: findBone(root, "RightArm"),
+      rightForeArm: findBone(root, "RightForeArm")
+    },
+    rest: {}
   };
-  const rest = {};
-  if (bones.leftArm) rest.leftArmZ = bones.leftArm.rotation.z;
-  if (bones.rightArm) rest.rightArmZ = bones.rightArm.rotation.z;
-  if (bones.spine) rest.spineX = bones.spine.rotation.x;
-  if (bones.spine1) rest.spine1X = bones.spine1.rotation.x;
-  if (bones.head) rest.headX = bones.head.rotation.x;
-  if (bones.rightArm) rest.rightArmX = bones.rightArm.rotation.x;
-  if (bones.rightForeArm) rest.rightForeArmX = bones.rightForeArm.rotation.x;
-  return { bones, rest };
 }
 
-export function createMeshyActor(templateEntry, _characterId, look) {
+export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
   const { gltf, foot, def } = templateEntry;
+  const actorId = opts.actorId || "player";
+  const isPlayer = opts.isPlayer ?? actorId === "player";
+  const accent = isPlayer ? null : accentForActor(characterId, actorId);
+
   const root = cloneSkinned(gltf.scene);
   const scl = def.scale * (look.scale || 1);
   root.scale.setScalar(scl);
   root.rotation.y = def.yRot;
   root.position.y = foot * scl;
   root.visible = false;
-  applyPunkMaterials(root, look);
+
+  applyPunkMaterials(root, look, { isPlayer, accent });
+
   const mixer = new THREE.AnimationMixer(root);
-  const actions = buildLocomotionActions(mixer, gltf.animations, def.clips);
-  actions.walk?.stop();
-  actions.run?.stop();
+  const actions = buildMeshyActions(mixer, gltf.animations, def.clips);
+  ["walk", "run"].forEach(k => actions[k]?.stop());
+  actions.idle?.reset().play();
+  mixer.update(0);
+
   const proc = bindProceduralBones(root);
+  if (proc.bones.spine) proc.rest.spineX = proc.bones.spine.rotation.x;
+  if (proc.bones.spine1) proc.rest.spine1X = proc.bones.spine1.rotation.x;
+  if (proc.bones.head) proc.rest.headX = proc.bones.head.rotation.x;
+  if (proc.bones.rightArm) {
+    proc.rest.rightArmX = proc.bones.rightArm.rotation.x;
+    proc.rest.rightArmZ = proc.bones.rightArm.rotation.z;
+  }
+  if (proc.bones.rightForeArm) proc.rest.rightForeArmX = proc.bones.rightForeArm.rotation.x;
+
   return {
     root,
     mixer,
@@ -171,13 +169,12 @@ export function createMeshyActor(templateEntry, _characterId, look) {
     templateKey: def.url,
     _meshy: true,
     _proc: proc,
-    _walkDur: gltf.animations.find(c => c.name === "Walking")?.duration || 1.03,
-    _runDur: gltf.animations.find(c => c.name === "Running")?.duration || 0.63
+    _accent: accent
   };
 }
 
-export function createCc0Actor(templateEntry, characterId, look) {
-  return createMeshyActor(templateEntry, characterId, look);
+export function createCc0Actor(templateEntry, characterId, look, opts) {
+  return createMeshyActor(templateEntry, characterId, look, opts);
 }
 
 export function updateLocomotionTimeScale(actor) {
@@ -189,5 +186,3 @@ export function updateLocomotionTimeScale(actor) {
     actor.actions.run.timeScale = THREE.MathUtils.clamp(spd / RUN_SPEED_REF, 0.65, 2.4);
   }
 }
-
-export { ARM_REST_Z };

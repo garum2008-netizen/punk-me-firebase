@@ -1,5 +1,15 @@
 import * as THREE from "three";
 
+/** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
+export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
+  list.push({
+    minX: cx - halfW - pad,
+    maxX: cx + halfW + pad,
+    minZ: cz - halfD - pad,
+    maxZ: cz + halfD + pad
+  });
+}
+
 export const LOCATION_BOUNDS = {
   room: { minX: -7, maxX: 7, minZ: -6, maxZ: 6 },
   kitchen: { minX: -6, maxX: 6, minZ: -5, maxZ: 5 },
@@ -183,6 +193,7 @@ export function buildLocationScene(locId, texLoader) {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x2a1838, roughness: 0.82, metalness: 0.1 });
   let floor = null;
   const props = { cats: [], showCar: false };
+  const colliders = [];
 
   if (locId === "room") {
     floor = tiledFloor(14, 12, theme.ground, true);
@@ -198,9 +209,11 @@ export function buildLocationScene(locId, texLoader) {
     const bed = wall(2.8, 0.45, 1.6, new THREE.MeshStandardMaterial({ color: 0x4a2060 }));
     bed.position.set(-3, 0.22, 2.2);
     root.add(bed);
+    pushCollider(colliders, -3, 2.2, 1.4, 0.8);
     const desk = wall(1.6, 0.75, 0.8, new THREE.MeshStandardMaterial({ color: 0x1a1028 }));
     desk.position.set(3.2, 0.38, -1);
     root.add(desk);
+    pushCollider(colliders, 3.2, -1, 0.8, 0.4);
     const sign = neonSign("PUNK ME", 0xff00ff);
     sign.position.set(3.8, 2.6, -5.65);
     root.add(sign);
@@ -218,12 +231,15 @@ export function buildLocationScene(locId, texLoader) {
     const counter = wall(5, 0.9, 0.6, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
     counter.position.set(-2, 0.45, -4.2);
     root.add(counter);
+    pushCollider(colliders, -2, -4.2, 2.5, 0.35);
     const fridge = wall(1.2, 2.2, 0.8, new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.5 }));
     fridge.position.set(4.5, 1.1, -4.3);
     root.add(fridge);
+    pushCollider(colliders, 4.5, -4.3, 0.6, 0.45);
     const table = wall(2.4, 0.08, 1.4, new THREE.MeshStandardMaterial({ color: 0x3a2818 }));
     table.position.set(0, 0.75, 1.5);
     root.add(table);
+    pushCollider(colliders, 0, 1.5, 1.25, 0.85, 0.35);
     const kt = texLoader.load("imagine_images/LTPb8.jpg");
     kt.colorSpace = THREE.SRGBColorSpace;
     const kp = poster(kt, 2.5, 1.8);
@@ -254,6 +270,7 @@ export function buildLocationScene(locId, texLoader) {
       }));
       b.position.set(i * 2.8, h / 2, -12);
       root.add(b);
+      pushCollider(colliders, i * 2.8, -12, 1.1, 1.1);
       const win = new THREE.PointLight(0xff00ff, 0.9, 5);
       win.position.set(i * 2.8, h * 0.6, -11);
       root.add(win);
@@ -279,6 +296,7 @@ export function buildLocationScene(locId, texLoader) {
       const b = wall(4.2, h, 3.2, wallMat);
       b.position.set(i * 5.5, h / 2, -8.5);
       root.add(b);
+      pushCollider(colliders, i * 5.5, -8.5, 2.1, 1.6);
       const lamp = new THREE.Group();
       const pole = wall(0.12, 3.5, 0.12, new THREE.MeshStandardMaterial({ color: 0x333344 }));
       pole.position.y = 1.75;
@@ -306,8 +324,10 @@ export function buildLocationScene(locId, texLoader) {
     root.add(floor);
     for (let i = -4; i <= 4; i++) {
       const stone = wall(0.9, 1.1 + (i % 3) * 0.3, 0.25, new THREE.MeshStandardMaterial({ color: 0x3a4a48, roughness: 0.9 }));
-      stone.position.set(i * 2.2, 0.55, -3 + (i % 2) * 2);
+      const sz = -3 + (i % 2) * 2;
+      stone.position.set(i * 2.2, 0.55, sz);
       root.add(stone);
+      pushCollider(colliders, i * 2.2, sz, 0.45, 0.15);
     }
     const gate = neonSign("NOT DEAD YET", 0x88ff88);
     gate.position.set(0, 2.8, -8);
@@ -341,5 +361,77 @@ export function buildLocationScene(locId, texLoader) {
   });
   root.add(portals);
 
-  return { root, bounds, floor, portals, theme, props };
+  return { root, bounds, floor, portals, theme, props, colliders };
+}
+
+export function pointInsideCollider(x, z, colliders, radius = 0.4) {
+  for (const b of colliders || []) {
+    const nx = Math.max(b.minX, Math.min(b.maxX, x));
+    const nz = Math.max(b.minZ, Math.min(b.maxZ, z));
+    const dx = x - nx;
+    const dz = z - nz;
+    if (dx * dx + dz * dz < radius * radius) {
+      const inside = x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ;
+      if (inside || dx * dx + dz * dz < radius * radius) return true;
+    }
+    if (x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ) return true;
+  }
+  return false;
+}
+
+export function resolveWorldPosition(x, z, bounds, colliders, radius = 0.42) {
+  let px = x;
+  let pz = z;
+  if (bounds) {
+    px = Math.max(bounds.minX + 0.5, Math.min(bounds.maxX - 0.5, px));
+    pz = Math.max(bounds.minZ + 0.5, Math.min(bounds.maxZ - 0.5, pz));
+  }
+  for (let iter = 0; iter < 10; iter++) {
+    let moved = false;
+    for (const b of colliders || []) {
+      if (px > b.minX && px < b.maxX && pz > b.minZ && pz < b.maxZ) {
+        const dL = px - b.minX;
+        const dR = b.maxX - px;
+        const dB = pz - b.minZ;
+        const dF = b.maxZ - pz;
+        const m = Math.min(dL, dR, dB, dF);
+        if (m === dL) px = b.minX - radius * 0.15;
+        else if (m === dR) px = b.maxX + radius * 0.15;
+        else if (m === dB) pz = b.minZ - radius * 0.15;
+        else pz = b.maxZ + radius * 0.15;
+        moved = true;
+      } else {
+        const nx = Math.max(b.minX, Math.min(b.maxX, px));
+        const nz = Math.max(b.minZ, Math.min(b.maxZ, pz));
+        const dx = px - nx;
+        const dz = pz - nz;
+        const d2 = dx * dx + dz * dz;
+        const r2 = radius * radius;
+        if (d2 < r2 && d2 > 1e-6) {
+          const d = Math.sqrt(d2);
+          const push = (radius - d) * 1.05;
+          px += (dx / d) * push;
+          pz += (dz / d) * push;
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+  if (bounds) {
+    px = Math.max(bounds.minX + 0.5, Math.min(bounds.maxX - 0.5, px));
+    pz = Math.max(bounds.minZ + 0.5, Math.min(bounds.maxZ - 0.5, pz));
+  }
+  return { x: px, z: pz };
+}
+
+export function findClearSpawn(bounds, colliders, preferred = { x: 0, z: -1.5 }) {
+  const offsets = [
+    [0, 0], [2, 0], [-2, 0], [0, 2], [0, -2], [2.5, 2.5], [-2.5, 2.5], [3, -2], [-3, -2]
+  ];
+  for (const [ox, oz] of offsets) {
+    const p = resolveWorldPosition(preferred.x + ox, preferred.z + oz, bounds, colliders, 0.42);
+    if (!pointInsideCollider(p.x, p.z, colliders, 0.38)) return p;
+  }
+  return resolveWorldPosition(preferred.x, preferred.z, bounds, colliders, 0.42);
 }

@@ -17,7 +17,7 @@ function showCharacter(id) {
   if (actorRoot) scene.remove(actorRoot);
   const def = getCharacterDef(id);
   const tpl = getTemplateForCharacter(id);
-  const built = createCc0Actor(tpl, id, def.look || {});
+  const built = createCc0Actor(tpl, id, def.look || {}, { isPlayer: true, actorId: "player" });
   actorRoot = built.root;
   actorRoot.visible = true;
   scene.add(actorRoot);
