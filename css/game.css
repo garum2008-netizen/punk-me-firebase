@@ -66,6 +66,21 @@ body.mode-world3d .room-layer { background: #050008; }
 .char-intro { min-height: 2.5em; text-align: center; max-width: 520px; opacity: 0.9; }
 .char-select-ui { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 640px; }
 .char-select-ui .char-pick.active { border-color: #0ff; color: #0ff; }
+.legal-footer {
+  position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+  z-index: 50; display: flex; align-items: center; gap: 12px;
+  font-size: 11px; background: rgba(10,6,20,0.85); padding: 6px 14px; border-radius: 20px;
+  border: 1px solid rgba(0,255,255,0.25);
+}
+.legal-footer a { color: #7df9ff; text-decoration: none; }
+.legal-footer a:hover { text-decoration: underline; }
+.legal-footer-start { position: relative; left: auto; transform: none; margin-top: 24px; justify-content: center; }
+.legal-footer-game { bottom: 4px; pointer-events: auto; }
+.age-badge-inline {
+  font-weight: 800; color: #ff8888; border: 1px solid #ff4444;
+  padding: 2px 6px; border-radius: 6px; font-size: 10px;
+}
+#loading { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 body.mode-3d #entities .entity { opacity: 0; pointer-events: none; }
 body.mode-3d .bg-a { filter: saturate(0.55) brightness(0.32) blur(2px); }
 body.mode-3d.loc-street .bg-a { filter: saturate(0.45) brightness(0.26) blur(2.5px); }

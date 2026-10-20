@@ -13,10 +13,18 @@
   <canvas id="charSelect3d" width="640" height="360"></canvas>
   <p id="charSelectIntro" class="char-intro"></p>
   <div id="charSelectUi" class="char-select-ui"></div>
+  <div class="legal-footer">
+    <span class="age-badge-inline" data-i18n="age_13">13+</span>
+    <a href="subscribe.html" data-i18n="footer_subscribe">Цена и условия</a>
+  </div>
 </div>
 <div id="loading">
   <div style="font-size:22px;font-weight:800;color:#ff00ff">PUNK ME</div>
   <div style="opacity:.8" data-i18n="loading">Вход в банду...</div>
+  <div class="legal-footer legal-footer-start">
+    <span class="age-badge-inline" data-i18n="age_13">13+</span>
+    <a href="subscribe.html" data-i18n="footer_subscribe">Цена и условия</a>
+  </div>
 </div>
 <div id="game">
   <div class="room-layer" id="roomLayer">
@@ -71,6 +79,10 @@
     <button class="btn danger" id="btnFight" data-i18n="fight" style="display:none" onclick="startFightUi()">Драка</button>
     <button class="btn" id="btnParkour" data-i18n="parkour" style="display:none" onclick="runParkour()">Паркур</button>
   </div>
+  <footer class="legal-footer legal-footer-game">
+    <span class="age-badge-inline" data-i18n="age_13">13+</span>
+    <a href="subscribe.html" data-i18n="footer_subscribe">Цена и условия</a>
+  </footer>
   <div class="modal" id="mapModal">
     <button class="close" onclick="closeModal('mapModal')">✕</button>
     <h2 data-i18n="mapTitle">Карта ночи</h2>
