@@ -53,7 +53,7 @@ async function goLoc(page, locId) {
     await page.screenshot({ path: `${out}/living3d-v2-${loc}.png` });
   }
 
-  await page.goto(`${base}/?dev=1&demo3=1&v=living3d2party`, { waitUntil: "networkidle", timeout: 120000 });
+  await page.goto(`${base}/?dev=1&demo3=1&solo=1&v=living3d2party`, { waitUntil: "networkidle", timeout: 120000 });
   await page.waitForFunction(() => window.World3D?.isReady?.(), { timeout: 90000 });
   await page.evaluate(() => {
     if (typeof buyItem === "function") buyItem("pet_dog");
