@@ -563,9 +563,10 @@ const LOCATION_CAMERA = {
     player: { x: 0, z: 0.02, yaw: 0 },
     dog: { dx: 0.76, dz: -0.06 },
     mobile: {
+      portraitFromPlayer: true,
       fov: 48,
-      pos: [0.12, 2.38, 6.95],
-      look: [0, 0.86, 0.02],
+      camOffset: [0.12, 2.38, 6.93],
+      lookAtPlayerY: 0.92,
       player: { x: 0, z: 0.02, yaw: 0 },
       dog: { dx: 0.7, dz: -0.04 }
     }
@@ -579,11 +580,12 @@ const LOCATION_CAMERA = {
     player: { x: 0, z: 0.28, yaw: Math.PI },
     dog: { dx: 0.82, dz: 0.22 },
     mobile: {
-      fov: 58,
-      pos: [0.35, 2.68, 5.75],
-      look: [0, 1.06, 0.34],
-      player: { x: 0, z: 0.34, yaw: Math.PI * 0.68 },
-      dog: { dx: 1.12, dz: 0.02 }
+      portraitFromPlayer: true,
+      fov: 48,
+      camOffset: [0.12, 2.38, 6.46],
+      lookAtPlayerY: 0.92,
+      player: { x: 0, z: -2.12, yaw: 0 },
+      dog: { dx: 0.7, dz: -0.04 }
     }
   }
 };
@@ -595,6 +597,7 @@ function getFixedLocationShot() {
   const m = spec.mobile;
   return {
     ...spec,
+    mobile: m,
     fov: m.fov ?? spec.fov,
     pos: m.pos ?? spec.pos,
     look: m.look ?? spec.look,
@@ -627,45 +630,19 @@ function freezeActorIdleForCapture(actor) {
   }
 }
 
-function tuneMobileKitchenPortraitCamera(shot) {
+function applyMobilePortraitShowcaseFromPlayer(shot) {
   const pl = actors.get("player");
-  const dog = actors.get("dog");
-  if (!pl || !camera || currentLoc !== "kitchen" || !mobileQuality) return;
-  const canvas = document.getElementById("stage3d");
-  if (!canvas) return;
-  const cw = canvas.clientWidth;
-  const ch = canvas.clientHeight;
-  const targetX = cw * 0.5;
-  const targetFootY = ch * 0.568;
+  if (!pl || !camera || !mobileQuality) return;
+  const mob = shot?.mobile || LOCATION_CAMERA[currentLoc]?.mobile;
+  const off = mob?.camOffset ?? [0.12, 2.38, 6.93];
+  const lookY = mob?.lookAtPlayerY ?? 0.92;
   const px = pl.wx;
   const pz = pl.wz;
-  let dist = shot.pos?.[2] != null ? shot.pos[2] - pz : 5.4;
-  let height = shot.pos?.[1] ?? 2.68;
-  let side = shot.pos?.[0] != null ? shot.pos[0] - px : 0.35;
-  camera.fov = shot.fov ?? 58;
+  camera.position.set(px + off[0], off[1], pz + off[2]);
+  camera.lookAt(px, lookY, pz);
+  camera.fov = shot.fov ?? mob?.fov ?? 48;
   camera.updateProjectionMatrix();
-  for (let i = 0; i < 48; i++) {
-    camera.position.set(px + side, height, pz + dist);
-    camera.lookAt(px, 1.06, pz);
-    camera.updateMatrixWorld();
-    const foot = projectWorldToScreen(px, 0.06, pz);
-    if (!foot) break;
-    const errX = foot.x - targetX;
-    const errY = foot.y - targetFootY;
-    side -= errX * 0.0038;
-    dist += errY * 0.011;
-    height -= errY * 0.0055;
-    if (Math.abs(errX) < 6 && Math.abs(errY) < 6) break;
-  }
-  if (dog) {
-    const dfoot = projectWorldToScreen(dog.wx, 0.06, dog.wz);
-    if (dfoot && dfoot.y > ch * 0.64) {
-      dist += 0.35;
-      height += 0.08;
-      camera.position.set(px + side, height, pz + dist);
-      camera.lookAt(px, 1.06, pz);
-    }
-  }
+  camera.updateMatrixWorld();
 }
 
 function cameraFollowProfile() {
@@ -1347,15 +1324,15 @@ const api = {
     if (shot?.fixed) {
       if (currentLoc === "elevator") setElevatorCutaway(true);
       else setElevatorCutaway(false);
-      if (mobileQuality && currentLoc === "kitchen") {
-        tuneMobileKitchenPortraitCamera(shot);
+      if (mobileQuality && shot.mobile?.portraitFromPlayer) {
+        applyMobilePortraitShowcaseFromPlayer(shot);
       } else {
         camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2]);
         camera.lookAt(shot.look[0], shot.look[1], shot.look[2]);
-      }
-      if (shot.fov) {
-        camera.fov = shot.fov;
-        camera.updateProjectionMatrix();
+        if (shot.fov) {
+          camera.fov = shot.fov;
+          camera.updateProjectionMatrix();
+        }
       }
       resetOccluderOpacity();
       if (currentLoc === "elevator" && typeof console !== "undefined") {
@@ -1375,14 +1352,31 @@ const api = {
     const dog = actors.get("dog");
     const canvas = document.getElementById("stage3d");
     if (!pl || !canvas || !camera) return { ok: false };
+    const footY = 0.06;
+    const headY = 1.78;
+    const hero = projectWorldToScreen(pl.wx, footY, pl.wz);
+    const heroHead = projectWorldToScreen(pl.wx, headY, pl.wz);
+    const floorPts = [
+      [pl.wx, 0, pl.wz + 1.2],
+      [pl.wx - 1.4, 0, pl.wz + 2.4],
+      [pl.wx + 1.4, 0, pl.wz + 2.4],
+      [pl.wx, 0, pl.wz + 3.6]
+    ];
+    const floor = floorPts.map(([x, y, z]) => projectWorldToScreen(x, y, z)).filter(Boolean);
+    const heroScreenH = hero && heroHead ? hero.y - heroHead.y : null;
+    const floorMaxY = floor.length ? Math.max(...floor.map(p => p.y)) : null;
     return {
       ok: true,
       location: currentLoc,
       mobile: mobileQuality,
       viewport: { w: canvas.clientWidth, h: canvas.clientHeight },
-      hero: projectWorldToScreen(pl.wx, 0.06, pl.wz),
+      hero,
+      heroHead,
+      heroScreenH,
       heroChest: projectWorldToScreen(pl.wx, 1.02, pl.wz),
-      dog: dog ? projectWorldToScreen(dog.wx, 0.06, dog.wz) : null
+      dog: dog ? projectWorldToScreen(dog.wx, footY, dog.wz) : null,
+      floorMaxY,
+      floor
     };
   },
   nudgePlayer: (dx, dz, steps = 8) => {

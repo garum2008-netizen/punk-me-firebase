@@ -90,8 +90,15 @@ async function snapLoc(page, loc) {
       };
       if (!frame?.ok || frame.location !== "kitchen") fail("missing projection");
       if (frame.hero.x < 150 || frame.hero.x > 240) fail(`hero x=${frame.hero.x}`);
-      if (frame.hero.y > 540) fail(`hero foot y=${frame.hero.y}`);
+      if (frame.hero.y < 460 || frame.hero.y > 540) fail(`hero foot y=${frame.hero.y}`);
+      if (frame.heroScreenH == null || frame.heroScreenH < 240 || frame.heroScreenH > 340) {
+        fail(`hero height px=${frame.heroScreenH}`);
+      }
       if (!frame.dog || frame.dog.y > 540) fail(`dog y=${frame.dog?.y}`);
+      const minFloorY = frame.viewport.h * 0.68;
+      if (frame.floorMaxY == null || frame.floorMaxY < minFloorY) {
+        fail(`floor void floorMaxY=${frame.floorMaxY} need>=${minFloorY}`);
+      }
       console.log("mobile kitchen frame", frame);
     }
     const f = path.join(outRoot, name);
