@@ -50,10 +50,12 @@ body {
 }
 @keyframes scan { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
 .hotspot {
-  position: absolute; z-index: 12; cursor: pointer;
-  border: 2px dashed rgba(0,255,255,0.35);
-  border-radius: 12px; background: rgba(255,0,255,0.12);
+  position: absolute; z-index: 14; cursor: pointer;
+  border: 2px dashed rgba(0,255,255,0.45);
+  border-radius: 12px; background: rgba(255,0,255,0.18);
   transition: background 0.2s, border-color 0.2s;
+  min-width: 48px; min-height: 40px;
+  pointer-events: auto;
 }
 .hotspot:hover { background: rgba(255,0,255,0.28); border-color: #0ff; }
 .hotspot.door::after {
@@ -171,6 +173,12 @@ body {
   font-size: 13px; border: 1px solid rgba(255,0,255,0.35);
 }
 .badge strong { color: #0ff; }
+.nav-quick {
+  position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%);
+  z-index: 20; display: flex; gap: 4px; flex-wrap: wrap; justify-content: center;
+  max-width: 96vw; pointer-events: none;
+}
+.nav-quick .btn { pointer-events: auto; padding: 5px 10px; font-size: 11px; }
 .loc-name {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
   z-index: 20; font-size: 15px; font-weight: 700; letter-spacing: 0.04em;

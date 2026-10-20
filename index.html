@@ -43,7 +43,9 @@
     <div class="chat-messages" id="chatMessages"></div>
     <input id="chatInput" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
   </div>
+  <div class="nav-quick" id="navQuick" aria-label="Быстрый переход"></div>
   <div class="panel-bottom">
+    <button class="btn" onclick="openModal('mapModal')">Карта</button>
     <button class="btn" onclick="openModal('gangModal')">Банда</button>
     <button class="btn" onclick="openModal('shopModal')">Лавка</button>
     <button class="btn secondary" onclick="openModal('magicModal')">Магия</button>
@@ -53,6 +55,12 @@
     <button class="btn secondary" id="btnDecor" style="display:none" onclick="tryDecorPlace()">Декор</button>
     <button class="btn danger" id="btnFight" style="display:none" onclick="startFightUi()">Драка</button>
     <button class="btn" id="btnParkour" style="display:none" onclick="runParkour()">Паркур</button>
+  </div>
+  <div class="modal" id="mapModal">
+    <button class="close" onclick="closeModal('mapModal')">✕</button>
+    <h2>Карта ночи</h2>
+    <p style="font-size:13px;margin-bottom:10px;opacity:.85">Выбери локацию — телепорт сразу откроет сцену (можно также кликать по дверям на фоне).</p>
+    <div class="grid-shop" id="mapGrid"></div>
   </div>
   <div class="modal" id="gangModal">
     <button class="close" onclick="closeModal('gangModal')">✕</button>
@@ -115,6 +123,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="js/life.js?v=live-anim"></script>
-<script src="js/game.js?v=live-anim"></script>
+<script src="js/game.js?v=nav-fix"></script>
 </body>
 </html>

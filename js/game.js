@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "mvp-live-anim";
+const GAME_VERSION = "mvp-nav-fix";
 
 const LOCATIONS = {
   room: {
@@ -283,6 +283,7 @@ function init() {
   });
   document.getElementById("roomLayer").addEventListener("click", onRoomClick);
   window.addEventListener("keydown", onKey);
+  window.addEventListener("hashchange", applyHashRoute);
   setInterval(tickPresence, 2500);
   setInterval(tickNight, 4000);
   LifeEngine.init({
@@ -324,7 +325,38 @@ function loadMe() {
     refreshLifeScene();
     if (me.dog) dogPos = { ...me.dog };
     else dogPos = { x: me.x - 4, y: me.y + 2 };
+    applyHashRoute();
   });
+}
+
+function applyHashRoute() {
+  const id = (location.hash || "").replace(/^#/, "").trim();
+  if (!id || !LOCATIONS[id] || !me) return;
+  if (me.location !== id) goLocation(id, true);
+}
+
+function renderMapModal() {
+  const grid = document.getElementById("mapGrid");
+  if (!grid) return;
+  grid.innerHTML = Object.values(LOCATIONS).map(loc => `
+    <div class="card">
+      <img src="${loc.bg}" alt="">
+      <div><b>${escapeHtml(loc.title)}</b></div>
+      <button class="btn" style="margin-top:6px;width:100%" ${me.location === loc.id ? "disabled" : ""}
+        onclick="goLocation('${loc.id}'); closeModal('mapModal');">
+        ${me.location === loc.id ? "Ты здесь" : "Идти"}
+      </button>
+    </div>`).join("");
+}
+
+function renderQuickNav() {
+  const el = document.getElementById("navQuick");
+  if (!el) return;
+  const picks = ["room", "street", "cemetery", "city", "roof", "parkour"].filter(id => id !== me.location);
+  el.innerHTML = picks.slice(0, 5).map(id => {
+    const short = { room: "Дом", street: "Улица", cemetery: "Кладбище", city: "Город", roof: "Крыша", parkour: "Паркур" }[id];
+    return `<button type="button" class="btn secondary" onclick="goLocation('${id}')">${short}</button>`;
+  }).join("");
 }
 
 function hideLoading() {
@@ -501,8 +533,11 @@ function updateOnlineCount() {
   });
 }
 
-function goLocation(id) {
+function goLocation(id, fromHash) {
   if (!LOCATIONS[id]) return;
+  if (!fromHash && location.hash !== "#" + id) {
+    history.replaceState(null, "", "#" + id);
+  }
   if (presenceOk && presenceRef) db.ref("presence/" + me.location + "/" + uid).remove().catch(() => {});
   me.location = id;
   me.x = 45;
@@ -553,6 +588,8 @@ function onKey(e) {
 function renderAll() {
   const loc = LOCATIONS[me.location];
   document.getElementById("bg").src = loc.bg;
+  const bgDup = document.getElementById("bgDup");
+  if (bgDup) bgDup.src = loc.bg;
   document.getElementById("locTitle").textContent = loc.title;
   document.getElementById("coins").textContent = isOwner ? "∞" : String(me.coins);
   document.getElementById("xp").textContent = String(me.xp);
@@ -565,7 +602,12 @@ function renderAll() {
     `<div class="hotspot door" data-label="${escapeHtml(d.label)}" style="left:${d.x}%;top:${d.y}%;width:${d.w}%;height:${d.h}%;" data-to="${d.to}"></div>`
   ).join("");
   doors.querySelectorAll(".hotspot").forEach(el => {
-    el.onclick = () => goLocation(el.dataset.to);
+    el.onpointerdown = (e) => e.stopPropagation();
+    el.onclick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      goLocation(el.dataset.to);
+    };
   });
 
   document.getElementById("btnJob").style.display = "inline-block";
@@ -577,6 +619,7 @@ function renderAll() {
   renderPlayers();
   LifeEngine.onSceneRender(loc);
   LifeEngine.decorateEntities();
+  renderQuickNav();
   renderQuest();
   renderNpcMarkers();
 }
@@ -676,6 +719,7 @@ function openModal(id) {
   document.getElementById(id).classList.add("active");
   if (id === "shopModal") renderShop();
   if (id === "gangModal") renderGangList();
+  if (id === "mapModal") renderMapModal();
   if (id === "magicModal") renderMagic();
   if (id === "invModal") renderInventory();
 }
@@ -703,7 +747,7 @@ function openNpcDialog(nid) {
   const line = n.lines[Math.floor(Math.random() * n.lines.length)];
   document.getElementById("dialogArea").innerHTML =
     `<div class="dialog-box"><b>${escapeHtml(n.name)}:</b> ${escapeHtml(line)}</div>
-     <button class="btn" onclick="startNpcFight('${nid}')">Цепная дуэль</button>
+     <button class="btn danger" onclick="closeModal('gangModal'); startNpcFight('${nid}')">Цепная дуэль</button>
      ${n.quest ? `<button class="btn secondary" onclick="acceptQuest('${n.quest}')">Взять задание</button>` : ""}`;
   openModal("gangModal");
   if (nid === "razor") questBump("talk_razor");
