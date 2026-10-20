@@ -449,6 +449,7 @@ function initResponsiveHud() {
 
 function syncStage3D() {
   if (!window.Scene3D) return;
+  if (window.World3D?.isMotionProbeActive?.()) return;
   const loc = LOCATIONS[me.location];
   const heroId = me.characterId || "vienna";
   const npcData = (loc.npcs || []).filter(nid => nid !== heroId).map((nid, i) => ({

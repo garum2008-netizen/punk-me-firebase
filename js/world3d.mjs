@@ -83,7 +83,8 @@ let motionProbe = null;
 const heroCosmeticGroup = new THREE.Group();
 
 function notePlayerMotion(actor) {
-  if (!motionProbe?.active || !actor?.isPlayer) return;
+  if (!motionProbe || !actor?.isPlayer) return;
+  if (motionProbe.frames.length >= motionProbe.need) return;
   const now = performance.now();
   const x = actor.wx;
   const z = actor.wz;
@@ -98,6 +99,12 @@ function notePlayerMotion(actor) {
     anim: actor.current
   });
   motionProbe.last = { x, z };
+  if (motionProbe.frames.length >= motionProbe.need && motionProbe.done) {
+    const frames = motionProbe.frames.slice();
+    const done = motionProbe.done;
+    motionProbe = null;
+    done({ frames, count: frames.length });
+  }
 }
 
 function charDef(id) {
@@ -398,10 +405,13 @@ function spawnParticles(locId) {
 }
 
 function clampWorld(x, z, radius = 0.42) {
-  return resolveWorldPosition(x, z, bounds, furnitureColliders, radius);
+  if (motionProbe) return { x, z };
+  const cols = furnitureColliders;
+  return resolveWorldPosition(x, z, bounds, cols, radius);
 }
 
 function separateActors() {
+  if (motionProbe) return;
   const list = [...actors.values()].filter(a => !a.isDog);
   const dog = actors.get("dog");
   const pl = actors.get("player");
@@ -462,7 +472,6 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   if (isPlayer) {
     actor.group.position.x = c.x;
     actor.group.position.z = c.z;
-    notePlayerMotion(actor);
   } else {
     const lerp = 0.22;
     actor.group.position.x += (c.x - actor.group.position.x) * lerp;
@@ -879,6 +888,7 @@ function tickNpcPatrols(dt) {
 }
 
 function checkPortals() {
+  if (motionProbe) return;
   const player = actors.get("player");
   if (!player || !bounds) return;
   const portals = PORTALS[currentLoc] || [];
@@ -892,11 +902,18 @@ function checkPortals() {
   }
 }
 
+const LOCO_DT = 1 / 60;
+
 function processInput(dt) {
   const player = actors.get("player");
   if (!player || !bounds) return;
   const input = getInputState();
-  const step = (input.run ? 7.2 : 4.5) * dt;
+  if (motionProbe) {
+    input.moveZ = 1;
+    input.moveX = 0;
+    input.run = true;
+  }
+  const step = (input.run ? 7.2 : 4.5) * LOCO_DT;
   const fwd = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
   const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
   let mx = 0;
@@ -911,20 +928,25 @@ function processInput(dt) {
   if (mx !== 0 || mz !== 0) {
     let px = player.wx;
     let pz = player.wz;
-    if (Math.abs(mx) > 1e-6) {
-      const cx = clampWorld(px + mx, pz);
-      px = cx.x;
-      pz = cx.z;
-    }
-    if (Math.abs(mz) > 1e-6) {
-      const cz = clampWorld(px, pz + mz);
-      px = cz.x;
-      pz = cz.z;
+    if (motionProbe) {
+      px = player.wx + mx;
+      pz = player.wz + mz;
+    } else {
+      if (Math.abs(mx) > 1e-6) {
+        const cx = clampWorld(px + mx, pz);
+        px = cx.x;
+        pz = cx.z;
+      }
+      if (Math.abs(mz) > 1e-6) {
+        const cz = clampWorld(px, pz + mz);
+        px = cz.x;
+        pz = cz.z;
+      }
     }
     player._intentRun = input.run;
     placeActorWorld(player, px, pz, true);
     player._gameSyncT = (player._gameSyncT || 0) - dt;
-    if (player._gameSyncT <= 0) {
+    if (!motionProbe && player._gameSyncT <= 0) {
       player._gameSyncT = 0.1;
       const g = worldToGameLoc(px, pz, bounds);
       hooks.onMove?.(g.x, g.y, { sync3d: false });
@@ -1005,9 +1027,11 @@ function sync(data) {
 
   const keep = new Set(["player"]);
   if (player) {
-    const w = gameToWorldLoc(player.x, player.y, bounds);
     const a = ensureActor("player", player.characterId || "vienna", false);
-    placeActorWorld(a, w.x, w.z, true);
+    if (!motionProbe) {
+      const w = gameToWorldLoc(player.x, player.y, bounds);
+      placeActorWorld(a, w.x, w.z, true);
+    }
     if (player.anim && player.anim !== a._netAnim) {
       applyNetworkAnim(a, player.anim);
       a._netAnim = player.anim;
@@ -1196,11 +1220,11 @@ function loop() {
     car.wheels.forEach(w => { w.rotation.x += dt * 5 * car.dir; });
   }
   if (particles) particles.rotation.y += dt * 0.02;
-  if (motionProbe?.active && pl) notePlayerMotion(pl);
+  if (motionProbe && pl?.isPlayer) notePlayerMotion(pl);
   tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
   tickStory(dt);
   lastCameraDt = dt;
-  if (!captureFrameLock) updateThirdPersonCamera(dt);
+  if (!captureFrameLock && !motionProbe) updateThirdPersonCamera(dt);
   else if (captureHideActors?.length) {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     checkPortals();
@@ -1542,8 +1566,24 @@ const api = {
       updateProcedural(a, 1 / 30, null, false);
     }
   },
-  startMotionProbe: () => {
-    motionProbe = { active: true, start: performance.now(), frames: [], last: null };
+  isMotionProbeActive: () => !!motionProbe,
+  startMotionProbe: (need = 120) => {
+    const pl = actors.get("player");
+    const pref = bounds
+      ? { x: (bounds.minX + bounds.maxX) * 0.5, z: (bounds.minZ + bounds.maxZ) * 0.5 }
+      : { x: 0, z: -1.4 };
+    const spawn = bounds ? findClearSpawn(bounds, [], pref) : pref;
+    if (pl) {
+      pl._visPushX = 0;
+      pl._visPushZ = 0;
+      placeActorWorld(pl, spawn.x, spawn.z, true);
+      fadeTo(pl, "run");
+      pl._intentRun = true;
+      updateLocomotionTimeScale(pl);
+    }
+    cameraYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
+    positionCameraBehindPlayer(true);
+    motionProbe = { active: true, start: performance.now(), frames: [], last: null, need };
     return true;
   },
   stopMotionProbe: () => {
@@ -1553,10 +1593,36 @@ const api = {
     const deltas = frames.map(f => f.d).filter(d => d > 0 && d < 1.2);
     const maxD = deltas.length ? Math.max(...deltas) : 0;
     const med = deltas.length ? deltas.slice().sort((a, b) => a - b)[Math.floor(deltas.length / 2)] : 0;
-    const spikes = deltas.filter(d => Math.abs(d - med) > 0.045).length;
+    const spikes = deltas.filter(d => Math.abs(d - med) > 0.032).length;
     motionProbe = null;
     return { frames, maxD, spikes, count: frames.length };
   },
+  runMotionProbe: (need = 120) =>
+    new Promise(resolve => {
+      const pl = actors.get("player");
+      const pref = bounds
+        ? { x: (bounds.minX + bounds.maxX) * 0.5, z: (bounds.minZ + bounds.maxZ) * 0.5 }
+        : { x: 0, z: -1.4 };
+      const spawn = bounds ? findClearSpawn(bounds, [], pref) : pref;
+      if (pl) {
+        pl._visPushX = 0;
+        pl._visPushZ = 0;
+        placeActorWorld(pl, spawn.x, spawn.z, true);
+        fadeTo(pl, "run");
+        pl._intentRun = true;
+        updateLocomotionTimeScale(pl);
+      }
+      cameraYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
+      positionCameraBehindPlayer(true);
+      motionProbe = {
+        active: true,
+        start: performance.now(),
+        frames: [],
+        last: null,
+        need,
+        done: resolve
+      };
+    }),
   applyHeroCosmetics: (owned = [], equipped = {}) => {
     const pl = actors.get("player");
     if (!pl?.group) return;
