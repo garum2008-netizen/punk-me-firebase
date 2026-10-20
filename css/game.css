@@ -237,6 +237,9 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   font-size: 13px; border: 1px solid rgba(255,0,255,0.35);
 }
 .badge strong { color: #0ff; }
+.badge-stat { display: inline-flex; align-items: center; gap: 4px; }
+.badge-stat .stat-icon { color: #ff6ec7; font-size: 12px; line-height: 1; }
+.badge-stat .stat-label::after { content: ":"; margin-right: 2px; }
 .game-bottom-bar {
   position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
   z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -500,11 +503,28 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   }
   .players-drawer.open { display: block; }
   .hud {
-    max-width: calc(100% - 108px);
+    max-width: calc(100% - 96px);
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     padding-right: 4px;
+    gap: 4px;
+  }
+  .badge-stat {
+    padding: 4px 7px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .badge-stat .stat-label { display: none; }
+  .badge-stat .stat-label::after { content: ""; }
+  .badge-stat .stat-icon { font-size: 11px; }
+  .toast {
+    top: auto;
+    bottom: calc(var(--dock-h, 168px) + 88px);
+    max-width: 92vw;
+    text-align: center;
+    font-size: 13px;
+    padding: 8px 14px;
   }
   .loc-name { font-size: 13px; top: 6px; max-width: 42vw; text-align: center; }
 }

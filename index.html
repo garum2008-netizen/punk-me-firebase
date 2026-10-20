@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v8">
+<link rel="stylesheet" href="css/game.css?v=living3d-v12">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -48,11 +48,11 @@
     <button type="button" id="touchInteract" class="touch-interact">E</button>
   </div>
   <div class="hud">
-    <div class="badge"><span data-i18n="coins">Монеты</span>: <strong id="coins">…</strong></div>
-    <div class="badge"><span data-i18n="xp">XP</span>: <strong id="xp">0</strong></div>
-    <div class="badge"><span data-i18n="level">Уровень</span>: <strong id="level">1</strong></div>
-    <div class="badge"><span data-i18n="rep">Репутация</span>: <strong id="rep">0</strong></div>
-    <div class="badge"><span data-i18n="chain">Цепь</span>: <strong id="chainStat">10</strong></div>
+    <div class="badge badge-stat" title="Coins"><span class="stat-icon" aria-hidden="true">◎</span><span class="stat-label" data-i18n="coins">Монеты</span><strong id="coins">…</strong></div>
+    <div class="badge badge-stat" title="XP"><span class="stat-icon" aria-hidden="true">★</span><span class="stat-label" data-i18n="xp">XP</span><strong id="xp">0</strong></div>
+    <div class="badge badge-stat" title="Level"><span class="stat-icon" aria-hidden="true">▲</span><span class="stat-label" data-i18n="level">Уровень</span><strong id="level">1</strong></div>
+    <div class="badge badge-stat" title="Rep"><span class="stat-icon" aria-hidden="true">◆</span><span class="stat-label" data-i18n="rep">Репутация</span><strong id="rep">0</strong></div>
+    <div class="badge badge-stat" title="Chain"><span class="stat-icon" aria-hidden="true">⛓</span><span class="stat-label" data-i18n="chain">Цепь</span><strong id="chainStat">10</strong></div>
     <div class="badge hud-online-combined"><span data-i18n="online">Здесь</span>: <strong id="onlineCount">0</strong> · <span data-i18n="onlineGlobal">Всего</span>: <strong id="onlineGlobal">0</strong></div>
     <div class="lang-switch" id="langSwitch">
       <button type="button" class="lang-btn" data-lang="ru">RU</button>
@@ -175,10 +175,10 @@
 <script src="js/onboarding.js?v=living3d-v8"></script>
 <script type="module" src="js/context-hints.mjs?v=living3d-v10"></script>
 <script type="module" src="js/how-to-play.mjs?v=living3d-v8"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v10"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v12"></script>
 <script type="module" src="js/char-select.mjs?v=living3d-v10"></script>
 <script src="js/life.js?v=living3d-v8"></script>
-<script src="js/game.js?v=living3d-v10"></script>
+<script src="js/game.js?v=living3d-v12"></script>
 <p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
   3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0
 </p>

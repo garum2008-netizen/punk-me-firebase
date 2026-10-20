@@ -4,8 +4,7 @@ const PLAYABLE_CHARACTER_IDS = ["razor", "vienna", "cobalt", "mohawk"];
 const CHARACTERS = {
   razor: {
     id: "razor",
-    playable: false,
-    comingSoon: true,
+    playable: true,
     npc: true,
     poster: "imagine_images/LTPb8.jpg",
     look: {

@@ -8,6 +8,8 @@ import {
   addFloatingGhost,
   addHangingChain,
   addDustParticles,
+  addEmberParticles,
+  addFireflyParticles,
   addSteamPuff,
   addSofa,
   addAmpStack,
@@ -53,7 +55,7 @@ export const NPC_WORLD = {
     cobalt: { x: 0.5, z: -2.2 }
   },
   street: {
-    razor: { x: -5.5, z: 1 },
+    razor: { x: -4.6, z: -3.4 },
     mohawk: { x: -2, z: 2.5 },
     vienna: { x: 2, z: 1.5 },
     cobalt: { x: -0.5, z: -1.5 },
@@ -69,6 +71,13 @@ export const NPC_WORLD = {
 };
 
 /** Short in-place patrol loops (world XZ). */
+/** Quest NPC holds at anchor and faces player when within range (world units). */
+export const NPC_QUEST_GREET = {
+  street: {
+    razor: { anchor: { x: -4.6, z: -3.4 }, range: 6.5 }
+  }
+};
+
 export const NPC_PATROL = {
   room: {
     vienna: [
@@ -91,6 +100,12 @@ export const NPC_PATROL = {
     ]
   },
   street: {
+    razor: [
+      { x: -4.6, z: -3.4 },
+      { x: -3.9, z: -2.6 },
+      { x: -5.3, z: -2.4 },
+      { x: -4.6, z: -3.4 }
+    ],
     cobalt: [
       { x: -0.5, z: -1.5 },
       { x: 2.5, z: 0 },
@@ -144,8 +159,8 @@ export const LOCATION_THEME = {
   room: { bg: 0x2a1838, fog: 0x221530, fogD: 0.0055, hemi: 0xffaaff, ground: 0x3a2850 },
   kitchen: { bg: 0x382018, fog: 0x2a140c, fogD: 0.005, hemi: 0xffcc88, ground: 0x4a3420 },
   roof: { bg: 0x1a2848, fog: 0x142038, fogD: 0.0045, hemi: 0xaaccff, ground: 0x2a3448 },
-  street: { bg: 0x1a1028, fog: 0x140c20, fogD: 0.0055, hemi: 0xff88ff, ground: 0x282038 },
-  cemetery: { bg: 0x142018, fog: 0x101818, fogD: 0.007, hemi: 0x99ffbb, ground: 0x243028 },
+  street: { bg: 0x1a1028, fog: 0x140c20, fogD: 0.0082, hemi: 0xff88ff, ground: 0x282038 },
+  cemetery: { bg: 0x142018, fog: 0x101818, fogD: 0.0105, hemi: 0x99ffbb, ground: 0x243028 },
   toilet: { bg: 0x182838, fog: 0x121828, fogD: 0.0055, hemi: 0x99ccff, ground: 0x2a3040 },
   elevator: { bg: 0x222230, fog: 0x1a1a28, fogD: 0.005, hemi: 0xccccff, ground: 0x3a3a48 },
   city: { bg: 0x221028, fog: 0x1a0c18, fogD: 0.0055, hemi: 0xff99cc, ground: 0x2a2030 },
@@ -442,14 +457,23 @@ export function buildLocationScene(locId, texLoader) {
     const mural = poster(streetTex, 9, 4.5);
     mural.position.set(0, 3.2, -10.5);
     root.add(mural);
-    root.add(neonSign("PUNK ME", 0xff00ff).translateX(6).translateY(4.5).translateZ(-6));
-    root.add(neonSign("NEON SHOP", 0x00ffff).translateX(-6).translateY(4).translateZ(-5.5));
-    addHangingChain(root, -7, 3.6, -2);
+    const punkSign = neonSign("PUNK ME", 0xff00ff);
+    punkSign.position.set(6, 4.5, -6);
+    punkSign.userData.neonFlicker = true;
+    punkSign.userData.pulse = 1.9;
+    root.add(punkSign);
+    const shopSign = neonSign("NEON SHOP", 0x00ffff);
+    shopSign.position.set(-5.8, 4, -5.2);
+    shopSign.userData.neonFlicker = true;
+    shopSign.userData.pulse = 2.1;
+    root.add(shopSign);
+    addHangingChain(root, -5.6, 3.85, -4.2);
+    addHangingChain(root, -6.8, 3.7, -3.2);
     addHangingChain(root, 7, 3.4, 1.5);
-    addDustParticles(root, 100);
+    addDustParticles(root, 120);
+    addEmberParticles(root, 90);
     props.showCar = true;
     props.cats.push(buildCat(-3, 3, 0x111122), buildCat(4, -2, 0x442266));
-    addBats(root, 4);
     addLights(root, [
       { type: "point", color: 0xff66ff, intensity: 4.2, x: 0, y: 4.5, z: 0 },
       { type: "point", color: 0x00ffff, intensity: 3.4, x: -8, y: 3.5, z: 2 },
@@ -459,7 +483,8 @@ export function buildLocationScene(locId, texLoader) {
     floor = tiledFloor(22, 18, theme.ground, false);
     root.add(floor);
     addCemeteryDressing(root, { wall, neonSign, addPumpkin, colliders, pushCollider, texLoader, addPoster });
-    addBats(root, 6);
+    addBats(root, 10);
+    addFireflyParticles(root, 75);
     props.cats.push(buildCat(2, 4, 0x1a1a2a));
     addLights(root, [
       { type: "point", color: 0x66ff99, intensity: 3.8, x: 0, y: 3.5, z: 0 },

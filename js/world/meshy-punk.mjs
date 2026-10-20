@@ -13,12 +13,7 @@ export const MESHY_FALLBACK_GLB = "assets/models/meshy/punk_pink.glb";
 export const MESHY_PUNK_URL = MESHY_FALLBACK_GLB;
 export const DEFAULT_MESHY_CHARACTER = "vienna";
 
-/** Meshy rigs with broken locomotion — idle-only NPCs (root yaw toward player). */
-export const STATIONARY_MESHY_NPCS = new Set(["razor"]);
-
-export function isStationaryMeshyNpc(characterId) {
-  return STATIONARY_MESHY_NPCS.has(characterId);
-}
+const MESHY_FOOT_LIFT_EXTRA = { razor: 0.03 };
 
 const CLIPS_FALLBACK = {
   idle: ["IdleStand"],
@@ -43,6 +38,7 @@ const templateByCharacter = new Map();
 
 export function meshyGlbPathForHero(characterId) {
   const id = characterId || DEFAULT_MESHY_CHARACTER;
+  if (id === "razor") return "assets/models/meshy/razor.glb?v=2";
   return MESHY_DIRECT_URL[id] || `assets/models/meshy/${id}.glb`;
 }
 
@@ -119,7 +115,6 @@ export async function loadMeshyTemplateForCharacter(characterId) {
   const gltf = await loader.loadAsync(url);
   const entry = buildTemplateFromGltf(gltf, url, usesFallback);
   if (id === "vienna") entry.usesFallback = false;
-
   templateByCharacter.set(id, entry);
   return entry;
 }
@@ -245,7 +240,7 @@ export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
   const scl = def.scale * (look.scale || 1);
   root.scale.setScalar(scl);
   root.rotation.y = def.yRot;
-  root.position.y = foot * scl;
+  root.position.y = foot * scl + (MESHY_FOOT_LIFT_EXTRA[characterId] || 0);
   root.visible = false;
 
   applyPunkMaterials(root, look, { accent });

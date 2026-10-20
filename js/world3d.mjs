@@ -5,6 +5,7 @@ import {
   worldToGameLoc,
   NPC_WORLD,
   NPC_PATROL,
+  NPC_QUEST_GREET,
   PORTALS,
   LOCATION_THEME,
   resolveWorldPosition,
@@ -18,8 +19,8 @@ import {
   createCc0Actor,
   updateLocomotionTimeScale,
   WAVE_EMOTE_ENABLED,
-  isStationaryMeshyNpc
 } from "./world/meshy-punk.mjs";
+import { createAtmospherePipeline, renderAtmosphere } from "./world/atmosphere.mjs";
 import { loadPunkDogTemplate, createMeshyDog, updateMeshyDogAnim } from "./world/meshy-dog.mjs";
 import { pulseScene } from "./world/location-enrich.mjs";
 import {
@@ -68,6 +69,7 @@ const texLoader = new THREE.TextureLoader();
 let guideTarget = null;
 let mobileQuality = false;
 let locFillLight = null;
+let atmospherePipe = null;
 
 function charDef(id) {
   return (typeof getCharacterDef === "function" ? getCharacterDef(id) : null) || { look: {}, anim: {} };
@@ -112,8 +114,7 @@ function createActorFromCatalog(id, characterId) {
     id, characterId: characterId || "vienna", group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
     _tplKey: tpl.key, _meshy: built._meshy, _proc: built._proc,
-    _visPushX: 0, _visPushZ: 0,
-    _stationary: isStationaryMeshyNpc(characterId)
+    _visPushX: 0, _visPushZ: 0
   };
   for (let i = 0; i < 4; i++) updateProcedural(actor, 1 / 60, null, false);
   actors.set(id, actor);
@@ -131,7 +132,6 @@ function ensureActor(id, characterId, isNpc) {
   }
   if (!a) a = createActorFromCatalog(id, characterId);
   a.isNpc = isNpc;
-  a._stationary = isNpc && isStationaryMeshyNpc(characterId);
   return a;
 }
 
@@ -176,7 +176,6 @@ function fadeTo(actor, name) {
 }
 
 function pickLocomotionAnim(actor, speed, talking) {
-  if (actor._stationary) return "idle";
   if (actor._holdAnim && actor._holdUntil > performance.now()) {
     if (actor._holdAnim === "walk" || actor._holdAnim === "run") return actor._holdAnim;
     return resolveAnimName(actor._holdAnim);
@@ -307,23 +306,27 @@ function rebuildLocation(locId) {
   locationProps = built.props || { showCar: false };
   furnitureColliders = built.colliders || [];
   (locationProps.cats || []).forEach(c => locationRoot.add(c));
-  spawnParticles(locId === "street" || locId === "cemetery");
+  spawnParticles(locId);
   ensureMarkerRoot(scene);
 }
 
-function spawnParticles(night) {
+function spawnParticles(locId) {
   if (particles) { scene.remove(particles); particles = null; }
-  if (!night) return;
-  const n = 120;
+  if (!locId || locId === "kitchen" || locId === "toilet") return;
+  const n = locId === "cemetery" ? 80 : 100;
   const pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
     pos[i * 3] = (Math.random() - 0.5) * 24;
-    pos[i * 3 + 1] = Math.random() * 6;
+    pos[i * 3 + 1] = 0.35 + Math.random() * 5.5;
     pos[i * 3 + 2] = (Math.random() - 0.5) * 20;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  particles = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xff66ff, size: 0.06, transparent: true, opacity: 0.7 }));
+  const color = locId === "cemetery" ? 0x88ffbb : locId === "street" ? 0xff7744 : 0xff66ff;
+  particles = new THREE.Points(geo, new THREE.PointsMaterial({
+    color, size: 0.055, transparent: true, opacity: 0.62
+  }));
+  particles.userData.drift = true;
   scene.add(particles);
 }
 
@@ -468,35 +471,49 @@ function updateThirdPersonCamera() {
   const player = actors.get("player");
   if (!player) return;
   const p = player.group.position;
-  const dist = 5.4;
-  const height = 2.05;
+  const dist = mobileQuality ? 5.15 : 5.4;
+  const height = mobileQuality ? 1.95 : 2.05;
   const ox = Math.sin(cameraYaw) * dist;
   const oz = Math.cos(cameraYaw) * dist;
   const target = new THREE.Vector3(p.x + ox, height, p.z + oz);
+  const rightX = Math.cos(cameraYaw);
+  const rightZ = -Math.sin(cameraYaw);
+  const frameBias = mobileQuality ? 0.72 : 0;
+  target.x += rightX * frameBias;
+  target.z += rightZ * frameBias;
   camera.position.lerp(target, 0.12);
-  camera.lookAt(p.x, 1.28, p.z);
+  const lookX = p.x + rightX * frameBias * 0.4;
+  const lookZ = p.z + rightZ * frameBias * 0.4;
+  camera.lookAt(lookX, 1.28, lookZ);
   updateCameraOccluders();
 }
 
-function tickStationaryNpcFacePlayer(dt) {
-  const pl = actors.get("player");
-  if (!pl) return;
-  actors.forEach((a, id) => {
-    if (!id.startsWith("npc_") || !a._stationary) return;
-    const dx = pl.wx - a.wx;
-    const dz = pl.wz - a.wz;
-    if (Math.hypot(dx, dz) > 5.5) return;
-    const targetY = Math.atan2(dx, dz);
-    let diff = targetY - a.group.rotation.y;
-    while (diff > Math.PI) diff -= Math.PI * 2;
-    while (diff < -Math.PI) diff += Math.PI * 2;
-    a.group.rotation.y += diff * Math.min(1, dt * 2.1);
-  });
-}
-
 function tickNpcPatrols(dt) {
+  const pl = actors.get("player");
   actors.forEach((a, id) => {
-    if (!id.startsWith("npc_") || !a._patrol?.length || a._stationary) return;
+    if (!id.startsWith("npc_")) return;
+    const greet = NPC_QUEST_GREET[currentLoc]?.[a.characterId];
+    if (greet && pl) {
+      const d = Math.hypot(pl.wx - a.wx, pl.wz - a.wz);
+      if (d < greet.range) {
+        a.wx = greet.anchor.x;
+        a.wz = greet.anchor.z;
+        a.group.position.x = a.wx;
+        a.group.position.z = a.wz;
+        const dx = pl.wx - a.wx;
+        const dz = pl.wz - a.wz;
+        const targetY = Math.atan2(dx, dz) + (a.characterId === "razor" ? Math.PI : 0);
+        let diff = targetY - a.group.rotation.y;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        a.group.rotation.y += diff * Math.min(1, dt * 3.2);
+        a._spd = 0;
+        fadeTo(a, "idle");
+        updateLocomotionTimeScale(a);
+        return;
+      }
+    }
+    if (!a._patrol?.length) return;
     const path = a._patrol;
     let idx = a._patrolIdx || 0;
     const tgt = path[idx];
@@ -747,7 +764,6 @@ function loop() {
   sceneTime += dt;
   processInput(dt);
   tickNpcPatrols(dt);
-  tickStationaryNpcFacePlayer(dt);
   const pl = actors.get("player");
   if (pl && actors.get("dog")) updateDogFollow(dt, pl);
   if (pl) {
@@ -758,6 +774,15 @@ function loop() {
     pl.group.position.y = y;
   }
   if (locationRoot) pulseScene(locationRoot, sceneTime);
+  if (particles?.geometry?.attributes?.position) {
+    const attr = particles.geometry.attributes.position;
+    for (let i = 0; i < attr.count; i++) {
+      let y = attr.getY(i) + Math.sin(sceneTime * 1.4 + i) * 0.0012;
+      if (y > 5.5) y = 0.35;
+      attr.setY(i, y);
+    }
+    attr.needsUpdate = true;
+  }
   setQuestMarkerTarget(guideTarget, actors, sceneTime);
   const nearNpc = getNearestNpcId();
   const nearPortal = getNearPortal();
@@ -791,12 +816,12 @@ function loop() {
   separateActors();
   if (!captureFrameLock) updateThirdPersonCamera();
   else if (captureHideActors?.length) {
-    renderer.render(scene, camera);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
     checkPortals();
     return;
   }
   checkPortals();
-  renderer.render(scene, camera);
+  renderAtmosphere(atmospherePipe, renderer, scene, camera);
 }
 
 function init(h) {
@@ -831,6 +856,7 @@ function init(h) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
+  atmospherePipe = createAtmospherePipeline(renderer, scene, camera, !mobileQuality);
 
   canvas.addEventListener("pointerdown", onPointer);
   initControls3D(canvas, delta => { cameraYaw += delta; });
@@ -859,6 +885,7 @@ function resize() {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
+  atmospherePipe?.resize(w, h);
 }
 
 const api = {
@@ -914,7 +941,7 @@ const api = {
     camera.position.set(p.x + 1.45, p.y + 0.5, p.z + 0.02);
     camera.lookAt(p.x, p.y + 0.4, p.z);
     if (locationRoot) pulseScene(locationRoot, sceneTime);
-    renderer.render(scene, camera);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
   },
   captureDogThreeQuarter: () => {
@@ -943,7 +970,7 @@ const api = {
     camera.position.set(p.x + 1.05, p.y + 0.62, p.z + 1.35);
     camera.lookAt(p.x, p.y + 0.44, p.z);
     if (locationRoot) pulseScene(locationRoot, sceneTime);
-    renderer.render(scene, camera);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
   },
   captureCloseup: (pose = "idle") => {
@@ -972,7 +999,7 @@ const api = {
       camera.position.set(p.x + 1.35, p.y + 1.42, p.z + 2.15);
       camera.lookAt(p.x, p.y + 1.22, p.z);
     }
-    renderer.render(scene, camera);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
   },
   snapScreenshotView: () => {
@@ -997,7 +1024,7 @@ const api = {
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);
     actors.forEach(act => act.mixer?.update(1 / 60));
-    renderer.render(scene, camera);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
   },
   nudgePlayer: (dx, dz, steps = 8) => {

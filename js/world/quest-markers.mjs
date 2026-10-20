@@ -45,7 +45,7 @@ export function ensureMarkerRoot(scene) {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   npcBadge = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-  npcBadge.scale.set(0.55, 0.55, 1);
+  npcBadge.scale.set(0.68, 0.68, 1);
   npcBadge.position.y = 2.1;
   markerRoot.add(npcBadge);
   scene.add(markerRoot);
@@ -70,7 +70,7 @@ export function setQuestMarkerTarget(target, actors, t) {
     const a = actors.get(`npc_${target.npcId}`);
     if (a) {
       npcBadge.visible = true;
-      npcBadge.position.set(a.group.position.x, 2.15 + bob, a.group.position.z);
+      npcBadge.position.set(a.group.position.x, 2.42 + bob, a.group.position.z);
       beacon.visible = true;
       beacon.position.set(a.group.position.x, bob * 0.5, a.group.position.z);
       return;

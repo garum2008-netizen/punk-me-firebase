@@ -157,6 +157,42 @@ export function addHangingChain(root, x, y, z, len = 1.4) {
   root.add(g);
 }
 
+export function addEmberParticles(root, count = 70) {
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 18;
+    pos[i * 3 + 1] = 0.25 + Math.random() * 2.2;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * 14;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(
+    geo,
+    new THREE.PointsMaterial({ color: 0xff6622, size: 0.07, transparent: true, opacity: 0.55 })
+  );
+  pts.userData.drift = true;
+  pts.userData.ember = true;
+  root.add(pts);
+}
+
+export function addFireflyParticles(root, count = 55) {
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 16;
+    pos[i * 3 + 1] = 0.5 + Math.random() * 2.5;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * 12;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(
+    geo,
+    new THREE.PointsMaterial({ color: 0xaaffcc, size: 0.08, transparent: true, opacity: 0.65 })
+  );
+  pts.userData.drift = true;
+  pts.userData.firefly = true;
+  root.add(pts);
+}
+
 export function addDustParticles(root, count = 80) {
   const pos = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
@@ -781,6 +817,11 @@ export function pulseScene(root, t) {
     if (!o.isMesh) return;
     if (o.userData.flap) {
       o.rotation.y = (o.userData.flapBase || 0) + Math.sin(t * 3.5) * 0.08;
+    }
+    if (o.userData?.neonFlicker && o.material?.emissiveIntensity !== undefined) {
+      const flick = 0.55 + 0.45 * Math.sin(t * 11 + Math.sin(t * 2.7) * 1.8);
+      o.material.emissiveIntensity = (o.userData.pulse || 1.8) * flick;
+      return;
     }
     if (!o.userData.pulse) return;
     const e = o.material?.emissiveIntensity;

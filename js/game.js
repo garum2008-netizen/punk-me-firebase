@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v10";
+const GAME_VERSION = "living3d-v12";
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
 
@@ -496,9 +496,6 @@ function loadMe() {
     window.me = me;
     me.level = levelFromXp(me.xp || 0);
     me.lastSeen = Date.now();
-    if (me.characterId && typeof isCharacterJoinable === "function" && !isCharacterJoinable(me.characterId)) {
-      me.characterId = "vienna";
-    }
     saveMe();
     if (!me.characterId) {
       document.getElementById("loading").style.display = "none";
