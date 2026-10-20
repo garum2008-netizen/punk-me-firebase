@@ -613,9 +613,9 @@ export function addKitchenDressing(root, helpers) {
   handle2.position.y = 0.72;
   handle2.scale.y = 0.65;
   fridge.add(fridgeBody, fridgeDoor, freezer, handle, handle2);
-  fridge.position.set(-5.2, 0, -3.8);
+  fridge.position.set(-4.35, 0, -4.05);
   root.add(fridge);
-  pushCollider(colliders, -5.2, -3.8, 0.45, 0.38);
+  pushCollider(colliders, -4.35, -4.05, 0.45, 0.38);
   const stove = wall(1.1, 0.9, 0.65, new THREE.MeshStandardMaterial({ color: 0x333338, metalness: 0.5 }));
   stove.position.set(0, 0.45, -4.15);
   root.add(stove);
@@ -678,6 +678,18 @@ export function addKitchenDressing(root, helpers) {
   sinkUnit.add(sinkCab, sinkBasin, faucet, spout);
   sinkUnit.position.set(-2.5, 0, -4.1);
   root.add(sinkUnit);
+  const rug = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.35, 1.75),
+    new THREE.MeshStandardMaterial({
+      color: 0x8b3048,
+      roughness: 0.92,
+      emissive: 0x441122,
+      emissiveIntensity: 0.12
+    })
+  );
+  rug.rotation.x = -Math.PI / 2;
+  rug.position.set(1.22, 0.012, 0.58);
+  root.add(rug);
   const table = wall(1.55, 0.08, 0.9, new THREE.MeshStandardMaterial({ color: 0x3a2818 }));
   table.position.set(1.25, 0.75, 0.62);
   root.add(table);
@@ -688,13 +700,7 @@ export function addKitchenDressing(root, helpers) {
     root.add(chair);
     pushCollider(colliders, chair.position.x, 1.35, 0.22, 0.22);
   }
-  const lamp = new THREE.Mesh(
-    new THREE.ConeGeometry(0.32, 0.26, 8),
-    new THREE.MeshStandardMaterial({ color: 0xffeecc, emissive: 0xffdd99, emissiveIntensity: 0.75 })
-  );
-  lamp.position.set(1.25, 2.75, 0.62);
-  lamp.rotation.x = Math.PI;
-  root.add(lamp);
+  addHangingChain(root, 1.25, 2.95, 0.62, 1.15);
   const kettle = new THREE.Group();
   const kettleBody = new THREE.Mesh(
     new THREE.SphereGeometry(0.14, 10, 10),

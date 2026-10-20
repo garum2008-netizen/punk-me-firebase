@@ -566,11 +566,11 @@ const LOCATION_CAMERA = {
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: {
     fixed: true,
-    fov: 48,
-    pos: [0.55, 2.02, -3.35],
-    look: [0.05, 1.05, -1.35],
-    player: { x: 0, z: 0.42, yaw: Math.PI },
-    dog: { dx: 0.7, dz: 0.02 }
+    fov: 50,
+    pos: [0.42, 2.05, 4.35],
+    look: [0.08, 1.12, -3.05],
+    player: { x: -0.12, z: 0.36, yaw: Math.PI },
+    dog: { dx: 0.68, dz: 0.04 }
   }
 };
 
@@ -827,7 +827,7 @@ function sync(data) {
     hooks.onMove?.(g.x, g.y);
   }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
-    const g = worldToGameLoc(0, 0.38, bounds);
+    const g = worldToGameLoc(-0.12, 0.36, bounds);
     hooks.onMove?.(g.x, g.y);
   }
 
@@ -910,7 +910,7 @@ function sync(data) {
 
   const playerActor = actors.get("player");
   const spawnPref = currentLoc === "kitchen"
-    ? { x: 0, z: 0.38 }
+    ? { x: -0.12, z: 0.36 }
     : currentLoc === "elevator"
       ? { x: 0, z: 0.02 }
       : { x: 0, z: -1.2 };

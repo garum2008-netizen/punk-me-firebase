@@ -401,15 +401,20 @@ export function buildLocationScene(locId, texLoader) {
     pushCollider(colliders, 0, -4.15, 4, 0.32);
     props.cats.push(buildCat(3, 2, 0x222233));
     addKitchenDressing(root, { wall, colliders, pushCollider });
-    addPoster(texLoader, root, "imagine_images/kwt1b.jpg", 2.8, 1.6, -5.5, 1.55, -4.88);
-    addPoster(texLoader, root, "imagine_images/77Mdp.jpg", 2.2, 1.4, 5.5, 1.35, -4.88);
+    addPoster(texLoader, root, "imagine_images/kwt1b.jpg", 2.8, 1.6, 0, 1.55, -4.88);
+    addPoster(texLoader, root, "imagine_images/77Mdp.jpg", 2.2, 1.4, -3.2, 1.35, -4.88);
+    addPoster(texLoader, root, "imagine_images/q4BXV.jpg", 2.0, 1.45, 5.88, 1.42, 0.35, -Math.PI / 2);
+    addPoster(texLoader, root, "imagine_images/kwt1b.jpg", 1.8, 1.35, -5.88, 1.38, -0.85, Math.PI / 2);
     addNeonTube(root, -3.5, 2.5, -4.55, 2.2, 0xff00ff);
+    addNeonTube(root, 5.72, 2.25, 0.2, 2.4, 0xff8844);
+    addNeonTube(root, -5.72, 2.15, 1.4, 1.6, 0x00ffff);
     addSteamPuff(root, 0, -4.05);
     addLights(root, [
-      { type: "point", color: 0xffaa66, intensity: 4.2, x: 0, y: 2.8, z: 0 },
-      { type: "point", color: 0xff00ff, intensity: 2.8, x: -4, y: 2.5, z: -3 },
-      { type: "point", color: 0xffeecc, intensity: 3.2, x: 3, y: 2.6, z: 1 },
-      { type: "point", color: 0xff6622, intensity: 2.4, x: 2.5, y: 1.2, z: -3.8 }
+      { type: "point", color: 0xffcc88, intensity: 5.2, x: 0, y: 2.65, z: -2.2 },
+      { type: "point", color: 0xffaa66, intensity: 4.4, x: 1.2, y: 2.35, z: 0.6 },
+      { type: "point", color: 0xff8866, intensity: 3.6, x: -2.5, y: 2.2, z: -3.5 },
+      { type: "point", color: 0xffeecc, intensity: 2.8, x: 3.5, y: 2.4, z: 1.5 },
+      { type: "point", color: 0xff6622, intensity: 2.2, x: 0, y: 1.35, z: -4.0 }
     ]);
   } else if (locId === "roof") {
     floor = tiledFloor(20, 16, theme.ground, false);
