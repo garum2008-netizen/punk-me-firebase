@@ -1490,11 +1490,13 @@ const api = {
     });
     npc._patrol = null;
     const cx = bounds ? (bounds.minX + bounds.maxX) * 0.5 : 0;
-    const cz = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.8 : -1.2;
-    const ax = cx + 0.85;
+    const cz = bounds
+      ? Math.max(bounds.minZ + 2.2, (bounds.minZ + bounds.maxZ) * 0.5 - 1.4)
+      : -1.2;
+    const ax = cx + 1.05;
     const az = cz;
-    const px = cx - 0.95;
-    const pz = cz + 0.35;
+    const px = cx - 1.05;
+    const pz = cz + 0.25;
     npc.wx = ax;
     npc.wz = az;
     placeActorWorld(npc, ax, az, false, true);
@@ -1506,9 +1508,9 @@ const api = {
     const midX = (px + ax) * 0.5;
     const midZ = (pz + az) * 0.5;
     const side = Math.atan2(ax - px, az - pz) + Math.PI / 2;
-    camera.position.set(midX + Math.sin(side) * 3.85, 1.72, midZ + Math.cos(side) * 3.85);
-    camera.lookAt(midX, 1.18, midZ);
-    camera.fov = mobileQuality ? 46 : 40;
+    camera.position.set(midX + Math.sin(side) * 4.35, 1.88, midZ + Math.cos(side) * 4.35);
+    camera.lookAt(midX, 1.28, midZ);
+    camera.fov = mobileQuality ? 44 : 38;
     camera.updateProjectionMatrix();
     dimPropsBetweenCameraAnd(midX, 1.05, midZ, 0.18);
     document.getElementById("storyDialog")?.classList.add("story-dialog-cinematic");
@@ -1566,6 +1568,8 @@ const api = {
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);
     actors.forEach(act => act.mixer?.update(1 / 60));
+    const capPl = actors.get("player");
+    if (capPl) dimPropsBetweenCameraAnd(capPl.wx, 1.05, capPl.wz, 0.2);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
   },
@@ -1638,7 +1642,7 @@ const api = {
     let moveZ = 1;
     const baseYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
     if (bounds && scenario === "free") {
-      spawn = findClearSpawn(bounds, cols, { x: cx, z: bounds.minZ + 1.2 });
+      spawn = pickFreeSpawn();
       moveZ = 1;
     } else if (bounds && scenario === "wall") {
       spawn = resolveWorldPosition(cx, bounds.maxZ - 1.05, bounds, cols, 0.42);

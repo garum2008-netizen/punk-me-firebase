@@ -1,12 +1,19 @@
 import * as THREE from "three";
 
+function tagged(tag, mesh) {
+  const g = new THREE.Group();
+  g.userData.propTag = tag;
+  g.add(mesh);
+  return g;
+}
+
 function box(w, h, d, color, emissive = 0) {
   const m = new THREE.Mesh(
     new THREE.BoxGeometry(w, h, d),
     new THREE.MeshStandardMaterial({
       color,
       emissive: emissive || color,
-      emissiveIntensity: emissive ? 0.45 : 0,
+      emissiveIntensity: emissive ? 0.35 : 0,
       roughness: 0.72
     })
   );
@@ -15,163 +22,71 @@ function box(w, h, d, color, emissive = 0) {
   return m;
 }
 
-function scatterProps(root, specs) {
-  specs.forEach(([x, y, z, w, h, d, color, ry = 0]) => {
-    const p = box(w, h, d, color);
-    p.position.set(x, y + h / 2, z);
-    p.rotation.y = ry;
-    root.add(p);
-  });
+function placeProp(root, tag, mesh, x, y, z, ry = 0) {
+  mesh.position.set(x, y, z);
+  mesh.rotation.y = ry;
+  root.add(tagged(tag, mesh));
 }
 
-/** Extra low-poly clutter so default camera views feel full (v21). */
+/** Back/side clutter — never in the camera–player foreground arc (center z > 1). */
 export function addV21Clutter(locId, root, texLoader, colliders, pushCollider) {
   if (locId === "room") {
-    scatterProps(root, [
-      [-4.5, 0, 1.2, 0.35, 0.5, 0.35, 0x553322],
-      [2.2, 0, 3.5, 0.8, 0.35, 0.5, 0x2a1840],
-      [0.5, 0, 4.8, 1.2, 0.08, 0.9, 0x6a3048],
-      [5, 0, 2, 0.25, 0.55, 0.25, 0x888899],
-      [-5.5, 0, -2, 0.4, 0.25, 0.4, 0xff6600],
-      [1, 0, -3, 0.5, 0.9, 0.2, 0x1a1028],
-      [-1.5, 0, -4, 0.35, 0.4, 0.35, 0x442266]
-    ]);
-    const guitar = box(0.12, 0.9, 0.35, 0x221111);
-    guitar.position.set(4.2, 0.9, -4.2);
-    guitar.rotation.z = -0.35;
-    root.add(guitar);
-    const amp = box(0.55, 0.7, 0.4, 0x111122, 0x00ffff);
-    amp.position.set(4.8, 0.35, -3.8);
-    root.add(amp);
-    const shelf = box(2.2, 1.6, 0.25, 0x3a2848);
-    shelf.position.set(-5.2, 0.8, -5.2);
-    root.add(shelf);
-    pushCollider(colliders, -1, 3.2, 1.2, 0.7);
+    placeProp(root, "room_clutter_guitar", box(0.12, 0.9, 0.35, 0x221111), 4.2, 0.45, -4.2, -0.35);
+    placeProp(root, "room_clutter_amp", box(0.55, 0.7, 0.4, 0x111122), 4.8, 0.35, -3.8);
+    placeProp(root, "room_clutter_shelf", box(2.2, 1.6, 0.25, 0x3a2848), -5.2, 0.8, -5.2);
+    placeProp(root, "room_clutter_crate", box(0.35, 0.5, 0.35, 0x553322), -4.5, 0.25, -3.5);
+    placeProp(root, "room_clutter_bin", box(0.25, 0.55, 0.25, 0x888899), 5, 0.275, -2);
   } else if (locId === "kitchen") {
-    scatterProps(root, [
-      [3.5, 0, 2.5, 0.25, 0.35, 0.25, 0x99aa88],
-      [-3, 0, 1, 0.3, 0.4, 0.3, 0xff8844],
-      [2, 0, -1, 0.5, 0.12, 0.7, 0x5a4030],
-      [-4.5, 0, 3, 0.35, 0.5, 0.35, 0x664422],
-      [4.5, 0, -2, 0.2, 0.55, 0.2, 0xccccdd],
-      [1.5, 0, 3.2, 0.2, 0.3, 0.2, 0xff0000],
-      [-2, 0, -2.5, 0.35, 0.25, 0.35, 0x88aa99],
-      [3, 0, 0.5, 0.15, 0.4, 0.15, 0xcccccc],
-      [-5, 0, -1, 0.4, 0.08, 0.6, 0x6a4030]
-    ]);
+    placeProp(root, "kitchen_clutter_spice", box(0.3, 0.4, 0.3, 0xff8844), -3, 0.2, -3.5);
+    placeProp(root, "kitchen_clutter_mug", box(0.12, 0.14, 0.12, 0xccccdd), 2, 0.07, -3.2);
     const juke = box(0.55, 1.05, 0.4, 0x331144, 0xff00ff);
-    juke.position.set(4.2, 0.52, 2.8);
+    juke.position.set(4.2, 0.52, -3.2);
     juke.userData.interact = "jukebox";
     root.add(juke);
-    const rug = box(2.2, 0.04, 1.6, 0x5a2040);
-    rug.position.set(0, 0.02, 1.5);
-    root.add(rug);
+    pushCollider(colliders, 4.2, -3.2, 0.3, 0.25);
+    placeProp(root, "kitchen_clutter_rug", box(2.2, 0.04, 1.6, 0x5a2040), 0, 0.02, -1.2);
   } else if (locId === "street") {
-    scatterProps(root, [
-      [-4, 0, 3, 0.5, 0.9, 0.5, 0x333344],
-      [5, 0, -2, 0.45, 0.7, 0.45, 0x443322],
-      [-6, 0, -4, 0.35, 0.5, 0.35, 0xff6600],
-      [3, 0, 5, 0.6, 1.1, 0.6, 0x222233],
-      [0, 0, -5, 0.8, 0.4, 0.8, 0x553366],
-      [7, 0, 2, 0.3, 0.55, 0.3, 0x00ffcc, 0x00ffcc]
-    ]);
+    placeProp(root, "street_clutter_hydrant", box(0.35, 0.55, 0.35, 0xcc2222), -5.5, 0.28, -2.5);
+    placeProp(root, "street_clutter_trash", box(0.45, 0.7, 0.45, 0x333344), 5.2, 0.35, -3.2);
+    placeProp(root, "street_clutter_crate", box(0.6, 0.55, 0.6, 0x6a5030), -4, 0.28, -4.5);
     const arcade = box(0.9, 1.5, 0.7, 0x220033, 0xff00ff);
     arcade.position.set(-2.5, 0.75, -4.5);
     arcade.userData.interact = "arcade";
     root.add(arcade);
     pushCollider(colliders, -2.5, -4.5, 0.5, 0.4);
+    placeProp(root, "street_clutter_barrel", box(0.35, 0.5, 0.35, 0xff6600), 4.5, 0.25, -4.8);
+    const pumpMat = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 0.4 });
+    placeProp(
+      root,
+      "street_clutter_pumpkin",
+      new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), pumpMat),
+      -3.2,
+      0.22,
+      -3.8
+    );
   } else if (locId === "city") {
-    scatterProps(root, [
-      [-7, 0, 5, 0.5, 0.8, 0.5, 0x444455],
-      [6, 0, 6, 0.4, 0.55, 0.4, 0xffaa00],
-      [-3, 0, -6, 0.7, 0.35, 0.7, 0x332244],
-      [2, 0, 3, 0.35, 0.9, 0.35, 0x00ffff, 0x00ffff],
-      [8, 0, -3, 0.5, 1.2, 0.5, 0x553322]
-    ]);
-    const pizza = box(0.5, 0.08, 0.5, 0xffcc00);
-    pizza.position.set(1.2, 0.9, 2);
-    pizza.userData.interact = "pizza_pickup";
-    root.add(pizza);
+    placeProp(root, "city_clutter_can", box(0.4, 0.55, 0.4, 0x444455), -7, 0.28, -4);
+    placeProp(root, "city_clutter_pizza", box(0.5, 0.08, 0.5, 0xffcc00), 1.2, 0.9, -2);
+    placeProp(root, "city_clutter_crate", box(0.5, 0.8, 0.5, 0x553322), 6, 0.4, -5);
   } else if (locId === "cemetery") {
     for (let i = 0; i < 10; i++) {
       const stone = box(0.35, 0.55 + (i % 3) * 0.15, 0.12, 0x555566);
-      stone.position.set(-7 + i * 1.5, stone.geometry.parameters.height / 2, -4 + (i % 3) * 2.8);
-      root.add(stone);
+      placeProp(root, `cem_clutter_stone_${i}`, stone, -7 + i * 1.5, stone.geometry.parameters.height / 2, -4 + (i % 3) * 2.8);
     }
     for (let i = 0; i < 5; i++) {
       const lan = box(0.12, 1.1, 0.12, 0xffaa44, 0xffaa44);
-      lan.position.set(-4 + i * 2, 0.55, 5.5 - (i % 2));
-      root.add(lan);
+      placeProp(root, `cem_clutter_lantern_${i}`, lan, -4 + i * 2, 0.55, -4.5 - (i % 2));
     }
-    const gate = box(3.2, 0.12, 0.15, 0x3a4a40);
-    gate.position.set(0, 0.06, -7.8);
-    root.add(gate);
-    const deadTree = box(0.25, 2.8, 0.25, 0x2a1810);
-    deadTree.position.set(-2, 1.4, 4);
-    root.add(deadTree);
-    const branch = box(1.6, 0.1, 0.1, 0x1a1010);
-    branch.position.set(-2.5, 2.6, 4.2);
-    branch.rotation.z = 0.4;
-    root.add(branch);
-    for (let g = 0; g < 4; g++) {
-      const ghost = box(0.3, 0.45, 0.15, 0xaaccff, 0x88ddff);
-      ghost.position.set(3 + g * 1.2, 0.9 + (g % 2) * 0.2, 2 + g * 0.5);
-      ghost.material.transparent = true;
-      ghost.material.opacity = 0.7;
-      ghost.userData.rise = 1.2;
-      ghost.userData.riseBase = ghost.position.y;
-      root.add(ghost);
-    }
-    for (let c = 0; c < 6; c++) {
-      const candle = box(0.06, 0.2, 0.06, 0xffcc66, 0xff6600);
-      candle.position.set(-3 + c * 1.1, 0.1, -1.5);
-      root.add(candle);
-    }
-    scatterProps(root, [
-      [-8, 0, 0, 0.08, 0.75, 4, 0x333344],
-      [7, 0, -3, 1.2, 0.9, 1.5, 0x2a3835],
-      [0, 0, 6, 0.5, 0.35, 0.5, 0xff6600]
-    ]);
+    placeProp(root, "cem_clutter_gate", box(3.2, 0.12, 0.15, 0x3a4a40), 0, 0.06, -7.8);
+    placeProp(root, "cem_clutter_tree", box(0.25, 2.8, 0.25, 0x2a1810), -2, 1.4, -3.5);
   } else if (locId === "toilet") {
-    scatterProps(root, [
-      [-1, 0, 2.5, 0.25, 0.35, 0.25, 0x99aa88],
-      [2.5, 0, -2, 0.3, 0.5, 0.3, 0x556677],
-      [-4, 0, 0.5, 0.2, 0.55, 0.2, 0x8899aa],
-      [3.5, 0, 1, 0.35, 0.4, 0.35, 0xff6600],
-      [0, 0, -1, 0.45, 0.08, 0.7, 0x6a8090]
-    ]);
-    const trash = box(0.35, 0.55, 0.35, 0x3a4048);
-    trash.position.set(3.8, 0.275, 2.2);
-    root.add(trash);
-    const plant = box(0.25, 0.55, 0.25, 0x228844);
-    plant.position.set(-4.5, 0.275, 2.8);
-    root.add(plant);
-    for (let s = 0; s < 6; s++) {
-      const sticker = box(0.12, 0.12, 0.01, s % 2 ? 0xff00ff : 0x00ffff, s % 2 ? 0xff00ff : 0x00ffff);
-      sticker.position.set(-3.5 + s * 0.35, 1.2 + (s % 3) * 0.4, -3.84);
-      root.add(sticker);
-    }
-    const graffiti = box(1.8, 0.6, 0.02, 0x442266);
-    graffiti.position.set(4.2, 1.4, -3.85);
-    root.add(graffiti);
+    placeProp(root, "toilet_clutter_trash", box(0.35, 0.55, 0.35, 0x3a4048), 3.8, 0.275, -2.2);
+    placeProp(root, "toilet_clutter_plant", box(0.25, 0.55, 0.25, 0x228844), -4.5, 0.275, -2.8);
+    placeProp(root, "toilet_clutter_graffiti", box(1.8, 0.6, 0.02, 0x442266), 4.2, 1.4, -3.85);
   } else if (locId === "elevator") {
-    scatterProps(root, [
-      [-0.8, 0, 0.5, 0.15, 0.35, 0.15, 0x99aa88],
-      [0.9, 0, -0.4, 0.2, 0.45, 0.2, 0xff6600],
-      [0, 0, 0.8, 0.25, 0.12, 0.4, 0x443322],
-      [-1.1, 0, -0.8, 0.35, 0.55, 0.35, 0x555566],
-      [1.2, 0, 0.2, 0.08, 0.9, 0.08, 0x888899],
-      [0.3, 0, -1.1, 0.2, 0.25, 0.2, 0xff00ff, 0xff00ff]
-    ]);
-    const panel = box(0.45, 0.55, 0.08, 0x222233, 0x00ffff);
-    panel.position.set(1.15, 1.35, -1.25);
-    root.add(panel);
+    placeProp(root, "elev_clutter_panel", box(0.45, 0.55, 0.08, 0x222233, 0x00ffff), 1.15, 1.35, -1.25);
   } else if (locId === "roof" || locId === "parkour") {
-    scatterProps(root, [
-      [-3, 0, 2, 0.45, 0.55, 0.45, 0x553344],
-      [4, 0, -3, 0.35, 0.4, 0.35, 0x00ffaa, 0x00ffaa],
-      [0, 0, 4, 0.6, 0.25, 0.6, 0x332244],
-      [-5, 0, -4, 0.3, 0.5, 0.3, 0xff8844]
-    ]);
+    placeProp(root, `${locId}_clutter_crate`, box(0.45, 0.55, 0.45, 0x553344), -3, 0.28, -4);
+    placeProp(root, `${locId}_clutter_barrel`, box(0.3, 0.5, 0.3, 0xff8844), 4, 0.25, -3);
   }
 }

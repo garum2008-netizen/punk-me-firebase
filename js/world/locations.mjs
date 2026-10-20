@@ -685,52 +685,80 @@ function exitInteriorOfAabb(px, pz, b, radius) {
   return { x: px, z: b.maxZ - inset, moved: true };
 }
 
-export function resolveWorldPosition(x, z, bounds, colliders, radius = 0.42) {
-  let px = x;
-  let pz = z;
-  const b0 = clampToBounds(px, pz, bounds);
-  px = b0.x;
-  pz = b0.z;
+const BOUNDS_PAD = 0.5;
+
+function resolveCollidersAt(px, pz, colliders, radius = 0.42) {
+  let x = px;
+  let z = pz;
   for (let iter = 0; iter < 12; iter++) {
     let moved = false;
     for (const b of colliders || []) {
       const inside =
-        px > b.minX + 1e-4 && px < b.maxX - 1e-4 && pz > b.minZ + 1e-4 && pz < b.maxZ - 1e-4;
+        x > b.minX + 1e-4 && x < b.maxX - 1e-4 && z > b.minZ + 1e-4 && z < b.maxZ - 1e-4;
       if (inside) {
-        const e = exitInteriorOfAabb(px, pz, b, radius);
-        px = e.x;
-        pz = e.z;
+        const e = exitInteriorOfAabb(x, z, b, radius);
+        x = e.x;
+        z = e.z;
         moved = e.moved || moved;
       } else {
-        const c = resolveCircleVsAabb(px, pz, b, radius);
-        px = c.x;
-        pz = c.z;
+        const c = resolveCircleVsAabb(x, z, b, radius);
+        x = c.x;
+        z = c.z;
         moved = c.moved || moved;
       }
     }
     if (!moved) break;
   }
-  const b1 = clampToBounds(px, pz, bounds);
-  return { x: b1.x, z: b1.z };
+  return { x, z };
 }
 
-/** Slide movement: try full step, then axis splits + corner combine (no snap-back). */
+function clampToBoundsOnce(px, pz, bounds, pad = BOUNDS_PAD) {
+  if (!bounds) return { x: px, z: pz };
+  return {
+    x: Math.max(bounds.minX + pad, Math.min(bounds.maxX - pad, px)),
+    z: Math.max(bounds.minZ + pad, Math.min(bounds.maxZ - pad, pz))
+  };
+}
+
+export function resolveWorldPosition(x, z, bounds, colliders, radius = 0.42) {
+  const c = resolveCollidersAt(x, z, colliders, radius);
+  return clampToBoundsOnce(c.x, c.z, bounds);
+}
+
+/** Single motion sample: axis slide against bounds, then colliders (no clamp-then-step oscillation). */
 export function moveWithCollision(fromX, fromZ, dx, dz, bounds, colliders, radius = 0.42) {
-  const dist = Math.hypot(dx, dz);
-  if (dist < 1e-8) return { x: fromX, z: fromZ };
-  const tryAt = (x, z) => resolveWorldPosition(x, z, bounds, colliders, radius);
-  const full = tryAt(fromX + dx, fromZ + dz);
-  const movedFull = Math.hypot(full.x - fromX, full.z - fromZ);
-  if (movedFull >= dist * 0.99) return full;
-  const ax = tryAt(fromX + dx, fromZ);
-  const az = tryAt(fromX, fromZ + dz);
-  const movedX = Math.hypot(ax.x - fromX, ax.z - fromZ);
-  const movedZ = Math.hypot(az.x - fromX, az.z - fromZ);
-  if (movedX > 1e-4 && movedZ > 1e-4) {
-    return tryAt(ax.x, az.z);
+  if (Math.abs(dx) < 1e-10 && Math.abs(dz) < 1e-10) return { x: fromX, z: fromZ };
+  let px = fromX;
+  let pz = fromZ;
+  if (Math.abs(dx) > 1e-10) {
+    let nx = px + dx;
+    if (bounds) {
+      nx = Math.max(bounds.minX + BOUNDS_PAD, Math.min(bounds.maxX - BOUNDS_PAD, nx));
+    }
+    const rx = resolveCollidersAt(nx, pz, colliders, radius);
+    px = rx.x;
+    pz = rx.z;
+    if (bounds) {
+      const b = clampToBoundsOnce(px, pz, bounds);
+      px = b.x;
+      pz = b.z;
+    }
   }
-  if (movedX >= movedZ) return ax;
-  return az;
+  if (Math.abs(dz) > 1e-10) {
+    let nz = pz + dz;
+    if (bounds) {
+      nz = Math.max(bounds.minZ + BOUNDS_PAD, Math.min(bounds.maxZ - BOUNDS_PAD, nz));
+    }
+    const rz = resolveCollidersAt(px, nz, colliders, radius);
+    px = rz.x;
+    pz = rz.z;
+    if (bounds) {
+      const b = clampToBoundsOnce(px, pz, bounds);
+      px = b.x;
+      pz = b.z;
+    }
+  }
+  return { x: px, z: pz };
 }
 
 export function findClearSpawn(bounds, colliders, preferred = { x: 0, z: -1.5 }) {

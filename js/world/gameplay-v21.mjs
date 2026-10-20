@@ -319,6 +319,23 @@ function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
   return g;
 }
 
+function restoreActorMaterials(actor) {
+  if (!actor?.group) return;
+  actor._hitFlash = 0;
+  actor.group.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (m.userData._hitBaseEmi !== undefined) {
+        m.emissive.setHex(m.userData._hitBaseEmi);
+        m.emissiveIntensity = m.userData._hitBaseInt ?? 0.2;
+      } else if (m.emissive) {
+        m.emissiveIntensity = 0;
+      }
+    });
+  });
+}
+
 function flashActor(actor, dur = 0.11) {
   if (!actor?.group) return;
   actor.group.traverse(o => {
@@ -349,8 +366,8 @@ function prepareDuelCapturePose(nid = "razor") {
   d.plLunge = 0.26;
   d.npcLunge = 0;
   d.trail = null;
-  pl._hitFlash = 0;
-  npc._hitFlash = 0;
+  restoreActorMaterials(pl);
+  restoreActorMaterials(npc);
   const dx = npc.wx - pl.wx;
   const dz = npc.wz - pl.wz;
   const len = Math.hypot(dx, dz) || 1;
@@ -552,8 +569,9 @@ function rebuildDecorGhost(ctx) {
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     mats.forEach(m => {
       m.transparent = true;
-      m.opacity = 0.42;
+      m.opacity = 0.58;
       m.depthWrite = false;
+      if (m.emissive) m.emissiveIntensity = Math.max(m.emissiveIntensity ?? 0, 0.35);
     });
   });
   state.decor.ghost.rotation.y = state.decor.rot;
