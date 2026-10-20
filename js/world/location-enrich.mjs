@@ -163,6 +163,208 @@ export function addDustParticles(root, count = 80) {
   root.add(pts);
 }
 
+export function addBats(root, count = 6) {
+  const g = new THREE.Group();
+  g.name = "bats";
+  for (let i = 0; i < count; i++) {
+    const bat = new THREE.Mesh(
+      new THREE.ConeGeometry(0.12, 0.28, 4),
+      new THREE.MeshStandardMaterial({ color: 0x221133, emissive: 0x440066, emissiveIntensity: 0.35 })
+    );
+    bat.rotation.x = Math.PI;
+    bat.userData.bat = { phase: i * 1.1, r: 2.5 + i * 0.4, y: 2.2 + (i % 3) * 0.5 };
+    g.add(bat);
+  }
+  root.add(g);
+}
+
+export function addTvFlicker(root, x, y, z) {
+  const tv = new THREE.Group();
+  tv.position.set(x, y, z);
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.55, 0.12),
+    new THREE.MeshStandardMaterial({ color: 0x222228 })
+  );
+  const screen = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.78, 0.44),
+    new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x66aaff, emissiveIntensity: 1.2 })
+  );
+  screen.position.z = 0.07;
+  screen.userData.pulse = 1.8;
+  tv.add(body, screen);
+  root.add(tv);
+}
+
+export function addSpinningVinyl(root, x, y, z) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  const disc = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.22, 0.02, 24),
+    new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0xff00ff, emissiveIntensity: 0.25 })
+  );
+  disc.rotation.x = Math.PI / 2;
+  disc.userData.spin = 1.4;
+  g.add(disc);
+  root.add(g);
+}
+
+export function addRoofDressing(root, helpers) {
+  const { wall, neonSign, addNeonTube, texLoader, colliders, pushCollider, addPoster } = helpers;
+  const skyline = new THREE.Group();
+  for (let i = -8; i <= 8; i++) {
+    const h = 6 + Math.abs(i % 4) * 2.2 + Math.random() * 2;
+    const b = wall(2.4, h, 2.6, new THREE.MeshStandardMaterial({
+      color: 0x121828, emissive: 0x330055, emissiveIntensity: 0.35
+    }));
+    b.position.set(i * 2.4, h / 2 - 1, -14);
+    skyline.add(b);
+    for (let w = 0; w < 3; w++) {
+      const win = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.35, 0.5),
+        new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffcc66, emissiveIntensity: 1.1 })
+      );
+      win.position.set(i * 2.4 + (w - 1) * 0.5, 1.2 + w * 1.4, -12.65);
+      skyline.add(win);
+    }
+  }
+  root.add(skyline);
+  const tower = new THREE.Group();
+  tower.position.set(-7, 0, -11);
+  tower.add(wall(1.2, 4.5, 1.2, new THREE.MeshStandardMaterial({ color: 0x556677 })).translateY(2.25));
+  const tank = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.1, 1.1, 0.8, 12),
+    new THREE.MeshStandardMaterial({ color: 0x667788 })
+  );
+  tank.position.y = 4.9;
+  tower.add(tank);
+  root.add(tower);
+  for (let i = 0; i < 4; i++) {
+    const ant = wall(0.04, 2.2, 0.04, new THREE.MeshStandardMaterial({ color: 0x888899 }));
+    ant.position.set(5 + i * 1.2, 3.5, -10 - i * 0.3);
+    root.add(ant);
+  }
+  const chimney = wall(0.7, 2.8, 0.7, new THREE.MeshStandardMaterial({ color: 0x443333 }));
+  chimney.position.set(3, 1.4, -6);
+  root.add(chimney);
+  root.add(neonSign("NIGHT CITY", 0xff66ff).translateX(-4).translateY(3.8).translateZ(-7.5));
+  addNeonTube(root, -5, 3.2, 4, 3.5, 0xff00ff);
+  addNeonTube(root, 5, 3, -2, 2.8, 0x00ffff);
+  for (let i = -3; i <= 3; i++) {
+    addNeonTube(root, i * 2.2, 2.6, 6.5, 0.8, 0xffff88);
+  }
+  const vent = wall(1.4, 0.35, 0.8, new THREE.MeshStandardMaterial({ color: 0x333344 }));
+  vent.position.set(-2, 0.18, 3);
+  root.add(vent);
+  pushCollider(colliders, -2, 3, 0.7, 0.4);
+  for (let i = 0; i < 3; i++) {
+    const crate = wall(0.9, 0.7, 0.9, new THREE.MeshStandardMaterial({ color: 0x5a4030 }));
+    crate.position.set(4 + i * 0.95, 0.35, 2 - i * 0.4);
+    root.add(crate);
+    pushCollider(colliders, crate.position.x, crate.position.z, 0.45, 0.45);
+  }
+  addPoster(texLoader, root, "imagine_images/77Mdp.jpg", 4, 2.2, -8, 1.5, -7.2, 0.1);
+  const fenceMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.35 });
+  [-9, 9].forEach(x => {
+    for (let z = -6; z <= 6; z += 2) {
+      const post = wall(0.08, 1.2, 0.08, fenceMat);
+      post.position.set(x, 0.6, z);
+      root.add(post);
+    }
+  });
+}
+
+export function addParkourDressing(root, helpers) {
+  const { wall, neonSign, colliders, pushCollider } = helpers;
+  const colors = [0xff3366, 0x33ffcc, 0xffcc00, 0x9966ff, 0x00ff88, 0xff6633];
+  for (let i = 0; i < 8; i++) {
+    const col = colors[i % colors.length];
+    const h = 0.25 + (i % 3) * 0.35;
+    const plat = wall(2.8, h, 2.2, new THREE.MeshStandardMaterial({
+      color: col, emissive: col, emissiveIntensity: 0.45, metalness: 0.2
+    }));
+    const px = (i % 2 ? 2.8 : -2.8) + (i % 4 === 0 ? 0.5 : 0);
+    const pz = -9 + i * 2.4;
+    plat.position.set(px, h / 2, pz);
+    root.add(plat);
+    pushCollider(colliders, px, pz, 1.4, 1.1, 0.15);
+    const edge = new THREE.Mesh(
+      new THREE.TorusGeometry(1.35, 0.04, 6, 4),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x00ffff, emissiveIntensity: 1.2 })
+    );
+    edge.rotation.x = Math.PI / 2;
+    edge.position.set(px, h + 0.02, pz);
+    edge.userData.pulse = 1;
+    root.add(edge);
+    if (i % 2 === 0) {
+      const ramp = wall(2.2, 0.2, 1.8, new THREE.MeshStandardMaterial({ color: 0x445566, emissive: 0x224466, emissiveIntensity: 0.3 }));
+      ramp.position.set(px * 0.5, 0.12, pz + 1.2);
+      ramp.rotation.x = -0.35;
+      root.add(ramp);
+    }
+  }
+  for (let s = 0; s < 3; s++) {
+    const scaf = wall(0.12, 4.5, 0.12, new THREE.MeshStandardMaterial({ color: 0x888899 }));
+    scaf.position.set(-4 + s * 4, 2.25, -3);
+    root.add(scaf);
+    const bar = wall(3.5, 0.1, 0.1, new THREE.MeshStandardMaterial({ color: 0xaa3344, emissive: 0xff0044, emissiveIntensity: 0.4 }));
+    bar.position.set(0, 3.8 - s * 0.5, -3);
+    root.add(bar);
+  }
+  for (let c = 0; c < 4; c++) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.45, 0.08, 8, 20),
+      new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 1.3 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set((c % 2 ? 3 : -3), 1.2 + c * 0.6, -6 + c * 3);
+    ring.userData.pulse = 1.1;
+    root.add(ring);
+  }
+  root.add(neonSign("JUMP!", 0x00ffff).translateY(3.2).translateZ(-10));
+}
+
+export function addCemeteryDressing(root, helpers) {
+  const { wall, neonSign, addPumpkin, colliders, pushCollider, texLoader, addPoster } = helpers;
+  for (let i = -5; i <= 5; i++) {
+    const h = 0.9 + Math.abs(i % 4) * 0.25;
+    const stone = wall(0.75 + (i % 2) * 0.2, h, 0.22, new THREE.MeshStandardMaterial({
+      color: 0x4a5a58, roughness: 0.92, emissive: 0x112211, emissiveIntensity: 0.08
+    }));
+    const sz = -4 + (i % 3) * 2.5;
+    stone.position.set(i * 1.9, h / 2, sz);
+    root.add(stone);
+    pushCollider(colliders, i * 1.9, sz, 0.38, 0.12);
+  }
+  const crypt = wall(3.5, 2.2, 2.8, new THREE.MeshStandardMaterial({ color: 0x2a3835, emissive: 0x113322, emissiveIntensity: 0.2 }));
+  crypt.position.set(6, 1.1, -2);
+  root.add(crypt);
+  pushCollider(colliders, 6, -2, 1.75, 1.4);
+  for (let t = 0; t < 4; t++) {
+    const trunk = wall(0.35, 2.8, 0.35, new THREE.MeshStandardMaterial({ color: 0x2a2018 }));
+    trunk.position.set(-7 + t * 4.5, 1.4, 5 - t);
+    root.add(trunk);
+    const branches = wall(1.8, 0.15, 1.8, new THREE.MeshStandardMaterial({ color: 0x1a1818 }));
+    branches.position.set(trunk.position.x, 2.9, trunk.position.z);
+    root.add(branches);
+  }
+  const gateL = wall(0.15, 2.4, 0.15, new THREE.MeshStandardMaterial({ color: 0x3a4a40, emissive: 0x226644, emissiveIntensity: 0.3 }));
+  gateL.position.set(-1.2, 1.2, -8.2);
+  const gateR = gateL.clone();
+  gateR.position.x = 1.2;
+  root.add(gateL, gateR);
+  root.add(neonSign("REST IN PUNK", 0x88ff88).translateY(3.4).translateZ(-8.5));
+  addPumpkin(root, -5, 4, colliders);
+  addPumpkin(root, 4, 5, colliders);
+  addPumpkin(root, -8, -3, colliders);
+  addPoster(texLoader, root, "imagine_images/RgdDh.jpg", 4, 2.5, -6, 1.6, -8.6);
+  const moon = new THREE.Mesh(
+    new THREE.SphereGeometry(0.65, 16, 16),
+    new THREE.MeshStandardMaterial({ color: 0xffffdd, emissive: 0xffffaa, emissiveIntensity: 1.6 })
+  );
+  moon.position.set(8, 7, -12);
+  root.add(moon);
+}
+
 export function addSteamPuff(root, x, z) {
   const m = new THREE.Mesh(
     new THREE.SphereGeometry(0.18, 8, 8),
@@ -176,6 +378,18 @@ export function addSteamPuff(root, x, z) {
 
 export function pulseScene(root, t) {
   root.traverse(o => {
+    if (o.userData?.bat) {
+      const b = o.userData.bat;
+      o.position.x = Math.cos(t * 1.6 + b.phase) * b.r;
+      o.position.z = Math.sin(t * 1.6 + b.phase) * b.r * 0.6 - 4;
+      o.position.y = b.y + Math.sin(t * 8 + b.phase) * 0.15;
+    }
+    if (o.userData?.spin) {
+      o.rotation.z += o.userData.spin * 0.02;
+    }
+    if (o.userData?.wag) {
+      o.rotation.x = -0.5 + Math.sin(t * 6) * o.userData.wag * 0.12;
+    }
     if (o.userData?.swing) {
       o.rotation.z = Math.sin(t * 1.8 + (o.userData.swingPhase || 0)) * o.userData.swing;
     }

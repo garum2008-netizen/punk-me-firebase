@@ -22,6 +22,7 @@ Original punk-gang teens for **PUNK ME**. Visual references live in `imagine_ima
 - **Catchphrases (DA):** “NOT DEAD YET — det er os.” · “Kirkegården betaler fair.”
 
 ### Cobalt (Кобальт) — blue pigtails
+- **3D:** Meshy `assets/models/meshy/cobalt.glb` (Inna; original texture, clips Idle / Walking / Running).
 - **Look:** Cyan-blue twin tails, skull tee, spike bracelets. Inspired by blue-pigtail girl in street art (`imagine_images/77Mdp.jpg` gang lineup).
 - **Personality:** Fast talker, parkour scout, cheers the team up.
 - **Role:** Parkour rep quest, quick emotes, scout on rooftops (future).

@@ -66,6 +66,7 @@ const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 let guideTarget = null;
 let mobileQuality = false;
+let locFillLight = null;
 
 function charDef(id) {
   return (typeof getCharacterDef === "function" ? getCharacterDef(id) : null) || { look: {}, anim: {} };
@@ -281,6 +282,10 @@ function rebuildLocation(locId) {
   const theme = built.theme || LOCATION_THEME.room;
   scene.fog = new THREE.FogExp2(theme.fog, theme.fogD);
   scene.background = new THREE.Color(theme.bg);
+  if (locFillLight) scene.remove(locFillLight);
+  locFillLight = new THREE.PointLight(theme.hemi || 0xffccff, 3.2, 28);
+  locFillLight.position.set(0, 4.2, 1);
+  scene.add(locFillLight);
   locationProps = built.props || { showCar: false };
   furnitureColliders = built.colliders || [];
   (locationProps.cats || []).forEach(c => locationRoot.add(c));
@@ -717,11 +722,11 @@ function init(h) {
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
 
-  scene.add(new THREE.HemisphereLight(0xffe8ff, 0x2a1838, 1.45));
-  const fill = new THREE.DirectionalLight(0xaaddff, 0.85);
+  scene.add(new THREE.HemisphereLight(0xfff0ff, 0x3a2848, 1.95));
+  const fill = new THREE.DirectionalLight(0xb8e8ff, 1.15);
   fill.position.set(-4, 8, -3);
   scene.add(fill);
-  const sun = new THREE.DirectionalLight(0xffffff, 1.55);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.95);
   sun.position.set(5, 12, 5);
   if (!mobileQuality) {
     sun.castShadow = true;
@@ -730,7 +735,7 @@ function init(h) {
   scene.add(sun);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.42;
+  renderer.toneMappingExposure = 1.2;
 
   canvas.addEventListener("pointerdown", onPointer);
   initControls3D(canvas, delta => { cameraYaw += delta; });
@@ -809,6 +814,31 @@ const api = {
       camera.position.set(p.x + 1.35, p.y + 1.42, p.z + 2.15);
       camera.lookAt(p.x, p.y + 1.22, p.z);
     }
+    renderer.render(scene, camera);
+    return true;
+  },
+  snapScreenshotView: () => {
+    const a = actors.get("player");
+    if (!a || !bounds || !renderer || !camera) return false;
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cz = (bounds.minZ + bounds.maxZ) / 2;
+    a.wx = cx;
+    a.wz = cz;
+    a.group.position.set(cx, a.group.position.y || 0, cz);
+    a.group.rotation.y = 0.12;
+    cameraYaw = 0.38;
+    const dist = 6.4;
+    const p = a.group.position;
+    camera.position.set(
+      p.x + Math.sin(cameraYaw) * dist,
+      2.4,
+      p.z + Math.cos(cameraYaw) * dist
+    );
+    camera.lookAt(p.x, 1.2, p.z);
+    captureFrameLock = true;
+    if (locationRoot) pulseScene(locationRoot, sceneTime);
+    setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    actors.forEach(act => act.mixer?.update(1 / 60));
     renderer.render(scene, camera);
     return true;
   },
