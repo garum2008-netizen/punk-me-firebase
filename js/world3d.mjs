@@ -1392,7 +1392,7 @@ const api = {
     const a = actors.get("player");
     if (a) a.group.rotation.y = captureSavedRotY;
     if (captureHideActors) {
-      captureHideActors.forEach(act => { act.group.visible = true; });
+      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
       captureHideActors = null;
     }
     setElevatorCutaway(false);
@@ -1488,6 +1488,16 @@ const api = {
   snapDialogueNpcShot: (npcId = "mohawk") => {
     const pl = actors.get("player");
     if (!pl || !camera || !renderer) return false;
+    if (captureHideActors) {
+      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
+      captureHideActors = null;
+    }
+    captureHideActors = [];
+    actors.forEach((act, id) => {
+      if (id === "player" || id === `npc_${npcId}`) return;
+      act.group.visible = false;
+      captureHideActors.push(act);
+    });
     const npcKey = `npc_${npcId}`;
     const npc = ensureActor(npcKey, npcId, true);
     actors.forEach((a, id) => {
@@ -1544,7 +1554,7 @@ const api = {
     const a = actors.get("player");
     if (!a || !bounds || !renderer || !camera) return false;
     if (captureHideActors) {
-      captureHideActors.forEach(act => { act.group.visible = true; });
+      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
       captureHideActors = null;
     }
     captureHideActors = [];
@@ -1553,6 +1563,10 @@ const api = {
       act.group.visible = false;
       captureHideActors.push(act);
     });
+    if (car?.group) {
+      car.group.visible = false;
+      captureHideActors.push({ group: car.group, _carHide: true });
+    }
     applyViewportCameraProfile();
     const shot = getFixedLocationShot();
     if (shot?.player) applyFixedLocationActors();

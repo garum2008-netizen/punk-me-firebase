@@ -411,7 +411,12 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("room_sticker_cluster", box(0.4, 0.35, 0.02, mat(0xff00ff, 0xff00ff)).translateY(1.7).translateX(5.2).translateZ(-5.6)));
     for (let i = 0; i < 8; i++) {
       const g = tagged(`room_floor_clutter_${i}`, box(0.12, 0.08, 0.12, mat(0x8a6030 + (i * 9137) % 0x111111)));
-      g.position.set(-3.5 + i * 0.42, 0.04, 0.5 + (i % 3) * 0.55);
+      g.position.set(-3.5 + i * 0.42, 0.04, -3.8 + (i % 3) * 0.35);
+      root.add(g);
+    }
+    for (let i = 0; i < 12; i++) {
+      const g = tagged(`room_wall_tag_${i}`, box(0.22, 0.28, 0.03, mat(0x442266 + (i * 11_371) % 0x111111)));
+      g.position.set(-5.2 + (i % 6) * 0.55, 0.9 + Math.floor(i / 6) * 0.65, -5.68);
       root.add(g);
     }
   } else if (locId === "street") {
