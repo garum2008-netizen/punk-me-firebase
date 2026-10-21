@@ -301,7 +301,7 @@ async function captureStage(page, stage, prefix) {
   });
   await desk.waitForTimeout(700);
   const ch2 = path.join(outDir, "desktop-ch2-antibullying.png");
-  await desk.locator("#stage3d").screenshot({ path: ch2 });
+  await desk.screenshot({ path: ch2 });
 
   await prepareScene(desk, "street", { skipShowcase: true });
   await desk.evaluate(() => {

@@ -281,15 +281,7 @@ async function snapLoc(page, loc, storeDesktop = false) {
     return !hud?.classList.contains("hidden") && btns.length >= 3 && !toast && !bubble;
   });
   if (!duelHudOk) throw new Error("duel capture precheck failed (HUD/toast/bubble)");
-  const duelUrl = await desk.evaluate(() => {
-    World3D?.renderCaptureFrame?.();
-    return document.getElementById("stage3d")?.toDataURL?.("image/png");
-  });
-  if (!duelUrl?.startsWith("data:image/png")) throw new Error("duel canvas capture failed");
-  fs.writeFileSync(
-    path.join(outRoot, "qa-v21-chain-duel.png"),
-    Buffer.from(duelUrl.split(",")[1], "base64")
-  );
+  await desk.screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
 
   const fetchFrames = [];
   await desk.evaluate(() => {
