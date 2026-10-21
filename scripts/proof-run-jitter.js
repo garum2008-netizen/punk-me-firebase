@@ -157,13 +157,15 @@ async function runMatrix(browser, viewport, label) {
           { frames: FRAMES, scenario }
         );
         console.log(`jitter ${label} ${hero}/${loc}/${scenario} start`);
-        const deadline = Date.now() + 45000;
+        const deadline = Date.now() + 75000;
         let sample = { frames: [], count: 0 };
         while (Date.now() < deadline) {
-          await page.waitForTimeout(1000 / 60);
           let n = 0;
           try {
-            n = await evalWithTimeout(page, () => World3D.getMotionProbeCount(), undefined, 8000);
+            n = await evalWithTimeout(page, () => {
+              for (let i = 0; i < 4; i++) World3D.pumpMotionProbe?.();
+              return World3D.getMotionProbeCount();
+            }, undefined, 12000);
           } catch (e) {
             console.warn(`jitter probe count timeout ${label} ${hero}/${loc}/${scenario}`);
             break;
@@ -172,6 +174,7 @@ async function runMatrix(browser, viewport, label) {
             sample = await evalWithTimeout(page, () => World3D.stopMotionProbe(), undefined, 8000);
             break;
           }
+          await page.waitForTimeout(8);
         }
         if ((sample.count ?? sample.frames?.length ?? 0) < FRAMES - 2) {
           try {

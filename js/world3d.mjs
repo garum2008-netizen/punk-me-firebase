@@ -2255,6 +2255,20 @@ const api = {
     fadeTo(pl, on ? "sit" : "idle");
   },
   getMotionProbeCount: () => motionProbe?.frames?.length || 0,
+  pumpMotionProbe: () => {
+    if (!motionProbe?.active) return motionProbe?.frames?.length || 0;
+    const dt = 1 / 60;
+    processInput(dt);
+    const pl = actors.get("player");
+    if (pl) {
+      pl.mixer?.update(dt);
+      updateProcedural(pl, dt, null, false);
+      notePlayerMotion(pl);
+    }
+    if (!captureFrameLock) updateThirdPersonCamera(dt);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return motionProbe.frames.length;
+  },
   countVisibleProps: (opts = {}) => countVisiblePropsInScene(opts),
   auditLargeMeshes: (minSize = 1.5) => {
     const rows = [];
