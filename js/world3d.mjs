@@ -1646,7 +1646,7 @@ const api = {
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
     const sep = npcId === "razor"
       ? (mobileQuality ? 1.62 : 2.02)
-      : (mobileQuality ? 1.72 : 2.15);
+      : (mobileQuality ? 1.68 : 1.92);
     const shiftX = npcId === "razor"
       ? (mobileQuality ? 0.74 : 0.86)
       : (mobileQuality ? 0.74 : 0.68);
@@ -1816,11 +1816,9 @@ const api = {
       dialogueBackdrop.userData.propTag = "dialogue_capture_backdrop";
       locationRoot.add(dialogueBackdrop);
     }
-    if (dialogueBackdrop) {
-      dialogueBackdrop.position.set(lookX, 1.62, lookZ - 1.35);
-      dialogueBackdrop.rotation.y = 0;
-      dialogueBackdrop.visible = true;
-    }
+    if (dialogueBackdrop) dialogueBackdrop.visible = false;
+    boostActorCaptureLight(pl, true);
+    boostActorCaptureLight(npc, true);
     document.getElementById("storyDialog")?.classList.add("story-dialog-cinematic");
     guideTarget = null;
     setQuestMarkersVisible(false);

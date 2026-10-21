@@ -146,6 +146,9 @@ async function validateAuthorityPng(filePath, frame) {
   }
   const heads = [frame?.player, frame?.npc].filter(Boolean);
   if (heads.length < 2) throw new Error(`${path.basename(filePath)} missing head projections`);
+  if (Math.abs((frame.player?.x ?? 0) - (frame.npc?.x ?? 0)) < 0.1) {
+    throw new Error(`${path.basename(filePath)} heads too close in frame (same backdrop sample)`);
+  }
   const bgRef = await sampleMeanAt(data, w, h, 24, Math.floor(h * 0.12), 5);
   for (const [tag, pt] of [["player", frame.player], ["npc", frame.npc]]) {
     const m = await sampleMeanAt(data, w, h, pt.px, pt.py, 4);
