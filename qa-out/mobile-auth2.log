@@ -1,5 +1,0 @@
-verified mobile-stage1.png 390x844 top55=39.6 headP=123.8 headN=104.4
-Error: dialogue framing failed for gravedigger: npc_x_oob player={"x":0.17934229783857641,"y":0.4863041009727551,"px":69.9434961570448,"py":410.4406612210053} npc={"x":0.10777163301719705,"y":0.4862587436509716,"px":42.03093687670685,"py":410.40237964142005}
-    at finishDialogueShot (/workspace/scripts/capture-authority-stages.js:94:11)
-    at async captureStage (/workspace/scripts/capture-authority-stages.js:253:13)
-    at async /workspace/scripts/capture-authority-stages.js:345:34
