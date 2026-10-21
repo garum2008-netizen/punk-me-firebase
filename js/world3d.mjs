@@ -1677,8 +1677,8 @@ const api = {
     npc._patrolLoc = null;
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
     const sep = npcId === "razor"
-      ? (mobileQuality ? 1.72 : 2.55)
-      : (mobileQuality ? 2.05 : 2.75);
+      ? (mobileQuality ? 1.48 : 2.55)
+      : (mobileQuality ? 1.62 : 2.75);
     let shiftX = npcId === "razor"
       ? (mobileQuality ? 0.78 : 0.94)
       : (mobileQuality ? 0.72 : 0.68);
@@ -1704,11 +1704,11 @@ const api = {
     npc.group.rotation.set(0, npcYaw, 0);
     let camX = shiftX;
     let camY = mobileQuality ? 1.38 : 1.66;
-    let camZ = midZ + (mobileQuality ? 2.38 : 6.15);
+    let camZ = midZ + (mobileQuality ? 1.92 : 6.15);
     let lookX = shiftX;
-    let lookY = 1.36;
+    let lookY = mobileQuality ? 1.34 : 1.36;
     let lookZ = midZ;
-    camera.fov = mobileQuality ? 35 : 38;
+    camera.fov = mobileQuality ? 32 : 38;
     const canvas = document.getElementById("stage3d");
     const cw = canvas?.clientWidth || 1;
     const ch = canvas?.clientHeight || 1;
@@ -1768,7 +1768,7 @@ const api = {
     }
     if (mobileQuality) {
       const minHeadPx = ch * 0.06;
-      for (let zoom = 0; zoom < 12; zoom++) {
+      for (let zoom = 0; zoom < 18; zoom++) {
         camera.position.set(camX, camY, camZ);
         camera.lookAt(lookX, lookY, lookZ);
         camera.updateProjectionMatrix();
@@ -1778,8 +1778,9 @@ const api = {
         const sp = headSpanPx(pl);
         const sn = headSpanPx(npc);
         if (sp >= minHeadPx && sn >= minHeadPx) break;
-        camZ -= 0.22;
-        camY -= 0.02;
+        camZ -= 0.28;
+        camY -= 0.03;
+        if (camera.fov > 28) camera.fov -= 0.35;
       }
     }
     camera.position.set(camX, camY, camZ);
