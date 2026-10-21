@@ -86,13 +86,20 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await cleanCaptureState(page);
   await page.evaluate(id => {
     World3D?.releaseCaptureFrame?.();
-    goLocation(id);
+    history.replaceState(null, "", "#" + id);
+    me.location = id;
+    goLocation(id, true);
+    World3D?.setLocation?.(id);
     syncStage3D?.();
   }, loc);
   await page.waitForFunction(
-    l => window.World3D?.getLocation?.() === l && window.me?.location === l,
+    l => {
+      const title = (document.getElementById("locTitle")?.textContent || "").toLowerCase();
+      if (l === "elevator" && title.includes("roof")) return false;
+      return window.World3D?.getLocation?.() === l && window.me?.location === l;
+    },
     loc,
-    { timeout: 20000 }
+    { timeout: 25000 }
   );
   await page.waitForTimeout(3200);
   await page.evaluate(async l => {
@@ -135,7 +142,15 @@ async function snapLoc(page, loc, storeDesktop = false) {
   for (const [loc, name] of DESKTOP) {
     await snapLoc(desk, loc, true);
     const f = path.join(outRoot, name);
-    await desk.screenshot({ path: f });
+    if (loc === "elevator") {
+      const title = await desk.evaluate(() => document.getElementById("locTitle")?.textContent || "");
+      if (/roof/i.test(title)) throw new Error("elevator capture has roof locTitle: " + title);
+    }
+    if (loc === "elevator") {
+      await desk.locator("#stage3d").screenshot({ path: f });
+    } else {
+      await desk.screenshot({ path: f });
+    }
     fs.copyFileSync(f, path.join(outDir, `${loc}.png`));
     await desk.evaluate(() => World3D?.releaseCaptureFrame?.());
     console.log("desktop", loc);
@@ -226,10 +241,15 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await desk.evaluate(() => {
     document.querySelectorAll(".toast").forEach(el => el.classList.remove("show"));
     document.getElementById("storyBubbles")?.replaceChildren?.();
+    document.querySelectorAll(".story-bubble").forEach(el => el.remove());
     StoryEngine?.dismissAllStoryUi?.();
+    PlayV21?.endAllActivities?.();
+    World3D?.releaseCaptureFrame?.();
+    me._teaseT = 999999;
     goLocation("street");
     syncStage3D?.();
-    World3D?.startDuel3D?.("razor", { training: true, firstTo: 3 });
+    const ok = World3D?.startDuel3D?.("razor", { training: true, firstTo: 3 });
+    if (!ok) throw new Error("startDuel3D failed");
   });
   await desk.waitForSelector("#duel3dHud:not(.hidden)", { timeout: 25000 });
   await desk.waitForSelector("#duel3dHud .duel-3d-actions .btn.danger", { timeout: 15000 });
@@ -251,7 +271,15 @@ async function snapLoc(page, loc, storeDesktop = false) {
     await desk.evaluate(() => World3D?.renderCaptureFrame?.());
     await desk.waitForTimeout(60);
   }
-  await desk.screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
+  const duelHudOk = await desk.evaluate(() => {
+    const hud = document.getElementById("duel3dHud");
+    const btns = hud?.querySelectorAll(".duel-3d-actions .btn") || [];
+    const toast = document.querySelector(".toast.show");
+    const bubble = document.querySelector(".story-bubble");
+    return !hud?.classList.contains("hidden") && btns.length >= 3 && !toast && !bubble;
+  });
+  if (!duelHudOk) throw new Error("duel capture precheck failed (HUD/toast/bubble)");
+  await desk.locator("#stage3d").screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
 
   const fetchFrames = [];
   await desk.evaluate(() => {

@@ -572,7 +572,6 @@ function boostActorCaptureLight(actor, on) {
           m.emissive.set(0x554466);
           m.emissiveIntensity = Math.max(m.emissiveIntensity ?? 0, 0.55);
         }
-        m.color?.offsetHSL?.(0, 0, 0.12);
       } else if (m.userData._capBaseEmi !== undefined) {
         m.emissive?.setHex?.(m.userData._capBaseEmi);
         m.emissiveIntensity = m.userData._capBaseEmiI ?? 0.2;
@@ -1329,8 +1328,8 @@ function loop() {
   tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
   tickStory(dt);
   lastCameraDt = dt;
-  if (!captureFrameLock && !motionProbe) updateThirdPersonCamera(dt);
-  else if (captureHideActors?.length) {
+  if (!captureFrameLock) updateThirdPersonCamera(dt);
+  else if (captureHideActors?.length && !motionProbe) {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     checkPortals();
     return;
@@ -1576,6 +1575,11 @@ const api = {
     const cw = canvas?.clientWidth || 1;
     const ch = canvas?.clientHeight || 1;
     const headY = 1.72;
+    if (camera) camera.updateMatrixWorld(true);
+    const plA = actors.get("player");
+    const npcA = actors.get(`npc_${npcId}`);
+    plA?.group?.updateMatrixWorld(true);
+    npcA?.group?.updateMatrixWorld(true);
     const norm = actor => {
       if (!actor?.group) return null;
       const wx = actor.wx ?? actor.group.position.x;
@@ -1640,8 +1644,12 @@ const api = {
     npc._patrol = null;
     npc._patrolLoc = null;
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
-    const sep = mobileQuality ? 1.72 : 2.15;
-    const shiftX = mobileQuality ? 0.62 : 0.55;
+    const sep = npcId === "razor"
+      ? (mobileQuality ? 1.62 : 2.02)
+      : (mobileQuality ? 1.72 : 2.15);
+    const shiftX = npcId === "razor"
+      ? (mobileQuality ? 0.74 : 0.86)
+      : (mobileQuality ? 0.68 : 0.78);
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
@@ -1681,8 +1689,8 @@ const api = {
       if (!p) return null;
       return { x: p.x / cw, y: p.y / ch };
     };
-    const panScale = mobileQuality ? 7.2 : 4.8;
-    for (let pass = 0; pass < mobileQuality ? 28 : 20; pass++) {
+    const panScale = mobileQuality ? 6.5 : 4.6;
+    for (let pass = 0; pass < 18; pass++) {
       camera.position.set(camX, camY, camZ);
       camera.lookAt(lookX, lookY, lookZ);
       camera.updateProjectionMatrix();
@@ -1695,44 +1703,65 @@ const api = {
       const minX = Math.min(playerPt.x, npcPt.x);
       const maxX = Math.max(playerPt.x, npcPt.x);
       const maxY = Math.max(playerPt.y, npcPt.y);
-      let moved = false;
-      const safeMinX = mobileQuality ? 0.22 : 0.17;
-      const safeMaxX = mobileQuality ? 0.78 : 0.83;
+      const safeMinX = mobileQuality ? 0.2 : 0.17;
+      const safeMaxX = mobileQuality ? 0.8 : 0.83;
+      const okX = minX >= safeMinX && maxX <= safeMaxX;
+      const okY = maxY < 0.52 && maxY > 0.22;
+      if (okX && okY) break;
       if (minX < safeMinX) {
         const err = safeMinX - minX;
         camX += err * panScale;
-        lookX += err * (panScale * 0.62);
-        moved = true;
+        lookX += err * (panScale * 0.55);
       }
       if (maxX > safeMaxX) {
         const err = maxX - safeMaxX;
         camX -= err * panScale;
-        lookX -= err * (panScale * 0.62);
-        moved = true;
+        lookX -= err * (panScale * 0.55);
       }
-      const midX = (playerPt.x + npcPt.x) * 0.5;
-      if (midX < 0.46 || midX > 0.54) {
-        const err = 0.5 - midX;
-        camX += err * (panScale * 0.68);
-        lookX += err * (panScale * 0.42);
-        moved = true;
+      if (maxY >= 0.5) {
+        camZ += 0.35;
+        camY += 0.05;
+      } else if (maxY < 0.26) {
+        camZ -= 0.35;
       }
-      if (maxY >= 0.44) {
-        const err = maxY - 0.38;
-        camZ += 0.18 + err * 2.2;
-        camY += 0.03 + err * 0.35;
-        moved = true;
-      } else if (maxY < 0.34 && pass < 8) {
-        camZ -= 0.38;
-        camY -= 0.03;
-        moved = true;
-      }
-      if (!moved) break;
     }
     camera.position.set(camX, camY, camZ);
     camera.lookAt(lookX, lookY, lookZ);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
+    pl.group.updateMatrixWorld(true);
+    npc.group.updateMatrixWorld(true);
+    for (let fin = 0; fin < 10; fin++) {
+      const fp = normHead(pl);
+      const fn = normHead(npc);
+      if (!fp || !fn) break;
+      const minX = Math.min(fp.x, fn.x);
+      const maxX = Math.max(fp.x, fn.x);
+      let nudged = false;
+      if (minX < 0.15) {
+        const err = 0.16 - minX;
+        camX += err * 9.5;
+        lookX += err * 5.8;
+        nudged = true;
+      }
+      if (fp && fp.x < 0.15) {
+        const err = 0.16 - fp.x;
+        camX += err * 4.2;
+        lookX += err * 2.6;
+        nudged = true;
+      }
+      if (maxX > 0.85) {
+        const err = maxX - 0.84;
+        camX -= err * 6.5;
+        lookX -= err * 4.2;
+        nudged = true;
+      }
+      if (!nudged) break;
+      camera.position.set(camX, camY, camZ);
+      camera.lookAt(lookX, lookY, lookZ);
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld(true);
+    }
     pl.group.updateMatrixWorld(true);
     npc.group.updateMatrixWorld(true);
     pl.group.visible = true;
@@ -1767,7 +1796,7 @@ const api = {
         new THREE.MeshStandardMaterial({
           color: 0x4a3d58,
           emissive: 0x6644aa,
-          emissiveIntensity: 0.75,
+          emissiveIntensity: 0.42,
           roughness: 0.85
         })
       );
@@ -1899,6 +1928,13 @@ const api = {
   },
   isMotionProbeActive: () => !!motionProbe,
   startMotionProbe: (need = 120, scenario = "free") => {
+    captureFrameLock = false;
+    if (captureHideActors) {
+      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
+      captureHideActors = null;
+    }
+    resetPropDimOpacity();
+    resetOccluderOpacity();
     const pl = actors.get("player");
     const cols = furnitureColliders;
     const cx = bounds ? (bounds.minX + bounds.maxX) * 0.5 : 0;
@@ -1935,12 +1971,19 @@ const api = {
       }
       moveZ = 1;
     } else if (bounds && scenario === "wall") {
-      spawn = resolveWorldPosition(cx - 2.2, bounds.minZ + 2.4, bounds, cols, 0.42);
+      const wallPref = {
+        x: cx,
+        z: bounds.minZ + (currentLoc === "street" ? 2.15 : 1.85)
+      };
+      spawn = findClearSpawn(bounds, cols, wallPref);
       moveX = 1;
-      moveZ = 0.35;
+      moveZ = 0;
     } else if (bounds && scenario === "slide") {
-      const slideZ = (bounds.minZ + bounds.maxZ) * 0.5;
-      spawn = resolveWorldPosition(bounds.maxX - 1.25, slideZ, bounds, cols, 0.42);
+      const slidePref = {
+        x: bounds.maxX - (currentLoc === "street" ? 2.55 : 2.1),
+        z: cz
+      };
+      spawn = findClearSpawn(bounds, cols, slidePref);
       moveX = 0;
       moveZ = 1;
     }

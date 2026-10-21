@@ -78,9 +78,14 @@ async function prepareScene(page, loc, opts = {}) {
   await dismissUi(page);
 }
 
-async function assertDialogueFraming(page, npcId) {
+async function finishDialogueShot(page, npcId) {
+  await page.waitForTimeout(400);
   const frame = await page.evaluate(id => {
-    World3D?.renderCaptureFrame?.();
+    World3D?.releaseCaptureFrame?.();
+    document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
+    const ok = World3D?.snapDialogueNpcShot?.(id);
+    if (!ok) return { pass: false, reasons: ["snap_failed"] };
+    for (let i = 0; i < 10; i++) World3D?.renderCaptureFrame?.();
     return World3D?.measureDialogueFraming?.(id);
   }, npcId);
   if (!frame?.pass) {
@@ -89,22 +94,6 @@ async function assertDialogueFraming(page, npcId) {
     );
   }
   return frame;
-}
-
-async function finishDialogueShot(page, npcId) {
-  await page.waitForTimeout(400);
-  await page.evaluate(() => {
-    World3D?.releaseCaptureFrame?.();
-    document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
-  });
-  await page.evaluate(id => {
-    World3D?.snapDialogueNpcShot?.(id);
-  }, npcId);
-  for (let i = 0; i < 6; i++) {
-    await page.evaluate(() => World3D?.renderCaptureFrame?.());
-    await page.waitForTimeout(50);
-  }
-  await assertDialogueFraming(page, npcId);
 }
 
 async function assertReady(page) {
@@ -167,14 +156,19 @@ async function validateAuthorityPng(filePath, frame) {
   );
 }
 
-async function snapDialoguePng(page, name, npcId) {
+async function snapDialoguePng(page, name, npcId, frame) {
   await assertReady(page);
   await dismissUi(page);
   for (let i = 0; i < 4; i++) {
     await page.evaluate(() => World3D?.renderCaptureFrame?.());
     await page.waitForTimeout(40);
   }
-  const frame = await page.evaluate(id => World3D?.measureDialogueFraming?.(id), npcId);
+  if (!frame) {
+    frame = await page.evaluate(id => {
+      for (let i = 0; i < 4; i++) World3D?.renderCaptureFrame?.();
+      return World3D?.measureDialogueFraming?.(id);
+    }, npcId);
+  }
   const p = path.join(outDir, name);
   const dataUrl = await page.evaluate(() => {
     const c = document.getElementById("stage3d");
@@ -218,6 +212,7 @@ async function setupStage(page, stage) {
 
 async function captureStage(page, stage, prefix) {
   let npcId = null;
+  let frame = null;
   await setupStage(page, stage);
   if (stage === 1) {
     await prepareScene(page, "street", { skipShowcase: true });
@@ -227,7 +222,7 @@ async function captureStage(page, stage, prefix) {
       StoryEngine.dismissAllStoryUi?.();
       StoryEngine.Authority.openStage1Dialog({ force: true });
     });
-    await finishDialogueShot(page, "mohawk");
+    frame = await finishDialogueShot(page, "mohawk");
     npcId = "mohawk";
   } else if (stage === 2) {
     await prepareScene(page, "cemetery", { skipShowcase: true });
@@ -242,7 +237,7 @@ async function captureStage(page, stage, prefix) {
         <button type="button" class="btn story-choice"><span class="choice-text">Won't rat them out</span><small class="choice-hint">Authority +7</small></button>
         <button type="button" class="btn story-choice"><span class="choice-text">Tell about the gang</span><small class="choice-hint">Authority −10</small></button>`;
     });
-    await finishDialogueShot(page, "gravedigger");
+    frame = await finishDialogueShot(page, "gravedigger");
     npcId = "gravedigger";
   } else if (stage === 3) {
     await prepareScene(page, "street", { skipShowcase: true });
@@ -257,7 +252,7 @@ async function captureStage(page, stage, prefix) {
         <button type="button" class="btn story-choice"><span class="choice-text">Agility: roof parkour</span><small class="choice-hint">Timed run</small></button>
         <button type="button" class="btn story-choice"><span class="choice-text">Strength: training duel</span><small class="choice-hint">Mohawk — first to 3</small></button>`;
     });
-    await finishDialogueShot(page, "mohawk");
+    frame = await finishDialogueShot(page, "mohawk");
     npcId = "mohawk";
   } else if (stage === 4) {
     await prepareScene(page, "street", { skipShowcase: true });
@@ -270,11 +265,11 @@ async function captureStage(page, stage, prefix) {
       StoryEngine.dismissAllStoryUi?.();
       StoryEngine.Authority.runInitiationCeremony({ force: true });
     });
-    await finishDialogueShot(page, "razor");
+    frame = await finishDialogueShot(page, "razor");
     npcId = "razor";
   }
-  await page.waitForTimeout(300);
-  await snapDialoguePng(page, `${prefix}-stage${stage}.png`, npcId);
+  await page.waitForTimeout(150);
+  await snapDialoguePng(page, `${prefix}-stage${stage}.png`, npcId, frame);
   await page.evaluate(() => {
     document.getElementById("storyDialog")?.classList.remove("active");
     document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
@@ -319,8 +314,8 @@ async function captureStage(page, stage, prefix) {
     StoryEngine.dismissAllStoryUi?.();
     StoryEngine.Authority.runInitiationCeremony({ force: true });
   });
-  await finishDialogueShot(desk, "razor");
-  await snapDialoguePng(desk, "desktop-razor-initiation-patch.png", "razor");
+  const razorFrame = await finishDialogueShot(desk, "razor");
+  await snapDialoguePng(desk, "desktop-razor-initiation-patch.png", "razor", razorFrame);
 
   const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await prep(mob);
