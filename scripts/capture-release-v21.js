@@ -86,20 +86,13 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await cleanCaptureState(page);
   await page.evaluate(id => {
     World3D?.releaseCaptureFrame?.();
-    history.replaceState(null, "", "#" + id);
-    me.location = id;
-    goLocation(id, true);
-    World3D?.setLocation?.(id);
+    goLocation(id);
     syncStage3D?.();
   }, loc);
   await page.waitForFunction(
-    l => {
-      const title = (document.getElementById("locTitle")?.textContent || "").toLowerCase();
-      if (l === "elevator" && title.includes("roof")) return false;
-      return window.World3D?.getLocation?.() === l && window.me?.location === l;
-    },
+    l => window.World3D?.getLocation?.() === l && window.me?.location === l,
     loc,
-    { timeout: 25000 }
+    { timeout: 35000 }
   );
   await page.waitForTimeout(3200);
   await page.evaluate(async l => {
@@ -143,10 +136,14 @@ async function snapLoc(page, loc, storeDesktop = false) {
     await snapLoc(desk, loc, true);
     const f = path.join(outRoot, name);
     if (loc === "elevator") {
-      const title = await desk.evaluate(() => document.getElementById("locTitle")?.textContent || "");
-      if (/roof/i.test(title)) throw new Error("elevator capture has roof locTitle: " + title);
-    }
-    if (loc === "elevator") {
+      const meta = await desk.evaluate(() => {
+        const title = document.getElementById("locTitle")?.textContent || "";
+        const tags = World3D?.countVisibleProps?.()?.tags || [];
+        return { title, hasElev: tags.some(t => String(t).includes("elev")) };
+      });
+      if (/roof/i.test(meta.title) || !meta.hasElev) {
+        throw new Error(`elevator capture bad scene title=${meta.title} elevTags=${meta.hasElev}`);
+      }
       await desk.locator("#stage3d").screenshot({ path: f });
     } else {
       await desk.screenshot({ path: f });
