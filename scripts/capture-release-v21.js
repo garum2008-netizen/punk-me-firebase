@@ -215,6 +215,7 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await desk.waitForTimeout(500);
   await desk.evaluate(() => {
     PlayV21?.prepareDuelCapturePose?.("razor");
+    World3D?.snapScreenshotView?.();
   });
   await desk.waitForTimeout(320);
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });

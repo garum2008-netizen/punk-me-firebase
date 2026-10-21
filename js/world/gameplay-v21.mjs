@@ -368,6 +368,8 @@ function prepareDuelCapturePose(nid = "razor") {
   d.trail = null;
   restoreActorMaterials(pl);
   restoreActorMaterials(npc);
+  pl._hitFlash = 0;
+  npc._hitFlash = 0;
   pl._vy = 0;
   pl._onGround = true;
   pl.group.position.y = 0;

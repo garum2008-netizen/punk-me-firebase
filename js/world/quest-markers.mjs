@@ -52,6 +52,10 @@ export function ensureMarkerRoot(scene) {
   return markerRoot;
 }
 
+export function setQuestMarkersVisible(visible) {
+  if (markerRoot) markerRoot.visible = visible;
+}
+
 export function clearQuestMarkers(scene) {
   if (markerRoot && scene) scene.remove(markerRoot);
   markerRoot = null;

@@ -33,6 +33,7 @@ import {
 import {
   ensureMarkerRoot,
   setQuestMarkerTarget,
+  setQuestMarkersVisible,
   clearQuestMarkers
 } from "./world/quest-markers.mjs";
 import { initTouchControls } from "./touch-controls.mjs";
@@ -1242,7 +1243,11 @@ function loop() {
     }
     attr.needsUpdate = true;
   }
-  setQuestMarkerTarget(guideTarget, actors, sceneTime);
+  if (captureFrameLock) setQuestMarkersVisible(false);
+  else {
+    setQuestMarkersVisible(true);
+    setQuestMarkerTarget(guideTarget, actors, sceneTime);
+  }
   const nearNpc = getNearestNpcId();
   const nearPortal = getNearPortal();
   const nearDog = getNearestDogId();
@@ -1557,7 +1562,11 @@ const api = {
       freezeActorIdleForCapture(dogActor);
     }
     captureFrameLock = true;
+    if (captureFrameLock) setQuestMarkersVisible(false);
+  else {
+    setQuestMarkersVisible(true);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);
+  }
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
