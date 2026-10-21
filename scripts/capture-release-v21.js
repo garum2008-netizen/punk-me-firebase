@@ -144,7 +144,12 @@ async function snapLoc(page, loc, storeDesktop = false) {
       if (/roof/i.test(meta.title) || !meta.hasElev) {
         throw new Error(`elevator capture bad scene title=${meta.title} elevTags=${meta.hasElev}`);
       }
-      await desk.locator("#stage3d").screenshot({ path: f });
+      const dataUrl = await desk.evaluate(() => {
+        World3D?.renderCaptureFrame?.();
+        return document.getElementById("stage3d")?.toDataURL?.("image/png");
+      });
+      if (!dataUrl?.startsWith("data:image/png")) throw new Error("elevator canvas capture failed");
+      fs.writeFileSync(f, Buffer.from(dataUrl.split(",")[1], "base64"));
     } else {
       await desk.screenshot({ path: f });
     }
@@ -276,7 +281,15 @@ async function snapLoc(page, loc, storeDesktop = false) {
     return !hud?.classList.contains("hidden") && btns.length >= 3 && !toast && !bubble;
   });
   if (!duelHudOk) throw new Error("duel capture precheck failed (HUD/toast/bubble)");
-  await desk.locator("#stage3d").screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
+  const duelUrl = await desk.evaluate(() => {
+    World3D?.renderCaptureFrame?.();
+    return document.getElementById("stage3d")?.toDataURL?.("image/png");
+  });
+  if (!duelUrl?.startsWith("data:image/png")) throw new Error("duel canvas capture failed");
+  fs.writeFileSync(
+    path.join(outRoot, "qa-v21-chain-duel.png"),
+    Buffer.from(duelUrl.split(",")[1], "base64")
+  );
 
   const fetchFrames = [];
   await desk.evaluate(() => {
