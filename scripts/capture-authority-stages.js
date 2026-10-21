@@ -298,9 +298,10 @@ async function captureStage(page, stage, prefix) {
   await desk.goto(`${base}/?dev=1&solo=1&v=${bust}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enter(desk);
 
-  for (let s = 1; s <= 4; s++) await captureStage(desk, s, "desktop");
+  if (!process.env.AUTH_MOBILE_ONLY) {
+    for (let s = 1; s <= 4; s++) await captureStage(desk, s, "desktop");
 
-  await prepareScene(desk, "street");
+    await prepareScene(desk, "street");
   await desk.evaluate(() => {
     const st = StoryEngine.ensureStoryState(me);
     st.flags.joined_gang = true;
@@ -329,12 +330,20 @@ async function captureStage(page, stage, prefix) {
   });
   const razorFrame = await finishDialogueShot(desk, "razor");
   await snapDialoguePng(desk, "desktop-razor-initiation-patch.png", "razor", razorFrame);
+  }
+
+  if (process.env.AUTH_DESKTOP_ONLY) {
+    await browser.close();
+    process.exit(0);
+  }
 
   const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await prep(mob);
   await mob.goto(`${base}/?dev=1&solo=1&v=${bust}-m`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enter(mob);
-  for (let s = 1; s <= 4; s++) await captureStage(mob, s, "mobile");
+  if (!process.env.AUTH_DESKTOP_ONLY) {
+    for (let s = 1; s <= 4; s++) await captureStage(mob, s, "mobile");
+  }
 
   await browser.close();
   const files = fs.readdirSync(outDir).filter(f => f.endsWith(".png"));
