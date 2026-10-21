@@ -1601,7 +1601,9 @@ const api = {
         reasons.push(`${tag}_y_high`);
         ok = false;
       }
-      if (pt.x < 0.15 || pt.x > 0.85) {
+      const minFx = mobileQuality ? 0.145 : 0.15;
+      const maxFx = mobileQuality ? 0.855 : 0.85;
+      if (pt.x < minFx || pt.x > maxFx) {
         reasons.push(`${tag}_x_oob`);
         ok = false;
       }
@@ -1646,10 +1648,11 @@ const api = {
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
     const sep = npcId === "razor"
       ? (mobileQuality ? 1.72 : 2.55)
-      : (mobileQuality ? 1.85 : 2.75);
-    const shiftX = npcId === "razor"
+      : (mobileQuality ? 2.05 : 2.75);
+    let shiftX = npcId === "razor"
       ? (mobileQuality ? 0.78 : 0.94)
-      : (mobileQuality ? 0.82 : 0.68);
+      : (mobileQuality ? 0.72 : 0.68);
+    if (mobileQuality && npcId !== "razor") shiftX += 0.14;
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
@@ -1703,7 +1706,7 @@ const api = {
       const minX = Math.min(playerPt.x, npcPt.x);
       const maxX = Math.max(playerPt.x, npcPt.x);
       const maxY = Math.max(playerPt.y, npcPt.y);
-      const safeMinX = mobileQuality ? 0.2 : 0.17;
+      const safeMinX = mobileQuality ? 0.18 : 0.17;
       const safeMaxX = mobileQuality ? 0.8 : 0.83;
       const okX = minX >= safeMinX && maxX <= safeMaxX;
       const okY = maxY < 0.52 && maxY > 0.22;
@@ -1767,6 +1770,12 @@ const api = {
         const err = fn.x - 0.84;
         camX -= err * 7;
         lookX -= err * 4.2;
+        nudged = true;
+      }
+      if (fn && fn.x < 0.15) {
+        const err = 0.16 - fn.x;
+        camX += err * (mobileQuality ? 16 : 9);
+        lookX += err * (mobileQuality ? 9 : 5.5);
         nudged = true;
       }
       if (!nudged) break;
