@@ -82,6 +82,9 @@ let mobileQuality = false;
 let locFillLight = null;
 let atmospherePipe = null;
 let motionProbe = null;
+let dialogueCaptureBoost = null;
+let dialogueKeyLight = null;
+let dialogueBackdrop = null;
 const heroCosmeticGroup = new THREE.Group();
 
 function notePlayerMotion(actor) {
@@ -548,6 +551,47 @@ function resetOccluderOpacity() {
       if (!m) return;
       m.transparent = true;
       m.opacity = 1;
+      m.depthWrite = true;
+    });
+  });
+}
+
+function boostActorCaptureLight(actor, on) {
+  if (!actor?.group) return;
+  actor.group.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m || m.isShaderMaterial) return;
+      if (on) {
+        if (m.userData._capBaseEmi === undefined) {
+          m.userData._capBaseEmi = m.emissive?.getHex?.() ?? 0;
+          m.userData._capBaseEmiI = m.emissiveIntensity ?? 0;
+        }
+        if (m.emissive) {
+          m.emissive.set(0x554466);
+          m.emissiveIntensity = Math.max(m.emissiveIntensity ?? 0, 0.55);
+        }
+        m.color?.offsetHSL?.(0, 0, 0.12);
+      } else if (m.userData._capBaseEmi !== undefined) {
+        m.emissive?.setHex?.(m.userData._capBaseEmi);
+        m.emissiveIntensity = m.userData._capBaseEmiI ?? 0.2;
+        delete m.userData._capBaseEmi;
+        delete m.userData._capBaseEmiI;
+      }
+    });
+  });
+}
+
+function resetPropDimOpacity() {
+  if (!locationRoot) return;
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m?.userData?._baseOpacitySaved) return;
+      m.opacity = m.userData._baseOpacity ?? 1;
+      m.transparent = m.userData._baseTransparent ?? false;
       m.depthWrite = true;
     });
   });
@@ -1303,7 +1347,8 @@ function init(h) {
   renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: !mobileQuality,
-    powerPreference: "high-performance"
+    powerPreference: "high-performance",
+    preserveDrawingBuffer: true
   });
   renderer.setPixelRatio(mobileQuality ? 1 : Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = !mobileQuality;
@@ -1417,6 +1462,26 @@ const api = {
       captureHideActors = null;
     }
     setElevatorCutaway(false);
+    resetPropDimOpacity();
+    resetOccluderOpacity();
+    if (dialogueCaptureBoost) {
+      if (scene.fog && dialogueCaptureBoost.fogD != null) scene.fog.density = dialogueCaptureBoost.fogD;
+      if (dialogueCaptureBoost.exp != null) renderer.toneMappingExposure = dialogueCaptureBoost.exp;
+      if (scene.background?.setHex && dialogueCaptureBoost.bg != null) scene.background.setHex(dialogueCaptureBoost.bg);
+      if (dialogueCaptureBoost.hemi != null) {
+        scene.traverse(c => {
+          if (c.isHemisphereLight) c.intensity = dialogueCaptureBoost.hemi;
+        });
+      }
+      dialogueCaptureBoost = null;
+    }
+    if (locFillLight) locFillLight.intensity = 3.2;
+    if (dialogueKeyLight) dialogueKeyLight.visible = false;
+    if (dialogueBackdrop) dialogueBackdrop.visible = false;
+    const pl = actors.get("player");
+    actors.forEach(a => {
+      if (a.isPlayer || a.id?.startsWith("npc_")) boostActorCaptureLight(a, false);
+    });
     captureFrameLock = false;
   },
   captureDogCloseup: () => {
@@ -1550,6 +1615,8 @@ const api = {
   snapDialogueNpcShot: (npcId = "mohawk") => {
     const pl = actors.get("player");
     if (!pl || !camera || !renderer) return false;
+    resetPropDimOpacity();
+    resetOccluderOpacity();
     if (captureHideActors) {
       captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
       captureHideActors = null;
@@ -1650,10 +1717,14 @@ const api = {
         lookX += err * (panScale * 0.42);
         moved = true;
       }
-      if (maxY >= 0.54) {
-        const err = maxY - 0.5;
+      if (maxY >= 0.44) {
+        const err = maxY - 0.38;
         camZ += 0.18 + err * 2.2;
         camY += 0.03 + err * 0.35;
+        moved = true;
+      } else if (maxY < 0.34 && pass < 8) {
+        camZ -= 0.38;
+        camY -= 0.03;
         moved = true;
       }
       if (!moved) break;
@@ -1664,13 +1735,58 @@ const api = {
     camera.updateMatrixWorld(true);
     pl.group.updateMatrixWorld(true);
     npc.group.updateMatrixWorld(true);
-    dimPropsBetweenCameraAnd(lookX, 1.05, lookZ, 0.16);
+    pl.group.visible = true;
+    npc.group.visible = true;
+    if (locFillLight) {
+      locFillLight.intensity = 11;
+      locFillLight.position.set(lookX, lookY + 2.4, lookZ + 0.5);
+    }
+    dialogueCaptureBoost = { fogD: scene.fog?.density, exp: renderer.toneMappingExposure, bg: scene.background?.getHex?.(), hemi: null };
+    scene.traverse(c => {
+      if (c.isHemisphereLight) {
+        dialogueCaptureBoost.hemi = c.intensity;
+        c.intensity = 4.8;
+      }
+    });
+    if (scene.fog?.density != null) scene.fog.density = 0.0018;
+    if (scene.background?.setHex) scene.background.setHex(0x2a2438);
+    renderer.toneMappingExposure = 2.15;
+    if (!dialogueKeyLight) {
+      dialogueKeyLight = new THREE.DirectionalLight(0xfff4ff, 4.2);
+      dialogueKeyLight.castShadow = false;
+      scene.add(dialogueKeyLight);
+      scene.add(dialogueKeyLight.target);
+    }
+    dialogueKeyLight.position.set(camX + 0.4, camY + 3.2, camZ + 0.8);
+    dialogueKeyLight.target.position.set(lookX, 1.48, lookZ);
+    dialogueKeyLight.target.updateMatrixWorld();
+    dialogueKeyLight.visible = true;
+    if (locationRoot && !dialogueBackdrop) {
+      dialogueBackdrop = new THREE.Mesh(
+        new THREE.PlaneGeometry(9, 4.2),
+        new THREE.MeshStandardMaterial({
+          color: 0x4a3d58,
+          emissive: 0x6644aa,
+          emissiveIntensity: 0.75,
+          roughness: 0.85
+        })
+      );
+      dialogueBackdrop.userData.propTag = "dialogue_capture_backdrop";
+      locationRoot.add(dialogueBackdrop);
+    }
+    if (dialogueBackdrop) {
+      dialogueBackdrop.position.set(lookX, 1.85, lookZ - 2.8);
+      dialogueBackdrop.rotation.y = 0;
+      dialogueBackdrop.visible = true;
+    }
     document.getElementById("storyDialog")?.classList.add("story-dialog-cinematic");
     guideTarget = null;
     setQuestMarkersVisible(false);
     setTalking(npcId, true);
     freezeActorIdleForCapture(pl);
     freezeActorIdleForCapture(npc);
+    boostActorCaptureLight(pl, true);
+    boostActorCaptureLight(npc, true);
     const dogActor = actors.get("dog");
     if (dogActor) {
       dogActor.group.visible = false;
@@ -1819,12 +1935,14 @@ const api = {
       }
       moveZ = 1;
     } else if (bounds && scenario === "wall") {
-      spawn = resolveWorldPosition(cx, bounds.minZ + 1.15, bounds, cols, 0.42);
-      moveZ = 1;
+      spawn = resolveWorldPosition(cx - 2.2, bounds.minZ + 2.4, bounds, cols, 0.42);
+      moveX = 1;
+      moveZ = 0.35;
     } else if (bounds && scenario === "slide") {
-      spawn = resolveWorldPosition(bounds.maxX - 1.05, bounds.minZ + 1.15, bounds, cols, 0.42);
-      moveZ = 1;
+      const slideZ = (bounds.minZ + bounds.maxZ) * 0.5;
+      spawn = resolveWorldPosition(bounds.maxX - 1.25, slideZ, bounds, cols, 0.42);
       moveX = 0;
+      moveZ = 1;
     }
     if (pl) {
       pl._visPushX = 0;

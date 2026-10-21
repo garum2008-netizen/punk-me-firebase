@@ -85,18 +85,34 @@ async function cleanCaptureState(page) {
 async function snapLoc(page, loc, storeDesktop = false) {
   await cleanCaptureState(page);
   await page.evaluate(id => {
+    World3D?.releaseCaptureFrame?.();
     goLocation(id);
     syncStage3D?.();
   }, loc);
+  await page.waitForFunction(
+    l => window.World3D?.getLocation?.() === l && window.me?.location === l,
+    loc,
+    { timeout: 20000 }
+  );
   await page.waitForTimeout(3200);
-  await page.evaluate(async () => {
+  await page.evaluate(async l => {
     World3D?.resize?.();
     syncStage3D?.();
+    if (l === "elevator") {
+      World3D?.releaseCaptureFrame?.();
+    }
     World3D?.snapScreenshotView?.();
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     World3D?.snapScreenshotView?.();
-  });
+  }, loc);
   await page.waitForTimeout(400);
+  if (loc === "elevator") {
+    const ok = await page.evaluate(() => {
+      const tags = World3D?.countVisibleProps?.()?.tags || [];
+      return World3D?.getLocation?.() === "elevator" && tags.some(t => String(t).includes("elev"));
+    });
+    if (!ok) throw new Error("elevator capture precheck failed (wrong location or props)");
+  }
   const counts = await page.evaluate(() => World3D?.countVisibleProps?.() || { unique: 0, tags: [] });
   propReport[loc] = counts;
   if (storeDesktop) propReportDesktop[loc] = counts;
@@ -208,21 +224,33 @@ async function snapLoc(page, loc, storeDesktop = false) {
 
   await cleanCaptureState(desk);
   await desk.evaluate(() => {
+    document.querySelectorAll(".toast").forEach(el => el.classList.remove("show"));
+    document.getElementById("storyBubbles")?.replaceChildren?.();
+    StoryEngine?.dismissAllStoryUi?.();
     goLocation("street");
     syncStage3D?.();
-    PlayV21?.startDuel3D?.("razor", { training: true, firstTo: 3 });
+    World3D?.startDuel3D?.("razor", { training: true, firstTo: 3 });
   });
-  await desk.waitForSelector("#duel3dHud:not(.hidden)", { timeout: 20000 }).catch(() => {});
+  await desk.waitForSelector("#duel3dHud:not(.hidden)", { timeout: 25000 });
+  await desk.waitForSelector("#duel3dHud .duel-3d-actions .btn.danger", { timeout: 15000 });
   await desk.waitForFunction(
-    () => document.querySelector("#duel3dHud .duel-hp-player")?.textContent?.length > 0,
+    () => {
+      const hud = document.getElementById("duel3dHud");
+      if (!hud || hud.classList.contains("hidden")) return false;
+      const btns = hud.querySelectorAll(".duel-3d-actions .btn");
+      return btns.length >= 3 && !document.querySelector(".toast.show");
+    },
     { timeout: 15000 }
-  ).catch(() => {});
-  await desk.waitForTimeout(900);
+  );
   await desk.evaluate(() => {
+    document.querySelectorAll(".toast").forEach(el => el.classList.remove("show"));
+    document.getElementById("storyBubbles")?.replaceChildren?.();
     PlayV21?.prepareDuelCapturePose?.("razor");
-    World3D?.renderCaptureFrame?.();
   });
-  await desk.waitForTimeout(400);
+  for (let i = 0; i < 8; i++) {
+    await desk.evaluate(() => World3D?.renderCaptureFrame?.());
+    await desk.waitForTimeout(60);
+  }
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
 
   const fetchFrames = [];

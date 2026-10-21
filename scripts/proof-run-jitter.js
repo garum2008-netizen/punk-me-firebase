@@ -57,9 +57,12 @@ function analyze(sample) {
   const steadySorted = (steady.length ? steady : active).slice().sort((a, b) => a - b);
   const medSteady = steadySorted.length ? steadySorted[Math.floor(steadySorted.length / 2)] : 0;
   const steadySpikes = steady.filter(d => Math.abs(d - medSteady) > STEADY_SPIKE_EPS).length;
+  const moving = deltas.filter(d => d > 0.001).slice().sort((a, b) => a - b);
+  const medDelta = moving.length ? moving[Math.floor(moving.length / 2)] : 0;
 
   return {
     medSteady,
+    medDelta,
     steadySpikes,
     deltaSpikes,
     camJitterMed,
@@ -103,6 +106,7 @@ async function enter(page, hero) {
 
 async function runMatrix(browser, viewport, label) {
   const page = await browser.newPage({ viewport });
+  await page.bringToFront();
   await prep(page);
   await page.goto(`${base}/?dev=1&solo=1&v=v21-jitter-${label}`, {
     waitUntil: "domcontentloaded",
@@ -141,12 +145,13 @@ async function runMatrix(browser, viewport, label) {
           World3D?.releaseCaptureFrame?.();
         }, loc);
         await page.waitForTimeout(1200);
+        await page.bringToFront();
         await page.keyboard.down("w");
         await page.keyboard.down("Shift");
         const sample = await page.evaluate(
           async ({ frames, scenario }) => {
             World3D.startMotionProbe(frames, scenario);
-            const deadline = performance.now() + 45000;
+            const deadline = performance.now() + 90000;
             return new Promise(resolve => {
               function step() {
                 if (World3D.getMotionProbeCount() >= frames) resolve(World3D.stopMotionProbe());
@@ -157,7 +162,7 @@ async function runMatrix(browser, viewport, label) {
             });
           },
           { frames: FRAMES, scenario },
-          { timeout: 60000 }
+          { timeout: 120000 }
         );
         await page.keyboard.up("w");
         await page.keyboard.up("Shift");
@@ -201,7 +206,7 @@ async function runMatrix(browser, viewport, label) {
   const table = reports
     .map(
       r =>
-        `${r.viewport}\t${r.hero}\t${r.loc}\t${r.scenario}\tframes=${r.count}\tdeltaSpikes=${r.deltaSpikes}\tsteadySpikes=${r.steadySpikes}\tmedSteady=${(r.medSteady ?? 0).toFixed(4)}\tcamMed=${(r.camJitterMed ?? 0).toFixed(5)}\tcamMax=${(r.camJitterMax ?? 0).toFixed(5)}${r.skipped ? "\t(cached)" : ""}`
+        `${r.viewport}\t${r.hero}\t${r.loc}\t${r.scenario}\tframes=${r.count}\tdeltaSpikes=${r.deltaSpikes}\tmedDelta=${(r.medDelta ?? 0).toFixed(4)}\tsteadySpikes=${r.steadySpikes}\tmedSteady=${(r.medSteady ?? 0).toFixed(4)}\tcamMax=${(r.camJitterMax ?? 0).toFixed(5)}${r.skipped ? "\t(cached)" : ""}`
     )
     .join("\n");
   fs.writeFileSync(tablePath, table + "\n\n--- aggregate ---\n" + locSummary + "\n");
@@ -220,8 +225,11 @@ async function runMatrix(browser, viewport, label) {
   );
 
   await browser.close();
-  const incomplete = reports.filter(r => (r.count ?? 0) < FRAMES - 5);
+  const incomplete = reports.filter(r => (r.count ?? 0) < FRAMES - 2);
   const miss = incomplete.map(r => `${r.viewport}/${r.hero}/${r.loc}/${r.scenario}`);
+  const stuckSlide = reports.filter(
+    r => (r.scenario === "slide" || r.scenario === "wall") && (r.medDelta ?? 0) < 0.04
+  );
   console.log(
     JSON.stringify(
       {
@@ -230,6 +238,7 @@ async function runMatrix(browser, viewport, label) {
         SPIKE_DELTA_MIN,
         incomplete: miss.length,
         miss,
+        stuckSlide: stuckSlide.map(r => `${r.viewport}/${r.hero}/${r.loc}/${r.scenario}:medDelta=${r.medDelta}`),
         locSummary,
         deltaSpikeTotal: reports.reduce((s, r) => s + (r.deltaSpikes ?? 0), 0)
       },
@@ -237,5 +246,5 @@ async function runMatrix(browser, viewport, label) {
       2
     )
   );
-  if (miss.length) process.exit(1);
+  if (miss.length || stuckSlide.length) process.exit(1);
 })();

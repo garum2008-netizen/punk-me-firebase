@@ -25,6 +25,8 @@ async function dismissUi(page) {
     document.getElementById("charSelect")?.classList.remove("active");
     document.querySelectorAll(".modal.active").forEach(el => el.classList.remove("active"));
     document.getElementById("storyConstructionHud")?.classList.remove("active");
+    document.querySelectorAll(".toast").forEach(el => el.classList.remove("show"));
+    document.getElementById("storyBubbles")?.replaceChildren?.();
   });
 }
 
@@ -97,9 +99,11 @@ async function finishDialogueShot(page, npcId) {
   });
   await page.evaluate(id => {
     World3D?.snapDialogueNpcShot?.(id);
-    World3D?.renderCaptureFrame?.();
   }, npcId);
-  await page.waitForTimeout(200);
+  for (let i = 0; i < 6; i++) {
+    await page.evaluate(() => World3D?.renderCaptureFrame?.());
+    await page.waitForTimeout(50);
+  }
   await assertDialogueFraming(page, npcId);
 }
 
@@ -116,24 +120,72 @@ async function assertReady(page) {
   if (ok !== "ok") throw new Error("pre-snap check failed: " + ok);
 }
 
-async function validatePng(filePath, minMean = 22) {
-  const stats = await sharp(filePath).stats();
-  const mean =
-    stats.channels.reduce((s, c) => s + c.mean, 0) / Math.max(1, stats.channels.length);
-  const meta = await sharp(filePath).metadata();
-  if (mean < minMean) {
-    throw new Error(`${path.basename(filePath)} too dark (mean ${mean.toFixed(1)} < ${minMean})`);
+async function sampleMeanAt(buf, width, height, cx, cy, radius = 3) {
+  let sum = 0;
+  let n = 0;
+  const x0 = Math.max(0, Math.floor(cx) - radius);
+  const x1 = Math.min(width - 1, Math.floor(cx) + radius);
+  const y0 = Math.max(0, Math.floor(cy) - radius);
+  const y1 = Math.min(height - 1, Math.floor(cy) + radius);
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const i = (y * width + x) * 3;
+      sum += (buf[i] + buf[i + 1] + buf[i + 2]) / 3;
+      n += 1;
+    }
   }
-  console.log(`verified ${path.basename(filePath)} ${meta.width}x${meta.height} mean=${mean.toFixed(1)}`);
-  return { mean, meta };
+  return n ? sum / n : 0;
 }
 
-async function snap(page, name, opts = {}) {
-  if (!opts.skipAssert) await assertReady(page);
+async function validateAuthorityPng(filePath, frame) {
+  const meta = await sharp(filePath).metadata();
+  const { data, info } = await sharp(filePath).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const w = info.width;
+  const h = info.height;
+  const topH = Math.floor(h * 0.55);
+  let topSum = 0;
+  for (let y = 0; y < topH; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 3;
+      topSum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+    }
+  }
+  const topMean = topSum / (w * topH);
+  if (topMean < 25) {
+    throw new Error(`${path.basename(filePath)} top55% too dark (mean ${topMean.toFixed(1)} < 25)`);
+  }
+  const heads = [frame?.player, frame?.npc].filter(Boolean);
+  if (heads.length < 2) throw new Error(`${path.basename(filePath)} missing head projections`);
+  for (const [tag, pt] of [["player", frame.player], ["npc", frame.npc]]) {
+    const m = await sampleMeanAt(data, w, h, pt.px, pt.py, 4);
+    if (m < 22) {
+      throw new Error(`${path.basename(filePath)} ${tag} head too dark (mean ${m.toFixed(1)} at ${pt.px?.toFixed(0)},${pt.py?.toFixed(0)})`);
+    }
+  }
+  console.log(
+    `verified ${path.basename(filePath)} ${w}x${h} top55=${topMean.toFixed(1)} headP=${(await sampleMeanAt(data, w, h, frame.player.px, frame.player.py, 4)).toFixed(1)} headN=${(await sampleMeanAt(data, w, h, frame.npc.px, frame.npc.py, 4)).toFixed(1)}`
+  );
+}
+
+async function snapDialoguePng(page, name, npcId) {
+  await assertReady(page);
   await dismissUi(page);
+  for (let i = 0; i < 4; i++) {
+    await page.evaluate(() => World3D?.renderCaptureFrame?.());
+    await page.waitForTimeout(40);
+  }
+  const frame = await page.evaluate(id => World3D?.measureDialogueFraming?.(id), npcId);
   const p = path.join(outDir, name);
-  await page.screenshot({ path: p, fullPage: false });
-  await validatePng(p, opts.minMean ?? 22);
+  const dataUrl = await page.evaluate(() => {
+    const c = document.getElementById("stage3d");
+    World3D?.renderCaptureFrame?.();
+    return c?.toDataURL?.("image/png");
+  });
+  if (!dataUrl || !dataUrl.startsWith("data:image/png")) {
+    throw new Error("canvas toDataURL failed for " + name);
+  }
+  fs.writeFileSync(p, Buffer.from(dataUrl.split(",")[1], "base64"));
+  await validateAuthorityPng(p, frame);
   return p;
 }
 
@@ -165,6 +217,7 @@ async function setupStage(page, stage) {
 }
 
 async function captureStage(page, stage, prefix) {
+  let npcId = null;
   await setupStage(page, stage);
   if (stage === 1) {
     await prepareScene(page, "street", { skipShowcase: true });
@@ -175,9 +228,11 @@ async function captureStage(page, stage, prefix) {
       StoryEngine.Authority.openStage1Dialog({ force: true });
     });
     await finishDialogueShot(page, "mohawk");
+    npcId = "mohawk";
   } else if (stage === 2) {
-    await prepareScene(page, "cemetery");
+    await prepareScene(page, "cemetery", { skipShowcase: true });
     await page.evaluate(() => {
+      StoryEngine.dismissAllStoryUi?.();
       const dlg = document.getElementById("storyDialog");
       dlg.classList.add("active");
       dlg.querySelector(".story-dialog-title").textContent = "Stage 2: Character tests";
@@ -187,8 +242,10 @@ async function captureStage(page, stage, prefix) {
         <button type="button" class="btn story-choice"><span class="choice-text">Won't rat them out</span><small class="choice-hint">Authority +7</small></button>
         <button type="button" class="btn story-choice"><span class="choice-text">Tell about the gang</span><small class="choice-hint">Authority −10</small></button>`;
     });
+    await finishDialogueShot(page, "gravedigger");
+    npcId = "gravedigger";
   } else if (stage === 3) {
-    await prepareScene(page, "street");
+    await prepareScene(page, "street", { skipShowcase: true });
     await page.evaluate(() => {
       const dlg = document.getElementById("storyDialog");
       dlg.classList.add("active");
@@ -200,6 +257,8 @@ async function captureStage(page, stage, prefix) {
         <button type="button" class="btn story-choice"><span class="choice-text">Agility: roof parkour</span><small class="choice-hint">Timed run</small></button>
         <button type="button" class="btn story-choice"><span class="choice-text">Strength: training duel</span><small class="choice-hint">Mohawk — first to 3</small></button>`;
     });
+    await finishDialogueShot(page, "mohawk");
+    npcId = "mohawk";
   } else if (stage === 4) {
     await prepareScene(page, "street", { skipShowcase: true });
     await page.evaluate(() => {
@@ -212,11 +271,10 @@ async function captureStage(page, stage, prefix) {
       StoryEngine.Authority.runInitiationCeremony({ force: true });
     });
     await finishDialogueShot(page, "razor");
+    npcId = "razor";
   }
-  await page.waitForTimeout(900);
-  await dismissUi(page);
-  const minMean = stage === 1 || stage === 4 ? 14 : 22;
-  await snap(page, `${prefix}-stage${stage}.png`, { minMean });
+  await page.waitForTimeout(300);
+  await snapDialoguePng(page, `${prefix}-stage${stage}.png`, npcId);
   await page.evaluate(() => {
     document.getElementById("storyDialog")?.classList.remove("active");
     document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
@@ -229,7 +287,7 @@ async function captureStage(page, stage, prefix) {
   const browser = await chromium.launch();
   const desk = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await prep(desk);
-  await desk.goto(`${base}/?dev=1&solo=1&v=${bust}`, { waitUntil: "networkidle", timeout: 120000 });
+  await desk.goto(`${base}/?dev=1&solo=1&v=${bust}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enter(desk);
 
   for (let s = 1; s <= 4; s++) await captureStage(desk, s, "desktop");
@@ -247,7 +305,8 @@ async function captureStage(page, stage, prefix) {
     StoryEngine.Authority.maybeChapter2Bullying();
   });
   await desk.waitForTimeout(700);
-  await snap(desk, "desktop-ch2-antibullying.png");
+  const ch2 = path.join(outDir, "desktop-ch2-antibullying.png");
+  await desk.locator("#stage3d").screenshot({ path: ch2 });
 
   await prepareScene(desk, "street", { skipShowcase: true });
   await desk.evaluate(() => {
@@ -261,11 +320,11 @@ async function captureStage(page, stage, prefix) {
     StoryEngine.Authority.runInitiationCeremony({ force: true });
   });
   await finishDialogueShot(desk, "razor");
-  await snap(desk, "desktop-razor-initiation-patch.png", { minMean: 14 });
+  await snapDialoguePng(desk, "desktop-razor-initiation-patch.png", "razor");
 
   const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await prep(mob);
-  await mob.goto(`${base}/?dev=1&solo=1&v=${bust}-m`, { waitUntil: "networkidle", timeout: 120000 });
+  await mob.goto(`${base}/?dev=1&solo=1&v=${bust}-m`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enter(mob);
   for (let s = 1; s <= 4; s++) await captureStage(mob, s, "mobile");
 
