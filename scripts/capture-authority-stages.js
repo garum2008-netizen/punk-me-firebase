@@ -127,7 +127,7 @@ async function sampleMeanAt(buf, width, height, cx, cy, radius = 3) {
   return n ? sum / n : 0;
 }
 
-async function validateAuthorityPng(filePath, frame) {
+async function validateAuthorityPng(filePath, frame, npcId = "") {
   const meta = await sharp(filePath).metadata();
   const { data, info } = await sharp(filePath).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const w = info.width;
@@ -147,7 +147,7 @@ async function validateAuthorityPng(filePath, frame) {
   const heads = [frame?.player, frame?.npc].filter(Boolean);
   if (heads.length < 2) throw new Error(`${path.basename(filePath)} missing head projections`);
   const headPxSep = Math.abs((frame.player?.px ?? 0) - (frame.npc?.px ?? 0));
-  const minSep = frame?.npc && path.basename(filePath).includes("razor") ? 52 : 72;
+  const minSep = npcId === "razor" ? 52 : 72;
   if (headPxSep < minSep) {
     throw new Error(`${path.basename(filePath)} heads not separated in frame (px sep ${headPxSep.toFixed(0)})`);
   }
@@ -191,7 +191,7 @@ async function snapDialoguePng(page, name, npcId, frame) {
     throw new Error("canvas toDataURL failed for " + name);
   }
   fs.writeFileSync(p, Buffer.from(dataUrl.split(",")[1], "base64"));
-  await validateAuthorityPng(p, frame);
+  await validateAuthorityPng(p, frame, npcId);
   return p;
 }
 
