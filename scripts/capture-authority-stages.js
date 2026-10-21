@@ -32,8 +32,10 @@ async function enter(page) {
   await page.waitForSelector("#charSelect.active", { timeout: 30000 }).catch(() => {});
   const c = page.locator("#charSelectConfirm");
   if (await c.isVisible({ timeout: 8000 }).catch(() => false)) {
-    await page.click('.char-pick[data-id="cobalt"]');
-    await c.click();
+    await page.evaluate(() => {
+      document.querySelector('.char-pick[data-id="cobalt"]')?.click();
+      document.getElementById("charSelectConfirm")?.click();
+    });
   }
   await page.waitForFunction(() => window.World3D?.isReady?.() && window.StoryEngine?.Authority, { timeout: 120000 });
   await dismissUi(page);

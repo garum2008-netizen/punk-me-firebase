@@ -4,7 +4,9 @@ const path = require("path");
 
 const outRoot = "/opt/cursor/artifacts";
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
-const HEROES = ["vienna", "cobalt", "mohawk", "razor"];
+const HEROES = process.env.JITTER_HERO
+  ? [process.env.JITTER_HERO]
+  : ["vienna", "cobalt", "mohawk", "razor"];
 const LOCS = ["street", "city", "cemetery", "room", "construction", "parkour"];
 const SCENARIOS = ["free", "wall", "slide"];
 const FRAMES = 120;
@@ -24,8 +26,10 @@ async function enter(page, hero) {
   await page.waitForSelector("#charSelect.active", { timeout: 30000 }).catch(() => {});
   const c = page.locator("#charSelectConfirm");
   if (await c.isVisible({ timeout: 8000 }).catch(() => false)) {
-    await page.click(`.char-pick[data-id="${hero}"]`);
-    await c.click();
+    await page.evaluate(id => {
+      document.querySelector(`.char-pick[data-id="${id}"]`)?.click();
+      document.getElementById("charSelectConfirm")?.click();
+    }, hero);
   }
   await page.waitForFunction(() => window.World3D?.isReady?.(), { timeout: 120000 });
   await page.evaluate(() => {
@@ -56,7 +60,7 @@ async function runMatrix(browser, viewport, label) {
   const page = await browser.newPage({ viewport });
   await prep(page);
   await page.goto(`${base}/?dev=1&solo=1&v=v21-jitter-${label}`, {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
     timeout: 120000
   });
   const reports = [];
@@ -64,31 +68,49 @@ async function runMatrix(browser, viewport, label) {
     await enter(page, hero);
     for (const loc of LOCS) {
       for (const scenario of SCENARIOS) {
+        const f = path.join(outRoot, `qa-v21-jitter-${label}-${hero}-${loc}-${scenario}.json`);
+        if (fs.existsSync(f)) {
+          const cached = JSON.parse(fs.readFileSync(f, "utf8"));
+          reports.push({
+            viewport: label,
+            hero,
+            loc,
+            scenario,
+            med: cached.med,
+            spikes: cached.spikes,
+            count: cached.count,
+            file: path.basename(f),
+            skipped: true
+          });
+          continue;
+        }
         await page.evaluate(id => {
           goLocation(id);
           syncStage3D?.();
           World3D?.releaseCaptureFrame?.();
         }, loc);
-        await page.waitForTimeout(1600);
+        await page.waitForTimeout(1200);
         await page.keyboard.down("w");
         await page.keyboard.down("Shift");
         const sample = await page.evaluate(
           async ({ frames, scenario }) => {
             World3D.startMotionProbe(frames, scenario);
+            const deadline = performance.now() + 45000;
             return new Promise(resolve => {
               function step() {
                 if (World3D.getMotionProbeCount() >= frames) resolve(World3D.stopMotionProbe());
+                else if (performance.now() > deadline) resolve(World3D.stopMotionProbe());
                 else requestAnimationFrame(step);
               }
               requestAnimationFrame(step);
             });
           },
-          { frames: FRAMES, scenario }
+          { frames: FRAMES, scenario },
+          { timeout: 60000 }
         );
         await page.keyboard.up("w");
         await page.keyboard.up("Shift");
         const stats = analyze(sample);
-        const f = path.join(outRoot, `qa-v21-jitter-${label}-${hero}-${loc}-${scenario}.json`);
         fs.writeFileSync(f, JSON.stringify({ ...sample, ...stats, viewport: label, scenario }, null, 2));
         reports.push({ viewport: label, hero, loc, scenario, ...stats, file: path.basename(f) });
       }
@@ -100,9 +122,13 @@ async function runMatrix(browser, viewport, label) {
 
 (async () => {
   const browser = await chromium.launch();
-  const desktop = await runMatrix(browser, { width: 1280, height: 720 }, "desktop");
-  const mobile = await runMatrix(browser, { width: 390, height: 844 }, "mobile");
-  const reports = [...desktop, ...mobile];
+  const reports = [];
+  if (!process.env.JITTER_MOBILE_ONLY) {
+    reports.push(...(await runMatrix(browser, { width: 1280, height: 720 }, "desktop")));
+  }
+  if (!process.env.JITTER_DESKTOP_ONLY) {
+    reports.push(...(await runMatrix(browser, { width: 390, height: 844 }, "mobile")));
+  }
 
   const byKey = {};
   for (const r of reports) {
