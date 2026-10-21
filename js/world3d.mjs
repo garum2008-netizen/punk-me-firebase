@@ -557,6 +557,16 @@ function resetOccluderOpacity() {
   });
 }
 
+function setDialogueCaptureScale(actor, mul = 1) {
+  if (!actor?.group) return;
+  if (!actor._capScaleSaved) actor._capScaleSaved = actor.group.scale.clone();
+  if (mul === 1) {
+    actor.group.scale.copy(actor._capScaleSaved);
+    return;
+  }
+  actor.group.scale.copy(actor._capScaleSaved).multiplyScalar(mul);
+}
+
 function boostActorCaptureLight(actor, on) {
   if (!actor?.group) return;
   actor.group.traverse(o => {
@@ -782,6 +792,27 @@ function projectWorldToScreen(wx, wy, wz) {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
   return { x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h };
+}
+
+function actorHeadMetrics(actor) {
+  if (!actor?.group) return null;
+  actor.group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(actor.group);
+  if (box.isEmpty()) {
+    const wx = actor.wx ?? actor.group.position.x;
+    const wz = actor.wz ?? actor.group.position.z;
+    return { cx: wx, cz: wz, topY: 1.72, chinY: 1.58, boxH: 0.14 };
+  }
+  const cx = (box.min.x + box.max.x) * 0.5;
+  const cz = (box.min.z + box.max.z) * 0.5;
+  const h = box.max.y - box.min.y;
+  return {
+    cx,
+    cz,
+    topY: box.max.y,
+    chinY: box.min.y + h * 0.78,
+    boxH: h
+  };
 }
 
 function resetActorStanding(actor) {
@@ -1485,7 +1516,10 @@ const api = {
     if (dialogueBackdrop) dialogueBackdrop.visible = false;
     const pl = actors.get("player");
     actors.forEach(a => {
-      if (a.isPlayer || a.id?.startsWith("npc_")) boostActorCaptureLight(a, false);
+      if (a.isPlayer || a.id?.startsWith("npc_")) {
+        boostActorCaptureLight(a, false);
+        setDialogueCaptureScale(a, 1);
+      }
     });
     captureFrameLock = false;
   },
@@ -1581,26 +1615,23 @@ const api = {
     const canvas = document.getElementById("stage3d");
     const cw = canvas?.clientWidth || 1;
     const ch = canvas?.clientHeight || 1;
-    const headY = 1.72;
     if (camera) camera.updateMatrixWorld(true);
     const plA = actors.get("player");
     const npcA = actors.get(`npc_${npcId}`);
     plA?.group?.updateMatrixWorld(true);
     npcA?.group?.updateMatrixWorld(true);
     const norm = actor => {
-      if (!actor?.group) return null;
-      const wx = actor.wx ?? actor.group.position.x;
-      const wz = actor.wz ?? actor.group.position.z;
-      const p = projectWorldToScreen(wx, headY, wz);
+      const hm = actorHeadMetrics(actor);
+      if (!hm) return null;
+      const p = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
       if (!p) return null;
       return { x: p.x / cw, y: p.y / ch, px: p.x, py: p.y };
     };
     const headSpanPx = actor => {
-      if (!actor?.group) return 0;
-      const wx = actor.wx ?? actor.group.position.x;
-      const wz = actor.wz ?? actor.group.position.z;
-      const pTop = projectWorldToScreen(wx, headY, wz);
-      const pChin = projectWorldToScreen(wx, headY - 0.14, wz);
+      const hm = actorHeadMetrics(actor);
+      if (!hm) return 0;
+      const pTop = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
+      const pChin = projectWorldToScreen(hm.cx, hm.chinY, hm.cz);
       if (!pTop || !pChin) return 0;
       return Math.abs(pChin.y - pTop.y);
     };
@@ -1678,10 +1709,10 @@ const api = {
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
     const sep = npcId === "razor"
       ? (mobileQuality ? 1.48 : 2.55)
-      : (mobileQuality ? 1.62 : 2.75);
+      : (mobileQuality ? 1.68 : 2.75);
     let shiftX = npcId === "razor"
       ? (mobileQuality ? 0.78 : 0.94)
-      : (mobileQuality ? 0.72 : 0.68);
+      : (mobileQuality ? 0.62 : 0.68);
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
@@ -1702,73 +1733,41 @@ const api = {
     npc.group.position.y = 0;
     pl.group.rotation.set(0, plYaw, 0);
     npc.group.rotation.set(0, npcYaw, 0);
+    if (mobileQuality) {
+      setDialogueCaptureScale(pl, 5.2);
+      setDialogueCaptureScale(npc, 5.2);
+      pl.group.updateMatrixWorld(true);
+      npc.group.updateMatrixWorld(true);
+    }
     let camX = shiftX;
-    let camY = mobileQuality ? 1.38 : 1.66;
-    let camZ = midZ + (mobileQuality ? 1.92 : 6.15);
+    let camY = mobileQuality ? 1.44 : 1.66;
+    let camZ = midZ + (mobileQuality ? 2.15 : 6.15);
     let lookX = shiftX;
-    let lookY = mobileQuality ? 1.34 : 1.36;
+    let lookY = mobileQuality ? 1.26 : 1.36;
     let lookZ = midZ;
-    camera.fov = mobileQuality ? 32 : 38;
+    camera.fov = mobileQuality ? 34 : 38;
     const canvas = document.getElementById("stage3d");
     const cw = canvas?.clientWidth || 1;
     const ch = canvas?.clientHeight || 1;
-    const headY = 1.72;
     const headSpanPx = actor => {
-      if (!actor?.group) return 0;
-      const wx = actor.wx ?? actor.group.position.x;
-      const wz = actor.wz ?? actor.group.position.z;
-      const pTop = projectWorldToScreen(wx, headY, wz);
-      const pChin = projectWorldToScreen(wx, headY - 0.14, wz);
+      const hm = actorHeadMetrics(actor);
+      if (!hm) return 0;
+      const pTop = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
+      const pChin = projectWorldToScreen(hm.cx, hm.chinY, hm.cz);
       if (!pTop || !pChin) return 0;
       return Math.abs(pChin.y - pTop.y);
     };
     const normHead = actor => {
-      if (!actor?.group) return null;
-      const wx = actor.wx ?? actor.group.position.x;
-      const wz = actor.wz ?? actor.group.position.z;
-      const p = projectWorldToScreen(wx, headY, wz);
+      const hm = actorHeadMetrics(actor);
+      if (!hm) return null;
+      const p = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
       if (!p) return null;
       return { x: p.x / cw, y: p.y / ch };
     };
-    const panScale = mobileQuality ? 6.5 : 4.6;
-    for (let pass = 0; pass < 18; pass++) {
-      camera.position.set(camX, camY, camZ);
-      camera.lookAt(lookX, lookY, lookZ);
-      camera.updateProjectionMatrix();
-      camera.updateMatrixWorld(true);
-      pl.group.updateMatrixWorld(true);
-      npc.group.updateMatrixWorld(true);
-      const playerPt = normHead(pl);
-      const npcPt = normHead(npc);
-      if (!playerPt || !npcPt) break;
-      const minX = Math.min(playerPt.x, npcPt.x);
-      const maxX = Math.max(playerPt.x, npcPt.x);
-      const maxY = Math.max(playerPt.y, npcPt.y);
-      const safeMinX = mobileQuality ? 0.18 : 0.17;
-      const safeMaxX = mobileQuality ? 0.8 : 0.83;
-      const okX = minX >= safeMinX && maxX <= safeMaxX;
-      const okY = maxY < 0.52 && maxY > 0.22;
-      if (okX && okY) break;
-      if (minX < safeMinX) {
-        const err = safeMinX - minX;
-        camX += err * panScale;
-        lookX += err * (panScale * 0.55);
-      }
-      if (maxX > safeMaxX) {
-        const err = maxX - safeMaxX;
-        camX -= err * panScale;
-        lookX -= err * (panScale * 0.55);
-      }
-      if (maxY >= 0.5) {
-        camZ += 0.35;
-        camY += 0.05;
-      } else if (maxY < 0.26) {
-        camZ -= 0.35;
-      }
-    }
     if (mobileQuality) {
       const minHeadPx = ch * 0.06;
-      for (let zoom = 0; zoom < 18; zoom++) {
+      const minCamZ = midZ + 0.42;
+      for (let pass = 0; pass < 36; pass++) {
         camera.position.set(camX, camY, camZ);
         camera.lookAt(lookX, lookY, lookZ);
         camera.updateProjectionMatrix();
@@ -1778,9 +1777,80 @@ const api = {
         const sp = headSpanPx(pl);
         const sn = headSpanPx(npc);
         if (sp >= minHeadPx && sn >= minHeadPx) break;
-        camZ -= 0.28;
-        camY -= 0.03;
-        if (camera.fov > 28) camera.fov -= 0.35;
+        if (camZ > minCamZ) {
+          camZ -= 0.085;
+          if (camera.fov > 26) camera.fov -= 0.12;
+        }
+      }
+      for (let pass = 0; pass < 22; pass++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const fp = normHead(pl);
+        const fn = normHead(npc);
+        if (!fp || !fn) break;
+        const minX = Math.min(fp.x, fn.x);
+        const maxX = Math.max(fp.x, fn.x);
+        const maxY = Math.max(fp.y, fn.y);
+        const xOk = minX >= 0.16 && maxX <= 0.84;
+        const yOk = maxY < 0.49 && maxY > 0.18;
+        if (xOk && yOk) break;
+        const midHead = (fp.x + fn.x) * 0.5;
+        if (midHead < 0.44) {
+          camX += (0.46 - midHead) * 2.6;
+          lookX += (0.46 - midHead) * 1.5;
+        } else if (midHead > 0.56) {
+          camX -= (midHead - 0.54) * 2.6;
+          lookX -= (midHead - 0.54) * 1.5;
+        }
+        if (maxY >= 0.47) {
+          camZ += 0.12;
+          lookY -= 0.02;
+        } else if (minX < 0.16) {
+          camX += (0.16 - minX) * 2.2;
+          lookX += (0.16 - minX) * 1.3;
+        } else if (maxX > 0.84) {
+          camX -= (maxX - 0.84) * 2.2;
+          lookX -= (maxX - 0.84) * 1.3;
+        }
+      }
+    } else {
+      const panScale = 4.6;
+      for (let pass = 0; pass < 18; pass++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const playerPt = normHead(pl);
+        const npcPt = normHead(npc);
+        if (!playerPt || !npcPt) break;
+        const minX = Math.min(playerPt.x, npcPt.x);
+        const maxX = Math.max(playerPt.x, npcPt.x);
+        const maxY = Math.max(playerPt.y, npcPt.y);
+        const okX = minX >= 0.17 && maxX <= 0.83;
+        const okY = maxY < 0.52 && maxY > 0.22;
+        if (okX && okY) break;
+        if (minX < 0.17) {
+          const err = 0.17 - minX;
+          camX += err * panScale;
+          lookX += err * (panScale * 0.55);
+        }
+        if (maxX > 0.83) {
+          const err = maxX - 0.83;
+          camX -= err * panScale;
+          lookX -= err * (panScale * 0.55);
+        }
+        if (maxY >= 0.5) {
+          camZ += 0.35;
+          camY += 0.05;
+        } else if (maxY < 0.26) {
+          camZ -= 0.35;
+        }
       }
     }
     camera.position.set(camX, camY, camZ);
