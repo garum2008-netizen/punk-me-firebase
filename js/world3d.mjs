@@ -1649,7 +1649,7 @@ const api = {
       : (mobileQuality ? 1.72 : 2.15);
     const shiftX = npcId === "razor"
       ? (mobileQuality ? 0.74 : 0.86)
-      : (mobileQuality ? 0.68 : 0.78);
+      : (mobileQuality ? 0.58 : 0.78);
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
@@ -1731,7 +1731,7 @@ const api = {
     camera.updateMatrixWorld(true);
     pl.group.updateMatrixWorld(true);
     npc.group.updateMatrixWorld(true);
-    for (let fin = 0; fin < 10; fin++) {
+    for (let fin = 0; fin < 14; fin++) {
       const fp = normHead(pl);
       const fn = normHead(npc);
       if (!fp || !fn) break;
@@ -1752,7 +1752,19 @@ const api = {
       }
       if (maxX > 0.85) {
         const err = maxX - 0.84;
-        camX -= err * 6.5;
+        camX -= err * (mobileQuality ? 8.5 : 6.5);
+        lookX -= err * (mobileQuality ? 5.2 : 4.2);
+        nudged = true;
+      }
+      if (fp && fp.x > 0.85) {
+        const err = fp.x - 0.84;
+        camX -= err * (mobileQuality ? 10 : 7);
+        lookX -= err * (mobileQuality ? 6 : 4.5);
+        nudged = true;
+      }
+      if (fn && fn.x > 0.85) {
+        const err = fn.x - 0.84;
+        camX -= err * 7;
         lookX -= err * 4.2;
         nudged = true;
       }
