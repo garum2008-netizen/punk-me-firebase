@@ -1649,7 +1649,7 @@ const api = {
       : (mobileQuality ? 1.72 : 2.15);
     const shiftX = npcId === "razor"
       ? (mobileQuality ? 0.74 : 0.86)
-      : (mobileQuality ? 0.64 : 0.78);
+      : (mobileQuality ? 0.6 : 0.68);
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
@@ -1805,19 +1805,19 @@ const api = {
     dialogueKeyLight.visible = true;
     if (locationRoot && !dialogueBackdrop) {
       dialogueBackdrop = new THREE.Mesh(
-        new THREE.PlaneGeometry(9, 4.2),
+        new THREE.PlaneGeometry(5.5, 2.8),
         new THREE.MeshStandardMaterial({
-          color: 0x4a3d58,
-          emissive: 0x6644aa,
-          emissiveIntensity: 0.42,
-          roughness: 0.85
+          color: 0x3a3348,
+          emissive: 0x443355,
+          emissiveIntensity: 0.12,
+          roughness: 0.9
         })
       );
       dialogueBackdrop.userData.propTag = "dialogue_capture_backdrop";
       locationRoot.add(dialogueBackdrop);
     }
     if (dialogueBackdrop) {
-      dialogueBackdrop.position.set(lookX, 1.85, lookZ - 2.8);
+      dialogueBackdrop.position.set(lookX, 1.62, lookZ - 1.35);
       dialogueBackdrop.rotation.y = 0;
       dialogueBackdrop.visible = true;
     }

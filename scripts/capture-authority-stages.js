@@ -82,6 +82,7 @@ async function finishDialogueShot(page, npcId) {
   await page.waitForTimeout(400);
   const frame = await page.evaluate(id => {
     World3D?.releaseCaptureFrame?.();
+    World3D?.resize?.();
     document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
     const ok = World3D?.snapDialogueNpcShot?.(id);
     if (!ok) return { pass: false, reasons: ["snap_failed"] };
@@ -145,10 +146,16 @@ async function validateAuthorityPng(filePath, frame) {
   }
   const heads = [frame?.player, frame?.npc].filter(Boolean);
   if (heads.length < 2) throw new Error(`${path.basename(filePath)} missing head projections`);
+  const bgRef = await sampleMeanAt(data, w, h, 24, Math.floor(h * 0.12), 5);
   for (const [tag, pt] of [["player", frame.player], ["npc", frame.npc]]) {
     const m = await sampleMeanAt(data, w, h, pt.px, pt.py, 4);
     if (m < 22) {
       throw new Error(`${path.basename(filePath)} ${tag} head too dark (mean ${m.toFixed(1)} at ${pt.px?.toFixed(0)},${pt.py?.toFixed(0)})`);
+    }
+    if (bgRef > 35 && Math.abs(m - bgRef) < 6) {
+      throw new Error(
+        `${path.basename(filePath)} ${tag} head sample matches flat background (${m.toFixed(1)} vs ref ${bgRef.toFixed(1)})`
+      );
     }
   }
   console.log(
