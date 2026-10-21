@@ -1646,7 +1646,7 @@ const api = {
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
     const sep = npcId === "razor"
       ? (mobileQuality ? 1.62 : 2.02)
-      : (mobileQuality ? 1.78 : 2.28);
+      : (mobileQuality ? 1.85 : 2.75);
     const shiftX = npcId === "razor"
       ? (mobileQuality ? 0.74 : 0.86)
       : (mobileQuality ? 0.74 : 0.68);
@@ -1672,11 +1672,11 @@ const api = {
     npc.group.rotation.set(0, npcYaw, 0);
     let camX = shiftX;
     let camY = mobileQuality ? 1.58 : 1.66;
-    let camZ = midZ + (mobileQuality ? 4.85 : 5.05);
+    let camZ = midZ + (mobileQuality ? 5.35 : 6.15);
     let lookX = shiftX;
     let lookY = 1.36;
     let lookZ = midZ;
-    camera.fov = mobileQuality ? 40 : 34;
+    camera.fov = mobileQuality ? 42 : 38;
     const canvas = document.getElementById("stage3d");
     const cw = canvas?.clientWidth || 1;
     const ch = canvas?.clientHeight || 1;
