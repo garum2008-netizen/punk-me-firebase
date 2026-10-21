@@ -91,6 +91,10 @@ async function assertDialogueFraming(page, npcId) {
 
 async function finishDialogueShot(page, npcId) {
   await page.waitForTimeout(400);
+  await page.evaluate(() => {
+    World3D?.releaseCaptureFrame?.();
+    document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
+  });
   await page.evaluate(id => {
     World3D?.snapDialogueNpcShot?.(id);
     World3D?.renderCaptureFrame?.();
@@ -211,8 +215,13 @@ async function captureStage(page, stage, prefix) {
   }
   await page.waitForTimeout(900);
   await dismissUi(page);
-  await snap(page, `${prefix}-stage${stage}.png`);
-  await page.evaluate(() => document.getElementById("storyDialog")?.classList.remove("active"));
+  const minMean = stage === 1 || stage === 4 ? 14 : 22;
+  await snap(page, `${prefix}-stage${stage}.png`, { minMean });
+  await page.evaluate(() => {
+    document.getElementById("storyDialog")?.classList.remove("active");
+    document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
+    World3D?.releaseCaptureFrame?.();
+  });
 }
 
 (async () => {
@@ -252,7 +261,7 @@ async function captureStage(page, stage, prefix) {
     StoryEngine.Authority.runInitiationCeremony({ force: true });
   });
   await finishDialogueShot(desk, "razor");
-  await snap(desk, "desktop-razor-initiation-patch.png");
+  await snap(desk, "desktop-razor-initiation-patch.png", { minMean: 14 });
 
   const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await prep(mob);
