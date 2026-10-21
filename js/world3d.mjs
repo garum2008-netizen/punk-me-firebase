@@ -1648,7 +1648,7 @@ const api = {
       ? (mobileQuality ? 1.62 : 2.02)
       : (mobileQuality ? 1.85 : 2.75);
     const shiftX = npcId === "razor"
-      ? (mobileQuality ? 0.74 : 0.86)
+      ? (mobileQuality ? 0.78 : 0.94)
       : (mobileQuality ? 0.74 : 0.68);
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
