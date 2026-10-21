@@ -1777,6 +1777,21 @@ const api = {
     }
     pl.group.updateMatrixWorld(true);
     npc.group.updateMatrixWorld(true);
+    if (npcId === "razor" && !mobileQuality) {
+      for (let rz = 0; rz < 6; rz++) {
+        const fp = normHead(pl);
+        if (!fp || fp.x >= 0.16) break;
+        const err = 0.17 - fp.x;
+        camX += err * 14;
+        lookX += err * 8.5;
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+      }
+    }
     pl.group.visible = true;
     npc.group.visible = true;
     if (locFillLight) {
