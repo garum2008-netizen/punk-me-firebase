@@ -1734,8 +1734,10 @@ const api = {
     pl.group.rotation.set(0, plYaw, 0);
     npc.group.rotation.set(0, npcYaw, 0);
     if (mobileQuality) {
-      setDialogueCaptureScale(pl, 5.2);
-      setDialogueCaptureScale(npc, 5.2);
+      const capMul =
+        npcId === "gravedigger" ? 7.4 : npcId === "razor" ? 5.8 : 5.35;
+      setDialogueCaptureScale(pl, capMul);
+      setDialogueCaptureScale(npc, capMul);
       pl.group.updateMatrixWorld(true);
       npc.group.updateMatrixWorld(true);
     }
