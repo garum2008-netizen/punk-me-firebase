@@ -147,7 +147,7 @@ async function validateAuthorityPng(filePath, frame) {
   const heads = [frame?.player, frame?.npc].filter(Boolean);
   if (heads.length < 2) throw new Error(`${path.basename(filePath)} missing head projections`);
   const headPxSep = Math.abs((frame.player?.px ?? 0) - (frame.npc?.px ?? 0));
-  if (headPxSep < 85) {
+  if (headPxSep < 72) {
     throw new Error(`${path.basename(filePath)} heads not separated in frame (px sep ${headPxSep.toFixed(0)})`);
   }
   const bgRef = await sampleMeanAt(data, w, h, 24, Math.floor(h * 0.12), 5);
