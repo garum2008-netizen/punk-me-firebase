@@ -149,25 +149,38 @@ async function runMatrix(browser, viewport, label) {
         await page.bringToFront();
         await page.keyboard.down("w");
         await page.keyboard.down("Shift");
-        await page.evaluate(
+        await evalWithTimeout(
+          page,
           ({ frames, scenario }) => {
             World3D.startMotionProbe(frames, scenario);
           },
           { frames: FRAMES, scenario }
         );
-        const deadline = Date.now() + 90000;
+        console.log(`jitter ${label} ${hero}/${loc}/${scenario} start`);
+        const deadline = Date.now() + 45000;
         let sample = { frames: [], count: 0 };
         while (Date.now() < deadline) {
           await page.waitForTimeout(1000 / 60);
-          const n = await page.evaluate(() => World3D.getMotionProbeCount());
+          let n = 0;
+          try {
+            n = await evalWithTimeout(page, () => World3D.getMotionProbeCount(), undefined, 8000);
+          } catch (e) {
+            console.warn(`jitter probe count timeout ${label} ${hero}/${loc}/${scenario}`);
+            break;
+          }
           if (n >= FRAMES) {
-            sample = await page.evaluate(() => World3D.stopMotionProbe());
+            sample = await evalWithTimeout(page, () => World3D.stopMotionProbe(), undefined, 8000);
             break;
           }
         }
         if ((sample.count ?? sample.frames?.length ?? 0) < FRAMES - 2) {
-          sample = await page.evaluate(() => World3D.stopMotionProbe());
+          try {
+            sample = await evalWithTimeout(page, () => World3D.stopMotionProbe(), undefined, 8000);
+          } catch (e) {
+            console.warn(`jitter stop timeout ${label} ${hero}/${loc}/${scenario}`);
+          }
         }
+        console.log(`jitter ${label} ${hero}/${loc}/${scenario} frames=${sample.count ?? sample.frames?.length ?? 0}`);
         await page.keyboard.up("w");
         await page.keyboard.up("Shift");
         const stats = analyze(sample);
@@ -181,8 +194,17 @@ async function runMatrix(browser, viewport, label) {
   return reports;
 }
 
+async function evalWithTimeout(page, fn, arg, ms = 20000) {
+  return Promise.race([
+    page.evaluate(fn, arg),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("page.evaluate timeout")), ms))
+  ]);
+}
+
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    args: ["--disable-background-timer-throttling", "--disable-renderer-backgrounding"]
+  });
   const reports = [];
   if (!process.env.JITTER_MOBILE_ONLY) {
     reports.push(...(await runMatrix(browser, { width: 1280, height: 720 }, "desktop")));

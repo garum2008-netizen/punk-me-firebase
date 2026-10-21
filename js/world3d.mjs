@@ -2143,18 +2143,9 @@ const api = {
       moveX = 1;
       moveZ = 0;
     } else if (bounds && scenario === "slide") {
-      const slidePref = {
-        x: bounds.maxX - (currentLoc === "street" ? 2.55 : 2.1),
-        z: cz
-      };
-      spawn = findClearSpawn(bounds, cols, slidePref);
-      if (currentLoc === "street") {
-        moveX = -0.35;
-        moveZ = 1;
-      } else {
-        moveX = 0;
-        moveZ = 1;
-      }
+      spawn = pickFreeSpawn();
+      moveX = 0;
+      moveZ = 1;
     }
     if (pl) {
       pl._visPushX = 0;
