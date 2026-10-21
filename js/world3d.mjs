@@ -1649,7 +1649,7 @@ const api = {
       : (mobileQuality ? 1.72 : 2.15);
     const shiftX = npcId === "razor"
       ? (mobileQuality ? 0.74 : 0.86)
-      : (mobileQuality ? 0.58 : 0.78);
+      : (mobileQuality ? 0.52 : 0.78);
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
@@ -1756,10 +1756,11 @@ const api = {
         lookX -= err * (mobileQuality ? 5.2 : 4.2);
         nudged = true;
       }
-      if (fp && fp.x > 0.85) {
-        const err = fp.x - 0.84;
-        camX -= err * (mobileQuality ? 10 : 7);
-        lookX -= err * (mobileQuality ? 6 : 4.5);
+      if (fp && fp.x > (mobileQuality ? 0.83 : 0.85)) {
+        const target = mobileQuality ? 0.8 : 0.84;
+        const err = fp.x - target;
+        camX -= err * (mobileQuality ? 12 : 7);
+        lookX -= err * (mobileQuality ? 7 : 4.5);
         nudged = true;
       }
       if (fn && fn.x > 0.85) {
