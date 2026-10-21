@@ -212,9 +212,9 @@ export const NPC_PATROL = {
 
 export const PORTALS = {
   elevator: [
-    { to: "room", labelKey: "door_room", x: 0, z: 1.15, r: 1.1 },
-    { to: "roof", labelKey: "door_roof", x: -0.85, z: -0.45, r: 1.05 },
-    { to: "street", labelKey: "door_street", x: 0.85, z: -0.45, r: 1.05 }
+    { to: "room", labelKey: "door_room", x: 0, z: 1.15, r: 0.72 },
+    { to: "roof", labelKey: "door_roof", x: -0.85, z: -0.45, r: 0.72 },
+    { to: "street", labelKey: "door_street", x: 0.85, z: -0.45, r: 0.72 }
   ],
   roof: [{ to: "elevator", labelKey: "door_elevator", x: 0, z: 6.5, r: 1.4 }],
   room: [

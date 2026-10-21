@@ -723,14 +723,14 @@ const LOCATION_CAMERA = {
     fov: 34,
     pos: [0.35, 1.78, 4.25],
     look: [0, 0.94, 0.04],
-    player: { x: 0, z: 0.02, yaw: 0 },
+    player: { x: 0, z: 0.2, yaw: 0 },
     dog: { dx: 0.76, dz: -0.06 },
     mobile: {
       portraitFromPlayer: true,
       fov: 48,
       camOffset: [0.12, 2.38, 6.93],
       lookAtPlayerY: 0.92,
-      player: { x: 0, z: 0.02, yaw: 0 },
+      player: { x: 0, z: 0.2, yaw: 0 },
       dog: { dx: 0.7, dz: -0.04 }
     }
   },
@@ -996,7 +996,7 @@ function tickNpcPatrols(dt) {
 }
 
 function checkPortals() {
-  if (motionProbe) return;
+  if (motionProbe || captureFrameLock) return;
   const player = actors.get("player");
   if (!player || !bounds) return;
   const portals = PORTALS[currentLoc] || [];
@@ -1117,7 +1117,7 @@ function sync(data) {
     if (dogActor) dogActor._placed = false;
   }
   if (justChangedLoc && location === "elevator" && player && bounds) {
-    const g = worldToGameLoc(0, 0.02, bounds);
+    const g = worldToGameLoc(0, 0.2, bounds);
     hooks.onMove?.(g.x, g.y);
   }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
