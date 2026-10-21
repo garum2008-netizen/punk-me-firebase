@@ -1,0 +1,5 @@
+Error: mobile-stage1.png heads not separated in frame (px sep 11)
+    at validateAuthorityPng (/workspace/scripts/capture-authority-stages.js:153:11)
+    at async snapDialoguePng (/workspace/scripts/capture-authority-stages.js:195:3)
+    at async captureStage (/workspace/scripts/capture-authority-stages.js:285:3)
+    at async /workspace/scripts/capture-authority-stages.js:345:34

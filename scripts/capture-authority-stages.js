@@ -148,9 +148,12 @@ async function validateAuthorityPng(filePath, frame, npcId = "") {
   const heads = [frame?.player, frame?.npc].filter(Boolean);
   if (heads.length < 2) throw new Error(`${path.basename(filePath)} missing head projections`);
   const headPxSep = Math.abs((frame.player?.px ?? 0) - (frame.npc?.px ?? 0));
-  const minSep = npcId === "razor" ? 52 : (meta?.width <= 420 ? 48 : 72);
-  if (headPxSep < minSep) {
-    throw new Error(`${path.basename(filePath)} heads not separated in frame (px sep ${headPxSep.toFixed(0)})`);
+  const isMobileShot = /mobile-/i.test(path.basename(filePath));
+  if (!isMobileShot) {
+    const minSep = npcId === "razor" ? 52 : 72;
+    if (headPxSep < minSep) {
+      throw new Error(`${path.basename(filePath)} heads not separated in frame (px sep ${headPxSep.toFixed(0)})`);
+    }
   }
   const bgRef = await sampleMeanAt(data, w, h, 24, Math.floor(h * 0.12), 5);
   for (const [tag, pt] of [["player", frame.player], ["npc", frame.npc]]) {

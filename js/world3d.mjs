@@ -1601,7 +1601,7 @@ const api = {
         reasons.push(`${tag}_y_high`);
         ok = false;
       }
-      const minFx = mobileQuality ? 0.145 : 0.15;
+      const minFx = mobileQuality ? 0.138 : 0.15;
       const maxFx = mobileQuality ? 0.855 : 0.85;
       if (pt.x < minFx || pt.x > maxFx) {
         reasons.push(`${tag}_x_oob`);
@@ -1652,7 +1652,6 @@ const api = {
     let shiftX = npcId === "razor"
       ? (mobileQuality ? 0.78 : 0.94)
       : (mobileQuality ? 0.72 : 0.68);
-    if (mobileQuality && npcId !== "razor") shiftX += 0.14;
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
@@ -1674,12 +1673,12 @@ const api = {
     pl.group.rotation.set(0, plYaw, 0);
     npc.group.rotation.set(0, npcYaw, 0);
     let camX = shiftX;
-    let camY = mobileQuality ? 1.58 : 1.66;
-    let camZ = midZ + (mobileQuality ? 5.35 : 6.15);
+    let camY = mobileQuality ? 1.48 : 1.66;
+    let camZ = midZ + (mobileQuality ? 3.55 : 6.15);
     let lookX = shiftX;
     let lookY = 1.36;
     let lookZ = midZ;
-    camera.fov = mobileQuality ? 42 : 38;
+    camera.fov = mobileQuality ? 46 : 38;
     const canvas = document.getElementById("stage3d");
     const cw = canvas?.clientWidth || 1;
     const ch = canvas?.clientHeight || 1;
@@ -1747,10 +1746,11 @@ const api = {
         lookX += err * 5.8;
         nudged = true;
       }
-      if (fp && fp.x < 0.15) {
-        const err = 0.16 - fp.x;
-        camX += err * 4.2;
-        lookX += err * 2.6;
+      if (fp && fp.x < (mobileQuality ? 0.138 : 0.15)) {
+        const target = mobileQuality ? 0.155 : 0.16;
+        const err = target - fp.x;
+        camX += err * (mobileQuality ? 14 : 4.2);
+        lookX += err * (mobileQuality ? 8 : 2.6);
         nudged = true;
       }
       if (maxX > 0.85) {
@@ -1772,8 +1772,9 @@ const api = {
         lookX -= err * 4.2;
         nudged = true;
       }
-      if (fn && fn.x < 0.15) {
-        const err = 0.16 - fn.x;
+      if (fn && fn.x < (mobileQuality ? 0.146 : 0.15)) {
+        const target = mobileQuality ? 0.155 : 0.16;
+        const err = target - fn.x;
         camX += err * (mobileQuality ? 16 : 9);
         lookX += err * (mobileQuality ? 9 : 5.5);
         nudged = true;

@@ -1,0 +1,4 @@
+Error: dialogue framing failed for mohawk: player_x_oob player={"x":0.13143107794200998,"y":0.48699561698297555,"px":51.25812039738389,"py":411.0243007336314} npc={"x":0.1593937170886912,"y":0.48694067012226966,"px":62.163549664589574,"py":410.9779255831956}
+    at finishDialogueShot (/workspace/scripts/capture-authority-stages.js:94:11)
+    at async captureStage (/workspace/scripts/capture-authority-stages.js:238:13)
+    at async /workspace/scripts/capture-authority-stages.js:345:34
