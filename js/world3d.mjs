@@ -1645,7 +1645,7 @@ const api = {
     npc._patrolLoc = null;
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
     const sep = npcId === "razor"
-      ? (mobileQuality ? 1.62 : 2.02)
+      ? (mobileQuality ? 1.72 : 2.55)
       : (mobileQuality ? 1.85 : 2.75);
     const shiftX = npcId === "razor"
       ? (mobileQuality ? 0.78 : 0.94)
