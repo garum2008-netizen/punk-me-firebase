@@ -268,8 +268,9 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await desk.evaluate(() => {
     document.querySelectorAll(".toast").forEach(el => el.classList.remove("show"));
     document.getElementById("storyBubbles")?.replaceChildren?.();
-    PlayV21?.prepareDuelCapturePose?.("razor");
+    World3D?.prepareDuelCapturePose?.("razor");
   });
+  await desk.waitForTimeout(150);
   for (let i = 0; i < 8; i++) {
     await desk.evaluate(() => World3D?.renderCaptureFrame?.());
     await desk.waitForTimeout(60);
@@ -282,7 +283,38 @@ async function snapLoc(page, loc, storeDesktop = false) {
     return !hud?.classList.contains("hidden") && btns.length >= 3 && !toast && !bubble;
   });
   if (!duelHudOk) throw new Error("duel capture precheck failed (HUD/toast/bubble)");
-  await desk.screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
+  const duelPng = path.join(outRoot, "qa-v21-chain-duel.png");
+  await desk.screenshot({ path: duelPng });
+  const torsoMeta = await desk.evaluate(() => window.__duelCaptureTorso || null);
+  if (!torsoMeta) throw new Error("duel capture missing __duelCaptureTorso");
+  const { data, info } = await sharp(duelPng).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const w = info.width;
+  const h = info.height;
+  const sx = Math.round((torsoMeta.px / torsoMeta.cw) * w);
+  const sy = Math.round((torsoMeta.py / torsoMeta.ch) * h);
+  let rSum = 0;
+  let gSum = 0;
+  let bSum = 0;
+  let n = 0;
+  const rad = 5;
+  for (let y = Math.max(0, sy - rad); y <= Math.min(h - 1, sy + rad); y++) {
+    for (let x = Math.max(0, sx - rad); x <= Math.min(w - 1, sx + rad); x++) {
+      const i = (y * w + x) * 3;
+      rSum += data[i];
+      gSum += data[i + 1];
+      bSum += data[i + 2];
+      n += 1;
+    }
+  }
+  const rMean = rSum / n;
+  const gMean = gSum / n;
+  const bMean = bSum / n;
+  if (rMean > 230 && gMean > 230 && bMean > 230) {
+    throw new Error(
+      `duel player torso near-white (rgb ${rMean.toFixed(1)},${gMean.toFixed(1)},${bMean.toFixed(1)} at ${sx},${sy})`
+    );
+  }
+  console.log(`verified duel torso rgb=${rMean.toFixed(1)},${gMean.toFixed(1)},${bMean.toFixed(1)}`);
 
   const fetchFrames = [];
   await desk.evaluate(() => {

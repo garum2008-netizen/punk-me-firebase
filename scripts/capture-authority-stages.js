@@ -84,7 +84,6 @@ async function finishDialogueShot(page, npcId) {
   const frame = await page.evaluate(id => {
     World3D?.releaseCaptureFrame?.();
     World3D?.resize?.();
-    document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
     const ok = World3D?.snapDialogueNpcShot?.(id);
     if (!ok) return { pass: false, reasons: ["snap_failed"] };
     for (let i = 0; i < 10; i++) World3D?.renderCaptureFrame?.();

@@ -28,7 +28,8 @@ import {
   bindGameplayToWorld3D,
   onGameplayLocationBuilt,
   onGameplayLocationChanged,
-  tickGameplayV21
+  tickGameplayV21,
+  isDuelActive
 } from "./world/gameplay-v21.mjs";
 import {
   ensureMarkerRoot,
@@ -1200,7 +1201,7 @@ function sync(data) {
     actors.delete("dog");
   }
 
-  ensureCar(location === "street" && (!!carVisible || locationProps.showCar));
+  ensureCar(location === "street" && !isDuelActive() && (!!carVisible || locationProps.showCar));
 
   const playerActor = actors.get("player");
   const spawnPref = currentLoc === "kitchen"
@@ -1318,10 +1319,15 @@ function loop() {
     }
   });
   if (car) {
-    car.x += car.dir * dt * 2.5;
-    if (car.x > 6 || car.x < -8) car.dir *= -1;
-    car.group.position.x = car.x;
-    car.wheels.forEach(w => { w.rotation.x += dt * 5 * car.dir; });
+    if (isDuelActive()) {
+      car.group.visible = false;
+    } else {
+      car.group.visible = true;
+      car.x += car.dir * dt * 2.5;
+      if (car.x > 6 || car.x < -8) car.dir *= -1;
+      car.group.position.x = car.x;
+      car.wheels.forEach(w => { w.rotation.x += dt * 5 * car.dir; });
+    }
   }
   if (particles) particles.rotation.y += dt * 0.02;
   if (motionProbe && pl?.isPlayer) notePlayerMotion(pl);
@@ -1570,6 +1576,7 @@ const api = {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
   },
+  projectWorldPoint: (wx, wy, wz) => projectWorldToScreen(wx, wy, wz),
   measureDialogueFraming: (npcId = "mohawk") => {
     const canvas = document.getElementById("stage3d");
     const cw = canvas?.clientWidth || 1;
@@ -1588,16 +1595,30 @@ const api = {
       if (!p) return null;
       return { x: p.x / cw, y: p.y / ch, px: p.x, py: p.y };
     };
-    const player = norm(actors.get("player"));
-    const npc = norm(actors.get(`npc_${npcId}`));
+    const headSpanPx = actor => {
+      if (!actor?.group) return 0;
+      const wx = actor.wx ?? actor.group.position.x;
+      const wz = actor.wz ?? actor.group.position.z;
+      const pTop = projectWorldToScreen(wx, headY, wz);
+      const pChin = projectWorldToScreen(wx, headY - 0.14, wz);
+      if (!pTop || !pChin) return 0;
+      return Math.abs(pChin.y - pTop.y);
+    };
+    const plRef = actors.get("player");
+    const npcRef = actors.get(`npc_${npcId}`);
+    const headSpanP = headSpanPx(plRef);
+    const headSpanN = headSpanPx(npcRef);
+    const player = norm(plRef);
+    const npc = norm(npcRef);
     const reasons = [];
+    const yMax = mobileQuality ? 0.5 : 0.55;
     const check = (tag, pt) => {
       if (!pt) {
         reasons.push(`${tag}_missing`);
         return false;
       }
       let ok = true;
-      if (pt.y >= 0.55) {
+      if (pt.y >= yMax) {
         reasons.push(`${tag}_y_high`);
         ok = false;
       }
@@ -1609,9 +1630,18 @@ const api = {
       }
       return ok;
     };
-    const pass = check("player", player) && check("npc", npc);
+    if (mobileQuality) {
+      const minHead = ch * 0.06;
+      if (headSpanP < minHead) reasons.push("player_head_small");
+      if (headSpanN < minHead) reasons.push("npc_head_small");
+    }
+    const pass =
+      check("player", player) &&
+      check("npc", npc) &&
+      !reasons.includes("player_head_small") &&
+      !reasons.includes("npc_head_small");
     if (camera) camera.updateMatrixWorld(true);
-    return { pass, player, npc, reasons };
+    return { pass, player, npc, reasons, headSpanP, headSpanN };
   },
   renderCaptureFrame: () => {
     if (!renderer || !camera) return false;
@@ -1673,16 +1703,25 @@ const api = {
     pl.group.rotation.set(0, plYaw, 0);
     npc.group.rotation.set(0, npcYaw, 0);
     let camX = shiftX;
-    let camY = mobileQuality ? 1.48 : 1.66;
-    let camZ = midZ + (mobileQuality ? 3.55 : 6.15);
+    let camY = mobileQuality ? 1.38 : 1.66;
+    let camZ = midZ + (mobileQuality ? 2.38 : 6.15);
     let lookX = shiftX;
     let lookY = 1.36;
     let lookZ = midZ;
-    camera.fov = mobileQuality ? 46 : 38;
+    camera.fov = mobileQuality ? 35 : 38;
     const canvas = document.getElementById("stage3d");
     const cw = canvas?.clientWidth || 1;
     const ch = canvas?.clientHeight || 1;
     const headY = 1.72;
+    const headSpanPx = actor => {
+      if (!actor?.group) return 0;
+      const wx = actor.wx ?? actor.group.position.x;
+      const wz = actor.wz ?? actor.group.position.z;
+      const pTop = projectWorldToScreen(wx, headY, wz);
+      const pChin = projectWorldToScreen(wx, headY - 0.14, wz);
+      if (!pTop || !pChin) return 0;
+      return Math.abs(pChin.y - pTop.y);
+    };
     const normHead = actor => {
       if (!actor?.group) return null;
       const wx = actor.wx ?? actor.group.position.x;
@@ -1725,6 +1764,22 @@ const api = {
         camY += 0.05;
       } else if (maxY < 0.26) {
         camZ -= 0.35;
+      }
+    }
+    if (mobileQuality) {
+      const minHeadPx = ch * 0.06;
+      for (let zoom = 0; zoom < 12; zoom++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const sp = headSpanPx(pl);
+        const sn = headSpanPx(npc);
+        if (sp >= minHeadPx && sn >= minHeadPx) break;
+        camZ -= 0.22;
+        camY -= 0.02;
       }
     }
     camera.position.set(camX, camY, camZ);
@@ -2020,8 +2075,13 @@ const api = {
         z: cz
       };
       spawn = findClearSpawn(bounds, cols, slidePref);
-      moveX = 0;
-      moveZ = 1;
+      if (currentLoc === "street") {
+        moveX = -0.35;
+        moveZ = 1;
+      } else {
+        moveX = 0;
+        moveZ = 1;
+      }
     }
     if (pl) {
       pl._visPushX = 0;
@@ -2271,7 +2331,8 @@ bindGameplayToWorld3D(api, () => ({
   bounds,
   currentLoc,
   hooks,
-  camera
+  camera,
+  car
 }));
 window.World3D = api;
 window.Scene3D = api;

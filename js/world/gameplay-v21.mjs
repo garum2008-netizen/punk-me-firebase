@@ -52,6 +52,7 @@ export function bindGameplayToWorld3D(api, getCtx) {
   api.setDecorGhostAt = (wx, wz) => setDecorGhostAt(wx, wz);
   api.updateDecorGhostFromEvent = e => updateDecorGhostFromEvent(e);
   api.endAllGameplayActivities = endAllGameplayActivities;
+  api.isDuelActive = () => isDuelActive();
   api.isGameplayActivityActive = isGameplayActivityActive;
   api.decorPointerDown = (wx, wz) => decorPointerDown(wx, wz);
   api.handleDecorKey = key => handleDecorKey(key);
@@ -77,6 +78,10 @@ export function onGameplayLocationChanged(nextLocId, prevLocId) {
 
 export function isGameplayActivityActive() {
   return !!(state.cemetery?.active || state.duel?.active || state.fetch?.active || state.decor.mode);
+}
+
+export function isDuelActive() {
+  return !!state.duel?.active;
 }
 
 export function onGameplayLocationBuilt(locId, root, bounds) {
@@ -231,6 +236,31 @@ function endCemeteryJob(success) {
   window._cemeteryJobDone?.(success);
 }
 
+function hideDuelOccluders(ctx) {
+  if (ctx.car?.group) ctx.car.group.visible = false;
+  ctx.locationRoot?.traverse?.(o => {
+    if (!o.isMesh || !o.visible) return;
+    const tag = o.userData?.propTag || o.parent?.userData?.propTag;
+    if (tag === "street_car" || tag === "low_poly_car") o.visible = false;
+  });
+}
+
+function layoutDuelFighters(ctx, pl, npc) {
+  const b = ctx.bounds;
+  const cx = b ? (b.minX + b.maxX) * 0.5 : 0;
+  const cz = b ? b.minZ + 1.85 : -1.2;
+  pl.wx = cx - 1.15;
+  pl.wz = cz;
+  npc.wx = cx + 1.15;
+  npc.wz = cz;
+  pl.group.position.set(pl.wx, 0, pl.wz);
+  npc.group.position.set(npc.wx, 0, npc.wz);
+  const dx = npc.wx - pl.wx;
+  const dz = npc.wz - pl.wz;
+  pl.group.rotation.y = Math.atan2(dx, dz);
+  npc.group.rotation.y = Math.atan2(-dx, -dz);
+}
+
 function startDuel3D(nid, opts = {}) {
   const ctx = ctxGet?.();
   const pl = ctx?.actors?.get("player");
@@ -241,10 +271,12 @@ function startDuel3D(nid, opts = {}) {
   }
   const opponent = ctx.actors.get("npc_" + nid) || ctx.actors.get("npc_razor");
   if (!opponent) return false;
-  opponent.wx = pl.wx + 2.2;
-  opponent.wz = pl.wz;
-  opponent.group.position.set(opponent.wx, 0, opponent.wz);
-  opponent.group.rotation.y = Math.PI;
+  snapshotActorMaterials(pl);
+  snapshotActorMaterials(opponent);
+  restoreActorMaterials(pl);
+  restoreActorMaterials(opponent);
+  layoutDuelFighters(ctx, pl, opponent);
+  hideDuelOccluders(ctx);
   const training = !!opts.training;
   const firstTo = opts.firstTo || (training ? 3 : 0);
   state.duel = {
@@ -319,6 +351,24 @@ function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
   return g;
 }
 
+function ensureHitMaterialSnap(mat) {
+  if (!mat || mat.userData._hitSnap || mat.userData._hitFlashing) return;
+  mat.userData._hitSnap = {
+    color: mat.color?.getHex?.() ?? 0xffffff,
+    emissive: mat.emissive?.getHex?.() ?? 0x000000,
+    emiI: mat.emissiveIntensity ?? 0
+  };
+}
+
+function snapshotActorMaterials(actor) {
+  if (!actor?.group) return;
+  actor.group.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => ensureHitMaterialSnap(m));
+  });
+}
+
 function restoreActorMaterials(actor) {
   if (!actor?.group) return;
   actor._hitFlash = 0;
@@ -326,12 +376,14 @@ function restoreActorMaterials(actor) {
     if (!o.isMesh || !o.material) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     mats.forEach(m => {
-      if (m.userData._hitBaseEmi !== undefined) {
-        m.emissive.setHex(m.userData._hitBaseEmi);
-        m.emissiveIntensity = m.userData._hitBaseInt ?? 0.2;
-      } else if (m.emissive) {
-        m.emissiveIntensity = 0;
+      const snap = m.userData._hitSnap;
+      if (!snap) return;
+      if (m.color) m.color.setHex(snap.color);
+      if (m.emissive) {
+        m.emissive.setHex(snap.emissive);
+        m.emissiveIntensity = snap.emiI;
       }
+      delete m.userData._hitFlashing;
     });
   });
 }
@@ -343,10 +395,9 @@ function flashActor(actor, dur = 0.11) {
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     mats.forEach(m => {
       if (!m.emissive) return;
-      if (m.userData._hitBaseEmi === undefined) {
-        m.userData._hitBaseEmi = m.emissive.getHex();
-        m.userData._hitBaseInt = m.emissiveIntensity ?? 0.2;
-      }
+      ensureHitMaterialSnap(m);
+      if (m.userData._hitFlashing) return;
+      m.userData._hitFlashing = true;
       m.emissive.set(0xffffff);
       m.emissiveIntensity = 0.72;
     });
@@ -363,13 +414,20 @@ function prepareDuelCapturePose(nid = "razor") {
   const npc = ctx.actors.get("npc_" + nid) || ctx.actors.get("npc_razor");
   if (!pl || !npc || !d) return false;
   d.cd = 0.6;
+  d.npcCd = 999;
   d.plLunge = 0.26;
   d.npcLunge = 0;
   d.trail = null;
+  d.flashPl = 0;
+  d.flashNpc = 0;
+  snapshotActorMaterials(pl);
+  snapshotActorMaterials(npc);
   restoreActorMaterials(pl);
   restoreActorMaterials(npc);
   pl._hitFlash = 0;
   npc._hitFlash = 0;
+  layoutDuelFighters(ctx, pl, npc);
+  hideDuelOccluders(ctx);
   pl._vy = 0;
   pl._onGround = true;
   pl.group.position.y = 0;
@@ -378,18 +436,36 @@ function prepareDuelCapturePose(nid = "razor") {
   npc.group.position.y = 0;
   npc.group.rotation.x = 0;
   npc.group.rotation.z = 0;
+  hideDuelOccluders(ctx);
   ctx.actors.forEach((act, id) => {
     if (id === "player" || id === `npc_${nid}`) return;
     act.group.visible = false;
   });
-  const dx = npc.wx - pl.wx;
-  const dz = npc.wz - pl.wz;
-  const len = Math.hypot(dx, dz) || 1;
-  pl.group.rotation.y = Math.atan2(dx, dz);
-  npc.group.rotation.y = Math.atan2(-dx, -dz);
   fadeTo(pl, "run");
   pl._spd = 2.4;
   fadeTo(npc, "idle");
+  if (ctx.camera) {
+    const midX = (pl.wx + npc.wx) * 0.5;
+    const midZ = (pl.wz + npc.wz) * 0.5;
+    ctx.camera.position.set(midX - 0.2, 2.08, midZ + 3.65);
+    ctx.camera.lookAt(midX, 1.38, midZ);
+    ctx.camera.fov = 34;
+    ctx.camera.updateProjectionMatrix();
+    ctx.camera.updateMatrixWorld(true);
+  }
+  const canvas = document.getElementById("stage3d");
+  const cw = canvas?.clientWidth || 1;
+  const ch = canvas?.clientHeight || 1;
+  const chestY = 1.12;
+  const wx = pl.wx ?? pl.group.position.x;
+  const wz = pl.wz ?? pl.group.position.z;
+  let torso = null;
+  if (typeof World3D?.projectWorldPoint === "function") {
+    torso = World3D.projectWorldPoint(wx, chestY, wz);
+  }
+  window.__duelCaptureTorso = torso
+    ? { px: torso.x, py: torso.y, cw, ch }
+    : { px: cw * 0.5, py: ch * 0.42, cw, ch };
   return true;
 }
 
@@ -418,20 +494,7 @@ function tickDuel(dt, ctx) {
   [pl, npc].forEach(a => {
     if (a._hitFlash > 0) {
       a._hitFlash -= dt;
-      if (a._hitFlash <= 0) {
-        a.group.traverse(o => {
-          if (!o.isMesh || !o.material) return;
-          const mats = Array.isArray(o.material) ? o.material : [o.material];
-          mats.forEach(m => {
-            if (m.userData._hitBaseEmi !== undefined) {
-              m.emissive.setHex(m.userData._hitBaseEmi);
-              m.emissiveIntensity = m.userData._hitBaseInt ?? 0.2;
-            } else {
-              m.emissiveIntensity = 0;
-            }
-          });
-        });
-      }
+      if (a._hitFlash <= 0) restoreActorMaterials(a);
     }
   });
   if (window._duelAttack && d.cd <= 0) {
@@ -485,8 +548,8 @@ function tickDuel(dt, ctx) {
       pl.wx += (dx / len) * 0.22;
       pl.wz += (dz / len) * 0.22;
       pl.group.position.set(pl.wx, pl.group.position.y, pl.wz);
-      flashActor(pl, 0.35);
-      d.flashPl = 0.35;
+      flashActor(pl, 0.11);
+      d.flashPl = 0.11;
     }
     fadeEmote(npc, "interact");
   }
