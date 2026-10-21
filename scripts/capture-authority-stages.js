@@ -51,14 +51,14 @@ async function enter(page) {
   await dismissUi(page);
 }
 
-async function prepareScene(page, loc) {
+async function prepareScene(page, loc, opts = {}) {
   await dismissUi(page);
   await page.evaluate(id => {
     goLocation(id);
     syncStage3D?.();
   }, loc);
   await page.waitForTimeout(3000);
-  await page.evaluate(async () => {
+  await page.evaluate(async ({ skipShowcase }) => {
     document.querySelector(".vignette")?.style.setProperty("opacity", "0.15");
     document.querySelector(".night-fx")?.style.setProperty("opacity", "0.25");
     const storyDlg = document.getElementById("storyDialog");
@@ -66,12 +66,37 @@ async function prepareScene(page, loc) {
     World3D?.resize?.();
     syncStage3D?.();
     World3D?.releaseCaptureFrame?.();
-    World3D?.snapScreenshotView?.();
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    World3D?.snapScreenshotView?.();
-  });
+    if (!skipShowcase) {
+      World3D?.snapScreenshotView?.();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      World3D?.snapScreenshotView?.();
+    }
+  }, { skipShowcase: !!opts.skipShowcase });
   await page.waitForTimeout(600);
   await dismissUi(page);
+}
+
+async function assertDialogueFraming(page, npcId) {
+  const frame = await page.evaluate(id => {
+    World3D?.renderCaptureFrame?.();
+    return World3D?.measureDialogueFraming?.(id);
+  }, npcId);
+  if (!frame?.pass) {
+    throw new Error(
+      `dialogue framing failed for ${npcId}: ${(frame?.reasons || []).join(",")} player=${JSON.stringify(frame?.player)} npc=${JSON.stringify(frame?.npc)}`
+    );
+  }
+  return frame;
+}
+
+async function finishDialogueShot(page, npcId) {
+  await page.waitForTimeout(400);
+  await page.evaluate(id => {
+    World3D?.snapDialogueNpcShot?.(id);
+    World3D?.renderCaptureFrame?.();
+  }, npcId);
+  await page.waitForTimeout(200);
+  await assertDialogueFraming(page, npcId);
 }
 
 async function assertReady(page) {
@@ -138,14 +163,14 @@ async function setupStage(page, stage) {
 async function captureStage(page, stage, prefix) {
   await setupStage(page, stage);
   if (stage === 1) {
-    await prepareScene(page, "street");
+    await prepareScene(page, "street", { skipShowcase: true });
     await page.evaluate(() => {
       const st = StoryEngine.ensureStoryState(me);
       st.auth.s1Done = false;
       StoryEngine.dismissAllStoryUi?.();
       StoryEngine.Authority.openStage1Dialog({ force: true });
-      World3D?.snapDialogueNpcShot?.("mohawk");
     });
+    await finishDialogueShot(page, "mohawk");
   } else if (stage === 2) {
     await prepareScene(page, "cemetery");
     await page.evaluate(() => {
@@ -172,7 +197,7 @@ async function captureStage(page, stage, prefix) {
         <button type="button" class="btn story-choice"><span class="choice-text">Strength: training duel</span><small class="choice-hint">Mohawk — first to 3</small></button>`;
     });
   } else if (stage === 4) {
-    await prepareScene(page, "street");
+    await prepareScene(page, "street", { skipShowcase: true });
     await page.evaluate(() => {
       const st = StoryEngine.ensureStoryState(me);
       st.auth.stage = 4;
@@ -181,8 +206,8 @@ async function captureStage(page, stage, prefix) {
       StoryEngine.Authority.syncGangRank(me);
       StoryEngine.dismissAllStoryUi?.();
       StoryEngine.Authority.runInitiationCeremony({ force: true });
-      World3D?.snapDialogueNpcShot?.("razor");
     });
+    await finishDialogueShot(page, "razor");
   }
   await page.waitForTimeout(900);
   await dismissUi(page);
@@ -215,7 +240,7 @@ async function captureStage(page, stage, prefix) {
   await desk.waitForTimeout(700);
   await snap(desk, "desktop-ch2-antibullying.png");
 
-  await prepareScene(desk, "street");
+  await prepareScene(desk, "street", { skipShowcase: true });
   await desk.evaluate(() => {
     const st = StoryEngine.ensureStoryState(me);
     st.auth.stage = 4;
@@ -225,9 +250,8 @@ async function captureStage(page, stage, prefix) {
     StoryEngine.Authority.syncGangRank(me);
     StoryEngine.dismissAllStoryUi?.();
     StoryEngine.Authority.runInitiationCeremony({ force: true });
-    World3D?.snapDialogueNpcShot?.("razor");
   });
-  await desk.waitForTimeout(900);
+  await finishDialogueShot(desk, "razor");
   await snap(desk, "desktop-razor-initiation-patch.png");
 
   const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });

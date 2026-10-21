@@ -210,14 +210,19 @@ async function snapLoc(page, loc, storeDesktop = false) {
   await desk.evaluate(() => {
     goLocation("street");
     syncStage3D?.();
-    startNpcFight?.("razor");
+    PlayV21?.startDuel3D?.("razor", { training: true, firstTo: 3 });
   });
-  await desk.waitForTimeout(500);
+  await desk.waitForSelector("#duel3dHud:not(.hidden)", { timeout: 20000 }).catch(() => {});
+  await desk.waitForFunction(
+    () => document.querySelector("#duel3dHud .duel-hp-player")?.textContent?.length > 0,
+    { timeout: 15000 }
+  ).catch(() => {});
+  await desk.waitForTimeout(900);
   await desk.evaluate(() => {
     PlayV21?.prepareDuelCapturePose?.("razor");
-    World3D?.snapScreenshotView?.();
+    World3D?.renderCaptureFrame?.();
   });
-  await desk.waitForTimeout(320);
+  await desk.waitForTimeout(400);
   await desk.screenshot({ path: path.join(outRoot, "qa-v21-chain-duel.png") });
 
   const fetchFrames = [];

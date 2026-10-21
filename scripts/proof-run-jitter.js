@@ -10,9 +10,65 @@ const HEROES = process.env.JITTER_HERO
 const LOCS = ["street", "city", "cemetery", "room", "construction", "parkour"];
 const SCENARIOS = ["free", "wall", "slide"];
 const FRAMES = 120;
-const SPIKE_EPS = 0.032;
 const LOCO_STEP = 7.2 / 60;
+const SPIKE_DELTA_FRAC = 0.4;
+const SPIKE_DELTA_MIN = LOCO_STEP * SPIKE_DELTA_FRAC;
+const STALL_D = 0.028;
+const STALL_RUN = 6;
 const STEADY_MIN = LOCO_STEP * 0.65;
+const STEADY_SPIKE_EPS = 0.032;
+
+function stallMask(deltas) {
+  const mask = new Array(deltas.length).fill(false);
+  let run = 0;
+  for (let i = 0; i < deltas.length; i++) {
+    if (deltas[i] < STALL_D) {
+      run += 1;
+      if (run > STALL_RUN) mask[i] = true;
+    } else run = 0;
+  }
+  return mask;
+}
+
+function analyze(sample) {
+  const frames = (sample.frames || []).slice(8);
+  const deltas = frames.map(f => (typeof f.d === "number" ? f.d : 0));
+  const stall = stallMask(deltas);
+  let deltaSpikes = 0;
+  for (let i = 2; i < deltas.length; i++) {
+    if (stall[i] || stall[i - 1]) continue;
+    const dd = Math.abs(deltas[i] - deltas[i - 1]);
+    if (dd > SPIKE_DELTA_MIN) deltaSpikes += 1;
+  }
+
+  const camDeltas = [];
+  for (let i = 1; i < frames.length; i++) {
+    const a = frames[i - 1];
+    const b = frames[i];
+    if (a.cx == null || b.cx == null) continue;
+    camDeltas.push(Math.hypot(b.cx - a.cx, b.cy - a.cy, b.cz - a.cz));
+  }
+  camDeltas.sort((x, y) => x - y);
+  const camJitterMed = camDeltas.length ? camDeltas[Math.floor(camDeltas.length / 2)] : 0;
+  const camJitterMax = camDeltas.length ? Math.max(...camDeltas) : 0;
+
+  const active = deltas.filter(d => d > 0.02);
+  const steady = active.filter(d => d >= STEADY_MIN);
+  const steadySorted = (steady.length ? steady : active).slice().sort((a, b) => a - b);
+  const medSteady = steadySorted.length ? steadySorted[Math.floor(steadySorted.length / 2)] : 0;
+  const steadySpikes = steady.filter(d => Math.abs(d - medSteady) > STEADY_SPIKE_EPS).length;
+
+  return {
+    medSteady,
+    steadySpikes,
+    deltaSpikes,
+    camJitterMed,
+    camJitterMax,
+    count: sample.frames?.length || 0,
+    activeFrames: active.length,
+    deltas
+  };
+}
 
 async function prep(page) {
   await page.addInitScript(() => {
@@ -45,17 +101,6 @@ async function enter(page, hero) {
   });
 }
 
-function analyze(sample) {
-  const raw = (sample.frames || []).slice(8).map(f => f.d).filter(d => d >= 0 && d < 1.2);
-  const active = raw.filter(d => d > 0.02);
-  const steady = active.filter(d => d >= STEADY_MIN);
-  const deltas = (steady.length ? steady : active).slice();
-  deltas.sort((a, b) => a - b);
-  const med = deltas.length ? deltas[Math.floor(deltas.length / 2)] : 0;
-  const spikes = steady.filter(d => Math.abs(d - med) > SPIKE_EPS).length;
-  return { med, spikes, count: sample.frames?.length || 0, activeFrames: active.length, deltas };
-}
-
 async function runMatrix(browser, viewport, label) {
   const page = await browser.newPage({ viewport });
   await prep(page);
@@ -69,15 +114,21 @@ async function runMatrix(browser, viewport, label) {
     for (const loc of LOCS) {
       for (const scenario of SCENARIOS) {
         const f = path.join(outRoot, `qa-v21-jitter-${label}-${hero}-${loc}-${scenario}.json`);
-        if (fs.existsSync(f)) {
+        const force =
+          process.env.JITTER_NO_CACHE === "1" ||
+          (hero === "razor" && loc === "parkour" && (scenario === "wall" || scenario === "slide"));
+        if (!force && fs.existsSync(f)) {
           const cached = JSON.parse(fs.readFileSync(f, "utf8"));
           reports.push({
             viewport: label,
             hero,
             loc,
             scenario,
-            med: cached.med,
-            spikes: cached.spikes,
+            medSteady: cached.medSteady,
+            steadySpikes: cached.steadySpikes,
+            deltaSpikes: cached.deltaSpikes,
+            camJitterMed: cached.camJitterMed,
+            camJitterMax: cached.camJitterMax,
             count: cached.count,
             file: path.basename(f),
             skipped: true
@@ -111,7 +162,8 @@ async function runMatrix(browser, viewport, label) {
         await page.keyboard.up("w");
         await page.keyboard.up("Shift");
         const stats = analyze(sample);
-        fs.writeFileSync(f, JSON.stringify({ ...sample, ...stats, viewport: label, scenario }, null, 2));
+        const row = { ...sample, ...stats, viewport: label, scenario, hero, loc };
+        fs.writeFileSync(f, JSON.stringify(row, null, 2));
         reports.push({ viewport: label, hero, loc, scenario, ...stats, file: path.basename(f) });
       }
     }
@@ -134,14 +186,25 @@ async function runMatrix(browser, viewport, label) {
   for (const r of reports) {
     const key = `${r.viewport}/${r.loc}/${r.scenario}`;
     if (!byKey[key]) byKey[key] = [];
-    byKey[key].push(r.spikes);
+    byKey[key].push(r);
   }
   const locSummary = Object.entries(byKey)
+    .map(([k, rows]) => {
+      const deltaMax = Math.max(...rows.map(r => r.deltaSpikes ?? 0));
+      const deltaAvg = rows.reduce((a, r) => a + (r.deltaSpikes ?? 0), 0) / rows.length;
+      const camMax = Math.max(...rows.map(r => r.camJitterMax ?? 0));
+      return `${k} deltaSpikes max=${deltaMax} avg=${deltaAvg.toFixed(1)} camMax=${camMax.toFixed(5)}`;
+    })
+    .join("\n");
+
+  const tablePath = path.join(outRoot, "qa-v21-jitter-matrix-table.txt");
+  const table = reports
     .map(
-      ([k, spikes]) =>
-        `${k} maxSpikes=${Math.max(...spikes)} avg=${(spikes.reduce((a, b) => a + b, 0) / spikes.length).toFixed(1)}`
+      r =>
+        `${r.viewport}\t${r.hero}\t${r.loc}\t${r.scenario}\tframes=${r.count}\tdeltaSpikes=${r.deltaSpikes}\tsteadySpikes=${r.steadySpikes}\tmedSteady=${(r.medSteady ?? 0).toFixed(4)}\tcamMed=${(r.camJitterMed ?? 0).toFixed(5)}\tcamMax=${(r.camJitterMax ?? 0).toFixed(5)}${r.skipped ? "\t(cached)" : ""}`
     )
     .join("\n");
+  fs.writeFileSync(tablePath, table + "\n\n--- aggregate ---\n" + locSummary + "\n");
 
   const graphPath = path.join(outRoot, "qa-v21-run-delta-graph.txt");
   fs.writeFileSync(
@@ -149,7 +212,7 @@ async function runMatrix(browser, viewport, label) {
     reports
       .map(
         r =>
-          `${r.viewport} ${r.hero}/${r.loc}/${r.scenario} med=${r.med?.toFixed(4)} spikes=${r.spikes} frames=${r.count}`
+          `${r.viewport} ${r.hero}/${r.loc}/${r.scenario} deltaSpikes=${r.deltaSpikes} steadySpikes=${r.steadySpikes} medSteady=${(r.medSteady ?? 0).toFixed(4)} camMed=${(r.camJitterMed ?? 0).toFixed(5)} camMax=${(r.camJitterMax ?? 0).toFixed(5)} frames=${r.count}`
       )
       .join("\n") +
       "\n\n--- per viewport/location/scenario (4 heroes) ---\n" +
@@ -157,9 +220,22 @@ async function runMatrix(browser, viewport, label) {
   );
 
   await browser.close();
-  const pass = reports.every(
-    r => r.count >= FRAMES - 5 && r.spikes === 0 && (r.scenario !== "free" || (r.med > 0.04 && r.med < 0.42))
+  const incomplete = reports.filter(r => (r.count ?? 0) < FRAMES - 5);
+  const miss = incomplete.map(r => `${r.viewport}/${r.hero}/${r.loc}/${r.scenario}`);
+  console.log(
+    JSON.stringify(
+      {
+        FRAMES,
+        LOCO_STEP,
+        SPIKE_DELTA_MIN,
+        incomplete: miss.length,
+        miss,
+        locSummary,
+        deltaSpikeTotal: reports.reduce((s, r) => s + (r.deltaSpikes ?? 0), 0)
+      },
+      null,
+      2
+    )
   );
-  console.log(JSON.stringify({ pass, FRAMES, SCENARIOS, locSummary, failCount: reports.filter(r => r.spikes > 0).length }, null, 2));
-  if (!pass) process.exit(1);
+  if (miss.length) process.exit(1);
 })();

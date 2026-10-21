@@ -196,13 +196,66 @@ function bikeProp(x, z, tag = "fg_bike") {
   return tagged(tag, g);
 }
 
+function neonCanvasTexture(lines, colorHex = "#ff00ff", accent = "#00ffff") {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 256;
+  const g = c.getContext("2d");
+  g.fillStyle = "rgba(8, 6, 14, 0.92)";
+  g.fillRect(0, 0, 512, 256);
+  g.strokeStyle = accent;
+  g.lineWidth = 10;
+  g.strokeRect(14, 14, 484, 228);
+  g.strokeStyle = colorHex;
+  g.lineWidth = 4;
+  g.strokeRect(22, 22, 468, 212);
+  g.font = "bold 52px system-ui,sans-serif";
+  g.textAlign = "center";
+  g.fillStyle = colorHex;
+  g.shadowColor = colorHex;
+  g.shadowBlur = 18;
+  lines.forEach((txt, i) => {
+    g.fillText(txt, 256, 88 + i * 62);
+  });
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function framedNeonPanel(w, h, lines, color = 0xff00ff, accent = 0x00ffff) {
+  const g = new THREE.Group();
+  const frame = box(w + 0.14, h + 0.14, 0.08, mat(0x141018));
+  frame.position.y = h * 0.5 + 0.04;
+  g.add(frame);
+  const trim = box(w + 0.06, h + 0.06, 0.03, mat(0x221a28, accent, 0.35));
+  trim.position.y = h * 0.5 + 0.06;
+  g.add(trim);
+  const hex = "#" + new THREE.Color(color).getHexString();
+  const acc = "#" + new THREE.Color(accent).getHexString();
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshStandardMaterial({
+      map: neonCanvasTexture(lines, hex, acc),
+      emissive: color,
+      emissiveIntensity: 0.85,
+      transparent: true,
+      side: THREE.DoubleSide
+    })
+  );
+  plane.position.y = h * 0.5 + 0.08;
+  plane.position.z = 0.05;
+  g.add(plane);
+  return g;
+}
+
 function graffitiWall(x, z, tag) {
   const g = new THREE.Group();
   const wall = box(2.8, 1.8, 0.12, mat(0x3a3540));
   wall.position.y = 0.9;
   g.add(wall);
-  g.add(box(1.6, 0.9, 0.02, mat(0x662244, 0xff00ff)).translateY(1.05).translateZ(0.07));
-  g.add(box(0.8, 0.35, 0.02, mat(0x00ffff, 0x00ffff)).translateY(1.35).translateX(-0.5).translateZ(0.07));
+  const sign = framedNeonPanel(1.35, 0.72, ["PUNK", "☠"], 0xff00ff, 0x00ffff);
+  sign.position.set(0, 0.15, 0.08);
+  g.add(sign);
   g.position.set(x, 0, z);
   return tagged(tag, g);
 }
@@ -390,7 +443,12 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("kitchen_portrait_lamp", box(0.12, 0.9, 0.12, mat(0xffcc00, 0xffaa00)).translateY(0.45).translateX(-1.5).translateZ(-0.2)));
     root.add(tagged("kitchen_portrait_poster", box(0.9, 0.7, 0.03, mat(0x442266, 0xff00ff)).translateY(1.35).translateX(0.5).translateZ(-0.4)));
   } else if (locId === "room") {
-    root.add(tagged("room_graffiti_wall", box(2.4, 1.6, 0.04, mat(0x331144, 0xff00ff)).translateY(1.45).translateZ(-5.7)));
+    const roomElevSign = framedNeonPanel(1.5, 0.85, ["OPEN", "↑ LIFT"], 0x00ffff, 0xff00ff);
+    roomElevSign.position.set(-1.35, 0.55, -5.62);
+    root.add(tagged("room_elev_neon_open", roomElevSign));
+    const roomPunkSign = framedNeonPanel(1.35, 0.78, ["PUNK", "ROOM"], 0xff00ff, 0x00ffff);
+    roomPunkSign.position.set(1.4, 0.52, -5.62);
+    root.add(tagged("room_elev_neon_punk", roomPunkSign));
     root.add(tagged("room_neon_punk", box(1.4, 0.35, 0.05, mat(0x00ffff, 0x00ffff)).translateY(2.35).translateZ(-5.65)));
     root.add(tagged("room_poster_punk", box(1.1, 1.5, 0.03, mat(0x552266, 0x220044)).translateY(1.55).translateX(-5.5).translateZ(-2)));
     root.add(tagged("room_beanbag_fg", box(0.9, 0.35, 0.9, mat(0x5a2048)).translateY(0.18).translateX(-5.2).translateZ(-1.5)));
@@ -420,9 +478,15 @@ export function addShowcaseProps(locId, root) {
       root.add(g);
     }
   } else if (locId === "street") {
-    root.add(tagged("street_graffiti_mural", box(3.2, 2, 0.05, mat(0x442266, 0xff00ff)).translateY(1.5).translateX(-1).translateZ(-6.5)));
-    root.add(tagged("street_neon_gang", box(1.4, 0.28, 0.04, mat(0x662244, 0xff00ff)).translateY(3.35).translateZ(-5.85)));
-    root.add(tagged("street_neon_shop", box(1.1, 0.22, 0.04, mat(0x224466, 0x00ffff)).translateY(2.95).translateX(4.8).translateZ(-5.4)));
+    const benchNeonW = framedNeonPanel(1.55, 0.82, ["PUNK", "☠"], 0xff00ff, 0x00ffff);
+    benchNeonW.position.set(-3.55, 0.45, -4.95);
+    root.add(tagged("street_bench_neon_w", benchNeonW));
+    const benchNeonE = framedNeonPanel(1.45, 0.78, ["OPEN", "24H"], 0x00ffff, 0xff66ff);
+    benchNeonE.position.set(0.15, 0.42, -5.05);
+    root.add(tagged("street_bench_neon_e", benchNeonE));
+    const shopSign = framedNeonPanel(1.2, 0.55, ["NEON", "SHOP"], 0x00ffff, 0xff00ff);
+    shopSign.position.set(4.75, 2.55, -5.38);
+    root.add(tagged("street_neon_shop", shopSign));
     root.add(streetLamp(-5.2, -2.5, "street_lamp_sw"));
     root.add(streetLamp(5.2, -1.8, "street_lamp_se"));
     root.add(streetLamp(-1.2, -4.2, "street_lamp_n"));

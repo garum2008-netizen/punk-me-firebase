@@ -92,11 +92,15 @@ function notePlayerMotion(actor) {
   const z = actor.wz;
   const last = motionProbe.last;
   const d = last ? Math.hypot(x - last.x, z - last.z) : 0;
+  const cam = camera;
   motionProbe.frames.push({
     t: now - motionProbe.start,
     x,
     z,
     d,
+    cx: cam?.position.x ?? 0,
+    cy: cam?.position.y ?? 0,
+    cz: cam?.position.z ?? 0,
     spd: actor._locoSpeed ?? 0,
     anim: actor.current
   });
@@ -1502,6 +1506,46 @@ const api = {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
   },
+  measureDialogueFraming: (npcId = "mohawk") => {
+    const canvas = document.getElementById("stage3d");
+    const cw = canvas?.clientWidth || 1;
+    const ch = canvas?.clientHeight || 1;
+    const headY = 1.72;
+    const norm = actor => {
+      if (!actor?.group) return null;
+      const wx = actor.wx ?? actor.group.position.x;
+      const wz = actor.wz ?? actor.group.position.z;
+      const p = projectWorldToScreen(wx, headY, wz);
+      if (!p) return null;
+      return { x: p.x / cw, y: p.y / ch, px: p.x, py: p.y };
+    };
+    const player = norm(actors.get("player"));
+    const npc = norm(actors.get(`npc_${npcId}`));
+    const reasons = [];
+    const check = (tag, pt) => {
+      if (!pt) {
+        reasons.push(`${tag}_missing`);
+        return false;
+      }
+      let ok = true;
+      if (pt.y >= 0.55) {
+        reasons.push(`${tag}_y_high`);
+        ok = false;
+      }
+      if (pt.x < 0.15 || pt.x > 0.85) {
+        reasons.push(`${tag}_x_oob`);
+        ok = false;
+      }
+      return ok;
+    };
+    const pass = check("player", player) && check("npc", npc);
+    return { pass, player, npc, reasons };
+  },
+  renderCaptureFrame: () => {
+    if (!renderer || !camera) return false;
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
   snapDialogueNpcShot: (npcId = "mohawk") => {
     const pl = actors.get("player");
     if (!pl || !camera || !renderer) return false;
@@ -1511,10 +1555,14 @@ const api = {
     }
     captureHideActors = [];
     actors.forEach((act, id) => {
-      if (id === "player" || id === `npc_${npcId}`) return;
+      if (id === "player" || id === "dog" || id === `npc_${npcId}`) return;
       act.group.visible = false;
       captureHideActors.push(act);
     });
+    if (car?.group) {
+      car.group.visible = false;
+      captureHideActors.push({ group: car.group, _carHide: true });
+    }
     const npcKey = `npc_${npcId}`;
     const npc = ensureActor(npcKey, npcId, true);
     actors.forEach((a, id) => {
@@ -1522,51 +1570,49 @@ const api = {
       a.group.visible = id === npcKey;
     });
     npc._patrol = null;
-    const cx = bounds ? (bounds.minX + bounds.maxX) * 0.5 : 0;
-    const cz = bounds
-      ? Math.max(bounds.minZ + 2.2, (bounds.minZ + bounds.maxZ) * 0.5 - 1.4)
-      : -1.2;
-    const ax = cx + 1.05;
-    const az = cz;
-    const px = cx - 1.05;
-    const pz = cz + 0.25;
-    npc.wx = ax;
-    npc.wz = az;
-    placeActorWorld(npc, ax, az, false, true);
+    npc._patrolLoc = null;
+    const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
+    const sep = mobileQuality ? 2.05 : 2.4;
+    const px = -sep * 0.5;
+    const ax = sep * 0.5;
+    const pz = midZ + 0.12;
+    const az = midZ - 0.08;
+    const plYaw = Math.atan2(ax - px, az - pz);
+    const npcYaw = Math.atan2(px - ax, pz - az) + 0.38;
     pl.wx = px;
     pl.wz = pz;
+    npc.wx = ax;
+    npc.wz = az;
     pl._vy = 0;
     pl._onGround = true;
+    npc._vy = 0;
+    npc._onGround = true;
     placeActorWorld(pl, px, pz, true);
+    placeActorWorld(npc, ax, az, false, true);
     pl.group.position.y = 0;
-    pl.group.lookAt(ax, pl.group.position.y + 0.92, az);
-    npc.group.lookAt(px, npc.group.position.y + 0.92, pz);
-    const midX = (px + ax) * 0.5;
-    const midZ = (pz + az) * 0.5;
-    const side = Math.atan2(ax - px, az - pz) + Math.PI / 2;
-    camera.position.set(midX + Math.sin(side) * 4.35, 1.88, midZ + Math.cos(side) * 4.35);
-    camera.lookAt(midX, 1.28, midZ);
-    camera.fov = mobileQuality ? 44 : 38;
+    npc.group.position.y = 0;
+    pl.group.rotation.set(0, plYaw, 0);
+    npc.group.rotation.set(0, npcYaw, 0);
+    const camDist = mobileQuality ? 4.15 : 4.75;
+    const camY = mobileQuality ? 1.58 : 1.66;
+    camera.position.set(0, camY, midZ + camDist);
+    camera.lookAt(0, 1.36, midZ);
+    camera.fov = mobileQuality ? 39 : 33;
     camera.updateProjectionMatrix();
-    dimPropsBetweenCameraAnd(midX, 1.05, midZ, 0.18);
+    dimPropsBetweenCameraAnd(0, 1.05, midZ, 0.16);
     document.getElementById("storyDialog")?.classList.add("story-dialog-cinematic");
-    guideTarget = { npcId };
+    guideTarget = null;
+    setQuestMarkersVisible(false);
     setTalking(npcId, true);
     freezeActorIdleForCapture(pl);
     freezeActorIdleForCapture(npc);
     const dogActor = actors.get("dog");
     if (dogActor) {
-      dogActor.wx = pl.wx - 1.1;
-      dogActor.wz = pl.wz - 0.6;
-      dogActor.group.position.set(dogActor.wx, 0, dogActor.wz);
-      freezeActorIdleForCapture(dogActor);
+      dogActor.group.visible = false;
+      captureHideActors.push(dogActor);
     }
     captureFrameLock = true;
-    if (captureFrameLock) setQuestMarkersVisible(false);
-  else {
-    setQuestMarkersVisible(true);
-    setQuestMarkerTarget(guideTarget, actors, sceneTime);
-  }
+    captureSavedRotY = pl.group.rotation.y;
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
