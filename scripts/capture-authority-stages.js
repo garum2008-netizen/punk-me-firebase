@@ -3,8 +3,9 @@ const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 
-const outDir = "/opt/cursor/artifacts/authority-stages";
+const outDir = process.env.AUTHORITY_OUT || path.join("/opt/cursor/artifacts", "authority-stages");
 fs.mkdirSync(outDir, { recursive: true });
+fs.mkdirSync(path.dirname(outDir), { recursive: true });
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 
 async function prep(page) {
