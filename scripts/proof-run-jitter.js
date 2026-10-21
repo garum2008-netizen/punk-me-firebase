@@ -148,22 +148,25 @@ async function runMatrix(browser, viewport, label) {
         await page.bringToFront();
         await page.keyboard.down("w");
         await page.keyboard.down("Shift");
-        const sample = await page.evaluate(
-          async ({ frames, scenario }) => {
+        await page.evaluate(
+          ({ frames, scenario }) => {
             World3D.startMotionProbe(frames, scenario);
-            const deadline = performance.now() + 90000;
-            return new Promise(resolve => {
-              function step() {
-                if (World3D.getMotionProbeCount() >= frames) resolve(World3D.stopMotionProbe());
-                else if (performance.now() > deadline) resolve(World3D.stopMotionProbe());
-                else requestAnimationFrame(step);
-              }
-              requestAnimationFrame(step);
-            });
           },
-          { frames: FRAMES, scenario },
-          { timeout: 120000 }
+          { frames: FRAMES, scenario }
         );
+        const deadline = Date.now() + 90000;
+        let sample = { frames: [], count: 0 };
+        while (Date.now() < deadline) {
+          await page.waitForTimeout(1000 / 60);
+          const n = await page.evaluate(() => World3D.getMotionProbeCount());
+          if (n >= FRAMES) {
+            sample = await page.evaluate(() => World3D.stopMotionProbe());
+            break;
+          }
+        }
+        if ((sample.count ?? sample.frames?.length ?? 0) < FRAMES - 2) {
+          sample = await page.evaluate(() => World3D.stopMotionProbe());
+        }
         await page.keyboard.up("w");
         await page.keyboard.up("Shift");
         const stats = analyze(sample);

@@ -1649,7 +1649,7 @@ const api = {
       : (mobileQuality ? 1.72 : 2.15);
     const shiftX = npcId === "razor"
       ? (mobileQuality ? 0.74 : 0.86)
-      : (mobileQuality ? 0.6 : 0.68);
+      : (mobileQuality ? 0.74 : 0.68);
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
