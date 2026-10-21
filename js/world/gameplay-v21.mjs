@@ -441,9 +441,9 @@ function prepareDuelCapturePose(nid = "razor") {
     if (id === "player" || id === `npc_${nid}`) return;
     act.group.visible = false;
   });
-  fadeTo(pl, "run");
+  if (pl.actions?.run) pl.actions.run.reset().fadeIn(0.08).play();
   pl._spd = 2.4;
-  fadeTo(npc, "idle");
+  if (npc.actions?.idle) npc.actions.idle.reset().fadeIn(0.08).play();
   if (ctx.camera) {
     const midX = (pl.wx + npc.wx) * 0.5;
     const midZ = (pl.wz + npc.wz) * 0.5;
