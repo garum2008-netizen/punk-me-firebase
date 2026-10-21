@@ -3,8 +3,9 @@ const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 
-const outRoot = "/opt/cursor/artifacts";
+const outRoot = process.env.QA_OUT || "/opt/cursor/artifacts";
 const outDir = path.join(outRoot, "v21");
+fs.mkdirSync(outRoot, { recursive: true });
 fs.mkdirSync(outDir, { recursive: true });
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const LOCS = ["room", "kitchen", "toilet", "elevator", "street", "city", "construction", "cemetery", "roof", "parkour"];

@@ -2,7 +2,8 @@ const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
 
-const outRoot = "/opt/cursor/artifacts";
+const outRoot = process.env.QA_OUT || "/opt/cursor/artifacts";
+fs.mkdirSync(outRoot, { recursive: true });
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const HEROES = process.env.JITTER_HERO
   ? [process.env.JITTER_HERO]
