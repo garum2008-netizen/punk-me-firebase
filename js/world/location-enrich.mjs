@@ -467,8 +467,8 @@ export function addCemeteryDressing(root, helpers) {
     }));
     const sz = -4 + (i % 3) * 2.5;
     stone.position.set(i * 1.9, h / 2, sz);
+    stone.userData.decorOnly = true;
     root.add(stone);
-    pushCollider(colliders, i * 1.9, sz, 0.38, 0.12);
   }
   const crypt = wall(3.5, 2.2, 2.8, new THREE.MeshStandardMaterial({ color: 0x2a3835, emissive: 0x113322, emissiveIntensity: 0.2 }));
   crypt.position.set(6, 1.1, -2);
@@ -574,7 +574,7 @@ export function addCityDressing(root, helpers) {
   const benchLegR = benchLegL.clone();
   benchLegR.position.x = 4.8;
   root.add(benchSeat, benchLegL, benchLegR);
-  pushCollider(colliders, 4, 2.2, 0.9, 0.3);
+  pushCollider(colliders, 4, 2.2, 0.9, 0.3, 0.08);
   const can = wall(0.45, 0.75, 0.45, new THREE.MeshStandardMaterial({ color: 0x3a4a55, metalness: 0.55 }));
   can.position.set(-1.5, 0.38, 3.8);
   const canLid = wall(0.48, 0.06, 0.48, new THREE.MeshStandardMaterial({ color: 0x556677, metalness: 0.65 }));
@@ -586,12 +586,23 @@ export function addCityDressing(root, helpers) {
   carA.position.set(-5.5, 0, -0.8);
   carA.rotation.y = 0.35;
   root.add(carA);
-  pushCollider(colliders, -5.5, -0.8, 1.1, 0.55);
   const carB = buildLowPolyCar(0xcc3333, 0x440000);
   carB.position.set(5, 0, 0.5);
   carB.rotation.y = -1.1;
   root.add(carB);
-  pushCollider(colliders, 5, 0.5, 1.1, 0.55);
+  const busStop = wall(2.2, 2.4, 0.12, new THREE.MeshStandardMaterial({ color: 0x3a4050 }));
+  busStop.position.set(-3.5, 1.2, 4.5);
+  root.add(busStop);
+  const busRoof = wall(2.6, 0.08, 1.2, new THREE.MeshStandardMaterial({ color: 0x556677 }));
+  busRoof.position.set(-3.5, 2.45, 4.5);
+  root.add(busRoof);
+  root.add(neonSign("BUS", 0x00ffcc).translateX(-3.5).translateY(2.1).translateZ(4.2));
+  const vending = wall(0.65, 1.65, 0.55, new THREE.MeshStandardMaterial({ color: 0x223344, emissive: 0x004466, emissiveIntensity: 0.35 }));
+  vending.position.set(2.8, 0.82, 4.2);
+  root.add(vending);
+  const vendGlass = wall(0.45, 0.9, 0.04, new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x4488ff, emissiveIntensity: 0.5 }));
+  vendGlass.position.set(2.8, 1.05, 4.48);
+  root.add(vendGlass);
   addPedestrian(root, -2, -2.5, 0.6, 0x445588);
   addPedestrian(root, 1.2, -3.2, -0.4, 0x884455);
   addPedestrian(root, 6.5, 2, -1.2, 0x556644);

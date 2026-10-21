@@ -25,6 +25,9 @@ import {
   addElevatorDressing,
   addToiletDressing
 } from "./location-enrich.mjs";
+import { addV21Clutter } from "./location-clutter-v21.mjs";
+import { addShowcaseProps } from "./location-showcase-props.mjs";
+import { buildHangoutVisual } from "./construction-hangout.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
 export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
@@ -34,6 +37,56 @@ export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
     minZ: cz - halfD - pad,
     maxZ: cz + halfD + pad
   });
+}
+
+function unionAabb(a, b) {
+  return {
+    minX: Math.min(a.minX, b.minX),
+    maxX: Math.max(a.maxX, b.maxX),
+    minZ: Math.min(a.minZ, b.minZ),
+    maxZ: Math.max(a.maxZ, b.maxZ)
+  };
+}
+
+function aabbsOverlap(a, b, gap = 0) {
+  return (
+    a.minX <= b.maxX + gap &&
+    a.maxX >= b.minX - gap &&
+    a.minZ <= b.maxZ + gap &&
+    a.maxZ >= b.minZ - gap
+  );
+}
+
+function isFurnitureCollider(c, bounds) {
+  if (!bounds) return true;
+  const bw = bounds.maxX - bounds.minX;
+  const bd = bounds.maxZ - bounds.minZ;
+  const w = c.maxX - c.minX;
+  const d = c.maxZ - c.minZ;
+  return w < bw * 0.42 && d < bd * 0.42;
+}
+
+/** Merge overlapping/touching furniture boxes (never room shell / perimeter walls). */
+export function mergeOverlappingColliders(colliders, gap = 0.06, bounds = null) {
+  if (!colliders?.length) return colliders;
+  let merged = colliders.map(c => ({ ...c }));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < merged.length; i++) {
+      for (let j = i + 1; j < merged.length; j++) {
+        if (!isFurnitureCollider(merged[i], bounds) || !isFurnitureCollider(merged[j], bounds)) continue;
+        if (aabbsOverlap(merged[i], merged[j], gap)) {
+          merged[i] = unionAabb(merged[i], merged[j]);
+          merged.splice(j, 1);
+          changed = true;
+          break;
+        }
+      }
+      if (changed) break;
+    }
+  }
+  return merged;
 }
 
 export const LOCATION_BOUNDS = {
@@ -46,6 +99,7 @@ export const LOCATION_BOUNDS = {
   cemetery: { minX: -11, maxX: 11, minZ: -9, maxZ: 9 },
   city: { minX: -10, maxX: 10, minZ: -9, maxZ: 9 },
   parkour: { minX: -8, maxX: 8, minZ: -10, maxZ: 10 },
+  construction: { minX: -11, maxX: 11, minZ: -10, maxZ: 10 },
   default: { minX: -8, maxX: 8, minZ: -8, maxZ: 8 }
 };
 
@@ -68,6 +122,20 @@ export const NPC_WORLD = {
   cemetery: {
     gravedigger: { x: 0, z: 2 },
     cobalt: { x: -4, z: -1 }
+  },
+  kitchen: {
+    zoya: { x: -2.5, z: 1.5 }
+  },
+  toilet: {
+    plukh: { x: 0, z: -1.2 }
+  },
+  city: {
+    tony: { x: -4.5, z: 3.2 },
+    bolt: { x: 5.2, z: -2.8 }
+  },
+  construction: {
+    foreman: { x: -3.5, z: 1.5 },
+    vintik: { x: 3.8, z: 2.2 }
   }
 };
 
@@ -143,6 +211,12 @@ export const NPC_PATROL = {
 };
 
 export const PORTALS = {
+  elevator: [
+    { to: "room", labelKey: "door_room", x: 0, z: 1.15, r: 0.72 },
+    { to: "roof", labelKey: "door_roof", x: -0.85, z: -0.45, r: 0.72 },
+    { to: "street", labelKey: "door_street", x: 0.85, z: -0.45, r: 0.72 }
+  ],
+  roof: [{ to: "elevator", labelKey: "door_elevator", x: 0, z: 6.5, r: 1.4 }],
   room: [
     { to: "kitchen", labelKey: "door_kitchen", x: -6.2, z: 0, r: 1.2 },
     { to: "toilet", labelKey: "door_toilet", x: 6.2, z: 0, r: 1.2 },
@@ -153,7 +227,12 @@ export const PORTALS = {
     { to: "elevator", labelKey: "door_home", x: -10, z: 0, r: 1.5 },
     { to: "cemetery", labelKey: "door_cemetery", x: 10, z: -2, r: 1.5 },
     { to: "city", labelKey: "door_city", x: 0, z: 8, r: 1.5 }
-  ]
+  ],
+  city: [
+    { to: "street", labelKey: "door_street", x: -8, z: 7, r: 1.5 },
+    { to: "construction", labelKey: "door_construction", x: 8, z: -6, r: 1.5 }
+  ],
+  construction: [{ to: "city", labelKey: "door_city", x: 0, z: 8.5, r: 1.5 }]
 };
 
 export const LOCATION_THEME = {
@@ -165,7 +244,8 @@ export const LOCATION_THEME = {
   toilet: { bg: 0x182838, fog: 0x121828, fogD: 0.0055, hemi: 0x99ccff, ground: 0x2a3040 },
   elevator: { bg: 0x2a2a38, fog: 0x2a2a38, fogD: 0.11, hemi: 0xccccff, ground: 0x3a3a48 },
   city: { bg: 0x221028, fog: 0x1a0c18, fogD: 0.0055, hemi: 0xff99cc, ground: 0x2a2030 },
-  parkour: { bg: 0x182040, fog: 0x121830, fogD: 0.0045, hemi: 0x99ddff, ground: 0x2a3850 }
+  parkour: { bg: 0x182040, fog: 0x121830, fogD: 0.0045, hemi: 0x99ddff, ground: 0x2a3850 },
+  construction: { bg: 0x281818, fog: 0x201010, fogD: 0.006, hemi: 0xffaa88, ground: 0x3a3028 }
 };
 
 function wall(w, h, d, mat) {
@@ -547,6 +627,29 @@ export function buildLocationScene(locId, texLoader) {
       { type: "point", color: 0xff66ff, intensity: 2.8, x: 0, y: 3.5, z: 0 },
       { type: "point", color: 0x00ffff, intensity: 2, x: -6, y: 2.5, z: 4 }
     ]);
+  } else if (locId === "construction") {
+    floor = tiledFloor(22, 20, theme.ground, false);
+    root.add(floor);
+    addRoomShell(root, 22, 20, 5, wallMat, colliders);
+    root.add(neonSign("СТРОЙКА", 0xff8800).translateY(3.8).translateZ(-9.2));
+    const crane = wall(0.5, 6, 0.5, new THREE.MeshStandardMaterial({ color: 0xffcc00 }));
+    crane.position.set(-7, 3, -4);
+    root.add(crane);
+    pushCollider(colliders, -7, -4, 0.3, 0.3);
+    const truck = wall(3.5, 1.4, 2, new THREE.MeshStandardMaterial({ color: 0x445566 }));
+    truck.position.set(6, 0.7, 3);
+    root.add(truck);
+    pushCollider(colliders, 6, 3, 1.8, 1);
+    const blueprint = wall(1.8, 0.05, 1.2, new THREE.MeshStandardMaterial({ color: 0xaaccff, emissive: 0x4488ff, emissiveIntensity: 0.3 }));
+    blueprint.position.set(-1, 0.9, 2.5);
+    blueprint.rotation.y = 0.4;
+    root.add(blueprint);
+    root.userData.hangoutStage = 0;
+    buildHangoutVisual(0, root);
+    addLights(root, [
+      { type: "point", color: 0xffaa66, intensity: 4.5, x: 0, y: 4, z: 0 },
+      { type: "point", color: 0xffffcc, intensity: 3.2, x: -6, y: 3, z: -3 }
+    ]);
   } else if (locId === "parkour") {
     floor = tiledFloor(16, 22, theme.ground, false);
     root.add(floor);
@@ -564,6 +667,12 @@ export function buildLocationScene(locId, texLoader) {
     root.add(neonSign("PUNK — " + locId.toUpperCase(), 0xff00ff).translateY(2.5).translateZ(-7.5));
     addLights(root, [{ type: "point", color: 0xff00ff, intensity: 2.5, x: 0, y: 3, z: 0 }]);
   }
+
+  addV21Clutter(locId, root, texLoader, colliders, pushCollider);
+  addShowcaseProps(locId, root);
+  const merged = mergeOverlappingColliders(colliders, 0.08, bounds);
+  colliders.length = 0;
+  colliders.push(...merged);
 
   const portals = new THREE.Group();
   (PORTALS[locId] || []).forEach(p => {
@@ -594,50 +703,172 @@ export function pointInsideCollider(x, z, colliders, radius = 0.4) {
   return false;
 }
 
-export function resolveWorldPosition(x, z, bounds, colliders, radius = 0.42) {
-  let px = x;
-  let pz = z;
-  if (bounds) {
-    px = Math.max(bounds.minX + 0.5, Math.min(bounds.maxX - 0.5, px));
-    pz = Math.max(bounds.minZ + 0.5, Math.min(bounds.maxZ - 0.5, pz));
-  }
-  for (let iter = 0; iter < 10; iter++) {
-    let moved = false;
-    for (const b of colliders || []) {
-      if (px > b.minX && px < b.maxX && pz > b.minZ && pz < b.maxZ) {
-        const dL = px - b.minX;
-        const dR = b.maxX - px;
-        const dB = pz - b.minZ;
-        const dF = b.maxZ - pz;
-        const m = Math.min(dL, dR, dB, dF);
-        if (m === dL) px = b.minX - radius * 0.15;
-        else if (m === dR) px = b.maxX + radius * 0.15;
-        else if (m === dB) pz = b.minZ - radius * 0.15;
-        else pz = b.maxZ + radius * 0.15;
-        moved = true;
-      } else {
-        const nx = Math.max(b.minX, Math.min(b.maxX, px));
-        const nz = Math.max(b.minZ, Math.min(b.maxZ, pz));
-        const dx = px - nx;
-        const dz = pz - nz;
-        const d2 = dx * dx + dz * dz;
-        const r2 = radius * radius;
-        if (d2 < r2 && d2 > 1e-6) {
-          const d = Math.sqrt(d2);
-          const push = (radius - d) * 1.05;
-          px += (dx / d) * push;
-          pz += (dz / d) * push;
-          moved = true;
-        }
+function clampToBounds(x, z, bounds, pad = 0.5) {
+  if (!bounds) return { x, z };
+  return {
+    x: Math.max(bounds.minX + pad, Math.min(bounds.maxX - pad, x)),
+    z: Math.max(bounds.minZ + pad, Math.min(bounds.maxZ - pad, z))
+  };
+}
+
+function resolveCircleVsAabb(px, pz, b, radius) {
+  const nx = Math.max(b.minX, Math.min(b.maxX, px));
+  const nz = Math.max(b.minZ, Math.min(b.maxZ, pz));
+  const dx = px - nx;
+  const dz = pz - nz;
+  const d2 = dx * dx + dz * dz;
+  const r2 = radius * radius;
+  if (d2 >= r2 || d2 < 1e-8) return { x: px, z: pz, moved: false };
+  const d = Math.sqrt(d2);
+  const push = (radius - d) * 0.98;
+  return { x: px + (dx / d) * push, z: pz + (dz / d) * push, moved: true };
+}
+
+function exitInteriorOfAabb(px, pz, b, radius) {
+  if (px <= b.minX || px >= b.maxX || pz <= b.minZ || pz >= b.maxZ) return { x: px, z: pz, moved: false };
+  const dL = px - b.minX;
+  const dR = b.maxX - px;
+  const dB = pz - b.minZ;
+  const dF = b.maxZ - pz;
+  const m = Math.min(dL, dR, dB, dF);
+  const inset = radius * 0.98;
+  if (m === dL) return { x: b.minX + inset, z: pz, moved: true };
+  if (m === dR) return { x: b.maxX - inset, z: pz, moved: true };
+  if (m === dB) return { x: px, z: b.minZ + inset, moved: true };
+  return { x: px, z: b.maxZ - inset, moved: true };
+}
+
+const BOUNDS_PAD = 0.5;
+const COLLIDER_SKIN = 0.028;
+
+function circleCenterInsideAabb(px, pz, b, radius) {
+  const inset = Math.min(radius * 0.55, (b.maxX - b.minX) * 0.45, (b.maxZ - b.minZ) * 0.45);
+  return (
+    px > b.minX + inset &&
+    px < b.maxX - inset &&
+    pz > b.minZ + inset &&
+    pz < b.maxZ - inset
+  );
+}
+
+function deepestCirclePenetration(px, pz, radius, colliders) {
+  let best = null;
+  const r = radius - COLLIDER_SKIN;
+  for (const b of colliders || []) {
+    const inside = circleCenterInsideAabb(px, pz, b, radius);
+    if (inside) {
+      const e = exitInteriorOfAabb(px, pz, b, r);
+      const dx = e.x - px;
+      const dz = e.z - pz;
+      const depth = Math.hypot(dx, dz);
+      if (depth > 1e-6 && (!best || depth > best.depth)) {
+        best = { nx: dx / depth, nz: dz / depth, depth };
+      }
+      continue;
+    }
+    const nx = Math.max(b.minX, Math.min(b.maxX, px));
+    const nz = Math.max(b.minZ, Math.min(b.maxZ, pz));
+    const dx = px - nx;
+    const dz = pz - nz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < r * r && d2 > 1e-10) {
+      const d = Math.sqrt(d2);
+      const depth = r - d;
+      if (!best || depth > best.depth) {
+        best = { nx: dx / d, nz: dz / d, depth };
       }
     }
-    if (!moved) break;
   }
+  return best;
+}
+
+function resolveCollidersAt(px, pz, colliders, radius = 0.42) {
+  let x = px;
+  let z = pz;
+  for (let iter = 0; iter < 10; iter++) {
+    const pen = deepestCirclePenetration(x, z, radius, colliders);
+    if (!pen || pen.depth < 1e-6) break;
+    x += pen.nx * (pen.depth + COLLIDER_SKIN);
+    z += pen.nz * (pen.depth + COLLIDER_SKIN);
+  }
+  return { x, z };
+}
+
+function clampToBoundsOnce(px, pz, bounds, pad = BOUNDS_PAD) {
+  if (!bounds) return { x: px, z: pz };
+  return {
+    x: Math.max(bounds.minX + pad, Math.min(bounds.maxX - pad, px)),
+    z: Math.max(bounds.minZ + pad, Math.min(bounds.maxZ - pad, pz))
+  };
+}
+
+export function resolveWorldPosition(x, z, bounds, colliders, radius = 0.42) {
+  const c = resolveCollidersAt(x, z, colliders, radius);
+  return clampToBoundsOnce(c.x, c.z, bounds);
+}
+
+function clampDeltaToBounds(px, pz, ax, az, bounds) {
+  if (!bounds) return { ax, az };
+  let nax = ax;
+  let naz = az;
+  const maxX = bounds.maxX - BOUNDS_PAD;
+  const minX = bounds.minX + BOUNDS_PAD;
+  const maxZ = bounds.maxZ - BOUNDS_PAD;
+  const minZ = bounds.minZ + BOUNDS_PAD;
+  if (naz > 0) naz = Math.min(naz, Math.max(0, maxZ - pz));
+  else if (naz < 0) naz = Math.max(naz, Math.min(0, minZ - pz));
+  if (nax > 0) nax = Math.min(nax, Math.max(0, maxX - px));
+  else if (nax < 0) nax = Math.max(nax, Math.min(0, minX - px));
+  return { ax: nax, az: naz };
+}
+
+function moveAxisStep(px, pz, ax, az, bounds, colliders, radius) {
+  if (Math.abs(ax) < 1e-10 && Math.abs(az) < 1e-10) return { x: px, z: pz };
+  const clipped = clampDeltaToBounds(px, pz, ax, az, bounds);
+  ax = clipped.ax;
+  az = clipped.az;
+  if (Math.abs(ax) < 1e-10 && Math.abs(az) < 1e-10) return { x: px, z: pz };
+  let tx = px + ax;
+  let tz = pz + az;
   if (bounds) {
-    px = Math.max(bounds.minX + 0.5, Math.min(bounds.maxX - 0.5, px));
-    pz = Math.max(bounds.minZ + 0.5, Math.min(bounds.maxZ - 0.5, pz));
+    const c = clampToBoundsOnce(tx, tz, bounds);
+    tx = c.x;
+    tz = c.z;
   }
-  return { x: px, z: pz };
+  const resolved = resolveCollidersAt(tx, tz, colliders, radius);
+  let x = resolved.x;
+  let z = resolved.z;
+  if (Math.abs(az) >= Math.abs(ax)) {
+    if (az > 0) z = Math.max(z, pz);
+    else if (az < 0) z = Math.min(z, pz);
+  } else {
+    if (ax > 0) x = Math.max(x, px);
+    else if (ax < 0) x = Math.min(x, px);
+  }
+  return { x, z };
+}
+
+/** Bounds clip + collider slide: axis steps keep slide direction stable (no ping-pong). */
+export function moveWithCollision(fromX, fromZ, dx, dz, bounds, colliders, radius = 0.42) {
+  if (Math.abs(dx) < 1e-10 && Math.abs(dz) < 1e-10) return { x: fromX, z: fromZ };
+  let px = fromX;
+  let pz = fromZ;
+  const axes =
+    Math.abs(dz) >= Math.abs(dx)
+      ? [
+          [0, dz],
+          [dx, 0]
+        ]
+      : [
+          [dx, 0],
+          [0, dz]
+        ];
+  for (const [ax, az] of axes) {
+    const n = moveAxisStep(px, pz, ax, az, bounds, colliders, radius);
+    px = n.x;
+    pz = n.z;
+  }
+  return clampToBoundsOnce(px, pz, bounds);
 }
 
 export function findClearSpawn(bounds, colliders, preferred = { x: 0, z: -1.5 }) {
