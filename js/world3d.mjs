@@ -1646,7 +1646,7 @@ const api = {
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
     const sep = npcId === "razor"
       ? (mobileQuality ? 1.62 : 2.02)
-      : (mobileQuality ? 1.68 : 1.92);
+      : (mobileQuality ? 1.78 : 2.28);
     const shiftX = npcId === "razor"
       ? (mobileQuality ? 0.74 : 0.86)
       : (mobileQuality ? 0.74 : 0.68);
