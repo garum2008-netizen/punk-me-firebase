@@ -341,6 +341,19 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 }
 .modal.active { display: block; }
 .modal h2 { color: #0ff; margin-bottom: 10px; font-size: 18px; }
+.audio-settings-modal {
+  max-width: 360px; left: auto; right: 12px; top: 72px; bottom: auto; max-height: 80vh;
+}
+.audio-slider-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 10px 0; font-size: 13px;
+}
+.audio-slider-row input[type="range"] { flex: 1; }
+.audio-toggle-row { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin-top: 12px; }
+.audio-hint { font-size: 11px; opacity: 0.75; margin: 6px 0 10px; line-height: 1.35; }
+.audio-voice-status { font-size: 12px; opacity: 0.9; border-top: 1px solid #333; padding-top: 10px; }
+.audio-voice-row { display: flex; justify-content: space-between; margin: 4px 0; }
+#btnAudioMute[aria-pressed="true"] { border-color: #f87171; color: #f87171; }
 .close {
   float: right; background: #444; color: #fff; border: none;
   padding: 6px 10px; border-radius: 8px; cursor: pointer;

@@ -135,6 +135,8 @@ function buildUi() {
     confirmBtn.onclick = () => {
       const pick = PLAYABLE_CHARACTER_IDS[selectedIdx];
       if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(pick)) return;
+      // AUDIO_HOOK: unlock Web Audio on explicit confirm
+      window.AudioManager?.unlockAudio?.();
       close();
       onPickCb?.(pick);
     };

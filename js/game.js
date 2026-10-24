@@ -499,6 +499,7 @@ function applyFirebasePlayerSnapshot(snap) {
     me.mood = v.mood ?? me.mood ?? 100;
     me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
     if (v.lang) initLanguage(v.lang);
+    if (v.settings?.audio) window.AudioManager?.importFromPlayerSave?.(v.settings.audio);
   } else {
     me = me || defaultPlayer();
   }
@@ -710,7 +711,11 @@ function init() {
   window.me = me;
   window.__playerLoaded = false;
   window.saveMe = saveMe;
-  window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
+  window.onLanguageChanged = () => {
+    renderAll();
+    applyI18nDom();
+    window.__audioOnLangChanged?.();
+  };
   initLanguage();
   document.querySelectorAll(".lang-btn").forEach(btn => {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);
@@ -861,6 +866,10 @@ function loadMe() {
 
 function pickCharacterAndContinue(id) {
   if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
+  // AUDIO_HOOK: unlock + start location music after explicit confirm gesture
+  window.AudioManager?.unlockAudio?.().then(() => {
+    window.AudioManager?.setLocationMusic?.(me.location || "room");
+  });
   me.characterId = id;
   writeStoredCharacterId(id);
   const def = getCharacterDef(id);
@@ -872,6 +881,13 @@ function pickCharacterAndContinue(id) {
 
 function continueGameBoot() {
   try {
+    // AUDIO_HOOK: returning players — music after first in-game pointer gesture
+    const unlockOnce = () => {
+      window.AudioManager?.unlockAudio?.().then(ok => {
+        if (ok) window.AudioManager?.setLocationMusic?.(me.location || "room");
+      });
+    };
+    document.getElementById("game")?.addEventListener("pointerdown", unlockOnce, { once: true });
     hideLoading();
     initResponsiveHud();
     if (window.Onboarding) Onboarding.init();
@@ -1227,6 +1243,8 @@ function updateOnlineCount() {
 }
 
 function afterLocationChange() {
+  // AUDIO_HOOK: crossfade music per location bucket
+  window.AudioManager?.setLocationMusic?.(me.location);
   window.Onboarding?.onEnterLocation?.(me.location);
   window.Onboarding?.syncGuideTarget?.();
   window.StoryEngine?.onLocationChange?.(me.location);
@@ -1459,6 +1477,8 @@ function questBump(key, amt = 1) {
     if (!isOwner && r.coins) me.coins += r.coins;
     if (r.xp) me.xp += r.xp;
     if (r.rep) me.rep += r.rep;
+    window.AudioManager?.playSfx?.("quest_complete");
+    if (r.coins) window.AudioManager?.playSfx?.("reward_coins");
     toast(t("quest_complete") + " " + questTitle(qid));
     const order = ["intro", "chain_duel", "parkour_rep", "build_crypts"];
     const idx = order.indexOf(qid);
@@ -1480,6 +1500,7 @@ function openModal(id) {
 }
 
 function closeModal(id) {
+  if (id === "gangModal") window.AudioManager?.stopSpeech?.();
   document.getElementById(id).classList.remove("active");
 }
 
@@ -1510,6 +1531,7 @@ function openNpcDialog(nid) {
      <button class="btn danger" onclick="closeModal('gangModal'); startNpcFight('${nid}')">${escapeHtml(t("chain_fight"))}</button>
      ${n.quest ? `<button class="btn secondary" onclick="acceptQuest('${n.quest}')">${escapeHtml(t("accept_quest"))}</button>` : ""}`;
   openModal("gangModal");
+  window.AudioManager?.playSfx?.("interact");
   if (window.Voice) Voice.speakCharacter(nid, line);
   if (window.World3D?.setTalking) World3D.setTalking(nid, true);
   if (nid === "razor") {
@@ -1531,6 +1553,10 @@ window.changeCharacter = function () {
 };
 
 window.toggleVoiceMute = function () {
+  if (window.AudioManager) {
+    window.AudioManager.setMuted(!window.AudioManager.getMuted());
+    return;
+  }
   if (!window.Voice) return;
   Voice.setMuted(!Voice.getMuted());
   const btn = document.getElementById("btnVoiceMute");
@@ -1542,6 +1568,7 @@ function acceptQuest(qid) {
   me.quests.progress = {};
   saveMe();
   renderQuest();
+  window.AudioManager?.playSfx?.("quest_received");
   toast(t("quest_new") + " " + questTitle(qid));
 }
 
@@ -1569,6 +1596,7 @@ function buyItem(id) {
   if (it.cat !== "materials" && me.owned.includes(id)) return;
   if (!isOwner && me.coins < it.price) {
     const short = it.price - me.coins;
+    window.AudioManager?.playSfx?.("error");
     toast(t("notEnough") + " — " + short + " " + (t("coins_short") || ""));
     window.StoryEngine?.beginEarnCoins?.(short, { returnLabel: tShop(id) });
     return;
@@ -1598,6 +1626,7 @@ function buyItem(id) {
   saveMe();
   renderAll();
   renderShop();
+  window.AudioManager?.playSfx?.("reward_coins");
   toast(t("bought_item") + " " + tShop(it.id));
   window.PlayV21?.syncCosmetics?.(me);
   window.Onboarding?.onShopBuy?.();
