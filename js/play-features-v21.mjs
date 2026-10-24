@@ -140,9 +140,9 @@ export function initPlayV21(ctx) {
         materials: def?.rewardMaterials,
         rewardEnergy: def?.rewardEnergy
       });
-      const evt = action === "flyer_post" ? "flyers_done" : action === "construction_helper" ? "job_construction_done" : "job_dishes_done";
-      if (action === "flyer_post") window.StoryEngine?.fireStoryEvent?.("flyers_done");
-      else window.StoryEngine?.fireStoryEvent?.(evt);
+      if (action === "flyer_post") window.StoryEngine?.fireStoryEvent?.("flyer_shift_done");
+      else if (action === "construction_helper") window.StoryEngine?.fireStoryEvent?.("job_construction_done");
+      else if (action === "dishes_zoya") window.StoryEngine?.fireStoryEvent?.("job_dishes_done");
       hooks.toast((def?.title?.en ? def.title[window.getLanguage?.() || "en"] || def.title.en : action) + " +" + pay);
     },
     ensureDailyQuests(me) {

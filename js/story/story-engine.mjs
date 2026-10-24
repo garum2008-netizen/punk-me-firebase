@@ -484,8 +484,10 @@ function checkStepComplete() {
   else if (co.startsWith("material:")) {
     const [mat, op] = co.split(":")[1].split(">=");
     done = (st.materials[mat] || 0) >= parseInt(op, 10);
-  } else if (co.startsWith("hangout_stage>=")) done = st.hangoutStage >= parseInt(co.split(">=")[1], 10);
-  else if (co.startsWith("event:")) done = !!st.events[co.slice(6)];
+  }   else if (co.startsWith("hangout_stage>=")) done = st.hangoutStage >= parseInt(co.split(">=")[1], 10);
+  else if (co.startsWith("flyers_count>=")) {
+    done = (st.events.flyers_count || 0) >= parseInt(co.split(">=")[1], 10);
+  } else if (co.startsWith("event:")) done = !!st.events[co.slice(6)];
   if (!done) return;
   if (st.quest.step + 1 < q.steps.length) {
     st.quest.step += 1;
@@ -544,8 +546,14 @@ export function applyEffect(effect) {
 
 export function fireStoryEvent(name) {
   const st = ensureStoryState(me());
-  st.events[name] = true;
-  Authority.onAuthStoryEvent(name);
+  if (name === "flyer_shift_done") {
+    const count = (st.events.flyers_count || 0) + 1;
+    st.events.flyers_count = count;
+    if (count >= 1) st.events.flyers_done = true;
+  } else {
+    st.events[name] = true;
+  }
+  Authority.onAuthStoryEvent(name === "flyer_shift_done" ? "flyers_done" : name);
   if (name === "duel_razor_win" && st.quest.activeId === "q_initiation_duel" && !st.flags.joined_gang) {
     applyEffects([{ type: "flag", value: "joined_gang" }]);
   }
@@ -598,14 +606,17 @@ export function beginEarnCoins(shortfall, context) {
     );
     return;
   }
-  const job = pickNearestJob(p.location);
+  const hintBeacon = context?.returnBeacon || st.beacon;
+  let job = hintBeacon ? data.jobs.find(j => j.employer === hintBeacon) : null;
+  if (!job) job = pickNearestJob(p.location);
+  const employerBeacon = job?.employer?.startsWith("npc_")
+    ? job.employer
+    : hintBeacon || "npc_tony";
   st.earn = {
     needTotal: p.coins + shortfall,
     shortfall,
     jobId: job?.id,
-    employerBeacon: job?.employer?.startsWith("npc_")
-      ? job.employer
-      : "npc_" + (job?.employer || "tony"),
+    employerBeacon,
     returnBeacon: context?.returnBeacon || st.beacon,
     returnLabel: context?.returnLabel || L(getActiveQuest()?.title)
   };
@@ -616,6 +627,15 @@ export function beginEarnCoins(shortfall, context) {
 }
 
 function pickNearestJob(loc) {
+  const st = ensureStoryState(me());
+  if (st.earn?.jobId) {
+    const pinned = data.jobs.find(x => x.id === st.earn.jobId);
+    if (pinned) return pinned;
+  }
+  if (st.earn?.employerBeacon) {
+    const byEmployer = data.jobs.find(x => x.employer === st.earn.employerBeacon);
+    if (byEmployer) return byEmployer;
+  }
   const p = me();
   const order = {
     street: ["flyer_post", "pizza_delivery"],
@@ -644,6 +664,44 @@ export function tryStoryPurchase(cost, ctx) {
 
 export function getArcadeDailyCap() {
   return data.balance?.arcadeDailyCap ?? 100;
+}
+
+function earnTravelHint(jobLoc, playerLoc) {
+  if (!jobLoc || jobLoc === playerLoc) {
+    return L({
+      ru: "Следуй по маяку — смена у NPC",
+      en: "Follow the beacon — work shift at the NPC",
+      da: "Følg målet — vagt ved NPC'en"
+    });
+  }
+  const labels = {
+    city: {
+      ru: "Иди в Город — кнопка навигации или портал",
+      en: "Go to the City — nav button or portal",
+      da: "Gå til Byen — navigationsknap eller portal"
+    },
+    street: {
+      ru: "Иди на Улицу банды — портал с Комнаты/Кухни",
+      en: "Go to Gang Street — portal from Room/Kitchen",
+      da: "Gå til Bandegaden — portal fra værelse/køkken"
+    },
+    kitchen: {
+      ru: "Иди на Кухню — лифт из комнаты",
+      en: "Go to the Kitchen — elevator from your room",
+      da: "Gå til Køkkenet — elevator fra værelset"
+    },
+    construction: {
+      ru: "Иди на Стройку — портал из Города",
+      en: "Go to Construction — portal from the City",
+      da: "Gå til byggepladsen — portal fra Byen"
+    },
+    cemetery: {
+      ru: "Иди на Кладбище — портал из Города",
+      en: "Go to the Cemetery — portal from the City",
+      da: "Gå til kirkegården — portal fra Byen"
+    }
+  };
+  return L(labels[jobLoc] || { ru: jobLoc, en: jobLoc, da: jobLoc });
 }
 
 export function onEconomyChanged() {
@@ -699,19 +757,14 @@ export function renderObjectivePanel() {
         en: `Earn ${need} coins: ${L(job?.title || {})} (~${job?.minutes || 3} min)`,
         da: `Tjen ${need} mønter: ${L(job?.title || {})}`
       });
+      const travel = earnTravelHint(job?.loc, p.location);
       sub = L({
-        ru: `Не хватает ${st.earn.shortfall || need} монет. Заработай на работе →`,
-        en: `Need ${st.earn.shortfall || need} more coins. Go work →`,
-        da: `Mangler ${st.earn.shortfall || need} mønter. Arbejd →`
+        ru: `Не хватает ${st.earn.shortfall || need} монет. ${travel}`,
+        en: `Need ${st.earn.shortfall || need} more coins. ${travel}`,
+        da: `Mangler ${st.earn.shortfall || need} mønter. ${travel}`
       });
     }
   } else {
-    const authObj = !st.flags.joined_gang ? Authority.getAuthorityObjective(p) : null;
-    if (authObj) {
-      title = authObj.title;
-      objective = authObj.objective;
-      if (authObj.beacon) setBeacon(authObj.beacon);
-    } else {
     const q = getActiveQuest();
     const step = getActiveStep();
     if (q && step) {
@@ -725,6 +778,20 @@ export function renderObjectivePanel() {
         sub = L(step.hint_60s);
         if (hintLevel >= 3) sub += " · " + L({ ru: "Показать путь", en: "Show path", da: "Vis vej" });
       }
+    } else if (!st.flags.joined_gang) {
+      title = L({ ru: "Прописка", en: "Initiation", da: "Optagelse" });
+      objective = L({
+        ru: "Улица банды: поговори с Рейзором (взнос, дуэль или граффити)",
+        en: "Gang Street: talk to Razor (fee, duel, or tags)",
+        da: "Bandegaden: tal med Razor (gebyr, duel eller tags)"
+      });
+      setBeacon("npc_razor");
+    } else {
+    const authObj = Authority.getAuthorityObjective(p);
+    if (authObj) {
+      title = authObj.title;
+      objective = authObj.objective;
+      if (authObj.beacon) setBeacon(authObj.beacon);
     } else if (st.hangoutStage < 4 && st.flags.joined_gang) {
       title = L(data.hangout?.title || {});
       const stage = data.hangout?.stages?.[st.hangoutStage];
@@ -1071,6 +1138,13 @@ export function tryStoryNpc(npcId) {
   if (npcId === "razor" && st.flags.joined_gang) {
     return showRankNpcChatter("razor");
   }
+  if (npcId === "razor" && !st.flags.joined_gang && st.quest.activeId === "q_initiation_pay") {
+    const step = getActiveStep();
+    if (step?.complete_on === "event:pay_initiation_fee") {
+      payInitiationFee();
+      return true;
+    }
+  }
   if (!STORY_NPC_IDS.has(npcId)) return false;
   const loc = me().location;
   const dlg = data.dialogues.find(d => {
@@ -1079,6 +1153,14 @@ export function tryStoryNpc(npcId) {
     return d.nodes?.some(n => (n.speaker || "").includes(npcId));
   });
   if (dlg) {
+    if (
+      dlg.id === "dlg_razor_initiation" &&
+      story().quest.activeId === "q_initiation_pay" &&
+      getActiveStep()?.complete_on === "event:pay_initiation_fee"
+    ) {
+      payInitiationFee();
+      return true;
+    }
     openDialogueTree(dlg);
     return true;
   }
@@ -1206,6 +1288,8 @@ const api = {
   ensureStoryState,
   syncUnifiedMaterials,
   onOnboardingComplete,
+  onEconomyChanged,
+  storyQuestCompletedForSave,
   dismissAllStoryUi,
   applyDialogueCamera,
   clearDialogueCamera,
