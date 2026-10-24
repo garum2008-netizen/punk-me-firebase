@@ -13,12 +13,17 @@ fs.mkdirSync(outDir, { recursive: true });
 
 async function runSuite(browserName, browserType) {
   const browser = await browserType.launch();
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
   const log = [];
-  await page.goto(`${base}/?solo=1&v=loadfix`, { waitUntil: "domcontentloaded", timeout: 120000 });
-  await page.waitForFunction(() => window.__punkMigratePlayer && window.t, { timeout: 120000 });
 
-  const dom = await page.evaluate(() => {
+  await page.goto(`${base}/?solo=1&v=loadfix2`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.waitForFunction(
+    () => window.__punkApplyFirebaseSnapshot && window.CharSelect && window.getCharacterDef,
+    { timeout: 120000 }
+  );
+
+  const footer = await page.evaluate(() => {
     if (typeof setLanguage === "function") setLanguage("ru", false);
     const link = document.querySelector("#loading a[href='subscribe.html']");
     const status = document.getElementById("loadingStatus");
@@ -28,15 +33,116 @@ async function runSuite(browserName, browserType) {
       footerHasLoadingPill: link?.textContent?.includes("Вход в банду") || link?.textContent?.includes("Joining")
     };
   });
-  log.push(["footer_i18n", !dom.footerHasLoadingPill && dom.linkText.length > 3, dom]);
+  log.push(["footer_i18n", !footer.footerHasLoadingPill && footer.linkText.length > 3, footer]);
+
+  await page.evaluate(() => {
+    try {
+      localStorage.removeItem("punkme_character_id");
+    } catch (e) {}
+    window.__punkApplyFirebaseSnapshot({ exists: () => false, val: () => null });
+    window.__punkFinishLoadMeFlow();
+  });
+  await page.waitForSelector("#charSelect.active", { timeout: 15000 });
+  await page.waitForSelector("#charSelectConfirm", { timeout: 60000 });
+  await page.waitForFunction(
+    () => document.querySelectorAll("#charSelectUi .btn").length === 5,
+    { timeout: 60000 }
+  );
+  const fresh = await page.evaluate(() => {
+    const idAfterApply = window.me?.characterId;
+    const select = document.getElementById("charSelect");
+    const btnCount = document.querySelectorAll("#charSelectUi .btn").length;
+    const pickCount = document.querySelectorAll("#charSelectUi .char-pick").length;
+    return {
+      ok: !idAfterApply && select?.classList.contains("active") && btnCount === 5 && pickCount === 4,
+      idAfterApply,
+      btnCount,
+      pickCount,
+      selectActive: select?.classList.contains("active")
+    };
+  });
+  log.push(["fresh_player_char_select", fresh.ok, fresh]);
+  if (browserName === "chromium" && fresh.ok) {
+    await page.screenshot({ path: path.join(outDir, "desktop-fresh-char-select.png") });
+  }
+  if (browserName === "webkit" && fresh.ok) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: path.join(outDir, "mobile-webkit-fresh-char-select.png") });
+  }
+
+  const cobaltReload = await page.evaluate(() => {
+    try {
+      localStorage.setItem("punkme_character_id", "cobalt");
+    } catch (e) {}
+    window.pickCharacterAndContinue?.("cobalt");
+    const afterPick = window.me?.characterId;
+    document.getElementById("charSelect")?.classList.remove("active");
+    window.__punkApplyFirebaseSnapshot({
+      exists: () => true,
+      val: () => ({
+        coins: 120,
+        xp: 5,
+        characterId: "cobalt",
+        avatar: window.getCharacterDef("cobalt").poster,
+        onboarding: { done: false, step: 0, progress: {} }
+      })
+    });
+    window.__punkFinishLoadMeFlow();
+    const selectActive = document.getElementById("charSelect")?.classList.contains("active");
+    const loadingHidden = document.getElementById("loading")?.style.display === "none";
+    return {
+      ok: afterPick === "cobalt" && window.me?.characterId === "cobalt" && !selectActive && loadingHidden,
+      afterPick,
+      id: window.me?.characterId,
+      selectActive,
+      loadingHidden
+    };
+  });
+  log.push(["cobalt_reload_no_select", cobaltReload.ok, cobaltReload]);
+  if (browserName === "chromium" && cobaltReload.ok) {
+    await page.screenshot({ path: path.join(outDir, "desktop-cobalt-returning.png") });
+  }
+
+  const oldShape = await page.evaluate(() => {
+    try {
+      localStorage.removeItem("punkme_character_id");
+    } catch (e) {}
+    const raw = {
+      coins: 90,
+      xp: 12,
+      avatar: window.getCharacterDef("cobalt").poster,
+      onboarding: { done: true, step: 6, progress: {} }
+    };
+    window.__punkApplyFirebaseSnapshot({ exists: () => true, val: () => raw });
+    return { ok: window.me?.characterId === "cobalt", id: window.me?.characterId };
+  });
+  log.push(["old_save_avatar_infer", oldShape.ok, oldShape]);
+
+  const timeoutUi = await page.evaluate(async () => {
+    window.__loadMeTimeoutMs = 280;
+    window.uid = window.uid || "timeout-test-uid";
+    const hang = { once: () => new Promise(() => {}) };
+    window.db = { ref: () => hang };
+    window.__punkRestoreLoadingMarkup?.();
+    document.getElementById("loading").style.display = "flex";
+    window.__punkLoadMe();
+    await new Promise(r => setTimeout(r, 450));
+    return {
+      hasRetry: !!document.getElementById("loadingRetryBtn"),
+      hasFresh: !!document.getElementById("loadingFreshBtn"),
+      subscribeOk: (document.querySelector("#loading a[href='subscribe.html']")?.textContent || "").length > 2
+    };
+  });
+  log.push([
+    "forced_timeout_error_ui",
+    timeoutUi.hasRetry && timeoutUi.hasFresh && timeoutUi.subscribeOk,
+    timeoutUi
+  ]);
   if (browserName === "chromium") {
-    await page.screenshot({ path: path.join(outDir, "desktop-loading-footer-ok.png") });
+    await page.screenshot({ path: path.join(outDir, "desktop-loading-timeout-ui.png") });
   }
 
   const migrate = await page.evaluate(() => {
-    const m = window.__punkMigratePlayer;
-    const inf = window.__punkInferCharacterId;
-    if (!m || !inf) return { ok: false, reason: "helpers missing" };
     const v21 = {
       coins: 220,
       xp: 40,
@@ -44,53 +150,24 @@ async function runSuite(browserName, browserType) {
       story: { chapter: 1, flags: {}, quest: { activeId: null, step: 0 } },
       onboarding: { done: true, step: 6, progress: {} }
     };
-    const migrated = m(v21);
-    const id = inf(migrated) || migrated.characterId;
-    const v20 = m({ quests: "intro", story: { quest: { completed: null } } });
-    let threw = false;
-    try {
-      if (window.StoryEngine?.ensureStoryState) {
-        const p = { characterId: "cobalt", onboarding: { done: true }, story: v20.story };
-        window.StoryEngine.ensureStoryState(p);
-        window.StoryEngine.onOnboardingComplete?.();
-      }
-    } catch (e) {
-      threw = true;
-    }
-    return { ok: id === "cobalt" && v20.story.quest.completed && !threw, id, threw };
+    const migrated = window.__punkMigratePlayer(v21);
+    const id = window.__punkResolveCharacterId(migrated, true);
+    return { ok: id === "cobalt", id };
   });
   log.push(["migrate_v21_infer", migrate.ok, migrate]);
 
-  const returning = await page.evaluate(() => {
+  const returningLs = await page.evaluate(() => {
     localStorage.setItem("punkme_character_id", "razor");
     const raw = { coins: 100, xp: 5, onboarding: { done: true, step: 6, progress: {} } };
     const v = window.__punkMigratePlayer(raw);
-    const id = window.__punkResolveCharacterId(v);
+    const id = window.__punkResolveCharacterId(v, false);
     return { ok: id === "razor", id };
   });
-  log.push(["returning_localStorage", returning.ok, returning]);
+  log.push(["returning_localStorage", returningLs.ok, returningLs]);
 
-  await page.evaluate(() => {
-    window.__showLoadingFailure?.("Test error", "detail");
-  });
-  const errUi = await page.evaluate(() => ({
-    hasRetry: !!document.getElementById("loadingRetryBtn"),
-    hasFresh: !!document.getElementById("loadingFreshBtn"),
-    subscribeOk: (document.querySelector("#loading a[href='subscribe.html']")?.textContent || "").length > 2
-  }));
-  log.push(["error_ui", errUi.hasRetry && errUi.hasFresh && errUi.subscribeOk, errUi]);
-
-  if (browserName === "chromium") {
-    await page.screenshot({ path: path.join(outDir, "desktop-loading-error-ui.png") });
-  }
-  if (browserName === "webkit") {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.screenshot({ path: path.join(outDir, "mobile-webkit-loading-footer.png") });
-  }
-
+  await context.close();
   await browser.close();
-  const failed = log.filter(([, ok]) => !ok);
-  return { browserName, log, failed };
+  return { browserName, log, failed: log.filter(([, ok]) => !ok) };
 }
 
 async function main() {

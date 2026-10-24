@@ -483,7 +483,9 @@ function applyFirebasePlayerSnapshot(snap) {
     me = me || defaultPlayer();
   }
   window.me = me;
-  if (!me.characterId) me.characterId = resolveCharacterIdForPlayer(me);
+  if (!me.characterId) {
+    me.characterId = resolveCharacterIdForPlayer(me, { allowAvatarInfer: snap.exists() });
+  }
   me.level = levelFromXp(me.xp || 0);
   me.lastSeen = Date.now();
   if (window.StoryEngine?.ensureStoryState) window.StoryEngine.ensureStoryState(me);
@@ -536,7 +538,8 @@ function startFreshPlayerKeepAccount() {
         me.rep = v.rep ?? 0;
         me.level = levelFromXp(me.xp);
         me.location = v.location || me.location;
-        me.characterId = readStoredCharacterId() || inferCharacterIdFromSave(v) || null;
+        me.characterId =
+          readStoredCharacterId() || (snap.exists() ? inferCharacterIdFromSave(v) : null) || null;
         me.onboarding =
           v.onboarding && typeof v.onboarding === "object" ? v.onboarding : { step: 0, progress: {}, done: false };
         window.me = me;
@@ -794,10 +797,14 @@ function loadMe() {
   }
   const gen = ++loadMeGeneration;
   clearLoadMeTimeout();
+  const timeoutMs =
+    typeof window.__loadMeTimeoutMs === "number" && window.__loadMeTimeoutMs > 0
+      ? window.__loadMeTimeoutMs
+      : LOAD_ME_TIMEOUT_MS;
   loadMeTimeoutId = setTimeout(() => {
     if (gen !== loadMeGeneration) return;
     showLoadingFailure(t("loading_timeout"));
-  }, LOAD_ME_TIMEOUT_MS);
+  }, timeoutMs);
   db.ref("players/" + uid)
     .once("value")
     .then(snap => {
@@ -858,13 +865,24 @@ function continueGameBoot() {
   }
 }
 
-function resolveCharacterIdForPlayer(v) {
-  return v.characterId || readStoredCharacterId() || inferCharacterIdFromSave(v) || null;
+function resolveCharacterIdForPlayer(v, opts = {}) {
+  const allowAvatarInfer = !!opts.allowAvatarInfer;
+  if (v.characterId) return v.characterId;
+  const stored = readStoredCharacterId();
+  if (stored) return stored;
+  if (allowAvatarInfer) return inferCharacterIdFromSave(v) || null;
+  return null;
 }
 
 window.__punkMigratePlayer = migratePlayerFromSave;
 window.__punkInferCharacterId = inferCharacterIdFromSave;
-window.__punkResolveCharacterId = resolveCharacterIdForPlayer;
+window.__punkResolveCharacterId = (v, allowAvatarInfer) =>
+  resolveCharacterIdForPlayer(v, { allowAvatarInfer: !!allowAvatarInfer });
+window.__punkApplyFirebaseSnapshot = applyFirebasePlayerSnapshot;
+window.__punkFinishLoadMeFlow = finishLoadMeFlow;
+window.__punkLoadMe = loadMe;
+window.__punkRestoreLoadingMarkup = restoreLoadingMarkup;
+window.pickCharacterAndContinue = pickCharacterAndContinue;
 window.__showLoadingFailure = showLoadingFailure;
 
 function applyHashRoute() {
