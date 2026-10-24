@@ -15,7 +15,7 @@ MASTER TZ §5.1 / TASK 03: new player completes «Новенький в доме
 - Explicit **«Говорить»** button when NPC in range
 - Quest panel always visible; guide beacons / portal hints
 - Onboarding idle hint after ~45s without progress
-- `onboarding` + `story.rewardsGranted` persisted; `grantRewardOnce` event IDs
+- `onboarding` + `story.rewardsGranted` persisted; `grantRewardOnce` event IDs (`onboard:*`, `quest:*:complete`, `duel:payout:razor`)
 - `questBump` safe on empty progress; Razor talk credits onboarding
 - Post-initiation quest cleanup; initiation duel not farmable
 

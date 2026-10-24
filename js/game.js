@@ -1463,9 +1463,11 @@ function questBump(key, amt = 1) {
   const done = Object.entries(need).every(([k, v]) => (prog[k] || 0) >= v);
   if (done) {
     const r = QUESTS[qid].reward;
-    if (!isOwner && r.coins) me.coins += r.coins;
-    if (r.xp) me.xp += r.xp;
-    if (r.rep) me.rep += r.rep;
+    window.grantRewardOnce?.(`quest:${qid}:complete`, () => {
+      if (!isOwner && r.coins) me.coins += r.coins;
+      if (r.xp) me.xp += r.xp;
+      if (r.rep) me.rep += r.rep;
+    });
     toast(t("quest_complete") + " " + questTitle(qid));
     const order = ["intro", "chain_duel", "parkour_rep", "build_crypts"];
     const idx = order.indexOf(qid);
@@ -1789,6 +1791,7 @@ function startNpcFight(nid) {
   if (window.World3D?.startDuel3D?.(nid || npc.id)) {
     fight = {
       npcName: tNpcName(npc.id || nid),
+      npcId: npc.id || nid,
       npcHp: 100,
       npcMax: 100,
       playerHp: 100,
@@ -1802,6 +1805,7 @@ function startNpcFight(nid) {
   }
   fight = {
     npcName: tNpcName(npc.id || nid),
+    npcId: npc.id || nid,
     npcHp: 55 + Math.floor(Math.random() * 30),
     npcMax: 85,
     playerHp: me.stats.hp,
@@ -1885,10 +1889,15 @@ function endFight(win) {
   const shieldLeft = fight ? fight.shield : 0;
   if (win) {
     const reward = 70 + Math.floor(Math.random() * 40);
-    if (!isOwner) me.coins += reward;
-    me.xp += 25;
-    me.rep += 8;
-    toast(t("win_fight") + " +" + reward);
+    const duelNpc = fight?.npcId || "unknown";
+    const payoutId = duelNpc === "razor" ? "duel:payout:razor" : `duel:payout:${duelNpc}`;
+    const paid = window.grantRewardOnce?.(payoutId, () => {
+      if (!isOwner) me.coins += reward;
+      me.xp += 25;
+      me.rep += 8;
+    });
+    if (paid === false) toast(t("win_fight"));
+    else toast(t("win_fight") + " +" + reward);
     window.Onboarding?.onWinFight?.();
     questBump("win_fight");
     window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
