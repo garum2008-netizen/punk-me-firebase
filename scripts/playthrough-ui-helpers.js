@@ -210,6 +210,7 @@ async function buyHangoutMaterials(page) {
 }
 
 async function buildAllHangoutStages(page) {
+  await dismissStoryDialog(page);
   await navGo(page, "construction");
   for (let stage = 0; stage < 4; stage++) {
     await page.locator('button[onclick*="buildHangoutStage"]').click();
