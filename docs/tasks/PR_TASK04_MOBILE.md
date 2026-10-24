@@ -32,4 +32,4 @@ Revert TASK 04 commit only; TASK 03 remains.
 
 ## PR link + commit SHA
 - Branch: `cursor/task-04-mobile-controls-d81d` → base `cursor/task-03-onboarding-quests-d81d`
-- Tip commit: `2a0208a`
+- Tip commit: `3817ff0`

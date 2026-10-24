@@ -1,6 +1,6 @@
 # MASTER TZ §16 acceptance (TASK 03–05 stack)
 
-Date: 2026-10-24. Stack tip: `cursor/task-05-chapter2-construction-d81d` @ `1919faa` (story optional: `cursor/story-chapter2-hangout-d81d` @ `96f2953`).
+Date: 2026-10-24. Stack tip: `cursor/task-05-chapter2-construction-d81d` @ `e9b2596` (story optional: `cursor/story-chapter2-hangout-d81d` @ `dcf8f7e`).
 
 | Criterion | Status | Evidence |
 |-----------|--------|----------|

@@ -33,4 +33,4 @@ Revert TASK 05 commit; player saves keep `story.materials` (no deletion).
 
 ## PR link + commit SHA
 - Branch: `cursor/task-05-chapter2-construction-d81d` → base `cursor/task-04-mobile-controls-d81d`
-- Tip commit: `1919faa`
+- Tip commit: `e9b2596`

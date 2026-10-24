@@ -41,4 +41,4 @@ Revert merge commit or checkout previous `GAME_VERSION` tag on `main`; no RTDB s
 
 ## PR link + commit SHA
 - Branch: `cursor/task-03-onboarding-quests-d81d` → base `main`
-- Tip commit: `75a63b2`
+- Tip commit: `9194e87`
