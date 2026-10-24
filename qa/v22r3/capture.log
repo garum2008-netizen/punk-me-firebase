@@ -1,0 +1,11 @@
+PASS desktop-authority-stage1.png heads P=52 N=62
+PASS desktop-authority-stage4.png heads P=60 N=52
+PASS desktop-duel-10hits.png { hudOpen: true, barCount: 2, plHits: 16, duelActive: true }
+PASS mobile-authority-stage4.png heads P=60 N=71
+PASS mobile-duel-10hits.png { hudOpen: true, barCount: 2, plHits: 16, duelActive: true }
+PASS mobile-hud-layout.png {
+  overlap: false,
+  colHeightPct: 9.123222748815166,
+  questsCollapsed: true
+}
+done /workspace/qa/v22r3

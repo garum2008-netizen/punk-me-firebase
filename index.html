@@ -88,8 +88,8 @@
       <button type="button" class="lang-btn" onclick="changeCharacter()" data-i18n="char_change_btn">Сменить героя</button>
       <div class="badge hud-version">v <strong id="gameVersion">…</strong></div>
     </div>
-    <div class="hud-quests-wrap" id="hudQuestsWrap">
-      <button type="button" class="hud-quests-toggle" id="hudQuestsToggle" aria-expanded="true" aria-controls="questBox dailyQuestHud">▾</button>
+    <div class="hud-quests-wrap collapsed" id="hudQuestsWrap">
+      <button type="button" class="hud-quests-toggle" id="hudQuestsToggle" aria-expanded="false" aria-controls="questBox dailyQuestHud">▸</button>
       <div class="quest-box" id="questBox"></div>
       <div class="daily-quest-hud" id="dailyQuestHud"></div>
     </div>
@@ -123,8 +123,9 @@
     </div>
   </div>
   <div class="game-bottom-bar" id="gameBottomBar">
+    <div class="dock-scroll-row" id="dockScrollRow">
     <div class="nav-quick scroll-row" id="navQuick" aria-label="Быстрый переход"></div>
-    <div class="panel-bottom scroll-row">
+    <div class="panel-bottom scroll-row" id="panelBottom">
       <button class="btn" data-i18n="map" onclick="openModal('mapModal')">Карта</button>
       <button class="btn" data-i18n="gang" onclick="openModal('gangModal')">Банда</button>
       <button class="btn" data-i18n="shop" onclick="openModal('shopModal')">Лавка</button>
@@ -135,6 +136,7 @@
       <button class="btn secondary" id="btnDecor" data-i18n="decor" style="display:none" onclick="tryDecorPlace()">Декор</button>
       <button class="btn danger" id="btnFight" data-i18n="fight" style="display:none" onclick="startFightUi()">Драка</button>
       <button class="btn" id="btnParkour" data-i18n="parkour" style="display:none" onclick="runParkour()">Паркур</button>
+    </div>
     </div>
     <footer class="legal-footer legal-footer-game">
       <span class="age-badge-inline" data-i18n="age_13">13+</span>

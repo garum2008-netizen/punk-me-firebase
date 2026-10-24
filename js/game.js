@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r2";
+const GAME_VERSION = "living3d-v22r3";
 const PRESENCE_STALE_MS = 120000;
 const PRIVATE_ROOM_ID = "room";
 let moveSaveTimer = null;
@@ -455,6 +455,11 @@ function initResponsiveHud() {
     qt.setAttribute("aria-expanded", collapsed ? "false" : "true");
     qt.textContent = collapsed ? "▸" : "▾";
   });
+  if (window.matchMedia("(max-width: 900px)").matches) {
+    qw?.classList.add("collapsed");
+    qt?.setAttribute("aria-expanded", "false");
+    if (qt) qt.textContent = "▸";
+  }
 }
 
 function syncStage3D() {

@@ -239,7 +239,9 @@ export function runInitiationCeremony(opts = {}) {
     dlg.querySelector(".story-dialog-body").innerHTML =
       `<p class="story-line">${escapeHtml(L(stage.ceremony.text))}</p>
        <button type="button" class="btn" id="authInitBtn">${L({ ru: "Принять нашивку", en: "Take the patch", da: "Tag mærket" })}</button>`;
-    window.StoryEngine?.applyDialogueCamera?.("razor");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => window.StoryEngine?.applyDialogueCamera?.("razor"));
+    });
     dlg.querySelector("#authInitBtn").onclick = () => {
       dlg.classList.remove("active");
       window.StoryEngine?.clearDialogueCamera?.();

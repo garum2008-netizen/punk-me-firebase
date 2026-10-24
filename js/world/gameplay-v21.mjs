@@ -53,6 +53,17 @@ export function bindGameplayToWorld3D(api, getCtx) {
   api.updateDecorGhostFromEvent = e => updateDecorGhostFromEvent(e);
   api.endAllGameplayActivities = endAllGameplayActivities;
   api.isDuelActive = () => isDuelActive();
+  api.getDuelDebug = () =>
+    state.duel
+      ? { active: state.duel.active, plHits: state.duel.plHits, npcHits: state.duel.npcHits, nid: state.duel.nid }
+      : null;
+  api.armDuelCaptureSpam = () => {
+    if (!state.duel) return false;
+    state.duel.cd = 0;
+    state.duel.npcCd = 999;
+    state.duel.firstTo = 99;
+    return true;
+  };
   api.isGameplayActivityActive = isGameplayActivityActive;
   api.decorPointerDown = (wx, wz) => decorPointerDown(wx, wz);
   api.handleDecorKey = key => handleDecorKey(key);

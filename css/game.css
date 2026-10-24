@@ -470,12 +470,35 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .hud-quests-wrap.collapsed .quest-box,
 .hud-quests-wrap.collapsed .daily-quest-hud { display: none; }
 .hud-desktop-only { display: flex; }
+.dock-scroll-row { display: contents; }
 @media (max-width: 900px) {
   #game { --dock-h: 168px; }
   .touch-controls { display: block; }
+  .dock-scroll-row {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .dock-scroll-row > .nav-quick,
+  .dock-scroll-row > .panel-bottom {
+    display: flex;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 6px;
+    overflow: visible;
+    width: auto;
+    max-width: none;
+    justify-content: flex-start;
+  }
   .hud-column {
     left: 6px; max-width: calc(100% - 112px);
     gap: 4px;
+    max-height: 20vh;
+    overflow: hidden;
   }
   .hud-desktop-only { display: none !important; }
   .hud-quests-toggle { display: inline-block; }
@@ -494,16 +517,6 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
     background: linear-gradient(180deg, transparent 0%, rgba(5,0,10,0.88) 28%, rgba(5,0,10,0.96) 100%);
     border-top: 1px solid rgba(255,0,255,0.18);
   }
-  .game-bottom-bar .nav-quick,
-  .game-bottom-bar .panel-bottom {
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    max-width: 100%;
-    width: 100%;
-    padding-bottom: 2px;
-  }
   .game-bottom-bar .btn {
     min-height: 40px;
     min-width: 40px;
@@ -513,13 +526,26 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   }
   .game-bottom-bar .legal-footer-game { font-size: 10px; padding: 5px 12px; }
   .chat {
-    width: min(200px, 46vw);
-    left: 8px;
-    right: auto;
-    bottom: calc(var(--dock-h) + 52px);
+    position: fixed;
+    width: min(220px, 72vw);
+    left: auto;
+    right: 8px;
+    top: 78px;
+    bottom: auto;
     padding: 6px;
+    z-index: 29;
   }
-  .chat-toggle { display: block; min-height: 40px; max-width: 88px; }
+  .chat-toggle {
+    display: block;
+    position: fixed;
+    top: 40px;
+    right: 52px;
+    z-index: 30;
+    min-height: 40px;
+    min-width: 56px;
+    max-width: none;
+    margin: 0;
+  }
   .chat:not(.chat-open) .chat-body { display: none; }
   .chat:not(.chat-open) { padding: 4px; width: auto; min-width: 40px; }
   .chat:not(.chat-open) .chat-toggle { margin-bottom: 0; min-width: 72px; }

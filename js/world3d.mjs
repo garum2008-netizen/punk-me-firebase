@@ -73,6 +73,7 @@ let meLastDy = 0;
 let playerAnimState = "idle";
 let modelsReady = false;
 let captureFrameLock = false;
+let dialogueLiveMinHead = 0;
 let portalGraceUntil = 0;
 let captureSavedRotY = 0;
 let captureHideActors = null;
@@ -1509,6 +1510,7 @@ const api = {
       captureHideActors = null;
     }
     actors.forEach(a => setDialogueCaptureScale(a, 1));
+    dialogueLiveMinHead = 0;
     setElevatorCutaway(false);
     resetPropDimOpacity();
     resetOccluderOpacity();
@@ -1673,7 +1675,7 @@ const api = {
       }
       return ok;
     };
-    const minHead = ch * 0.06;
+    const minHead = dialogueLiveMinHead > 0 ? dialogueLiveMinHead : ch * 0.06;
     if (headSpanP < minHead) reasons.push("player_head_small");
     if (headSpanN < minHead) reasons.push("npc_head_small");
     const pass =
@@ -1724,16 +1726,24 @@ const api = {
     npc._patrol = null;
     npc._patrolLoc = null;
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
-    const sep = live
-      ? (mobileQuality ? (npcId === "mohawk" ? 1.38 : 1.15) : 2.05)
-      : npcId === "razor"
+    let sep;
+    let shiftX;
+    if (live) {
+      if (mobileQuality) {
+        sep = npcId === "razor" ? 1.42 : npcId === "mohawk" ? 1.36 : npcId === "gravedigger" ? 1.2 : 1.15;
+        shiftX = 0.48;
+      } else {
+        sep = npcId === "razor" ? 2.38 : npcId === "mohawk" ? 2.18 : npcId === "gravedigger" ? 2.12 : 2.05;
+        shiftX = npcId === "razor" ? 0.66 : 0.7;
+      }
+    } else {
+      sep = npcId === "razor"
         ? (mobileQuality ? 1.48 : 2.55)
         : (mobileQuality ? 1.68 : 2.75);
-    let shiftX = live
-      ? (mobileQuality ? 0.5 : 0.72)
-      : npcId === "razor"
+      shiftX = npcId === "razor"
         ? (mobileQuality ? 0.78 : 0.94)
         : (mobileQuality ? 0.62 : 0.68);
+    }
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
@@ -1766,12 +1776,23 @@ const api = {
       setDialogueCaptureScale(npc, 1);
     }
     let camX = shiftX;
-    let camY = live ? (mobileQuality ? 1.52 : 1.58) : (mobileQuality ? 1.44 : 1.66);
-    let camZ = midZ + (live ? (mobileQuality ? 1.85 : 3.9) : (mobileQuality ? 2.15 : 6.15));
+    let camY = live ? (mobileQuality ? 1.54 : 1.52) : (mobileQuality ? 1.44 : 1.66);
+    let camZ = midZ;
+    if (live) {
+      if (mobileQuality) {
+        camZ += npcId === "razor" ? 1.48 : npcId === "mohawk" ? 1.72 : 1.82;
+      } else {
+        camZ += npcId === "razor" ? 2.42 : npcId === "mohawk" ? 2.58 : 2.72;
+      }
+    } else {
+      camZ += mobileQuality ? 2.15 : 6.15;
+    }
     let lookX = shiftX;
-    let lookY = mobileQuality ? 1.26 : 1.36;
+    let lookY = live && !mobileQuality ? 1.34 : (mobileQuality ? 1.28 : 1.36);
     let lookZ = midZ;
-    camera.fov = live ? (mobileQuality ? 32 : 40) : (mobileQuality ? 34 : 38);
+    camera.fov = live ? (mobileQuality ? 30 : 35) : (mobileQuality ? 34 : 38);
+    const liveMinHeadPx = live ? (mobileQuality ? 60 : 52) : 0;
+    dialogueLiveMinHead = liveMinHeadPx;
     const canvas = document.getElementById("stage3d");
     const cw = canvas?.clientWidth || 1;
     const ch = canvas?.clientHeight || 1;
@@ -1791,7 +1812,7 @@ const api = {
       return { x: p.x / cw, y: p.y / ch };
     };
     if (mobileQuality) {
-      const minHeadPx = ch * 0.06;
+      const minHeadPx = liveMinHeadPx || ch * 0.06;
       const minCamZ = midZ + (live ? 0.18 : 0.42);
       for (let pass = 0; pass < (live ? 48 : 36); pass++) {
         camera.position.set(camX, camY, camZ);
@@ -1880,9 +1901,9 @@ const api = {
       }
     }
     if (live) {
-      const minHeadPx = ch * 0.06;
+      const minHeadPx = liveMinHeadPx || ch * 0.06;
       let liveScale = 1;
-      for (let pass = 0; pass < 32; pass++) {
+      for (let pass = 0; pass < 36; pass++) {
         camera.position.set(camX, camY, camZ);
         camera.lookAt(lookX, lookY, lookZ);
         camera.updateProjectionMatrix();
@@ -1894,10 +1915,33 @@ const api = {
         if (sp >= minHeadPx && sn >= minHeadPx) break;
         camZ -= 0.1;
         if (camera.fov > 26) camera.fov -= 0.28;
-        if (mobileQuality && pass > 12 && liveScale < 2.15) {
-          liveScale += 0.22;
+        if (mobileQuality && pass > 8 && liveScale < (npcId === "razor" ? 3.2 : 2.6)) {
+          liveScale += 0.18;
           setDialogueCaptureScale(pl, liveScale);
           setDialogueCaptureScale(npc, liveScale);
+        }
+      }
+    }
+    if (live && !mobileQuality) {
+      const minHeadPx = liveMinHeadPx || 52;
+      for (let pass = 0; pass < 28; pass++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const sp = headSpanPx(pl);
+        const sn = headSpanPx(npc);
+        const fp = normHead(pl);
+        const fn = normHead(npc);
+        const maxY = Math.max(fp?.y ?? 0, fn?.y ?? 0);
+        if (sp >= minHeadPx && sn >= minHeadPx && maxY >= 0.36 && maxY <= 0.5) break;
+        if (maxY < 0.36 || sp < minHeadPx || sn < minHeadPx) {
+          camZ -= 0.14;
+          if (camera.fov > 28) camera.fov -= 0.25;
+        } else if (maxY > 0.5) {
+          camZ += 0.1;
         }
       }
     }
@@ -1977,14 +2021,14 @@ const api = {
       }
     }
     if (live && mobileQuality) {
-      const minHeadPx = ch * 0.06;
+      const minHeadPx = liveMinHeadPx || ch * 0.06;
       const scaleMax =
-        npcId === "gravedigger" ? 4.5 : npcId === "mohawk" ? 4.9 : npcId === "razor" ? 5.3 : 3.85;
-      for (let sc = 2.4; sc <= scaleMax; sc += 0.2) {
+        npcId === "gravedigger" ? 4.5 : npcId === "mohawk" ? 5.1 : npcId === "razor" ? 7.2 : 3.85;
+      for (let sc = 2.6; sc <= scaleMax; sc += 0.18) {
         setDialogueCaptureScale(pl, sc);
         setDialogueCaptureScale(npc, sc);
-        camZ = midZ + 1.28;
-        camera.fov = 29;
+        camZ = midZ + (npcId === "razor" ? 1.12 : 1.28);
+        camera.fov = npcId === "razor" ? 27 : 29;
         camera.position.set(camX, camY, camZ);
         camera.lookAt(lookX, lookY, lookZ);
         camera.updateProjectionMatrix();
