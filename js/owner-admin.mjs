@@ -10,7 +10,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-accounts";
+const GAME_VERSION = "living3d-v22r5-accounts-r1";
 
 function t(key) {
   return typeof window.t === "function" ? window.t(key) : key;
@@ -56,6 +56,8 @@ function setUi({ user, denied }) {
 }
 
 export function initOwnerAdmin() {
+  if (typeof initLanguage === "function") initLanguage();
+  if (typeof applyI18nDom === "function") applyI18nDom();
   if (!window.firebase?.apps?.length) firebase.initializeApp(FIREBASE_CONFIG);
   const auth = window.firebase.auth();
   const db = window.firebase.database();

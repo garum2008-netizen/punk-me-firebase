@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
-const CACHE = "living3d-v22r5-accounts";
+const CACHE = "living3d-v22r5-accounts-r1";
 const outDir = path.join("/workspace/qa", "accounts");
 fs.mkdirSync(outDir, { recursive: true });
 

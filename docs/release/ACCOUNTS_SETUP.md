@@ -1,6 +1,30 @@
 # PUNK ME — настройка аккаунтов (OWNER ACTION: Inna)
 
-**Код:** `living3d-v22r5-accounts` · **Правила в репозитории не деплоятся автоматически** — шаги ниже для Firebase Console.
+**Код:** `living3d-v22r5-accounts-r1` · Правила и хостинг **не деплоятся** из этого PR автоматически.
+
+## ⚠️ Порядок выкладки (обязательно)
+
+**Новые `database.rules.json` публиковать только вместе с этим кодом на production (или сразу после него).**
+
+| Если сделать только… | Что сломается |
+|----------------------|----------------|
+| **Только rules** (старый JS ещё live) | Старый клиент читает весь `players` → **PERMISSION_DENIED**, список игроков / глобальный онлайн |
+| **Только код** (старые rules) | Игра работает; `owner.html` не видит всех игроков до публикации rules — **ожидаемо** |
+
+### Рекомендуемая последовательность
+
+1. Задеплоить **статику** с `living3d-v22r5-accounts-r1` (presence-based multiplayer, аккаунты).
+2. В течение **той же сессии** (или сразу после) → Firebase Console → **Realtime Database** → **Rules** → вставить `database.rules.json` → **Publish**.
+3. Включить провайдеры Auth (ниже) и authorized domains.
+4. Smoke: игра, вход гостя, owner.html под owner-аккаунтом.
+
+### Откат (rollback)
+
+1. **Rules:** в Console вернуть предыдущую версию rules (вкладка **Rules** → **History** / сохранённая копия с `players.read: true`).
+2. **Сайт:** откатить хостинг на предыдущий релиз (`living3d-v22r4-loadfix` или последний стабильный).
+3. Порядок отката: можно сначала **rules** (старый JS снова читает `players`), затем статику — или одновременно. Не оставлять новые rules + старый JS надолго.
+
+---
 
 ## 1. Authentication → Sign-in method
 
@@ -8,54 +32,39 @@
 
 | Провайдер | Действие |
 |-----------|----------|
-| **Anonymous** | Оставить **Enabled** (гости + апгрейд uid) |
-| **Google** | **Enable**, support email, при необходии OAuth client для Web |
-| **Email/Password** | **Enable** (Email + Password) |
+| **Anonymous** | **Enabled** |
+| **Google** | **Enable** |
+| **Email/Password** | **Enable** |
 
 ## 2. Authorized domains
 
-**Authentication** → **Settings** → **Authorized domains** — добавить:
-
-- `halloween.punk.contractbot.dk`
-- `localhost` (для локальных тестов)
-- домен Firebase Hosting по умолчанию (`punk-me-40605.firebaseapp.com`, `punk-me-40605.web.app`)
+`halloween.punk.contractbot.dk`, `localhost`, `punk-me-40605.firebaseapp.com`, `punk-me-40605.web.app`
 
 ## 3. Realtime Database → Rules
 
-Скопировать содержимое `database.rules.json` из репозитория в **Realtime Database** → **Rules** → **Publish**.
-
-### Суть diff (от текущего production)
+Содержимое `database.rules.json` из репозитория — **после** деплоя кода (см. выше).
 
 | Путь | Было | Стало |
 |------|------|--------|
-| `players` `.read` | `true` (все читают всех) | только **owner** `garum2008@gmail.com` + `email_verified` |
-| `players/$uid` `.read` | (наследовалось) | `auth.uid === $uid` — игрок читает **только свой** save |
-| `players/$uid` `.write` | без изменений по смыслу | свой uid или owner |
+| `players` `.read` | `true` | только owner verified |
+| `players/$uid` `.read` | наследование | `auth.uid === $uid` |
 
-Игра для мультиплеера в локации использует **`presence/`** (по-прежнему `.read: true`), не полный список `players`.
+Мультиплеер в локации: **`presence/`** (`.read: true`).
 
-**Важно:** пока rules не опубликованы, owner.html может не показать счётчик игроков; вход игроков по-прежнему работает со старыми rules.
+## 4. Проверка
 
-## 4. Проверка после включения провайдеров
+1. Гость → **Войти** → link Google/email → тот же **uid**.
+2. Другой браузер → тот же аккаунт → тот же save.
+3. **Выйти** → новый anonymous; старые данные в RTDB не удаляются.
+4. `owner.html` — только `garum2008@gmail.com` verified.
 
-1. Открыть игру → **Войти** → Google или Email.
-2. Гость с прогрессом → привязать email → **тот же uid** в Firebase Auth → данные в `players/{uid}` на месте.
-3. Другой браузер → войти тем же email → тот же save.
-4. **Выйти** → новый anonymous uid, старый save в Firebase **не удаляется**.
-5. `owner.html` → вход owner Google/email verified → таблица игроков (после deploy rules).
-
-## 5. Что не делает этот релиз
-
-- Не подключает оплату / подписку.
-- Не меняет тексты 13+, 4,99 €, parental consent на `subscribe.html`.
-- Не удаляет anonymous saves и не мигрирует чужие uid автоматически при конфликте аккаунта (игрок выбирает: войти в существующий или остаться гостем).
-
-## 6. Тесты в CI
+## 5. Тесты
 
 ```bash
 npm run test:loading
 npm run test:loading-early-save
 npm run test:accounts
+node scripts/capture-accounts-qa.js
 ```
 
-Email/Google link-тесты в `test:accounts` помечаются **SKIP** с `auth/operation-not-allowed`, пока провайдеры не включены.
+Email/Google link — **SKIP** до включения провайдеров.

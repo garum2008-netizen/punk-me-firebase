@@ -2,12 +2,12 @@
   {
     "id": "desktop-chromium-reload-coins",
     "pass": true,
-    "detail": "uid=6dLPCepm9JZq2QhfVElDo3mCjff1 coins=4242"
+    "detail": "uid=vrz5FyONilNtAkRKSu3xovW2BEv2 coins=4242"
   },
   {
     "id": "desktop-chromium-signout-new-anon",
     "pass": true,
-    "detail": "6dLPCepm9JZq2QhfVElDo3mCjff1 -> RdfeTgz2biOBw9QVwFpcc6h3oZ02"
+    "detail": "vrz5FyONilNtAkRKSu3xovW2BEv2 -> 8ZLJjNdKKkVcE1r6459G6KrDnDC3"
   },
   {
     "id": "desktop-chromium-owner-guest-ui",

@@ -9,8 +9,13 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-accounts";
+const GAME_VERSION = "living3d-v22r5-accounts-r1";
 window.GAME_VERSION = GAME_VERSION;
+window.__punkFirebaseReady =
+  window.__punkFirebaseReady ||
+  new Promise(resolve => {
+    window.__punkResolveFirebaseReady = resolve;
+  });
 const PRESENCE_STALE_MS = 120000;
 const PRIVATE_ROOM_ID = "room";
 let moveSaveTimer = null;
@@ -701,6 +706,8 @@ function init() {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
     db = firebase.database();
+    window.__punkFirebaseReady = Promise.resolve();
+    window.dispatchEvent(new Event("punkme-firebase-ready"));
   } catch (bootErr) {
     console.error("Firebase init failed", bootErr);
     showLoadingFailure(t("loading_boot_error"), bootErr.message || String(bootErr));

@@ -13,8 +13,21 @@ function toast(msg) {
   window.toast?.(msg);
 }
 
+function waitForFirebaseApp() {
+  if (window.firebase?.apps?.length) return Promise.resolve();
+  if (window.__punkFirebaseReady) return window.__punkFirebaseReady;
+  return new Promise(resolve => {
+    window.addEventListener("punkme-firebase-ready", () => resolve(), { once: true });
+  });
+}
+
 function getAuth() {
-  return window.firebase?.auth?.() || null;
+  if (!window.firebase?.apps?.length) return null;
+  return window.firebase.auth();
+}
+
+export function isAccountModalOpen() {
+  return document.getElementById("accountModal")?.classList.contains("active") ?? false;
 }
 
 function shouldUseRedirect() {
@@ -43,7 +56,11 @@ function authErrorMessage(code) {
 function setModalOpen(open) {
   const m = document.getElementById("accountModal");
   if (!m) return;
+  if (open) {
+    document.getElementById("howToOverlay")?.classList.remove("active");
+  }
   m.classList.toggle("active", open);
+  document.body.classList.toggle("account-modal-open", open);
 }
 
 function showConflictDialog({ email, credential, providerLabel }) {
@@ -222,6 +239,7 @@ export function updateAccountAuthUi(user) {
 }
 
 export async function punkSignOut() {
+  await waitForFirebaseApp();
   const auth = getAuth();
   if (!auth) return;
   await auth.signOut();
@@ -285,17 +303,17 @@ function wireModal() {
   });
 }
 
-export function initAccountAuth() {
+export async function initAccountAuth() {
   wireModal();
-  if (location.hash === "#account") setModalOpen(true);
   window.addEventListener("hashchange", () => {
     if (location.hash === "#account") setModalOpen(true);
   });
+  await waitForFirebaseApp();
   const auth = getAuth();
   if (!auth) return;
-  handleRedirectResult().then(() => {
-    updateAccountAuthUi(auth.currentUser);
-  });
+  if (location.hash === "#account") setModalOpen(true);
+  await handleRedirectResult();
+  updateAccountAuthUi(auth.currentUser);
   auth.onAuthStateChanged(u => {
     updateAccountAuthUi(u);
     if (u && !u.isAnonymous && window.me) {
@@ -319,4 +337,6 @@ export async function __testLinkEmailKeepUid(email, password) {
 
 window.__punkSignOut = punkSignOut;
 window.__punkUpdateAccountUi = updateAccountAuthUi;
+window.__punkIsAccountModalOpen = isAccountModalOpen;
 window.__punkAccountAuthTestLink = __testLinkEmailKeepUid;
+window.__punkWaitFirebase = waitForFirebaseApp;

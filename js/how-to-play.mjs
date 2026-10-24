@@ -36,6 +36,9 @@ function howToHtml() {
 }
 
 function openHowTo() {
+  if (window.__punkIsAccountModalOpen?.() || document.getElementById("accountModal")?.classList.contains("active")) {
+    return;
+  }
   const el = document.getElementById("howToOverlay");
   if (!el) return;
   el.innerHTML = howToHtml();
@@ -59,8 +62,12 @@ function initHowToPlay() {
   btn?.addEventListener("click", openHowTo);
   let seen = false;
   try { seen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (e) {}
-  if (!seen) {
-    setTimeout(openHowTo, 800);
+  if (!seen && location.hash !== "#account") {
+    setTimeout(() => {
+      if (!window.__punkIsAccountModalOpen?.() && !document.getElementById("accountModal")?.classList.contains("active")) {
+        openHowTo();
+      }
+    }, 800);
   }
 }
 

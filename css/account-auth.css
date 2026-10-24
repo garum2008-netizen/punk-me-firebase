@@ -1,3 +1,13 @@
+#accountModal.modal.active {
+  z-index: 210;
+  display: block;
+}
+body.account-modal-open .howto-overlay {
+  display: none !important;
+}
+.account-conflict-dialog {
+  z-index: 220;
+}
 .account-auth-bar {
   margin-top: 12px;
   display: flex;
@@ -6,6 +16,19 @@
   justify-content: center;
   align-items: center;
   pointer-events: auto;
+}
+#loading .account-auth-bar,
+#charSelect .account-auth-bar {
+  margin-top: 16px;
+  padding: 0 12px;
+}
+#loading .btn-account,
+#charSelect .btn-account {
+  font-size: 15px;
+  font-weight: 800;
+  min-height: 44px;
+  padding: 10px 22px;
+  min-width: 140px;
 }
 .account-hud-wrap {
   display: flex;
@@ -51,7 +74,7 @@
 .account-conflict-dialog {
   position: fixed;
   inset: 0;
-  z-index: 55;
+  z-index: 220;
   display: none;
   align-items: center;
   justify-content: center;
