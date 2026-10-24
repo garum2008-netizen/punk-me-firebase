@@ -1,4 +1,4 @@
-import { punkSignOut } from "./account-auth.mjs";
+import { punkSignOut, onGoogleSignInClick, authErrorMessage } from "./account-auth.mjs";
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyACAXPV9H4vfWNUoRYEWzXi6CSX0kpCaho",
@@ -14,6 +14,18 @@ const GAME_VERSION = "living3d-v22r5-accounts-r1";
 
 function t(key) {
   return typeof window.t === "function" ? window.t(key) : key;
+}
+
+function ownerToast(msg) {
+  const el = document.getElementById("toast");
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2800);
+}
+
+if (!window.toast) {
+  window.toast = ownerToast;
 }
 
 function isOwnerUser(user) {
@@ -62,18 +74,16 @@ export function initOwnerAdmin() {
   const auth = window.firebase.auth();
   const db = window.firebase.database();
 
-  document.getElementById("ownerBtnGoogle")?.addEventListener("click", async () => {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-      await auth.signInWithPopup(provider);
-    } catch (e) {
-      if (e.code === "auth/popup-blocked") await auth.signInWithRedirect(provider);
-    }
-  });
+  document.getElementById("ownerBtnGoogle")?.addEventListener("click", () => onGoogleSignInClick());
   document.getElementById("ownerBtnEmail")?.addEventListener("click", async () => {
     const email = prompt(t("auth_email_prompt"));
     const pass = prompt(t("auth_password_prompt"));
-    if (email && pass) await auth.signInWithEmailAndPassword(email, pass);
+    if (!email || !pass) return;
+    try {
+      await auth.signInWithEmailAndPassword(email, pass);
+    } catch (e) {
+      ownerToast(authErrorMessage(e.code, { emailForm: true }));
+    }
   });
   document.getElementById("ownerSignOut")?.addEventListener("click", () => punkSignOut());
 

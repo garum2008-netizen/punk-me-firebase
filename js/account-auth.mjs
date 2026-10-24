@@ -5,6 +5,11 @@
 
 const REDIRECT_KEY = "punkme_auth_redirect";
 
+const REDIRECT_FALLBACK_CODES = new Set([
+  "auth/popup-blocked",
+  "auth/operation-not-supported-in-this-environment"
+]);
+
 function t(key) {
   return typeof window.t === "function" ? window.t(key) : key;
 }
@@ -26,19 +31,23 @@ function getAuth() {
   return window.firebase.auth();
 }
 
+function googleProvider() {
+  return new firebase.auth.GoogleAuthProvider();
+}
+
 export function isAccountModalOpen() {
   return document.getElementById("accountModal")?.classList.contains("active") ?? false;
 }
 
-function shouldUseRedirect() {
-  if (window.__punkForceAuthRedirect) return true;
-  const ua = navigator.userAgent || "";
-  const isIOS = /iPad|iPhone|iPod/.test(ua);
-  const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS/i.test(ua);
-  return isIOS || isSafari;
+function shouldForceRedirect() {
+  return Boolean(window.__punkForceAuthRedirect);
 }
 
-function authErrorMessage(code) {
+export function authErrorMessage(code, { emailForm = false } = {}) {
+  if (!code) return t("auth_err_generic");
+  if (code === "auth/operation-not-allowed" && emailForm) {
+    return t("auth_err_email_unavailable");
+  }
   const map = {
     "auth/popup-blocked": t("auth_err_popup"),
     "auth/cancelled-popup-request": t("auth_err_cancelled"),
@@ -48,7 +57,14 @@ function authErrorMessage(code) {
     "auth/user-not-found": t("auth_err_no_user"),
     "auth/weak-password": t("auth_err_weak_password"),
     "auth/invalid-email": t("auth_err_invalid_email"),
-    "auth/operation-not-allowed": t("auth_err_providers_disabled")
+    "auth/operation-not-allowed": t("auth_err_providers_disabled"),
+    "auth/operation-not-supported-in-this-environment": t("auth_err_unsupported_env"),
+    "auth/network-request-failed": t("auth_err_network"),
+    "auth/too-many-requests": t("auth_err_too_many_requests"),
+    "auth/user-disabled": t("auth_err_user_disabled"),
+    "auth/invalid-credential": t("auth_err_invalid_credential"),
+    "auth/account-exists-with-different-credential": t("auth_err_account_exists"),
+    "auth/requires-recent-login": t("auth_err_requires_recent_login")
   };
   return map[code] || t("auth_err_generic");
 }
@@ -100,20 +116,72 @@ async function signInWithExistingCredential(credential) {
   toast(t("auth_signed_in_existing"));
 }
 
-async function linkGoogle(user) {
+async function redirectGoogleAuth(mode) {
   const auth = getAuth();
-  const provider = new firebase.auth.GoogleAuthProvider();
-  if (shouldUseRedirect()) {
-    sessionStorage.setItem(REDIRECT_KEY, "link_google");
+  if (!auth) return;
+  const provider = googleProvider();
+  const user = auth.currentUser;
+  sessionStorage.setItem(REDIRECT_KEY, mode === "link" ? "link_google" : "signin_google");
+  toast(t("auth_redirect_try"));
+  if (mode === "link" && user) {
     await user.linkWithRedirect(provider);
+  } else {
+    await auth.signInWithRedirect(provider);
+  }
+}
+
+/**
+ * Start Google popup/link synchronously (must run in the user-gesture call stack).
+ * Returns the Firebase promise, or null if auth is unavailable.
+ */
+export function beginGooglePopupAuth() {
+  const auth = getAuth();
+  if (!auth) return null;
+  const provider = googleProvider();
+  const user = auth.currentUser;
+  if (user?.isAnonymous) {
+    return { mode: "link", promise: user.linkWithPopup(provider) };
+  }
+  return { mode: "signin", promise: auth.signInWithPopup(provider) };
+}
+
+async function handleGooglePopupError(e, mode) {
+  if (e?.code === "auth/credential-already-in-use" && e.credential) {
+    const email = e.email || e.customData?.email || "Google";
+    const choice = await showConflictDialog({ email, credential: e.credential, providerLabel: "Google" });
+    if (choice === "signin") await signInWithExistingCredential(e.credential);
     return;
   }
-  try {
-    await user.linkWithPopup(provider);
-    toast(t("auth_linked_ok"));
-  } catch (e) {
-    await handleLinkError(e, "Google");
+  if (REDIRECT_FALLBACK_CODES.has(e?.code)) {
+    await redirectGoogleAuth(mode);
+    return;
   }
+  toast(authErrorMessage(e?.code));
+}
+
+function completeGooglePopupSuccess(mode) {
+  if (mode === "link") toast(t("auth_linked_ok"));
+  else toast(t("auth_signed_in"));
+}
+
+/**
+ * Google sign-in / link entry for click handlers (popup first; no await before popup).
+ */
+export function onGoogleSignInClick() {
+  if (shouldForceRedirect()) {
+    redirectGoogleAuth(getAuth()?.currentUser?.isAnonymous ? "link" : "signin").catch(e =>
+      toast(authErrorMessage(e?.code))
+    );
+    return;
+  }
+  const started = beginGooglePopupAuth();
+  if (!started) {
+    toast(t("auth_err_generic"));
+    return;
+  }
+  started.promise
+    .then(() => completeGooglePopupSuccess(started.mode))
+    .catch(e => handleGooglePopupError(e, started.mode));
 }
 
 async function linkEmailPassword(user, email, password) {
@@ -152,51 +220,6 @@ async function registerEmailPassword(user, email, password) {
       return;
     }
     throw e;
-  }
-}
-
-async function handleLinkError(e, providerLabel) {
-  if (e.code === "auth/credential-already-in-use" && e.credential) {
-    const email = e.email || e.customData?.email || providerLabel;
-    const choice = await showConflictDialog({ email, credential: e.credential, providerLabel });
-    if (choice === "signin") await signInWithExistingCredential(e.credential);
-    return;
-  }
-  if (e.code === "auth/popup-blocked") {
-    toast(t("auth_redirect_try"));
-    const user = getAuth().currentUser;
-    if (user) {
-      sessionStorage.setItem(REDIRECT_KEY, "link_google");
-      await user.linkWithRedirect(new firebase.auth.GoogleAuthProvider());
-    }
-    return;
-  }
-  toast(authErrorMessage(e.code));
-  throw e;
-}
-
-async function signInGoogle() {
-  const auth = getAuth();
-  const provider = new firebase.auth.GoogleAuthProvider();
-  const user = auth.currentUser;
-  if (user?.isAnonymous) {
-    return linkGoogle(user);
-  }
-  if (shouldUseRedirect()) {
-    sessionStorage.setItem(REDIRECT_KEY, "signin_google");
-    await auth.signInWithRedirect(provider);
-    return;
-  }
-  try {
-    await auth.signInWithPopup(provider);
-    toast(t("auth_signed_in"));
-  } catch (e) {
-    if (e.code === "auth/popup-blocked") {
-      sessionStorage.setItem(REDIRECT_KEY, "signin_google");
-      await auth.signInWithRedirect(provider);
-      return;
-    }
-    toast(authErrorMessage(e.code));
   }
 }
 
@@ -275,7 +298,7 @@ function wireModal() {
   document.getElementById("btnAccountOpenLoading")?.addEventListener("click", () => setModalOpen(true));
   document.getElementById("btnAccountOpenChar")?.addEventListener("click", () => setModalOpen(true));
   document.getElementById("accountModalClose")?.addEventListener("click", () => setModalOpen(false));
-  document.getElementById("btnAccountGoogle")?.addEventListener("click", () => signInGoogle().catch(e => toast(authErrorMessage(e.code))));
+  document.getElementById("btnAccountGoogle")?.addEventListener("click", () => onGoogleSignInClick());
   document.getElementById("btnAccountSignOut")?.addEventListener("click", () => punkSignOut());
   document.getElementById("accountEmailForm")?.addEventListener("submit", async e => {
     e.preventDefault();
@@ -286,7 +309,7 @@ function wireModal() {
       await signInEmail(email, pass);
       setModalOpen(false);
     } catch (err) {
-      toast(authErrorMessage(err.code));
+      toast(authErrorMessage(err.code, { emailForm: true }));
     }
   });
   document.getElementById("btnAccountReset")?.addEventListener("click", async () => {
@@ -298,7 +321,7 @@ function wireModal() {
     try {
       await resetPassword(email);
     } catch (err) {
-      toast(authErrorMessage(err.code));
+      toast(authErrorMessage(err.code, { emailForm: true }));
     }
   });
 }
@@ -340,3 +363,5 @@ window.__punkUpdateAccountUi = updateAccountAuthUi;
 window.__punkIsAccountModalOpen = isAccountModalOpen;
 window.__punkAccountAuthTestLink = __testLinkEmailKeepUid;
 window.__punkWaitFirebase = waitForFirebaseApp;
+window.__punkBeginGooglePopupAuth = beginGooglePopupAuth;
+window.__punkOnGoogleSignInClick = onGoogleSignInClick;
