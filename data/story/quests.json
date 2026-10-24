@@ -556,12 +556,12 @@
       "steps": [
         {
           "id": "s1",
-          "objective": { "ru": "Собери 5 кирпичей для фундамента", "en": "Gather 5 bricks for the foundation", "da": "Saml 5 mursten til fundamentet" },
+          "objective": { "ru": "Собери 3 кирпича для фундамента", "en": "Gather 3 bricks for the foundation", "da": "Saml 3 mursten til fundamentet" },
           "beacon": "obj_hangout_site",
-          "complete_on": "material:brick>=5"
+          "complete_on": "material:brick>=3"
         }
       ],
-      "rewards": [{ "type": "material", "id": "brick", "value": 2 }]
+      "rewards": [{ "type": "material", "id": "brick", "value": 5 }]
     },
     {
       "id": "q_parkour_time",
