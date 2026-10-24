@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r4";
+const GAME_VERSION = "living3d-v22r4-loadfix";
 const PRESENCE_STALE_MS = 120000;
 const PRIVATE_ROOM_ID = "room";
 let moveSaveTimer = null;
@@ -363,6 +363,203 @@ function defaultPlayer() {
   };
 }
 
+const CHAR_ID_STORAGE_KEY = "punkme_character_id";
+const LOAD_ME_TIMEOUT_MS = 10000;
+let loadMeGeneration = 0;
+let loadMeTimeoutId = null;
+
+function readStoredCharacterId() {
+  try {
+    const id = localStorage.getItem(CHAR_ID_STORAGE_KEY);
+    if (id && typeof isCharacterJoinable === "function" && isCharacterJoinable(id)) return id;
+  } catch (e) {}
+  return null;
+}
+
+function writeStoredCharacterId(id) {
+  if (!id) return;
+  try {
+    localStorage.setItem(CHAR_ID_STORAGE_KEY, id);
+  } catch (e) {}
+}
+
+function inferCharacterIdFromSave(v) {
+  if (!v || typeof v !== "object") return null;
+  const direct = v.characterId || v.character || v.heroId || v.hero;
+  if (direct && typeof direct === "string" && typeof isCharacterJoinable === "function" && isCharacterJoinable(direct)) {
+    return direct;
+  }
+  const av = v.avatar;
+  if (av && typeof av === "string" && typeof PLAYABLE_CHARACTER_IDS !== "undefined") {
+    for (const id of PLAYABLE_CHARACTER_IDS) {
+      if (getCharacterDef(id).poster === av) return id;
+    }
+  }
+  return null;
+}
+
+function migratePlayerFromSave(raw) {
+  if (!raw || typeof raw !== "object") return {};
+  const v = { ...raw };
+  if (!v.characterId) {
+    const inferred = inferCharacterIdFromSave(v);
+    if (inferred) v.characterId = inferred;
+  }
+  if (typeof v.characterId === "string" && !v.characterId.trim()) delete v.characterId;
+  if (v.story && typeof v.story === "object") {
+    if (v.story.quest != null && typeof v.story.quest !== "object") {
+      v.story.quest = { activeId: null, step: 0, completed: {} };
+    } else if (v.story.quest) {
+      const qc = v.story.quest.completed;
+      if (qc == null || typeof qc !== "object" || Array.isArray(qc)) v.story.quest.completed = {};
+    }
+    if (v.story.materials != null && typeof v.story.materials !== "object") v.story.materials = {};
+  }
+  if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
+  if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
+  if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
+  return v;
+}
+
+function clearLoadMeTimeout() {
+  if (loadMeTimeoutId) {
+    clearTimeout(loadMeTimeoutId);
+    loadMeTimeoutId = null;
+  }
+}
+
+function restoreLoadingMarkup() {
+  const el = document.getElementById("loading");
+  if (!el) return;
+  el.style.display = "flex";
+  el.innerHTML = `<div style="font-size:22px;font-weight:800;color:#ff00ff">PUNK ME</div>
+  <div id="loadingStatus" style="opacity:.8" data-i18n="loading"></div>
+  <div class="legal-footer legal-footer-start">
+    <span class="age-badge-inline" data-i18n="age_13">13+</span>
+    <a href="subscribe.html" data-i18n="footer_subscribe"></a>
+  </div>`;
+  if (typeof applyI18nDom === "function") applyI18nDom();
+}
+
+function showLoadingFailure(message, detail) {
+  clearLoadMeTimeout();
+  const el = document.getElementById("loading");
+  if (!el) return;
+  el.style.display = "flex";
+  el.innerHTML = `<div style="font-size:22px;font-weight:800;color:#ff00ff">PUNK ME</div>
+    <p class="loading-error">${escapeHtml(message || t("loading_boot_error"))}</p>
+    ${detail ? `<p class="loading-error-detail">${escapeHtml(detail)}</p>` : ""}
+    <div class="loading-actions">
+      <button type="button" class="btn" id="loadingRetryBtn">${escapeHtml(t("loading_retry"))}</button>
+      <button type="button" class="btn secondary" id="loadingFreshBtn">${escapeHtml(t("loading_fresh"))}</button>
+    </div>
+    <div class="legal-footer legal-footer-start">
+      <span class="age-badge-inline" data-i18n="age_13">13+</span>
+      <a href="subscribe.html" data-i18n="footer_subscribe">${escapeHtml(t("footer_subscribe"))}</a>
+    </div>`;
+  document.getElementById("loadingRetryBtn")?.addEventListener("click", () => {
+    restoreLoadingMarkup();
+    loadMe();
+  });
+  document.getElementById("loadingFreshBtn")?.addEventListener("click", () => startFreshPlayerKeepAccount());
+}
+
+function applyFirebasePlayerSnapshot(snap) {
+  if (snap.exists()) {
+    const v = migratePlayerFromSave(snap.val());
+    me = { ...defaultPlayer(), ...v };
+    if (devCoinsEnabled()) me.coins = 9999;
+    me.inventory = { materials: {}, spells: [], ...(v.inventory || {}) };
+    me.inventory.materials = v.inventory?.materials || {};
+    me.inventory.spells = Array.isArray(v.inventory?.spells) ? v.inventory.spells : [];
+    me.quests = v.quests && typeof v.quests === "object" ? v.quests : me.quests;
+    me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
+    me.story = v.story || me.story;
+    me.energy = v.energy ?? me.energy ?? 100;
+    me.mood = v.mood ?? me.mood ?? 100;
+    me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
+    if (v.lang) initLanguage(v.lang);
+  } else {
+    me = me || defaultPlayer();
+  }
+  window.me = me;
+  window.__playerLoaded = true;
+  if (!me.characterId) {
+    me.characterId = resolveCharacterIdForPlayer(me, { allowAvatarInfer: snap.exists() });
+  }
+  me.level = levelFromXp(me.xp || 0);
+  me.lastSeen = Date.now();
+  if (window.StoryEngine?.ensureStoryState) window.StoryEngine.ensureStoryState(me);
+  if (me.characterId) writeStoredCharacterId(me.characterId);
+}
+
+function finishLoadMeFlow() {
+  if (me.characterId) {
+    try {
+      saveMe();
+    } catch (saveErr) {
+      console.warn("saveMe after load (non-fatal):", saveErr);
+    }
+  }
+  if (!me.characterId) {
+    hideLoading();
+    const openSelect = () => {
+      if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
+      else setTimeout(openSelect, 120);
+    };
+    openSelect();
+    return;
+  }
+  continueGameBoot();
+}
+
+function startFreshPlayerKeepAccount() {
+  const gen = ++loadMeGeneration;
+  clearLoadMeTimeout();
+  if (!uid || !db) {
+    location.reload();
+    return;
+  }
+  restoreLoadingMarkup();
+  loadMeTimeoutId = setTimeout(() => {
+    if (gen !== loadMeGeneration) return;
+    showLoadingFailure(t("loading_timeout"));
+  }, LOAD_ME_TIMEOUT_MS);
+  db.ref("players/" + uid)
+    .once("value")
+    .then(snap => {
+      if (gen !== loadMeGeneration) return;
+      clearLoadMeTimeout();
+      try {
+        const v = snap.exists() ? migratePlayerFromSave(snap.val()) : {};
+        me = defaultPlayer();
+        me.name = v.name || me.name;
+        me.coins = v.coins ?? me.coins;
+        me.xp = v.xp ?? 0;
+        me.rep = v.rep ?? 0;
+        me.level = levelFromXp(me.xp);
+        me.location = v.location || me.location;
+        me.characterId =
+          readStoredCharacterId() || (snap.exists() ? inferCharacterIdFromSave(v) : null) || null;
+        me.onboarding =
+          v.onboarding && typeof v.onboarding === "object" ? v.onboarding : { step: 0, progress: {}, done: false };
+        window.me = me;
+        window.__playerLoaded = true;
+        window.StoryEngine?.ensureStoryState?.(me);
+        saveMe();
+        finishLoadMeFlow();
+      } catch (err) {
+        console.error("startFreshPlayerKeepAccount", err);
+        showLoadingFailure(t("loading_boot_error"), err.message || String(err));
+      }
+    })
+    .catch(err => {
+      if (gen !== loadMeGeneration) return;
+      clearLoadMeTimeout();
+      showLoadingFailure(t("login_error"), err.message || String(err));
+    });
+}
+
 function hasDog() {
   return me.pet === "pet_dog" || (me.owned || []).includes("pet_dog");
 }
@@ -491,6 +688,7 @@ function syncStage3D() {
 function init() {
   me = defaultPlayer();
   window.me = me;
+  window.__playerLoaded = false;
   window.saveMe = saveMe;
   window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
   initLanguage();
@@ -498,17 +696,30 @@ function init() {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);
     btn.classList.toggle("active", btn.dataset.lang === getLanguage());
   });
-  firebase.initializeApp(FIREBASE_CONFIG);
-  auth = firebase.auth();
-  db = firebase.database();
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    auth = firebase.auth();
+    db = firebase.database();
+  } catch (bootErr) {
+    console.error("Firebase init failed", bootErr);
+    showLoadingFailure(t("loading_boot_error"), bootErr.message || String(bootErr));
+    return;
+  }
   auth.onAuthStateChanged(u => {
     if (u) {
       uid = u.uid;
+      window.uid = uid;
       isOwner = u.email === OWNER_EMAIL && u.emailVerified;
-      loadMe();
+      try {
+        if (new URLSearchParams(location.search).get("loadtest") !== "timeout") loadMe();
+      } catch (e) {
+        console.error("loadMe", e);
+        showLoadingFailure(t("loading_boot_error"), e.message || String(e));
+      }
     } else {
       auth.signInAnonymously().catch(e => {
-        document.getElementById("loading").innerHTML = "<p>" + escapeHtml(t("login_error")) + " " + escapeHtml(e.message) + "</p>";
+        console.error("signInAnonymously", e);
+        showLoadingFailure(t("login_error"), e.message || String(e));
       });
     }
   });
@@ -583,43 +794,46 @@ function init() {
 }
 
 function loadMe() {
-  db.ref("players/" + uid).once("value").then(s => {
-    if (s.exists()) {
-      const v = s.val();
-      me = { ...defaultPlayer(), ...v };
-      if (devCoinsEnabled()) me.coins = 9999;
-      me.inventory = { materials: {}, spells: [], ...(v.inventory || {}) };
-      me.inventory.materials = v.inventory?.materials || {};
-      me.inventory.spells = v.inventory?.spells || [];
-      me.quests = v.quests || me.quests;
-      me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
-      me.story = v.story || me.story;
-      me.energy = v.energy ?? me.energy ?? 100;
-      me.mood = v.mood ?? me.mood ?? 100;
-      me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
-      if (v.lang) initLanguage(v.lang);
-    }
-    window.me = me;
-    me.level = levelFromXp(me.xp || 0);
-    me.lastSeen = Date.now();
-    window.StoryEngine?.ensureStoryState?.(me);
-    if (me.characterId) saveMe();
-    if (!me.characterId) {
-      document.getElementById("loading").style.display = "none";
-      const openSelect = () => {
-        if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
-        else setTimeout(openSelect, 120);
-      };
-      openSelect();
-      return;
-    }
-    continueGameBoot();
-  });
+  if (!uid || !db) {
+    showLoadingFailure(t("loading_boot_error"), "no session");
+    return;
+  }
+  window.__playerLoaded = false;
+  const gen = ++loadMeGeneration;
+  clearLoadMeTimeout();
+  const timeoutMs =
+    typeof window.__loadMeTimeoutMs === "number" && window.__loadMeTimeoutMs > 0
+      ? window.__loadMeTimeoutMs
+      : LOAD_ME_TIMEOUT_MS;
+  loadMeTimeoutId = setTimeout(() => {
+    if (gen !== loadMeGeneration) return;
+    showLoadingFailure(t("loading_timeout"));
+  }, timeoutMs);
+  db.ref("players/" + uid)
+    .once("value")
+    .then(snap => {
+      if (gen !== loadMeGeneration) return;
+      clearLoadMeTimeout();
+      try {
+        applyFirebasePlayerSnapshot(snap);
+        finishLoadMeFlow();
+      } catch (err) {
+        console.error("loadMe apply", err);
+        showLoadingFailure(t("loading_boot_error"), err.message || String(err));
+      }
+    })
+    .catch(err => {
+      if (gen !== loadMeGeneration) return;
+      clearLoadMeTimeout();
+      console.error("loadMe firebase", err);
+      showLoadingFailure(t("login_error"), err.message || String(err));
+    });
 }
 
 function pickCharacterAndContinue(id) {
   if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
   me.characterId = id;
+  writeStoredCharacterId(id);
   const def = getCharacterDef(id);
   me.avatar = def.poster;
   me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
@@ -628,27 +842,52 @@ function pickCharacterAndContinue(id) {
 }
 
 function continueGameBoot() {
-  hideLoading();
-  initResponsiveHud();
-  if (window.Onboarding) Onboarding.init();
-  window.Onboarding?.adaptSpawnLocation?.();
-  if (me.onboarding?.done) {
-    window.StoryEngine?.onOnboardingComplete?.();
-    window.StoryEngine?.onLocationChange?.(me.location);
-    window.StoryEngine?.syncBeacon?.();
+  try {
+    hideLoading();
+    initResponsiveHud();
+    if (window.Onboarding) Onboarding.init();
+    window.Onboarding?.adaptSpawnLocation?.();
+    if (me.onboarding?.done) {
+      window.StoryEngine?.onOnboardingComplete?.();
+      window.StoryEngine?.onLocationChange?.(me.location);
+      window.StoryEngine?.syncBeacon?.();
+    }
+    if (window.initHowToPlay) initHowToPlay();
+    if (window.initContextHints) initContextHints();
+    renderAll();
+    initMultiplayer();
+    listenChat();
+    listenBuildings();
+    refreshLifeScene();
+    if (me.dog) dogPos = { ...me.dog };
+    else dogPos = { x: me.x - 4, y: me.y + 2 };
+    applyHashRoute();
+    syncStage3D();
+  } catch (err) {
+    console.error("continueGameBoot", err);
+    showLoadingFailure(t("loading_boot_error"), err.message || String(err));
   }
-  if (window.initHowToPlay) initHowToPlay();
-  if (window.initContextHints) initContextHints();
-  renderAll();
-  initMultiplayer();
-  listenChat();
-  listenBuildings();
-  refreshLifeScene();
-  if (me.dog) dogPos = { ...me.dog };
-  else dogPos = { x: me.x - 4, y: me.y + 2 };
-  applyHashRoute();
-  syncStage3D();
 }
+
+function resolveCharacterIdForPlayer(v, opts = {}) {
+  const allowAvatarInfer = !!opts.allowAvatarInfer;
+  if (v.characterId) return v.characterId;
+  const stored = readStoredCharacterId();
+  if (stored) return stored;
+  if (allowAvatarInfer) return inferCharacterIdFromSave(v) || null;
+  return null;
+}
+
+window.__punkMigratePlayer = migratePlayerFromSave;
+window.__punkInferCharacterId = inferCharacterIdFromSave;
+window.__punkResolveCharacterId = (v, allowAvatarInfer) =>
+  resolveCharacterIdForPlayer(v, { allowAvatarInfer: !!allowAvatarInfer });
+window.__punkApplyFirebaseSnapshot = applyFirebasePlayerSnapshot;
+window.__punkFinishLoadMeFlow = finishLoadMeFlow;
+window.__punkLoadMe = loadMe;
+window.__punkRestoreLoadingMarkup = restoreLoadingMarkup;
+window.pickCharacterAndContinue = pickCharacterAndContinue;
+window.__showLoadingFailure = showLoadingFailure;
 
 function applyHashRoute() {
   const raw = (location.hash || "").replace(/^#/, "").trim();
@@ -691,6 +930,7 @@ function hideLoading() {
 
 function saveMe() {
   if (!uid) return;
+  if (!window.__playerLoaded) return;
   const prevLvl = me.level || 1;
   me.level = levelFromXp(me.xp || 0);
   if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
@@ -755,6 +995,7 @@ function initMultiplayer() {
 
 function pushPresence() {
   if (!uid) return;
+  if (!window.__playerLoaded) return;
   if (!presenceOk) return;
   const loc = me.location;
   const data = {

@@ -397,6 +397,9 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   position: fixed; inset: 0; z-index: 200; background: #06060e;
   display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
 }
+#loading .loading-error { max-width: min(420px, 92vw); text-align: center; color: #ffb4b4; font-size: 14px; line-height: 1.45; }
+#loading .loading-error-detail { max-width: min(420px, 92vw); text-align: center; color: #aaa; font-size: 12px; }
+#loading .loading-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 4px; }
 .btn-howto {
   position: absolute; top: 8px; right: 8px; z-index: 22;
   width: 40px; height: 40px; border-radius: 50%;
