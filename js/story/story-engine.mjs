@@ -877,6 +877,11 @@ function hangoutObjectiveSub(st) {
   return L(stage.name) + ` (${st.hangoutStage + 1}/4) · ` + parts.join(", ");
 }
 
+export function getHangoutStageNeed(stageIndex) {
+  const stage = data.hangout?.stages?.[stageIndex];
+  return stage?.need ? { ...stage.need } : {};
+}
+
 export function whereToGetMaterials() {
   const st = ensureStoryState(me());
   const stage = data.hangout?.stages?.[st.hangoutStage];
@@ -1192,6 +1197,7 @@ const api = {
   beginEarnCoins,
   tryStoryPurchase,
   buildHangoutStage,
+  updateConstructionHud,
   whereToGetMaterials,
   purchaseStoryMaterial,
   openBoltMaterialShop,
@@ -1214,7 +1220,8 @@ const api = {
   applyEffect,
   Authority,
   getJobs: () => data.jobs,
-  getBalance: () => data.balance
+  getBalance: () => data.balance,
+  getHangoutStageNeed
 };
 
 export default api;

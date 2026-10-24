@@ -62,6 +62,9 @@ async function runSuite(page, tag, touchOnly) {
   const grantedBefore = await page.evaluate(() => ({ ...(window.me?.story?.rewardsGranted || {}) }));
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__playerLoaded, { timeout: 120000 });
+  await page.evaluate(() => {
+    window.__force2dFight = true;
+  });
   await H.sleep(2500);
   const afterReload = await page.evaluate(() => ({
     coins: window.me?.coins ?? 0,
@@ -73,23 +76,14 @@ async function runSuite(page, tag, touchOnly) {
     Object.keys(grantedBefore).every(k => afterReload.granted[k]);
   log.push(["reload_no_dup_grants", noDup, { coinsBefore, afterReload }]);
 
-  await page.evaluate(() => {
-    window.me.onboarding = { step: 6, progress: {}, done: true };
-    window.StoryEngine?.onOnboardingComplete?.();
-    const st = window.StoryEngine.ensureStoryState(window.me);
-    st.auth.stage = 4;
-    st.auth.s1Done = true;
-    st.auth.tasks = { pizza: true, no_rat: true, cobalt_item: true, ghost_prank: true };
-    st.auth.trials = { cemetery: true, roof_parkour: true, duel_mohawk: true };
-    st.authority = 80;
-    window.me.location = "street";
-  });
-  await H.openGangNpc(page, "razor");
-  const initBtn = page.locator("#authInitBtn");
-  if (await initBtn.isVisible()) await initBtn.click({ timeout: 15000 });
-  else await page.evaluate(() => window.__finishInitiation?.());
-  await H.sleep(500);
+  const authPath = await H.completeAuthorityPathUi(page, touchOnly, log);
+  log.push(["authority_stage4_ready", authPath.auth.stage >= 4 && authPath.auth.authority >= 80, authPath.auth]);
+  log.push(["authority_ui_action_count", authPath.actions.length, authPath.actions]);
+
+  await H.finishInitiationUi(page);
+  await H.dismissStoryDialog(page);
   await H.clickFirstStoryChoice(page).catch(() => {});
+  await H.dismissStoryDialog(page);
 
   const final = await page.evaluate(() => {
     const st = window.StoryEngine?.ensureStoryState?.(window.me);
@@ -100,12 +94,18 @@ async function runSuite(page, tag, touchOnly) {
 
   let hangout = { hangoutStage: 0 };
   if (process.env.RUN_CH2 !== "0" && !touchOnly) {
-    await H.dismissStoryDialog(page);
-    for (let i = 0; i < 5; i++) await H.runJobOnce(page);
-    await H.buyHangoutMaterials(page);
-    hangout = await H.buildAllHangoutStages(page);
+    const hangoutLog = [];
+    hangout = await H.buildAllHangoutStages(page, hangoutLog);
     await H.snap(page, outDir, tag, "06-hangout-complete");
     log.push(["hangout_stage_4", hangout.hangoutStage >= 4, hangout]);
+    log.push(...hangoutLog);
+    if (tag === "desk-chromium") {
+      const logPath = path.join(outDir, "hangout-ch2.log");
+      fs.writeFileSync(
+        logPath,
+        JSON.stringify({ hangout, actions: hangout.actionLog, authActions: authPath.actions.length }, null, 2)
+      );
+    }
   }
 
   const ok =
@@ -114,6 +114,7 @@ async function runSuite(page, tag, touchOnly) {
     onboardingDone &&
     noDup &&
     final.joined &&
+    authPath.auth.stage >= 4 &&
     (touchOnly || process.env.RUN_CH2 === "0" || hangout.hangoutStage >= 4);
 
   return { log, ok, final, hangout };

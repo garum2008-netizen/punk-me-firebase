@@ -62,16 +62,21 @@ async function walkMobile(page, ms = 2200) {
 }
 
 async function navGo(page, locId) {
+  await dismissStoryDialog(page);
+  await page.locator("#gangModal .close").click({ timeout: 1500, force: true }).catch(() => {});
+  await page.locator("#jobModal .close").click({ timeout: 1500, force: true }).catch(() => {});
+  const here = await page.evaluate(() => window.me?.location);
+  if (here === locId) return;
   const quick = page.locator(`#navQuick button[onclick="goLocation('${locId}')"]`);
   if (await quick.count()) {
-    await quick.first().click({ timeout: 8000 });
+    await quick.first().click({ timeout: 20000, noWaitAfter: true, force: true });
   } else {
-    await page.locator('button[onclick*="openModal(\'mapModal\')"]').click();
+    await page.locator('button[onclick*="openModal(\'mapModal\')"]').click({ noWaitAfter: true });
     await page.waitForSelector("#mapGrid");
-    await page.locator(`#mapGrid button[onclick*="goLocation('${locId}')"]`).click();
-    await page.locator("#mapModal .close").click().catch(() => {});
+    await page.locator(`#mapGrid button[onclick*="goLocation('${locId}')"]`).click({ noWaitAfter: true });
+    await page.locator("#mapModal .close").click({ timeout: 2000, noWaitAfter: true }).catch(() => {});
   }
-  await page.waitForFunction(id => window.me?.location === id, locId, { timeout: 30000 });
+  await page.waitForFunction(id => window.me?.location === id, locId, { timeout: 60000 });
   await sleep(400);
 }
 
@@ -95,7 +100,13 @@ async function pressTalk(page, touchOnly) {
   }
 }
 
+async function pressInteract(page, touchOnly) {
+  if (touchOnly) await page.locator("#touchInteract").click({ timeout: 5000 }).catch(() => {});
+  else await page.keyboard.press("e");
+}
+
 async function openGangNpc(page, nid) {
+  await dismissFightOverlay(page);
   await page.locator('button[onclick*="openModal(\'gangModal\')"]').click();
   await page.waitForSelector("#gangList");
   await page.locator(`#gangList .npc-row[data-npc="${nid}"]`).click();
@@ -107,6 +118,36 @@ async function clickChainFight(page) {
     '#dialogArea button[onclick*="startNpcFight"], #dialogArea button.btn.danger, #dialogArea button:has-text("Chain"), #dialogArea button:has-text("Цеп")'
   );
   await fight.first().click({ timeout: 15000 });
+}
+
+async function winMohawkTrialDuel(page, maxMs = 45000) {
+  let seenFight = false;
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs) {
+    if (await page.locator("#duel3dHud:not(.hidden), #fightOverlay.active").isVisible()) seenFight = true;
+    if (await page.locator("#duel3dHud:not(.hidden)").isVisible()) {
+      await page.locator("#duel3dHud button.btn.danger").click({ timeout: 500, force: true }).catch(() => {});
+    }
+    if (await page.locator("#fightOverlay.active").isVisible()) {
+      await page.locator("#fightOverlay .btn.danger").first().click({ timeout: 500, force: true }).catch(() => {});
+      await page
+        .evaluate(() => {
+          if (window.__force2dFight && typeof fightAttack === "function") fightAttack("heavy");
+        })
+        .catch(() => {});
+    }
+    const done = await page.evaluate(
+      () => !!window.StoryEngine?.ensureStoryState?.(window.me)?.auth?.trials?.duel_mohawk
+    );
+    const active = await page.locator("#duel3dHud:not(.hidden), #fightOverlay.active").isVisible();
+    if (seenFight && done && !active) {
+      await dismissFightOverlay(page);
+      return true;
+    }
+    await sleep(120);
+  }
+  await dismissFightOverlay(page);
+  return false;
 }
 
 async function winFightUi(page, maxMs = 35000) {
@@ -125,7 +166,7 @@ async function winFightUi(page, maxMs = 35000) {
         .catch(() => {});
     }
     const state = await page.evaluate(() => ({
-      win: (window.me?.onboarding?.progress?.win_fight || 0) >= 1 || !!window.me?.onboarding?.done,
+      win: (window.me?.onboarding?.progress?.win_fight || 0) >= 1,
       overlay: document.getElementById("fightOverlay")?.classList.contains("active"),
       duel: !document.getElementById("duel3dHud")?.classList.contains("hidden")
     }));
@@ -152,16 +193,23 @@ async function clickFirstStoryChoice(page) {
 }
 
 async function dismissStoryDialog(page) {
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 16; i++) {
     const dlg = page.locator("#storyDialog.active");
     if (!(await dlg.count())) break;
+    const closeUi = page.locator(
+      '#storyDialog button[onclick*="dismissAllStoryUi"], #storyDialog .close'
+    );
+    if (await closeUi.first().isVisible().catch(() => false)) {
+      await closeUi.first().click({ force: true }).catch(() => {});
+      await sleep(200);
+      continue;
+    }
     const next = page.locator("#storyDlgNext");
     if (await next.isVisible()) {
       await next.click().catch(() => {});
     } else {
       const choice = page.locator("#storyDialog .story-choice").first();
       if (await choice.isVisible()) await choice.click().catch(() => {});
-      else await page.locator("#storyDialog .close").click({ timeout: 1000 }).catch(() => {});
     }
     await sleep(250);
   }
@@ -181,45 +229,302 @@ async function closeGangModal(page) {
   await page.locator("#gangModal .close").click({ timeout: 2000 }).catch(() => {});
 }
 
+async function dismissFightOverlay(page) {
+  if (await page.locator("#fightOverlay.active").isVisible().catch(() => false)) {
+    await page.locator('#fightOverlay button[onclick="closeFight()"]').click({ timeout: 3000, force: true }).catch(() => {});
+    await sleep(200);
+  }
+}
+
 async function runJobOnce(page) {
-  page.once("dialog", d => d.accept().catch(() => {}));
-  await dismissStoryDialog(page);
-  await page.locator('button[onclick="openJobPanel()"]').click({ force: true });
-  await page.locator("#jobActions button.btn").first().click({ timeout: 10000, force: true });
-  await sleep(600);
+  return runStoryJob(page, "construction_helper", "construction");
 }
 
-async function buyHangoutMaterials(page) {
+async function runStoryJob(page, action, loc) {
+  page.on("dialog", d => d.accept().catch(() => {}));
   await dismissStoryDialog(page);
-  await navGo(page, "city");
+  const jobBtn = page.locator("#btnJob, button[onclick=\"openJobPanel()\"]");
+  await jobBtn.first().click({ force: true });
+  await page.waitForSelector("#jobModal.active", { timeout: 15000 });
+  await page.locator("#jobModal.active #jobActions button").first().waitFor({ state: "visible", timeout: 15000 });
+  const btn = page.locator(`#jobModal.active #jobActions button[onclick*="'${action}'"]`).first();
+  await btn.click({ timeout: 10000, force: true });
+  await page.waitForFunction(
+    ({ a, l }) => window.me?.location === l || a === "construction_helper",
+    { a: action, l: loc },
+    { timeout: 30000 }
+  ).catch(() => {});
+  await sleep(900);
+  await page.locator("#jobModal .close").click({ timeout: 2000 }).catch(() => {});
+}
+
+async function readHangoutSnapshot(page) {
+  return page.evaluate(() => {
+    const st = window.StoryEngine?.ensureStoryState?.(window.me);
+    return {
+      hangoutStage: st?.hangoutStage ?? 0,
+      materials: { ...(st?.materials || {}) },
+      coins: window.me?.coins ?? 0,
+      location: window.me?.location
+    };
+  });
+}
+
+async function readStageNeed(page) {
+  return page.evaluate(() => {
+    const st = window.StoryEngine?.ensureStoryState?.(window.me);
+    const stageIdx = st?.hangoutStage ?? 0;
+    const need = window.StoryEngine?.getHangoutStageNeed?.(stageIdx);
+    return { stageIdx, need: need || {}, materials: { ...(st?.materials || {}) } };
+  });
+}
+
+async function openBoltShopUi(page) {
+  await dismissStoryDialog(page);
+  const loc = await page.evaluate(() => window.me?.location);
+  if (loc !== "city") await navGo(page, "city");
   await openGangNpc(page, "bolt");
-  if (!(await page.locator(".story-choice[data-mat]").count())) {
-    await page.evaluate(() => window.StoryEngine?.openBoltMaterialShop?.());
-  }
   await page.waitForSelector(".story-choice[data-mat]", { timeout: 15000 });
-  const mats = ["brick", "nails", "board", "chain", "spray", "neon_tube"];
-  for (const m of mats) {
-    for (let i = 0; i < 12; i++) {
-      const btn = page.locator(`.story-choice[data-mat="${m}"]`);
-      if (!(await btn.count())) break;
-      await btn.click().catch(() => {});
-      await sleep(80);
-    }
-  }
-  await dismissStoryDialog(page);
 }
 
-async function buildAllHangoutStages(page) {
+async function buyOneAffordableMaterial(page) {
+  const before = await readHangoutSnapshot(page);
+  const { need, materials } = await readStageNeed(page);
+  for (const [mat, n] of Object.entries(need)) {
+    const short = n - (materials[mat] || 0);
+    if (short <= 0) continue;
+    const btn = page.locator(`.story-choice[data-mat="${mat}"]`);
+    if (!(await btn.count())) return false;
+    await btn.click().catch(() => {});
+    await sleep(120);
+    const after = await readHangoutSnapshot(page);
+    if (after.materials[mat] > (before.materials[mat] || 0)) return true;
+    return false;
+  }
+  return false;
+}
+
+async function materialsSufficientForStage(page) {
+  return page.evaluate(() => {
+    const st = window.StoryEngine?.ensureStoryState?.(window.me);
+    const need = window.StoryEngine?.getHangoutStageNeed?.(st?.hangoutStage ?? 0) || {};
+    for (const [k, n] of Object.entries(need)) {
+      if ((st.materials[k] || 0) < n) return false;
+    }
+    return Object.keys(need).length > 0;
+  });
+}
+
+async function clickWhereToGetMaterials(page) {
+  await dismissStoryDialog(page);
+  if (await page.evaluate(() => window.me?.location !== "construction")) await navGo(page, "construction");
+  await page.evaluate(() => {
+    const btn = document.getElementById("btnWhereMaterials");
+    if (btn) btn.click();
+    else window.StoryEngine?.whereToGetMaterials?.();
+  });
+  await sleep(350);
+}
+
+async function buildAllHangoutStages(page, log = []) {
+  const actionLog = [];
   await dismissStoryDialog(page);
   await navGo(page, "construction");
-  for (let stage = 0; stage < 4; stage++) {
-    await page.locator('button[onclick*="buildHangoutStage"]').click();
-    await sleep(500);
+  for (let guard = 0; guard < 90; guard++) {
+    await page.evaluate(() => {
+      if (window.me?.location === "construction") window.StoryEngine?.updateConstructionHud?.();
+    });
+    const snap = await readHangoutSnapshot(page);
+    if (snap.hangoutStage >= 4) break;
+
+    if (await materialsSufficientForStage(page)) {
+      actionLog.push({ type: "build_click", stage: snap.hangoutStage });
+      if (await page.evaluate(() => window.me?.location !== "construction")) await navGo(page, "construction");
+      await page.evaluate(() => {
+        document.querySelector('button[onclick*="buildHangoutStage"]')?.click();
+      });
+      await sleep(600);
+      const after = await readHangoutSnapshot(page);
+      if (after.hangoutStage > snap.hangoutStage) {
+      await dismissStoryDialog(page);
+      continue;
+    }
+    }
+
+    actionLog.push({ type: "where_to_get", stage: snap.hangoutStage });
+    await clickWhereToGetMaterials(page);
+
+    if (await page.locator(".story-choice[data-mat]").count()) {
+      await dismissStoryDialog(page);
+    } else {
+      await openBoltShopUi(page);
+    }
+
+    let boughtAny = false;
+    for (let b = 0; b < 24; b++) {
+      if (await materialsSufficientForStage(page)) break;
+      if (!(await buyOneAffordableMaterial(page))) break;
+      boughtAny = true;
+    }
+    if (boughtAny) {
+      actionLog.push({ type: "buy_mat" });
+      await dismissStoryDialog(page);
+      continue;
+    }
+
+    actionLog.push({ type: "job_for_coins" });
+    await dismissStoryDialog(page);
+    await closeGangModal(page);
+    await runStoryJob(page, "construction_helper", "construction");
+    await sleep(400);
   }
-  return await page.evaluate(() => ({
+
+  const hangout = await page.evaluate(() => ({
     hangoutStage: window.StoryEngine?.ensureStoryState?.(window.me)?.hangoutStage ?? 0,
     joined: !!window.StoryEngine?.ensureStoryState?.(window.me)?.flags?.joined_gang
   }));
+  if (log) log.push(["hangout_ui_actions", actionLog.length, actionLog.slice(-20)]);
+  return { ...hangout, actionLog };
+}
+
+async function readAuthSnapshot(page) {
+  return page.evaluate(() => {
+    const st = window.StoryEngine?.ensureStoryState?.(window.me);
+    return {
+      stage: st?.auth?.stage ?? 0,
+      s1Done: !!st?.auth?.s1Done,
+      authority: st?.authority ?? 0,
+      tasks: { ...(st?.auth?.tasks || {}) },
+      trials: { ...(st?.auth?.trials || {}) },
+      joined: !!st?.flags?.joined_gang
+    };
+  });
+}
+
+async function completeAuthorityPathUi(page, touchOnly, log = []) {
+  const actions = [];
+  const act = (name, detail) => actions.push({ name, ...(detail || {}) });
+
+  let auth = await readAuthSnapshot(page);
+  if (!auth.s1Done && auth.stage <= 1) {
+    await navGo(page, "street");
+    act("nav_street");
+    await openGangNpc(page, "mohawk");
+    act("gang_mohawk_s1");
+    await clickFirstStoryChoice(page);
+    act("mohawk_choice");
+    await dismissStoryDialog(page);
+    await closeGangModal(page);
+    auth = await readAuthSnapshot(page);
+  }
+
+  if (!auth.tasks.pizza) {
+    await navGo(page, "city");
+    act("nav_city_pizza");
+    let coins = (await readHangoutSnapshot(page)).coins;
+    while (coins < 15) {
+      await runStoryJob(page, "pizza_delivery", "city");
+      act("job_pizza_delivery");
+      coins = (await readHangoutSnapshot(page)).coins;
+    }
+    await openGangNpc(page, "tony");
+    act("gang_tony_pizza");
+    await sleep(500);
+    await closeGangModal(page);
+    auth = await readAuthSnapshot(page);
+  }
+
+  if (!auth.tasks.no_rat) {
+    await navGo(page, "cemetery");
+    act("nav_cemetery_rat");
+    await openGangNpc(page, "gravedigger");
+    act("gang_gravedigger_no_rat");
+    await clickFirstStoryChoice(page);
+    act("no_rat_loyal");
+    await dismissStoryDialog(page);
+    await closeGangModal(page);
+    auth = await readAuthSnapshot(page);
+  }
+
+  if (!auth.tasks.cobalt_item) {
+    await navGo(page, "roof");
+    act("nav_roof_item");
+    await openGangNpc(page, "cobalt");
+    act("gang_cobalt_item");
+    await sleep(400);
+    await closeGangModal(page);
+    auth = await readAuthSnapshot(page);
+  }
+
+  if (!auth.tasks.ghost_prank) {
+    await navGoMap(page, "toilet");
+    act("nav_toilet_prank");
+    await openGangNpc(page, "plukh");
+    act("gang_plukh_prank");
+    await sleep(400);
+    await closeGangModal(page);
+    auth = await readAuthSnapshot(page);
+  }
+
+  auth = await readAuthSnapshot(page);
+  if (!auth.trials.cemetery) {
+    await navGo(page, "cemetery");
+    act("nav_cemetery_trial");
+    page.on("dialog", d => d.accept().catch(() => {}));
+    await runStoryJob(page, "cemetery_night", "cemetery");
+    act("job_cemetery_night_start");
+    const t0 = Date.now();
+    while (Date.now() - t0 < 32000) {
+      await focusStage(page);
+      await walkDesktop(page, 400);
+      await pressInteract(page, touchOnly);
+      auth = await readAuthSnapshot(page);
+      if (auth.trials.cemetery) break;
+      await sleep(500);
+    }
+    act("job_cemetery_night_wait");
+  }
+
+  if (!auth.trials.roof_parkour) {
+    page.on("dialog", d => d.accept().catch(() => {}));
+    await navGo(page, "parkour");
+    act("nav_parkour_trial");
+    await page.locator("#btnParkour").click({ force: true, timeout: 15000 });
+    act("btn_parkour_trial");
+    await sleep(1500);
+    auth = await readAuthSnapshot(page);
+  }
+
+  if (!auth.trials.duel_mohawk) {
+    await navGo(page, "street");
+    act("nav_street_duel");
+    await openGangNpc(page, "mohawk");
+    act("gang_mohawk_duel");
+    await winMohawkTrialDuel(page, 45000);
+    act("duel_mohawk");
+    auth = await readAuthSnapshot(page);
+  }
+
+  auth = await readAuthSnapshot(page);
+  if (log) log.push(["authority_ui_actions", actions.length, actions]);
+  return { auth, actions };
+}
+
+async function finishInitiationUi(page) {
+  await navGo(page, "street");
+  await dismissStoryDialog(page);
+  await openGangNpc(page, "razor");
+  const initBtn = page.locator("#authInitBtn");
+  if (!(await initBtn.isVisible().catch(() => false))) {
+    await advanceStoryNext(page);
+    await dismissStoryDialog(page);
+    await openGangNpc(page, "razor");
+  }
+  await initBtn.waitFor({ state: "visible", timeout: 20000 });
+  await initBtn.click({ timeout: 15000 });
+  await sleep(400);
+  await clickFirstStoryChoice(page).catch(() => {});
+  await dismissStoryDialog(page);
 }
 
 module.exports = {
@@ -232,15 +537,22 @@ module.exports = {
   navGo,
   navGoMap,
   pressTalk,
+  pressInteract,
   openGangNpc,
   clickChainFight,
   winFightUi,
+  winMohawkTrialDuel,
   buyCheapestShop,
   clickFirstStoryChoice,
   dismissStoryDialog,
+  dismissFightOverlay,
   advanceStoryNext,
   closeGangModal,
   runJobOnce,
-  buyHangoutMaterials,
-  buildAllHangoutStages
+  runStoryJob,
+  buildAllHangoutStages,
+  completeAuthorityPathUi,
+  finishInitiationUi,
+  readAuthSnapshot,
+  readHangoutSnapshot
 };

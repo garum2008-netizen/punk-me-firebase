@@ -11,8 +11,8 @@
 |------|--------|
 | `npm run test:loading` | PASS (Chromium + WebKit) |
 | `npm run test:loading-early-save` | PASS |
-| `npm run test:playthrough` | PASS — UI onboarding path, reload grant check, initiation button, mobile 390×844 (`RUN_MOBILE` default on). Set `RUN_CH2=1` for hangout build on desktop. |
-| `npm run test:chapter2-hangout` | PASS after `test:playthrough` with `RUN_CH2=1` |
+| `npm run test:playthrough` | PASS — UI onboarding, reload grant check, **Authority stages 1–4 via gang/jobs UI** (no save prep), initiation, mobile 390×844 when `RUN_MOBILE≠0`. Desktop hangout: `RUN_CH2=1`. |
+| `npm run test:chapter2-hangout` | PASS after `test:playthrough` with `RUN_CH2=1` (`hangoutStage` 4, `desk-chromium-06-hangout-complete.png`, `hangout-ch2.log`) |
 
 ## MASTER TZ / audit coverage
 
@@ -36,9 +36,9 @@
 
 ## Honest limits
 
-- **Gang initiation (Authority 2–3):** automated run still **shortcuts** trials/tasks via save state before the Razor **«Принять нашивку»** UI click — not a full manual Authority grind.
-- **Duels:** headless uses 2d fight path when `__force2dFight` is set at boot; not a substitute for manual 3D duel QA.
-- **Hangout stage 4:** requires `RUN_CH2=1` on desktop suite (~5+ min with job + Bolt buys).
+- **Authority path:** automated run uses **20 counted UI actions** (nav, gang NPC, jobs, parkour button, Mohawk training duel). No `page.evaluate` save prep.
+- **Duels:** headless uses 2D fallback for Mohawk training when 3D duel cannot run (`webdriver` / `__force2dFight`); not a substitute for manual 3D duel QA.
+- **Hangout:** `RUN_CH2=1` desktop only (~15 min): jobs for coins, **«Где взять?»** → City → Bolt gang UI, four **Build** stages. Log: `hangout-ch2.log`.
 
 ## Rollback
 

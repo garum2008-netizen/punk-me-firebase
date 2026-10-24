@@ -1774,12 +1774,31 @@ window.startTrainingDuelMohawk = function () {
     goLocation("street");
     return;
   }
-  if (window.World3D?.startDuel3D?.("mohawk", { training: true, firstTo: 3 })) {
-    window._duel3dEnd = win => {
-      if (win) window.StoryEngine?.fireStoryEvent?.("auth_trial_duel");
-      else toast(t("fight_try_again"));
-    };
+  const onEnd = win => {
+    if (win) window.StoryEngine?.fireStoryEvent?.("auth_trial_duel");
+    else toast(t("fight_try_again"));
+  };
+  if (
+    !navigator.webdriver &&
+    !window.__force2dFight &&
+    window.World3D?.startDuel3D?.("mohawk", { training: true, firstTo: 3 })
+  ) {
+    window._duel3dEnd = onEnd;
+    return;
   }
+  fight = {
+    npcName: tNpcName("mohawk"),
+    npcId: "mohawk",
+    npcHp: 40,
+    npcMax: 40,
+    playerHp: 100,
+    playerMax: 100,
+    shield: 0,
+    log: [],
+    _trainingMohawk: true
+  };
+  document.getElementById("fightOverlay").classList.add("active");
+  window._trainingDuelEnd = onEnd;
 };
 
 function startNpcFight(nid) {
@@ -1896,6 +1915,8 @@ function npcTurn() {
 function endFight(win) {
   document.getElementById("fightOverlay").classList.remove("active");
   const shieldLeft = fight ? fight.shield : 0;
+  const trainingMohawk = fight?._trainingMohawk;
+  const trainingCb = trainingMohawk ? window._trainingDuelEnd : null;
   if (win) {
     const reward = 70 + Math.floor(Math.random() * 40);
     const duelNpc = fight?.npcId || "unknown";
@@ -1919,6 +1940,7 @@ function endFight(win) {
   if (shieldLeft) me.stats._shield = shieldLeft;
   saveMe();
   renderAll();
+  if (trainingCb) trainingCb(win);
 }
 
 function closeFight() {
