@@ -1,39 +1,102 @@
 {
-  "startedAt": "2026-10-24T15:08:35.612Z",
+  "startedAt": "2026-10-24T16:36:22.038Z",
   "suites": [
     {
       "tag": "desk-chromium",
+      "touchOnly": false,
       "log": [
         [
           "quest_panel_visible",
           true
         ],
         [
-          "questBump_no_throw",
-          true
-        ],
-        true,
-        [
-          "razor_step_gte_3",
-          true
+          "talk_razor_step",
+          true,
+          3
         ],
         [
-          "onboarding_persisted_reload",
+          "visit_cemetery_step",
+          true,
+          4
+        ],
+        [
+          "win_fight_ui",
+          false
+        ],
+        [
+          "onboarding_done",
+          true,
           true
         ],
         [
-          "gang_member_ui",
+          "reload_no_dup_coins",
+          true,
+          {
+            "ok": true,
+            "before": {
+              "coins": 236,
+              "step": 6,
+              "granted": {
+                "onboard:go_street": 1792859811845,
+                "onboard:talk_razor": 1792859830916,
+                "onboard:visit_cemetery": 1792859861882,
+                "duel:payout:razor": 1792859886532,
+                "onboard:win_fight": 1792859886532,
+                "onboard:shop_buy": 1792859932462
+              }
+            },
+            "after": {
+              "coins": 236,
+              "step": 6
+            }
+          }
+        ],
+        [
+          "auth_stage1",
           true
+        ],
+        [
+          "auth_pizza",
+          true
+        ],
+        [
+          "auth_no_rat",
+          true
+        ],
+        [
+          "auth_cobalt",
+          true
+        ],
+        [
+          "auth_ghost",
+          true
+        ],
+        [
+          "auth_trial_cemetery",
+          true
+        ],
+        [
+          "auth_trial_roof",
+          true
+        ],
+        [
+          "auth_trial_duel",
+          true
+        ],
+        [
+          "gang_member",
+          true,
+          {
+            "joined": true,
+            "rank": "gang_member",
+            "authority": 100
+          }
         ]
       ],
-      "final": {
-        "joined": true,
-        "rank": "gang_member",
-        "initiationDone": true
-      },
-      "ok": true
+      "ok": false,
+      "error": "locator.count: Target page, context or browser has been closed"
     }
   ],
-  "pass": true,
-  "finishedAt": "2026-10-24T15:09:00.317Z"
+  "pass": false,
+  "finishedAt": "2026-10-24T16:46:28.734Z"
 }
