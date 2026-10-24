@@ -451,6 +451,24 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   border-radius: 50%; background: rgba(255,0,255,0.75);
   transform: translate(-50%, -50%);
 }
+.touch-talk {
+  display: none;
+  position: absolute; right: 72px; bottom: calc(var(--dock-h, 150px) + 24px);
+  min-width: 72px; min-height: 48px; border-radius: 12px;
+  border: none; font-weight: 800; font-size: 13px;
+  background: linear-gradient(135deg, #0ff, #7c3aed); color: #140a24;
+  pointer-events: auto;
+}
+.touch-talk.visible { display: block; }
+.touch-jump {
+  position: absolute; right: 12px; bottom: calc(var(--dock-h, 150px) + 88px);
+  min-width: 48px; min-height: 48px; border-radius: 50%;
+  border: none; font-weight: 800; font-size: 18px;
+  background: rgba(20,10,40,0.85); color: #0ff;
+  border: 2px solid rgba(0,255,255,0.45);
+  pointer-events: auto;
+  touch-action: none;
+}
 .touch-interact {
   position: absolute; right: 12px; bottom: calc(var(--dock-h, 150px) + 24px);
   min-width: 48px; min-height: 48px; border-radius: 50%;

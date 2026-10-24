@@ -45,6 +45,7 @@ function bump(key, amt = 1) {
   p[key] = (p[key] || 0) + amt;
   if (p[key] >= st.goal) completeStep();
   else saveMeQuiet();
+  lastOnboardActivity = Date.now();
   renderOnboardingQuest();
 }
 
@@ -52,9 +53,13 @@ function completeStep() {
   const st = currentStep();
   if (!st) return;
   const r = st.reward || {};
-  if (!window.isOwner && r.coins) window.me.coins += r.coins;
-  if (r.xp) window.me.xp += r.xp;
-  toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + (r.coins || 0));
+  const eventId = `onboard:${st.id}`;
+  const firstTime = window.grantRewardOnce?.(eventId, () => {
+    if (!window.isOwner && r.coins) window.me.coins += r.coins;
+    if (r.xp) window.me.xp += r.xp;
+  });
+  const coinMsg = firstTime && r.coins ? " +" + r.coins : firstTime ? "" : "";
+  toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + coinMsg);
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
@@ -162,10 +167,27 @@ function adaptSpawnLocation() {
   }
 }
 
+let lastOnboardActivity = Date.now();
+
+function tickOnboardIdleHint() {
+  if (!window.me?.onboarding || window.me.onboarding.done) return;
+  if (Date.now() - lastOnboardActivity < 45000) return;
+  lastOnboardActivity = Date.now();
+  const st = currentStep();
+  if (!st) return;
+  const hint = typeof t === "function" ? t(`onboard_${st.id}_text`) : "";
+  if (hint) window.toast?.(hint);
+  window.Onboarding?.syncGuideTarget?.();
+}
+
 function initOnboarding() {
   if (!window.me) return;
   if (!window.me.onboarding) {
     window.me.onboarding = { step: 0, progress: {}, done: false };
+  }
+  lastOnboardActivity = Date.now();
+  if (!window._onboardIdleTimer) {
+    window._onboardIdleTimer = setInterval(tickOnboardIdleHint, 15000);
   }
   renderOnboardingQuest();
   syncGuideTarget();

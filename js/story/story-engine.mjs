@@ -56,6 +56,19 @@ function me() {
   return window.me;
 }
 
+export function syncUnifiedMaterials(p) {
+  const inv = p?.inventory?.materials;
+  if (!inv || typeof inv !== "object") return;
+  const st = p.story || {};
+  if (!st.materials) return;
+  for (const [k, v] of Object.entries(inv)) {
+    const n = Number(v) || 0;
+    if (n <= 0) continue;
+    st.materials[k] = (st.materials[k] || 0) + n;
+    inv[k] = 0;
+  }
+}
+
 export function ensureStoryState(p) {
   if (!p.story) {
     p.story = {
@@ -104,6 +117,10 @@ export function ensureStoryState(p) {
   if (!p.story.materials || typeof p.story.materials !== "object") {
     p.story.materials = { board: 0, brick: 0, nails: 0, chain: 0, spray: 0, neon_tube: 0, scrap: 0 };
   }
+  if (!p.story.rewardsGranted || typeof p.story.rewardsGranted !== "object") {
+    p.story.rewardsGranted = {};
+  }
+  syncUnifiedMaterials(p);
   if (!p.story.rel || typeof p.story.rel !== "object") p.story.rel = { gang_rust: 0, zombie: 0 };
   if (!p.story.auth || typeof p.story.auth !== "object") {
     p.story.auth = { stage: 1, s1Done: false, tasks: {}, trials: {}, ch2Done: false };
@@ -1187,6 +1204,7 @@ const api = {
   resolveGuideTarget,
   startQuest,
   ensureStoryState,
+  syncUnifiedMaterials,
   onOnboardingComplete,
   dismissAllStoryUi,
   applyDialogueCamera,

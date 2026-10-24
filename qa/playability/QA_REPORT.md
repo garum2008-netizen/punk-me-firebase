@@ -1,35 +1,45 @@
-# Playability fixes — QA report
+# Playability fixes — PR #17 QA report
 
 **Branch:** `cursor/playability-fixes-d81d`  
-**Version label:** `living3d-v22r5-playability-r1`  
+**Base:** `main` @ `a0e15b5`  
+**Version label:** `living3d-v22r6-master-p1-r1` (see `index.html` cache bust)  
 **Date:** 2026-10-24
 
-## Automated tests
+## Automated tests (this branch)
 
 | Test | Result |
 |------|--------|
-| `npm run test:loading` | PASS |
+| `npm run test:loading` | PASS (Chromium + WebKit) |
 | `npm run test:loading-early-save` | PASS |
-| `npm run test:playthrough` | PASS — regression smoke + UI initiation (`playthrough-report.json`; optional `RUN_MOBILE=1`, `RUN_WEBKIT=1`) |
+| `npm run test:playthrough` | PASS — UI onboarding path, reload grant check, initiation button, mobile 390×844 (`RUN_MOBILE` default on). Set `RUN_CH2=1` for hangout build on desktop. |
+| `npm run test:chapter2-hangout` | PASS after `test:playthrough` with `RUN_CH2=1` |
 
-## Fixes covered (audit top-10)
+## MASTER TZ / audit coverage
 
-1. Street **E**: nearest NPC before arcade; arcade daily cap from `balance.arcadeDailyCap`.
-2. **talk_razor**: Gang / story Razor paths call `Onboarding.onTalkRazor`.
-3. **questBump** / duel win: `me.quests.progress ||= {}`; onboarding credited before legacy quest bump.
-4. Quest panel expanded by default; toggle visible on desktop and mobile.
-5. **onboarding** persisted in Firebase via `sanitizePlayer`; no repeat reward on reload (`adaptSpawnLocation` advances without `completeStep`).
-6. Chapter 2: Bolt hardware stall, foreman side quest hint, `story.materials` + shop brick sync, construction job grants brick/nails, hangout HUD subtext.
-7. Post-initiation: initiation quests completed, Razor rank lines, no repeat Razor duel reward when joined.
-8. Mobile: joystick `touch-action: none` + pointer capture; E uses portal + interact; coins badge pinned; Fight button ordered first in dock scroll.
-9. Shop/Lavka copy; W/S corrected in `controls-3d`; Cobalt → Vintik on roof for `cobalt_item`.
-10. City **Build** hidden in 3D mode.
+| Item | In #17 |
+|------|--------|
+| Contextual street E / arcade cap | Yes |
+| Explicit **«Говорить»** (`btnTalk` / `touchTalk`) | Yes (this commit) |
+| Quest HUD visible + guide / portal hints | Yes |
+| Idle hint ~45s (`tickOnboardIdleHint`) | Yes (this commit) |
+| `grantRewardOnce` / `story.rewardsGranted` | Yes (this commit) |
+| Onboarding persisted; no duplicate step rewards on reload | Yes (test: `reload_no_dup_grants`) |
+| Ch.2 Bolt, materials sync, construction job | Yes (c010568) |
+| Mobile touch joystick / interact / jump | Yes |
+| Playable with sound off (voice muted default) | Yes |
+| `database.rules.json` | **Unchanged** |
 
 ## Screenshots
 
-PNG captures from the playthrough script live under `qa/playability/` (`desk-chromium-*.png`, `mob-chromium-*.png` when mobile run is enabled).
+- Desktop: `qa/playability/desk-chromium-01-after-char.png` … `05b-reload.png`, `final.png`, optional `06-hangout-complete.png`
+- Mobile 390×844: `qa/playability/mob-chromium-*.png`
 
 ## Honest limits
 
-- Headless **3D duels** are timing-sensitive; the playthrough script retries duel input and only falls back to `Onboarding.onWinFight` if the step did not advance (validates the `questBump` fix, not full duel UX).
-- Full Authority stages 2–3 in one automated run remain slow; initiation UI is exercised after scripted job shortcuts in the test harness only.
+- **Gang initiation (Authority 2–3):** automated run still **shortcuts** trials/tasks via save state before the Razor **«Принять нашивку»** UI click — not a full manual Authority grind.
+- **Duels:** headless uses 2d fight path when `__force2dFight` is set at boot; not a substitute for manual 3D duel QA.
+- **Hangout stage 4:** requires `RUN_CH2=1` on desktop suite (~5+ min with job + Bolt buys).
+
+## Rollback
+
+Revert PR #17 on `main`; no RTDB schema migration.
