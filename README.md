@@ -39,3 +39,5 @@ npx firebase-tools deploy --only database --project punk-me-40605
 - Нижняя панель — банда, лавка, магия, работа (на кладбище), стройка (в городе), драка, паркур
 
 Подробнее: [docs/ROADMAP.md](docs/ROADMAP.md)
+
+**Геймдизайн (сюжет, интро, озвучка, туториал):** [docs/game-design/README.md](docs/game-design/README.md)
