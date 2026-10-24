@@ -20,7 +20,7 @@ export function getInputState() {
   const left = state.a || state.arrowleft;
   const right = state.d || state.arrowright;
   state.moveX = (right ? 1 : 0) - (left ? 1 : 0);
-  state.moveZ = (up ? 1 : 0) - (down ? 1 : 0);
+  state.moveZ = (down ? 1 : 0) - (up ? 1 : 0);
   state.run = state.shift;
   return state;
 }

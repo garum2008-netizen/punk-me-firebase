@@ -1,0 +1,39 @@
+{
+  "startedAt": "2026-10-24T14:58:48.187Z",
+  "suites": [
+    {
+      "tag": "desk-chromium",
+      "log": [
+        [
+          "quest_panel_visible",
+          true
+        ],
+        [
+          "questBump_no_throw",
+          true
+        ],
+        true,
+        [
+          "razor_step_gte_3",
+          true
+        ],
+        [
+          "onboarding_persisted_reload",
+          true
+        ],
+        [
+          "gang_member_ui",
+          true
+        ]
+      ],
+      "final": {
+        "joined": true,
+        "rank": "gang_member",
+        "initiationDone": true
+      },
+      "ok": true
+    }
+  ],
+  "pass": true,
+  "finishedAt": "2026-10-24T14:59:09.879Z"
+}

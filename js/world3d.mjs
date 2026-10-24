@@ -1322,6 +1322,23 @@ function onPointer(e) {
   pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
+  const npcRoots = [];
+  const npcIdByRoot = new Map();
+  actors.forEach((a, id) => {
+    if (!id.startsWith("npc_")) return;
+    npcRoots.push(a.group);
+    npcIdByRoot.set(a.group, id.replace("npc_", ""));
+  });
+  const npcHits = raycaster.intersectObjects(npcRoots, true);
+  if (npcHits.length) {
+    let node = npcHits[0].object;
+    while (node && !npcIdByRoot.has(node)) node = node.parent;
+    const picked = node ? npcIdByRoot.get(node) : null;
+    if (picked) {
+      hooks.onNpcClick?.(picked);
+      return;
+    }
+  }
   const hits = raycaster.intersectObject(floorMesh, true);
   const hit = hits.find(h => h.object.isMesh);
   if (hit && bounds) {
@@ -1333,14 +1350,6 @@ function onPointer(e) {
     const g = worldToGameLoc(hit.point.x, hit.point.z, bounds);
     hooks.onMove?.(g.x, g.y);
   }
-  let best = null;
-  let bestD = 1.8;
-  actors.forEach((a, id) => {
-    if (!id.startsWith("npc_")) return;
-    const d = Math.hypot(a.group.position.x - hit?.point.x, a.group.position.z - hit?.point.z);
-    if (d < bestD) { bestD = d; best = id.replace("npc_", ""); }
-  });
-  if (best) hooks.onNpcClick?.(best);
 }
 
 function loop() {

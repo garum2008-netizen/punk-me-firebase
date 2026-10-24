@@ -177,7 +177,16 @@ export function getAuthorityObjective(p = me()) {
   const stageNum = st.auth.stage;
   const stages = pathData?.stages || [];
   if (stageNum === 1 && !st.auth.s1Done) {
-    return { title: L(stages[0]?.title), objective: L({ ru: "Иди на Улицу — банда подкалывает", en: "Go to Gang Street — the gang is teasing", da: "Gå til Bandegaden" }), beacon: "npc_mohawk_street" };
+    const onStreet = p.location === "street";
+    return {
+      title: L(stages[0]?.title),
+      objective: L(
+        onStreet
+          ? { ru: "Найди Мохока на улице и поговори с ним", en: "Find Mohawk on the street and talk to him", da: "Find Mohawk på gaden og tal med ham" }
+          : { ru: "Иди на Улицу — банда подкалывает", en: "Go to Gang Street — the gang is teasing", da: "Gå til Bandegaden" }
+      ),
+      beacon: "npc_mohawk_street"
+    };
   }
   if (stageNum === 2) {
     const tasks = stages[1]?.tasks || [];
@@ -357,7 +366,13 @@ export function tryAuthorityNpc(npcId, p = me()) {
     return true;
   }
   if (npcId === "razor" && st.auth.stage === 4 && !st.flags?.joined_gang) {
-    runInitiationCeremony();
+    runInitiationCeremony({ force: true });
+    return true;
+  }
+  if (npcId === "vintik" && me().characterId === "cobalt" && me().location === "roof" && st.auth.stage === 2 && !st.auth.tasks.cobalt_item) {
+    completeAuthTask("cobalt_item");
+    window.StoryEngine?.fireStoryEvent?.("auth_cobalt_item");
+    window.toast?.(L({ ru: "Винтик: «Нашёл куртку Кобальта. Держи, свой.»", en: "Vintik: \"Found Cobalt's jacket. Here, fam.\"", da: "Vintik: \"Fundet Cobalts jakke.\"" }));
     return true;
   }
   if (npcId === "gravedigger" && st.auth.stage === 2 && !st.auth.tasks.no_rat) {
