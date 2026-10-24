@@ -130,7 +130,13 @@ export function openStage1Dialog(opts = {}) {
     if (me().location !== "street") return;
     const gangUi = document.getElementById("gangModal")?.classList.contains("active");
     if (!gangUi && window.World3D?.getNearestNpc?.() !== "mohawk") return;
-    if (window.StoryEngine?.canOpenStoryModal && !window.StoryEngine.canOpenStoryModal()) return;
+    if (
+      !gangUi &&
+      window.StoryEngine?.canOpenStoryModal &&
+      !window.StoryEngine.canOpenStoryModal()
+    ) {
+      return;
+    }
   } else if (me().location !== "street") return;
   window.StoryEngine?.dismissAllStoryUi?.();
   document.querySelectorAll(".modal.active").forEach(el => el.classList.remove("active"));
@@ -308,6 +314,7 @@ export function maybeChapter2Bullying() {
         window.toast?.(L(ch2.npc_reactions.cobalt_disappointed));
       }
       dlg.classList.remove("active");
+      window.StoryEngine?.updateConstructionHud?.();
       window.saveMe?.();
     };
     body.appendChild(btn);

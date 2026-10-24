@@ -1,0 +1,99 @@
+{
+  "hangout": {
+    "hangoutStage": 4,
+    "joined": true,
+    "actionLog": [
+      {
+        "type": "where_to_get",
+        "stage": 0
+      },
+      {
+        "type": "buy_mat"
+      },
+      {
+        "type": "build_click",
+        "stage": 0
+      },
+      {
+        "type": "where_to_get",
+        "stage": 1
+      },
+      {
+        "type": "buy_mat"
+      },
+      {
+        "type": "build_click",
+        "stage": 1
+      },
+      {
+        "type": "where_to_get",
+        "stage": 2
+      },
+      {
+        "type": "buy_mat"
+      },
+      {
+        "type": "build_click",
+        "stage": 2
+      },
+      {
+        "type": "where_to_get",
+        "stage": 3
+      },
+      {
+        "type": "buy_mat"
+      },
+      {
+        "type": "build_click",
+        "stage": 3
+      }
+    ]
+  },
+  "actions": [
+    {
+      "type": "where_to_get",
+      "stage": 0
+    },
+    {
+      "type": "buy_mat"
+    },
+    {
+      "type": "build_click",
+      "stage": 0
+    },
+    {
+      "type": "where_to_get",
+      "stage": 1
+    },
+    {
+      "type": "buy_mat"
+    },
+    {
+      "type": "build_click",
+      "stage": 1
+    },
+    {
+      "type": "where_to_get",
+      "stage": 2
+    },
+    {
+      "type": "buy_mat"
+    },
+    {
+      "type": "build_click",
+      "stage": 2
+    },
+    {
+      "type": "where_to_get",
+      "stage": 3
+    },
+    {
+      "type": "buy_mat"
+    },
+    {
+      "type": "build_click",
+      "stage": 3
+    }
+  ],
+  "authActions": 20
+}
