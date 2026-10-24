@@ -118,9 +118,13 @@ async function runSuite(browserName, browserType) {
   });
   log.push(["old_save_avatar_infer", oldShape.ok, oldShape]);
 
-  const timeoutUi = await page.evaluate(async () => {
+  const timeoutPage = await context.newPage();
+  await timeoutPage.goto(`${base}/?loadtest=timeout&v=loadfix-timeout`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await timeoutPage.waitForFunction(() => window.__punkLoadMe, { timeout: 120000 });
+  const timeoutUi = await timeoutPage.evaluate(async () => {
     window.__loadMeTimeoutMs = 280;
-    window.uid = window.uid || "timeout-test-uid";
+    window.__playerLoaded = false;
+    window.uid = firebase.auth().currentUser?.uid || "timeout-test-uid";
     const hang = { once: () => new Promise(() => {}) };
     window.db = { ref: () => hang };
     window.__punkRestoreLoadingMarkup?.();
@@ -139,8 +143,9 @@ async function runSuite(browserName, browserType) {
     timeoutUi
   ]);
   if (browserName === "chromium") {
-    await page.screenshot({ path: path.join(outDir, "desktop-loading-timeout-ui.png") });
+    await timeoutPage.screenshot({ path: path.join(outDir, "desktop-loading-timeout-ui.png") });
   }
+  await timeoutPage.close();
 
   const migrate = await page.evaluate(() => {
     const v21 = {

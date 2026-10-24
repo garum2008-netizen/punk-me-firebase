@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r4";
+const GAME_VERSION = "living3d-v22r4-loadfix";
 const PRESENCE_STALE_MS = 120000;
 const PRIVATE_ROOM_ID = "room";
 let moveSaveTimer = null;
@@ -483,6 +483,7 @@ function applyFirebasePlayerSnapshot(snap) {
     me = me || defaultPlayer();
   }
   window.me = me;
+  window.__playerLoaded = true;
   if (!me.characterId) {
     me.characterId = resolveCharacterIdForPlayer(me, { allowAvatarInfer: snap.exists() });
   }
@@ -543,6 +544,7 @@ function startFreshPlayerKeepAccount() {
         me.onboarding =
           v.onboarding && typeof v.onboarding === "object" ? v.onboarding : { step: 0, progress: {}, done: false };
         window.me = me;
+        window.__playerLoaded = true;
         window.StoryEngine?.ensureStoryState?.(me);
         saveMe();
         finishLoadMeFlow();
@@ -686,6 +688,7 @@ function syncStage3D() {
 function init() {
   me = defaultPlayer();
   window.me = me;
+  window.__playerLoaded = false;
   window.saveMe = saveMe;
   window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
   initLanguage();
@@ -708,7 +711,7 @@ function init() {
       window.uid = uid;
       isOwner = u.email === OWNER_EMAIL && u.emailVerified;
       try {
-        loadMe();
+        if (new URLSearchParams(location.search).get("loadtest") !== "timeout") loadMe();
       } catch (e) {
         console.error("loadMe", e);
         showLoadingFailure(t("loading_boot_error"), e.message || String(e));
@@ -795,6 +798,7 @@ function loadMe() {
     showLoadingFailure(t("loading_boot_error"), "no session");
     return;
   }
+  window.__playerLoaded = false;
   const gen = ++loadMeGeneration;
   clearLoadMeTimeout();
   const timeoutMs =
@@ -926,6 +930,7 @@ function hideLoading() {
 
 function saveMe() {
   if (!uid) return;
+  if (!window.__playerLoaded) return;
   const prevLvl = me.level || 1;
   me.level = levelFromXp(me.xp || 0);
   if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
@@ -990,6 +995,7 @@ function initMultiplayer() {
 
 function pushPresence() {
   if (!uid) return;
+  if (!window.__playerLoaded) return;
   if (!presenceOk) return;
   const loc = me.location;
   const data = {
