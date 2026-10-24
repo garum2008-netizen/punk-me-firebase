@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-24T16:50:42.147Z",
+  "startedAt": "2026-10-24T17:08:38.460Z",
   "suites": [
     {
       "tag": "desk-chromium",
@@ -30,16 +30,16 @@
           "reload_no_dup_grants",
           true,
           {
-            "coinsBefore": 260,
+            "coinsBefore": 236,
             "afterReload": {
-              "coins": 260,
+              "coins": 236,
               "granted": {
-                "duel:payout:razor": 1792860745120,
-                "onboard:go_street": 1792860672180,
-                "onboard:shop_buy": 1792860796557,
-                "onboard:talk_razor": 1792860688897,
-                "onboard:visit_cemetery": 1792860721638,
-                "onboard:win_fight": 1792860745120
+                "duel:payout:razor": 1792861815959,
+                "onboard:go_street": 1792861744722,
+                "onboard:shop_buy": 1792861866690,
+                "onboard:talk_razor": 1792861760885,
+                "onboard:visit_cemetery": 1792861793201,
+                "onboard:win_fight": 1792861815960
               }
             }
           }
@@ -91,16 +91,16 @@
           "reload_no_dup_grants",
           true,
           {
-            "coinsBefore": 269,
+            "coinsBefore": 255,
             "afterReload": {
-              "coins": 269,
+              "coins": 255,
               "granted": {
-                "duel:payout:razor": 1792860885867,
-                "onboard:go_street": 1792860851738,
-                "onboard:shop_buy": 1792860930478,
-                "onboard:talk_razor": 1792860859250,
-                "onboard:visit_cemetery": 1792860873616,
-                "onboard:win_fight": 1792860885868
+                "duel:payout:razor": 1792861953720,
+                "onboard:go_street": 1792861920791,
+                "onboard:shop_buy": 1792861999656,
+                "onboard:talk_razor": 1792861927654,
+                "onboard:visit_cemetery": 1792861942142,
+                "onboard:win_fight": 1792861953720
               }
             }
           }
@@ -125,5 +125,5 @@
     }
   ],
   "pass": true,
-  "finishedAt": "2026-10-24T16:55:46.570Z"
+  "finishedAt": "2026-10-24T17:13:35.282Z"
 }
