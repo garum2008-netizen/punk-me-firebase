@@ -363,13 +363,17 @@ function pickNextObjective() {
   const st = ensureStoryState(p);
   if (st.quest.activeId) return;
   if (!st.flags.joined_gang && p.onboarding?.done) {
-    if (!st.quest.completed.q_initiation_pay && !st.quest.completed.q_initiation_duel && !st.quest.completed.q_initiation_graffiti) {
+    if (
+      !st.quest.completed?.q_initiation_pay &&
+      !st.quest.completed?.q_initiation_duel &&
+      !st.quest.completed?.q_initiation_graffiti
+    ) {
       return;
     }
   }
   const loc = p.location;
   const candidate = data.quests.find(
-    q => !st.quest.completed[q.id] && q.loc === loc && q.type !== "main" && !st.quest.activeId
+    q => !st.quest.completed?.[q.id] && q.loc === loc && q.type !== "main" && !st.quest.activeId
   );
   if (candidate) startQuest(candidate.id);
   else renderObjectivePanel();

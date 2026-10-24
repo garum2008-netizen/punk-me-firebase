@@ -2,7 +2,9 @@
 const I18N = {
   ru: {
     coins: "Монеты", xp: "XP", level: "Уровень", rep: "Репутация", chain: "Цепь", online: "Здесь", onlineGlobal: "Всего в игре",
-    loading: "Вход в банду...", chatPh: "Чат банды...", onlineSide: "В этой локации", alone: "Пока одни…",
+    loading: "Вход в банду...", loading_retry: "Повторить", loading_fresh: "Начать заново (аккаунт сохранится)",
+    loading_timeout: "Загрузка слишком долгая. Проверь сеть или нажми «Повторить».",
+    loading_boot_error: "Не удалось загрузить сохранение.", chatPh: "Чат банды...", onlineSide: "В этой локации", alone: "Пока одни…",
     here_short: "Здесь", chat_toggle: "Чат",
     map: "Карта", gang: "Банда", shop: "Лавка", magic: "Магия", inv: "Инвентарь", job: "Работа", build: "Стройка",
     decor: "Декор", fight: "Драка", parkour: "Паркур", you: "(ты)", buy: "Купить", owned: "Есть", free: "FREE",
@@ -92,7 +94,9 @@ const I18N = {
   },
   en: {
     coins: "Coins", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
-    loading: "Joining the gang...", chatPh: "Gang chat...", onlineSide: "In this location", alone: "Just you for now…",
+    loading: "Joining the gang...", loading_retry: "Retry", loading_fresh: "Start fresh (keep account)",
+    loading_timeout: "Loading is taking too long. Check your network or tap Retry.",
+    loading_boot_error: "Could not load your save.", chatPh: "Gang chat...", onlineSide: "In this location", alone: "Just you for now…",
     here_short: "Here", chat_toggle: "Chat",
     map: "Map", gang: "Gang", shop: "Shop", magic: "Magic", inv: "Bag", job: "Jobs", build: "Build",
     decor: "Decor", fight: "Fight", parkour: "Parkour", you: "(you)", buy: "Buy", owned: "Owned", free: "FREE",
@@ -182,7 +186,9 @@ const I18N = {
   },
   da: {
     coins: "Mønter", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
-    loading: "Går ind i banden...", chatPh: "Bandechat...", onlineSide: "På denne lokation", alone: "Kun dig lige nu…",
+    loading: "Går ind i banden...", loading_retry: "Prøv igen", loading_fresh: "Start forfra (behold konto)",
+    loading_timeout: "Indlæsning tager for lang tid. Tjek netværket eller tryk Prøv igen.",
+    loading_boot_error: "Kunne ikke indlæse dit save.", chatPh: "Bandechat...", onlineSide: "På denne lokation", alone: "Kun dig lige nu…",
     here_short: "Her", chat_toggle: "Chat",
     map: "Kort", gang: "Bande", shop: "Butik", magic: "Magie", inv: "Taske", job: "Job", build: "Byg",
     decor: "Dekor", fight: "Slåskamp", parkour: "Parkour", you: "(dig)", buy: "Køb", owned: "Ejet", free: "GRATIS",
@@ -368,8 +374,6 @@ function setLanguage(lang, persist) {
     btn.classList.toggle("active", btn.dataset.lang === currentLang);
   });
   if (typeof window.onLanguageChanged === "function") window.onLanguageChanged();
-  const loadingSub = document.querySelector("#loading div:last-child");
-  if (loadingSub) loadingSub.textContent = t("loading");
 }
 
 function initLanguage(saved) {

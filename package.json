@@ -5,6 +5,7 @@
   "scripts": {
     "start": "npx --yes serve -l 3456 .",
     "lint": "node scripts/smoke-check.js",
-    "test": "node scripts/smoke-check.js"
+    "test": "node scripts/smoke-check.js",
+    "test:loading": "node scripts/test-loading-recovery.js"
   }
 }
