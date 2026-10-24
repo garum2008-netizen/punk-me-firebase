@@ -9,7 +9,9 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v21r5";
+const GAME_VERSION = "living3d-v22r3";
+const PRESENCE_STALE_MS = 120000;
+const PRIVATE_ROOM_ID = "room";
 let moveSaveTimer = null;
 let portalCooldown = 0;
 let lastPresenceAnimPush = 0;
@@ -414,7 +416,7 @@ function updateOnlineUI(allPlayers) {
   const inLoc = Object.keys(others).length + 1;
   document.getElementById("onlineCount").textContent = String(inLoc);
   updatePlayersToggleCount();
-  const global = allPlayers ? Object.keys(allPlayers).length : inLoc;
+  const global = allPlayers ? countLivePlayers(allPlayers) : inLoc;
   const gEl = document.getElementById("onlineGlobal");
   if (gEl) gEl.textContent = String(global);
 }
@@ -445,6 +447,19 @@ function initResponsiveHud() {
     chat?.classList.toggle("chat-open", open);
     ct.setAttribute("aria-expanded", open ? "true" : "false");
   });
+  const qt = document.getElementById("hudQuestsToggle");
+  const qw = document.getElementById("hudQuestsWrap");
+  qt?.addEventListener("click", e => {
+    e.stopPropagation();
+    const collapsed = qw?.classList.toggle("collapsed");
+    qt.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    qt.textContent = collapsed ? "▸" : "▾";
+  });
+  if (window.matchMedia("(max-width: 900px)").matches) {
+    qw?.classList.add("collapsed");
+    qt?.setAttribute("aria-expanded", "false");
+    if (qt) qt.textContent = "▸";
+  }
 }
 
 function syncStage3D() {
@@ -469,7 +484,7 @@ function syncStage3D() {
     npcs: npcData,
     location: me.location,
     hasDog: hasDog(),
-    carVisible: !!loc.night
+    carVisible: false
   });
 }
 
@@ -587,7 +602,8 @@ function loadMe() {
     window.me = me;
     me.level = levelFromXp(me.xp || 0);
     me.lastSeen = Date.now();
-    saveMe();
+    window.StoryEngine?.ensureStoryState?.(me);
+    if (me.characterId) saveMe();
     if (!me.characterId) {
       document.getElementById("loading").style.display = "none";
       const openSelect = () => {
@@ -615,6 +631,7 @@ function continueGameBoot() {
   hideLoading();
   initResponsiveHud();
   if (window.Onboarding) Onboarding.init();
+  window.Onboarding?.adaptSpawnLocation?.();
   if (me.onboarding?.done) {
     window.StoryEngine?.onOnboardingComplete?.();
     window.StoryEngine?.onLocationChange?.(me.location);
@@ -634,7 +651,8 @@ function continueGameBoot() {
 }
 
 function applyHashRoute() {
-  const id = (location.hash || "").replace(/^#/, "").trim();
+  const raw = (location.hash || "").replace(/^#/, "").trim();
+  const id = raw.split(/[?&]/)[0];
   if (!id || !LOCATIONS[id] || !me) return;
   if (me.location !== id) goLocation(id, true);
 }
@@ -704,7 +722,7 @@ function sanitizePlayer(p) {
     decor: p.decor,
     dog: dogPos,
     lang: getLanguage(),
-    characterId: p.characterId || "vienna",
+    characterId: p.characterId || null,
     story: p.story,
     authority: p.authority ?? p.story?.authority,
     gang_rank: p.gang_rank ?? p.story?.gang_rank,
@@ -718,7 +736,13 @@ function sanitizePlayer(p) {
 function initMultiplayer() {
   if (!uid) return;
   const probe = db.ref("presence/" + me.location + "/" + uid);
-  probe.set({ probe: true, ts: Date.now() }).then(() => {
+  const probePayload = {
+    name: me.name || "Player",
+    x: me.x ?? 50,
+    y: me.y ?? 55,
+    ts: Date.now()
+  };
+  probe.set(probePayload).then(() => {
     presenceOk = true;
     probe.remove().catch(() => {});
     listenPresence();
@@ -760,6 +784,15 @@ function disablePresence(reason) {
   listenPlayersInLocation();
 }
 
+function isPrivateRoomLoc(locId) {
+  return locId === PRIVATE_ROOM_ID && LOCATIONS[locId]?.buildZone === "room_private";
+}
+
+function playerPresenceFresh(p) {
+  const ts = p?.ts || p?.lastSeen;
+  return ts && Date.now() - ts < PRESENCE_STALE_MS;
+}
+
 function listenPresence() {
   if (!presenceOk) {
     listenPlayersInLocation();
@@ -767,12 +800,19 @@ function listenPresence() {
   }
   if (presenceListenRef) presenceListenRef.off();
   const loc = me.location;
+  if (isPrivateRoomLoc(loc)) {
+    others = {};
+    renderPlayers();
+    renderPlayersList();
+    updateOnlineCount();
+    return;
+  }
   presenceListenRef = db.ref("presence/" + loc);
   presenceListenRef.on("value", snap => {
     const raw = snap.val() || {};
     others = {};
     Object.entries(raw).forEach(([id, p]) => {
-      if (id === uid || !p || p.probe) return;
+      if (id === uid || !p || p.probe || !playerPresenceFresh(p)) return;
       others[id] = {
         name: p.name,
         x: p.x || 50,
@@ -793,12 +833,22 @@ function listenPresence() {
 
 function listenPlayersInLocation() {
   if (playersListenRef) playersListenRef.off();
+  if (isPrivateRoomLoc(me.location)) {
+    others = {};
+    renderPlayers();
+    renderPlayersList();
+    updateOnlineUI({});
+    return;
+  }
   playersListenRef = db.ref("players");
   playersListenRef.on("value", snap => {
     const all = snap.val() || {};
     others = {};
+    const now = Date.now();
     Object.entries(all).forEach(([id, p]) => {
       if (id === uid || !p || p.location !== me.location) return;
+      const seen = p.lastSeen || 0;
+      if (!seen || now - seen > PRESENCE_STALE_MS) return;
       others[id] = {
         name: p.name,
         x: p.x || 50,
@@ -870,16 +920,35 @@ function loadPrivateDecor() {
   renderBuildings();
 }
 
+function countLivePresenceTree(v) {
+  let n = 0;
+  const now = Date.now();
+  Object.values(v || {}).forEach(locMap => {
+    Object.values(locMap || {}).forEach(p => {
+      if (p && playerPresenceFresh(p)) n += 1;
+    });
+  });
+  return n;
+}
+
+function countLivePlayers(all) {
+  const now = Date.now();
+  return Object.values(all || {}).filter(p => p && p.lastSeen && now - p.lastSeen < PRESENCE_STALE_MS).length;
+}
+
 function updateOnlineCount() {
+  const inLoc = Object.keys(others).length + 1;
+  document.getElementById("onlineCount").textContent = String(inLoc);
+  updatePlayersToggleCount();
   if (!presenceOk) return;
   db.ref("presence").once("value").then(s => {
-    let n = 0;
-    const v = s.val() || {};
-    Object.keys(v).forEach(k => { n += Object.keys(v[k] || {}).length; });
-    document.getElementById("onlineCount").textContent = String(n);
+    const global = countLivePresenceTree(s.val());
+    const gEl = document.getElementById("onlineGlobal");
+    if (gEl) gEl.textContent = String(global);
   }).catch(() => {
     db.ref("players").once("value").then(s => {
-      document.getElementById("onlineCount").textContent = String(Object.keys(s.val() || {}).length);
+      const gEl = document.getElementById("onlineGlobal");
+      if (gEl) gEl.textContent = String(countLivePlayers(s.val()));
     });
   });
 }
@@ -907,6 +976,8 @@ function goLocation(id, fromHash) {
   me.location = id;
   me.x = 45;
   me.y = 60;
+  portalCooldown = Date.now() + 1600;
+  window.World3D?.setPortalGrace?.(1600);
   saveMe();
   if (presenceOk) listenPresence();
   else listenPlayersInLocation();

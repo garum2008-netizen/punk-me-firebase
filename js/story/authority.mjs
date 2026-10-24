@@ -108,7 +108,9 @@ export function renderAuthorityHud(p = me()) {
   const bar = document.getElementById("authorityBar");
   const lbl = document.getElementById("authorityRank");
   if (el) el.textContent = String(st.authority);
+  const wrap = document.querySelector(".authority-bar-wrap");
   if (bar) bar.style.width = `${st.authority}%`;
+  if (wrap) wrap.style.display = st.authority > 0 ? "" : "none";
   if (lbl) lbl.textContent = L(rank?.label);
 }
 
@@ -152,12 +154,14 @@ export function openStage1Dialog(opts = {}) {
       if (st.authority < 15) addAuthority(15 - st.authority);
       st.auth.stage = 2;
       dlg.classList.remove("active");
+      window.StoryEngine?.clearDialogueCamera?.();
       window.StoryEngine?.renderObjectivePanel?.();
       window.StoryEngine?.syncBeacon?.();
       window.saveMe?.();
     };
     body.appendChild(btn);
   });
+  window.StoryEngine?.applyDialogueCamera?.("mohawk");
 }
 
 function escapeHtml(s) {
@@ -235,8 +239,12 @@ export function runInitiationCeremony(opts = {}) {
     dlg.querySelector(".story-dialog-body").innerHTML =
       `<p class="story-line">${escapeHtml(L(stage.ceremony.text))}</p>
        <button type="button" class="btn" id="authInitBtn">${L({ ru: "Принять нашивку", en: "Take the patch", da: "Tag mærket" })}</button>`;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => window.StoryEngine?.applyDialogueCamera?.("razor"));
+    });
     dlg.querySelector("#authInitBtn").onclick = () => {
       dlg.classList.remove("active");
+      window.StoryEngine?.clearDialogueCamera?.();
       finishInitiation();
     };
     return;
@@ -388,7 +396,7 @@ export function tryAuthorityNpc(npcId, p = me()) {
   return false;
 }
 
-function openNoRatChoice() {
+export function openNoRatChoice() {
   const dlg = document.getElementById("storyDialog");
   if (!dlg) return;
   dlg.classList.add("active");
@@ -419,9 +427,11 @@ function openNoRatChoice() {
     btn.onclick = () => {
       c.fn();
       dlg.classList.remove("active");
+      window.StoryEngine?.clearDialogueCamera?.();
     };
     body.appendChild(btn);
   });
+  window.StoryEngine?.applyDialogueCamera?.("gravedigger");
 }
 
 const STAGE1_CALLOUT_MS = 9000;
@@ -451,6 +461,7 @@ export function openTrialsChooserDialog() {
   dlg.classList.add("active");
   dlg.querySelector(".story-dialog-title").textContent = L(pathData.stages[2]?.title);
   const body = dlg.querySelector(".story-dialog-body");
+  window.StoryEngine?.applyDialogueCamera?.("mohawk");
   body.innerHTML = `<p class="story-line">${escapeHtml(L({ ru: "Три испытания — провал можно повторить.", en: "Three trials — you can retry if you fail.", da: "Tre prøver — du kan prøve igen." }))}</p>`;
   trials.forEach(t => {
     const btn = document.createElement("button");

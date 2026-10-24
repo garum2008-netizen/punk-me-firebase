@@ -330,7 +330,7 @@ const LOC_TITLES = {
   elevator: { ru: "Лифт", en: "Elevator", da: "Elevator" },
   roof: { ru: "Крыша", en: "Rooftop", da: "Tag" },
   street: { ru: "Улица банды", en: "Gang street", da: "Bandegade" },
-  cemetery: { ru: "Кладбище у Вены", en: "Vienna cemetery", da: "Wien-kirkegård" },
+  cemetery: { ru: "Кладбище банды", en: "Gang cemetery", da: "Bandekirkegård" },
   city: { ru: "Стройка кварталов", en: "District build", da: "Byggekvarter" },
   parkour: { ru: "Крышный паркур", en: "Rooftop parkour", da: "Tag-parkour" }
 };

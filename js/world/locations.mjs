@@ -554,7 +554,7 @@ export function buildLocationScene(locId, texLoader) {
     addHangingChain(root, 7, 3.4, 1.5);
     addDustParticles(root, 120);
     addEmberParticles(root, 90);
-    props.showCar = true;
+    props.showCar = false;
     props.cats.push(buildCat(-3, 3, 0x111122), buildCat(4, -2, 0x442266));
     addLights(root, [
       { type: "point", color: 0xff66ff, intensity: 4.2, x: 0, y: 4.5, z: 0 },
@@ -631,7 +631,11 @@ export function buildLocationScene(locId, texLoader) {
     floor = tiledFloor(22, 20, theme.ground, false);
     root.add(floor);
     addRoomShell(root, 22, 20, 5, wallMat, colliders);
-    root.add(neonSign("СТРОЙКА", 0xff8800).translateY(3.8).translateZ(-9.2));
+    const constructionLabel =
+      typeof window !== "undefined" && typeof window.doorT === "function"
+        ? String(window.doorT("door_construction")).toUpperCase()
+        : "СТРОЙКА";
+    root.add(neonSign(constructionLabel, 0xff8800).translateY(3.8).translateZ(-9.2));
     const crane = wall(0.5, 6, 0.5, new THREE.MeshStandardMaterial({ color: 0xffcc00 }));
     crane.position.set(-7, 3, -4);
     root.add(crane);

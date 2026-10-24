@@ -169,6 +169,132 @@
           "next": "END"
         }
       ]
+    },
+    {
+      "id": "dlg_room_enter",
+      "location": "room",
+      "trigger": { "type": "enter", "conditions": [] },
+      "callout": { "sound": "sfx_bubble", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_mom",
+          "text": {
+            "ru": "Мама: Не забудь поесть перед улицей!",
+            "en": "Mom: Eat something before you hit the street!",
+            "da": "Mor: Spis noget før du går på gaden!"
+          },
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_elevator_enter",
+      "location": "elevator",
+      "trigger": { "type": "enter", "conditions": [] },
+      "callout": { "sound": "sfx_horn", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_agata",
+          "text": {
+            "ru": "Агата: Тише в лифте — соседи спят.",
+            "en": "Agatha: Quiet in the elevator — neighbors sleep.",
+            "da": "Agatha: Stille i elevatoren — naboerne sover."
+          },
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_roof_enter",
+      "location": "roof",
+      "trigger": { "type": "enter", "conditions": [] },
+      "callout": { "sound": "sfx_whistle", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_cobalt",
+          "text": {
+            "ru": "Кобальт: Ветер сильный — держись за перила.",
+            "en": "Cobalt: Wind's brutal — hold the rail.",
+            "da": "Cobalt: Vinden er vild — hold gelænderet."
+          },
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_street_enter",
+      "location": "street",
+      "trigger": { "type": "enter", "conditions": [] },
+      "callout": { "sound": "sfx_horn", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_razor",
+          "text": {
+            "ru": "Рейзор: Эй, панк! Банда смотрит.",
+            "en": "Razor: Hey punk! The gang's watching.",
+            "da": "Razor: Hey punk! Banden kigger."
+          },
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_city_enter",
+      "location": "city",
+      "trigger": { "type": "enter", "conditions": [] },
+      "callout": { "sound": "sfx_spoon", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_tony",
+          "text": {
+            "ru": "Тони: Пицца не ждёт — бери заказ!",
+            "en": "Tony: Pizza won't wait — grab an order!",
+            "da": "Tony: Pizzaen venter ikke — tag en ordre!"
+          },
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_cemetery_enter",
+      "location": "cemetery",
+      "trigger": { "type": "enter", "conditions": [] },
+      "callout": { "sound": "sfx_lantern", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_gravedigger",
+          "text": {
+            "ru": "Сторож: Тихо… или призраки проснутся.",
+            "en": "Watchman: Quiet… or the ghosts wake up.",
+            "da": "Vogter: Stille… eller spøgelserne vågner."
+          },
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_parkour_enter",
+      "location": "parkour",
+      "trigger": { "type": "enter", "conditions": [] },
+      "callout": { "sound": "sfx_chain", "icon": "!", "bubble_key": "n1" },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_mohawk",
+          "text": {
+            "ru": "Ирокез: Покажи прыжок — банда смотрит!",
+            "en": "Mohawk: Show me a jump — gang's watching!",
+            "da": "Mohawk: Vis et hop — banden kigger!"
+          },
+          "next": "END"
+        }
+      ]
     }
   ]
 }

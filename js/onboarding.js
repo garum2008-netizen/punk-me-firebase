@@ -141,6 +141,17 @@ function onVisitCemetery() { if (window.me?.location === "cemetery") bump("visit
 function onWinFight() { bump("win_fight", 1); }
 function onShopBuy() { bump("shop_buy", 1); }
 
+function adaptSpawnLocation() {
+  if (!window.me?.onboarding || window.me.onboarding.done) return;
+  const loc = window.me.location;
+  if (!loc || loc === "room") return;
+  const st = currentStep();
+  if (st?.key === "moved") {
+    window.me.onboarding.progress.moved = st.goal;
+    completeStep();
+  }
+}
+
 function initOnboarding() {
   if (!window.me) return;
   if (!window.me.onboarding) {
@@ -152,6 +163,7 @@ function initOnboarding() {
 
 window.Onboarding = {
   init: initOnboarding,
+  adaptSpawnLocation,
   render: renderOnboardingQuest,
   syncGuideTarget,
   onMove,
