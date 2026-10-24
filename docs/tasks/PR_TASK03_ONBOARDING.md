@@ -38,3 +38,7 @@ MASTER TZ §5.1 / TASK 03: new player completes «Новенький в доме
 
 ## Rollback
 Revert merge commit or checkout previous `GAME_VERSION` tag on `main`; no RTDB schema migration required.
+
+## PR link + commit SHA
+- Branch: `cursor/task-03-onboarding-quests-d81d` → base `main`
+- Tip commit: `75a63b2`
