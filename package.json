@@ -8,6 +8,8 @@
     "test": "node scripts/smoke-check.js",
     "test:loading": "node scripts/test-loading-recovery.js",
     "test:loading-early-save": "node scripts/test-loading-early-save.js",
-    "test:accounts": "node scripts/test-accounts-auth.js"
+    "test:accounts": "node scripts/test-accounts-auth.js",
+    "test:playthrough": "PUNK_BASE=http://127.0.0.1:8765 node scripts/test-new-player-playthrough.js",
+    "test:chapter2-hangout": "node scripts/test-chapter2-hangout-ui.js"
   }
 }
