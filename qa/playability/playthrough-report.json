@@ -1,39 +1,129 @@
 {
-  "startedAt": "2026-10-24T14:58:48.187Z",
+  "startedAt": "2026-10-24T16:50:42.147Z",
   "suites": [
     {
       "tag": "desk-chromium",
+      "touchOnly": false,
       "log": [
         [
           "quest_panel_visible",
           true
         ],
         [
-          "questBump_no_throw",
+          "talk_button_present",
+          true,
+          {
+            "desktop": true,
+            "touch": true
+          }
+        ],
+        [
+          "talk_razor_step",
+          true,
+          3
+        ],
+        [
+          "onboarding_done",
           true
         ],
-        true,
         [
-          "razor_step_gte_3",
-          true
-        ],
-        [
-          "onboarding_persisted_reload",
-          true
+          "reload_no_dup_grants",
+          true,
+          {
+            "coinsBefore": 260,
+            "afterReload": {
+              "coins": 260,
+              "granted": {
+                "duel:payout:razor": 1792860745120,
+                "onboard:go_street": 1792860672180,
+                "onboard:shop_buy": 1792860796557,
+                "onboard:talk_razor": 1792860688897,
+                "onboard:visit_cemetery": 1792860721638,
+                "onboard:win_fight": 1792860745120
+              }
+            }
+          }
         ],
         [
           "gang_member_ui",
-          true
+          true,
+          {
+            "joined": true,
+            "rank": "gang_member"
+          }
         ]
       ],
+      "ok": true,
       "final": {
         "joined": true,
-        "rank": "gang_member",
-        "initiationDone": true
+        "rank": "gang_member"
       },
-      "ok": true
+      "hangout": {
+        "hangoutStage": 0
+      }
+    },
+    {
+      "tag": "mob-chromium",
+      "touchOnly": true,
+      "log": [
+        [
+          "quest_panel_visible",
+          true
+        ],
+        [
+          "talk_button_present",
+          true,
+          {
+            "desktop": false,
+            "touch": true
+          }
+        ],
+        [
+          "talk_razor_step",
+          true,
+          3
+        ],
+        [
+          "onboarding_done",
+          true
+        ],
+        [
+          "reload_no_dup_grants",
+          true,
+          {
+            "coinsBefore": 269,
+            "afterReload": {
+              "coins": 269,
+              "granted": {
+                "duel:payout:razor": 1792860885867,
+                "onboard:go_street": 1792860851738,
+                "onboard:shop_buy": 1792860930478,
+                "onboard:talk_razor": 1792860859250,
+                "onboard:visit_cemetery": 1792860873616,
+                "onboard:win_fight": 1792860885868
+              }
+            }
+          }
+        ],
+        [
+          "gang_member_ui",
+          true,
+          {
+            "joined": true,
+            "rank": "gang_member"
+          }
+        ]
+      ],
+      "ok": true,
+      "final": {
+        "joined": true,
+        "rank": "gang_member"
+      },
+      "hangout": {
+        "hangoutStage": 0
+      }
     }
   ],
   "pass": true,
-  "finishedAt": "2026-10-24T14:59:09.879Z"
+  "finishedAt": "2026-10-24T16:55:46.570Z"
 }

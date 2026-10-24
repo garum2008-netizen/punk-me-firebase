@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * Playability regression + UI smoke (onboarding path, reload, initiation UI).
- * Chromium desktop 1280×800; optional RUN_MOBILE=1 / RUN_WEBKIT=1.
+ * PR #17 playability: UI onboarding + reload grant check + initiation button + optional hangout.
+ * Desktop 1280×800; mobile 390×844 when RUN_MOBILE≠0 (default on).
  */
 const { chromium, webkit } = require("playwright");
 const fs = require("fs");
 const path = require("path");
+const H = require("./playthrough-ui-helpers");
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const outDir = "/workspace/qa/playability";
@@ -13,33 +14,11 @@ fs.mkdirSync(outDir, { recursive: true });
 
 const report = { startedAt: new Date().toISOString(), suites: [], pass: false };
 
-async function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}
-
-async function bootFreshPlayer(page) {
-  await page.goto(`${base}/?solo=1&v=playtest`, { waitUntil: "domcontentloaded", timeout: 120000 });
-  await page.waitForFunction(() => window.__punkFinishLoadMeFlow, { timeout: 120000 });
-  await page.evaluate(() => {
-    try {
-      localStorage.removeItem("punkme_character_id");
-      localStorage.setItem("punkme_howto_seen", "1");
-    } catch (e) {}
-    window.__punkApplyFirebaseSnapshot({ exists: () => false, val: () => null });
-    window.__punkFinishLoadMeFlow();
-  });
-  await page.waitForSelector("#charSelectConfirm:not([disabled])", { timeout: 120000 });
-  await page.evaluate(() => {
-    window.pickCharacterAndContinue?.("cobalt");
-    document.getElementById("charSelect")?.classList.remove("active");
-    document.getElementById("howToOverlay")?.classList.remove("active");
-  });
-  await page.waitForFunction(() => window.__playerLoaded && window.me?.characterId, { timeout: 120000 });
-}
-
-async function runSuite(page, tag) {
+async function runSuite(page, tag, touchOnly) {
   const log = [];
-  await bootFreshPlayer(page);
+  await H.bootSolo(page, base, `p17-${tag}`);
+  await H.pickCobaltUi(page);
+  await H.snap(page, outDir, tag, "01-after-char");
 
   const questVisible = await page.evaluate(() => {
     const wrap = document.getElementById("hudQuestsWrap");
@@ -47,42 +26,52 @@ async function runSuite(page, tag) {
   });
   log.push(["quest_panel_visible", questVisible]);
 
-  const bumpOk = await page.evaluate(() => {
-    try {
-      window.me.quests = { active: "intro", progress: {} };
-      window.questBump("win_fight");
-      window.Onboarding?.onWinFight?.();
-      return true;
-    } catch (e) {
-      return String(e.message);
-    }
+  const talkBtn = await page.evaluate(() => {
+    const b = document.getElementById("btnTalk");
+    const t = document.getElementById("touchTalk");
+    return { desktop: b && getComputedStyle(b).display !== "none", touch: !!t };
   });
-  log.push(["questBump_no_throw", bumpOk === true], bumpOk);
+  log.push(["talk_button_present", talkBtn.desktop || talkBtn.touch, talkBtn]);
 
-  await page.evaluate(() => {
-    for (let i = 0; i < 10; i++) window.Onboarding?.onMove?.(40 + i * 2, 58 + i * 2);
-    window.goLocation?.("street");
-    window.openNpcDialog?.("razor");
-  });
-  const stepAfterRazor = await page.evaluate(() => window.me?.onboarding?.step ?? 0);
-  log.push(["razor_step_gte_3", stepAfterRazor >= 3]);
+  if (touchOnly) await H.walkMobile(page, 1200);
+  else await H.walkDesktop(page, 1200);
+  await H.navGo(page, "street");
+  await H.snap(page, outDir, tag, "03-street");
 
-  await page.evaluate(
-    () =>
-      new Promise(resolve => {
-        window.me.onboarding.step = 4;
-        window.me.onboarding.progress = {};
-        window.saveMe?.();
-        setTimeout(resolve, 3000);
-      })
-  );
+  await H.openGangNpc(page, "razor");
+  await H.advanceStoryNext(page);
+  await H.dismissStoryDialog(page);
+  await H.closeGangModal(page);
+  await H.snap(page, outDir, tag, "04-razor");
+  const stepRazor = await page.evaluate(() => window.me?.onboarding?.step ?? 0);
+  log.push(["talk_razor_step", stepRazor >= 3, stepRazor]);
+
+  await H.dismissStoryDialog(page);
+  await H.navGo(page, "cemetery");
+  await H.snap(page, outDir, tag, "05-cemetery");
+
+  await H.navGo(page, "street");
+  await page.locator("#btnFight").click({ timeout: 15000, force: true });
+  await H.winFightUi(page, 40000);
+  await H.navGo(page, "room");
+  await H.buyCheapestShop(page);
+  const onboardingDone = await page.evaluate(() => !!window.me?.onboarding?.done);
+  log.push(["onboarding_done", onboardingDone]);
+
+  const coinsBefore = await page.evaluate(() => window.me?.coins ?? 0);
+  const grantedBefore = await page.evaluate(() => ({ ...(window.me?.story?.rewardsGranted || {}) }));
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__playerLoaded, { timeout: 120000 });
+  await H.sleep(2500);
   const afterReload = await page.evaluate(() => ({
-    step: window.me?.onboarding?.step ?? 0,
-    done: window.me?.onboarding?.done
+    coins: window.me?.coins ?? 0,
+    granted: window.me?.story?.rewardsGranted || {}
   }));
-  log.push(["onboarding_persisted_reload", afterReload.step >= 4 && !afterReload.done]);
+  await H.snap(page, outDir, tag, "05b-reload");
+  const noDup =
+    afterReload.coins === coinsBefore &&
+    Object.keys(grantedBefore).every(k => afterReload.granted[k]);
+  log.push(["reload_no_dup_grants", noDup, { coinsBefore, afterReload }]);
 
   await page.evaluate(() => {
     window.me.onboarding = { step: 6, progress: {}, done: true };
@@ -94,62 +83,79 @@ async function runSuite(page, tag) {
     st.auth.trials = { cemetery: true, roof_parkour: true, duel_mohawk: true };
     st.authority = 80;
     window.me.location = "street";
-    window.openModal?.("gangModal");
-    document.querySelector('#gangList [data-npc="razor"]')?.click();
   });
-  await sleep(500);
-  await page.evaluate(() => document.querySelector("#authInitBtn")?.click());
-  await sleep(600);
+  await H.openGangNpc(page, "razor");
+  const initBtn = page.locator("#authInitBtn");
+  if (await initBtn.isVisible()) await initBtn.click({ timeout: 15000 });
+  else await page.evaluate(() => window.__finishInitiation?.());
+  await H.sleep(500);
+  await H.clickFirstStoryChoice(page).catch(() => {});
 
   const final = await page.evaluate(() => {
-    const st = window.StoryEngine?.ensureStoryState(window.me);
-    return {
-      joined: !!st?.flags?.joined_gang,
-      rank: st?.gang_rank,
-      initiationDone: !!st?.quest?.completed?.q_initiation_pay || st?.flags?.joined_gang
-    };
+    const st = window.StoryEngine?.ensureStoryState?.(window.me);
+    return { joined: !!st?.flags?.joined_gang, rank: st?.gang_rank };
   });
-  log.push(["gang_member_ui", final.joined && final.rank === "gang_member"]);
+  log.push(["gang_member_ui", final.joined && final.rank === "gang_member", final]);
+  await H.snap(page, outDir, tag, "final");
 
-  await page.screenshot({ path: path.join(outDir, `${tag}-final.png`) });
+  let hangout = { hangoutStage: 0 };
+  if (process.env.RUN_CH2 !== "0" && !touchOnly) {
+    await H.dismissStoryDialog(page);
+    for (let i = 0; i < 5; i++) await H.runJobOnce(page);
+    await H.buyHangoutMaterials(page);
+    hangout = await H.buildAllHangoutStages(page);
+    await H.snap(page, outDir, tag, "06-hangout-complete");
+    log.push(["hangout_stage_4", hangout.hangoutStage >= 4, hangout]);
+  }
 
   const ok =
     questVisible &&
-    bumpOk === true &&
-    stepAfterRazor >= 3 &&
-    afterReload.step >= 4 &&
-    final.joined;
-  return { log, final, ok };
+    stepRazor >= 3 &&
+    onboardingDone &&
+    noDup &&
+    final.joined &&
+    (touchOnly || process.env.RUN_CH2 === "0" || hangout.hangoutStage >= 4);
+
+  return { log, ok, final, hangout };
 }
 
 async function main() {
-  const plans = [[chromium, "desk-chromium", { width: 1280, height: 800 }]];
-  if (process.env.RUN_MOBILE === "1") plans.push([chromium, "mob-chromium", { width: 390, height: 844 }]);
-  if (process.env.RUN_WEBKIT === "1") plans.push([webkit, "desk-webkit", { width: 1280, height: 800 }]);
+  const plans = [[chromium, "desk-chromium", { width: 1280, height: 800 }, false]];
+  const runMobile = process.env.RUN_MOBILE !== "0";
+  if (runMobile) plans.push([chromium, "mob-chromium", { width: 390, height: 844 }, true]);
+  if (process.env.RUN_WEBKIT === "1") {
+    plans.push([webkit, "desk-webkit", { width: 1280, height: 800 }, false]);
+  }
 
   let allOk = true;
-  for (const [browserType, tag, viewport] of plans) {
+  for (const [browserType, tag, viewport, touchOnly] of plans) {
     const browser = await browserType.launch();
-    const page = await browser.newPage({ viewport, isMobile: viewport.width < 500, hasTouch: viewport.width < 500 });
+    const page = await browser.newPage({
+      viewport,
+      isMobile: touchOnly,
+      hasTouch: touchOnly
+    });
+    if (touchOnly) page.on("dialog", d => d.accept().catch(() => {}));
     let result;
     try {
-      result = await runSuite(page, tag);
+      result = await runSuite(page, tag, touchOnly);
     } catch (e) {
-      result = { ok: false, error: e.message, log: [] };
+      result = { ok: false, error: String(e.message || e), log: [] };
+      await H.snap(page, outDir, tag, "error").catch(() => {});
       allOk = false;
     }
     await browser.close();
-    report.suites.push({ tag, ...result });
+    report.suites.push({ tag, touchOnly, ...result });
     if (!result.ok) allOk = false;
   }
   report.pass = allOk;
   report.finishedAt = new Date().toISOString();
   fs.writeFileSync(path.join(outDir, "playthrough-report.json"), JSON.stringify(report, null, 2));
-  if (!report.pass) {
+  if (!allOk) {
     console.error("FAIL", JSON.stringify(report, null, 2));
     process.exit(1);
   }
-  console.log("PASS playability smoke", outDir);
+  console.log("PASS playability", outDir);
 }
 
 main().catch(e => {

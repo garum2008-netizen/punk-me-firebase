@@ -33,6 +33,7 @@ export function updateContextHints(data) {
   } else {
     el.classList.remove("visible");
   }
+  window.updateInteractionHud?.(data);
 }
 
 window.initContextHints = initContextHints;

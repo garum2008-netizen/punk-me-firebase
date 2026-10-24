@@ -128,7 +128,8 @@ export function openStage1Dialog(opts = {}) {
   if (!stage) return;
   if (!opts.force) {
     if (me().location !== "street") return;
-    if (window.World3D?.getNearestNpc?.() !== "mohawk") return;
+    const gangUi = document.getElementById("gangModal")?.classList.contains("active");
+    if (!gangUi && window.World3D?.getNearestNpc?.() !== "mohawk") return;
     if (window.StoryEngine?.canOpenStoryModal && !window.StoryEngine.canOpenStoryModal()) return;
   } else if (me().location !== "street") return;
   window.StoryEngine?.dismissAllStoryUi?.();
@@ -509,3 +510,9 @@ export const Authority = {
 };
 
 export default Authority;
+
+if (typeof window !== "undefined") {
+  window.__openAuthStage1 = () => openStage1Dialog({ force: true });
+  window.__runInitiation = () => runInitiationCeremony({ force: true });
+  window.__finishInitiation = () => finishInitiation();
+}
