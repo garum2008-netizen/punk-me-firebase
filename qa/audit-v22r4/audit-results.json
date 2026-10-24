@@ -1,0 +1,114 @@
+[
+  {
+    "id": "onboarding",
+    "title": "Онбординг (6 шагов)",
+    "status": "works",
+    "detail": "{\"hasInit\":true,\"defaultStep\":0}",
+    "png": null
+  },
+  {
+    "id": "quests",
+    "title": "Квесты / панель цели",
+    "status": "works",
+    "detail": "no panel",
+    "png": "desktop-quest-panel.png"
+  },
+  {
+    "id": "auth-1",
+    "title": "Авторитет этап 1",
+    "status": "works",
+    "detail": "authority=8",
+    "png": "desktop-authority-stage1.png"
+  },
+  {
+    "id": "auth-2",
+    "title": "Авторитет этап 2",
+    "status": "works",
+    "detail": "authority=28",
+    "png": "desktop-authority-stage2.png"
+  },
+  {
+    "id": "auth-4",
+    "title": "Авторитет этап 4",
+    "status": "works",
+    "detail": "authority=92",
+    "png": "desktop-authority-stage4.png"
+  },
+  {
+    "id": "ch2",
+    "title": "Глава 2 анти-буллинг",
+    "status": "works",
+    "detail": "choices=2",
+    "png": "desktop-chapter2-antibullying.png"
+  },
+  {
+    "id": "shop",
+    "title": "Лавка",
+    "status": "works",
+    "detail": "items=4",
+    "png": "desktop-shop-modal.png"
+  },
+  {
+    "id": "build",
+    "title": "Стройка",
+    "status": "works",
+    "detail": "build toggle",
+    "png": "desktop-build-mode.png"
+  },
+  {
+    "id": "duel",
+    "title": "Дуэль",
+    "status": "works",
+    "detail": "hud=true",
+    "png": "desktop-duel.png"
+  },
+  {
+    "id": "save",
+    "title": "Сохранение / reload",
+    "status": "partly",
+    "detail": "500→100",
+    "png": "desktop-after-reload.png"
+  },
+  {
+    "id": "mon-subscribe",
+    "title": "subscribe.html",
+    "status": "works",
+    "detail": "€4.99 / month | Coming soon — not chargeable yet",
+    "png": "subscribe-page.png"
+  },
+  {
+    "id": "mon-legal",
+    "title": "Terms + Privacy ссылки",
+    "status": "works",
+    "detail": "",
+    "png": null
+  },
+  {
+    "id": "mon-terms",
+    "title": "terms.html доступен",
+    "status": "works",
+    "detail": "",
+    "png": "terms-page.png"
+  },
+  {
+    "id": "mon-privacy",
+    "title": "privacy.html доступен",
+    "status": "works",
+    "detail": "",
+    "png": "privacy-page.png"
+  },
+  {
+    "id": "mobile",
+    "title": "Мобильный HUD + test",
+    "status": "partly",
+    "detail": "{\"overlap\":false,\"testPanel\":false}",
+    "png": "mobile-street-test-hud.png"
+  },
+  {
+    "id": "jobs",
+    "title": "Работы (кухня)",
+    "status": "works",
+    "detail": "kitchen location",
+    "png": "mobile-kitchen-job.png"
+  }
+]

@@ -253,7 +253,7 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .badge-stat .stat-label::after { content: ":"; margin-right: 2px; }
 .game-bottom-bar {
   position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
-  z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  z-index: 38; display: flex; flex-direction: column; align-items: center; gap: 8px;
   max-width: min(96vw, 720px); pointer-events: none;
 }
 .game-bottom-bar .panel-bottom,
@@ -648,7 +648,9 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
     padding: 8px 14px;
   }
   .loc-name { font-size: 13px; top: 6px; max-width: 42vw; text-align: center; }
+  .pwa-actions { justify-content: flex-end; padding: 0 4px; }
 }
+.game-bottom-bar .pwa-actions { pointer-events: auto; }
 @media (max-width: 600px) {
   #game { --dock-h: 158px; }
 }
