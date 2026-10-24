@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const root = path.join(__dirname, "..");
-const must = ["index.html", "js/game.js", "css/game.css", "database.rules.json"];
+const must = ["index.html", "js/game.js", "css/game.css", "database.rules.json", "owner.html", "js/account-auth.mjs"];
 let ok = true;
 for (const f of must) {
   const p = path.join(root, f);

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "desktop-chromium-reload-coins",
+    "pass": true,
+    "detail": "uid=6dLPCepm9JZq2QhfVElDo3mCjff1 coins=4242"
+  },
+  {
+    "id": "desktop-chromium-signout-new-anon",
+    "pass": true,
+    "detail": "6dLPCepm9JZq2QhfVElDo3mCjff1 -> RdfeTgz2biOBw9QVwFpcc6h3oZ02"
+  },
+  {
+    "id": "desktop-chromium-owner-guest-ui",
+    "pass": true,
+    "detail": "{\"signIn\":true,\"denied\":false,\"panel\":false}"
+  },
+  {
+    "id": "desktop-chromium-account-ui",
+    "pass": true,
+    "detail": "/workspace/qa/accounts/desktop-chromium-account-modal.png"
+  },
+  {
+    "id": "desktop-chromium-link-email-uid",
+    "pass": "SKIP",
+    "detail": "providers not enabled in Firebase (OWNER ACTION)"
+  },
+  {
+    "id": "mobile-webkit-skip",
+    "pass": "SKIP",
+    "detail": "browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to r"
+  }
+]

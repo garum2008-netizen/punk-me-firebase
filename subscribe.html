@@ -35,12 +35,14 @@
 
   <h2 data-sub="eu_title"></h2>
   <p data-sub="eu_body"></p>
-  <div class="consent-box">
+  <div class="consent-box consent-box-disabled" aria-disabled="true">
     <label>
       <input type="checkbox" id="euConsent" disabled aria-describedby="euHint">
       <span data-sub="eu_checkbox" id="euHint"></span>
     </label>
   </div>
+
+  <p class="account-link-row"><a href="index.html#account" data-sub="account_link">Sign in</a></p>
 
   <button type="button" class="btn btn-subscribe" disabled aria-disabled="true" title="Payment not connected">
     <span data-sub="subscribe_btn"></span>
