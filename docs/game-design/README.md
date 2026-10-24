@@ -36,9 +36,10 @@
 | Управление WASD/Shift/Space/E, мобильный джойстик | IMPLEMENTED | `js/controls-3d.mjs`, i18n `howto_body_*` |
 | Путь «Авторитет» (4 этапа + ранги) | IMPLEMENTED | `js/story/authority.mjs`, `data/story/authority-path.json` |
 | Выбор анти-буллинга (глава 2) | IMPLEMENTED | `authority-path.json` → `chapter2_antibullying` |
-| Story Engine: квесты, диалоги, маяки | IN PROGRESS | `js/story/story-engine.mjs`, `data/story/quests.json` (не все главы ТЗ) |
+| Story Engine: квесты, диалоги, маяки | IN PROGRESS | `js/story/story-engine.mjs`, `data/story/quests.json`; гл.1 «Прописка» — три пути + earn guidance (PR stage 1) |
+| Работы: флаеры, посуда, подсобник | IN PROGRESS | `jobs.json` + `play-features-v21.mjs` (смены на Улице/Кухне/Стройке) |
 | Доставка пиццы, смена на кладбище | IMPLEMENTED | `js/game.js`, `js/play-features-v21.mjs` |
-| Работы ТЗ: флаеры, посуда, подсобник, лом | PLANNED | Описаны в ТЗ; в `jobs.json` частично |
+| Металлолом (Крыша/паркур) | PLANNED | ТЗ §1.3 |
 | Цепная дуэль с NPC | IMPLEMENTED | `js/game.js`, QA v22r3 |
 | Стройка: склепы/неон в городе | IMPLEMENTED | `js/game.js` |
 | Тусовка банды 4 этапа | IN PROGRESS | Данные `construction-hangout.json`; полный UX по ТЗ — доработка |

@@ -1,0 +1,12 @@
+[console] [GroupMarkerNotSet(crbug.com/242999)!:A0301C00BC380000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader flag to opt in to lower security guarantees for trusted content.
+[console] [.WebGL-0x2ff4000e9400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+[console] [story] quest_start q_initiation_pay
+[console] [story] quest_start q_street_flyers
+[pay_fee] {"name":"pay_fee","ok":true,"logs":[],"joined":true,"completed":{"q_initiation_pay":true},"coins":23}
+[console] [story] quest_start q_initiation_duel
+[console] [story] quest_start q_street_flyers
+[duel] {"name":"duel","ok":true,"logs":[],"joined":true,"completed":{"q_initiation_duel":true},"coins":100}
+[console] [story] quest_start q_initiation_graffiti
+[console] [story] quest_start q_street_flyers
+[graffiti] {"name":"graffiti","ok":true,"logs":[],"joined":true,"completed":{"q_initiation_graffiti":true},"coins":340}
+[firebase_completed] {"name":"firebase_completed","ok":true,"logs":[],"joined":false,"completed":{},"coins":100}

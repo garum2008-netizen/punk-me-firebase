@@ -87,7 +87,7 @@
             "da": "Sæt 8 plakater op på Bandegaden"
           },
           "beacon": "npc_razor",
-          "complete_on": "event:flyers_done"
+          "complete_on": "flyers_count>=8"
         }
       ],
       "rewards": [
