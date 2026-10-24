@@ -88,7 +88,55 @@ export function ensureStoryState(p) {
   if (!p.story.events) p.story.events = {};
   if (p.energy == null) p.energy = p.story.energy;
   if (p.mood == null) p.mood = p.story.mood;
+  if (!p.story.quest || typeof p.story.quest !== "object") {
+    p.story.quest = { activeId: null, step: 0, completed: {} };
+  }
+  const q = p.story.quest;
+  if (q.activeId === undefined) q.activeId = null;
+  if (q.step == null) q.step = 0;
+  if (!q.completed || typeof q.completed !== "object") q.completed = {};
+  if (!p.story.materials || typeof p.story.materials !== "object") {
+    p.story.materials = { board: 0, brick: 0, nails: 0, chain: 0, spray: 0, neon_tube: 0, scrap: 0 };
+  }
+  if (!p.story.rel || typeof p.story.rel !== "object") p.story.rel = { gang_rust: 0, zombie: 0 };
+  if (!p.story.auth || typeof p.story.auth !== "object") {
+    p.story.auth = { stage: 1, s1Done: false, tasks: {}, trials: {}, ch2Done: false };
+  } else {
+    if (!p.story.auth.tasks) p.story.auth.tasks = {};
+    if (!p.story.auth.trials) p.story.auth.trials = {};
+  }
+  if (p.story.hangoutStage == null) p.story.hangoutStage = 0;
+  if (p.story.chapter == null) p.story.chapter = 1;
+  if (p.story.authority == null) p.story.authority = 0;
+  if (!p.story.gang_rank) p.story.gang_rank = "newbie";
   return p.story;
+}
+
+function speakerToNpcId(speaker) {
+  if (!speaker) return null;
+  const s = String(speaker).replace(/^npc_/, "");
+  return s || null;
+}
+
+export function applyDialogueCamera(npcId) {
+  if (!npcId || !window.World3D?.snapDialogueNpcShot) return;
+  requestAnimationFrame(() => {
+    window.World3D.snapDialogueNpcShot(npcId);
+  });
+}
+
+export function clearDialogueCamera() {
+  window.World3D?.releaseCaptureFrame?.();
+  document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
+  talkingIdsClear();
+}
+
+function talkingIdsClear() {
+  if (window.World3D?.setTalking) {
+    ["razor", "mohawk", "gravedigger", "zoya", "plukh", "foreman", "tony", "bolt", "cobalt", "vintik"].forEach(id => {
+      window.World3D.setTalking(id, false);
+    });
+  }
 }
 
 async function loadJson(path) {
@@ -750,6 +798,7 @@ function showDialogueNode(dlg, node) {
   if (!el) return;
   el.classList.add("active");
   const speaker = (node.speaker || "npc").replace("npc_", "");
+  applyDialogueCamera(speakerToNpcId(node.speaker) || speaker);
   el.querySelector(".story-dialog-title").textContent =
     typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker;
   const body = el.querySelector(".story-dialog-body");
@@ -798,6 +847,7 @@ function closeDialogue() {
   if (activeDlg?.id === "dlg_plukh_enter" && story().flags.plukh_cemetery) fireStoryEvent("plukh_choice");
   activeDlg = null;
   document.getElementById("storyDialog")?.classList.remove("active");
+  clearDialogueCamera();
   setSubtitle("");
   hideDirection();
 }
@@ -956,6 +1006,8 @@ const api = {
   ensureStoryState,
   onOnboardingComplete,
   dismissAllStoryUi,
+  applyDialogueCamera,
+  clearDialogueCamera,
   canOpenStoryModal,
   showNpcProximityCallout,
   applyEffect,

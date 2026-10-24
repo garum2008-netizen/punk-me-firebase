@@ -108,7 +108,9 @@ export function renderAuthorityHud(p = me()) {
   const bar = document.getElementById("authorityBar");
   const lbl = document.getElementById("authorityRank");
   if (el) el.textContent = String(st.authority);
+  const wrap = document.querySelector(".authority-bar-wrap");
   if (bar) bar.style.width = `${st.authority}%`;
+  if (wrap) wrap.style.display = st.authority > 0 ? "" : "none";
   if (lbl) lbl.textContent = L(rank?.label);
 }
 
@@ -137,6 +139,7 @@ export function openStage1Dialog(opts = {}) {
   dlg.querySelector(".story-dialog-title").textContent = L(stage.title);
   const body = dlg.querySelector(".story-dialog-body");
   body.innerHTML = `<p class="story-line"><b>${L({ ru: "Ирокез", en: "Mohawk", da: "Mohawk" })}:</b> ${escapeHtml(L(stage.intro.text))}</p>`;
+  window.StoryEngine?.applyDialogueCamera?.("mohawk");
   stage.choices.forEach(c => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -152,6 +155,7 @@ export function openStage1Dialog(opts = {}) {
       if (st.authority < 15) addAuthority(15 - st.authority);
       st.auth.stage = 2;
       dlg.classList.remove("active");
+      window.StoryEngine?.clearDialogueCamera?.();
       window.StoryEngine?.renderObjectivePanel?.();
       window.StoryEngine?.syncBeacon?.();
       window.saveMe?.();
@@ -235,8 +239,10 @@ export function runInitiationCeremony(opts = {}) {
     dlg.querySelector(".story-dialog-body").innerHTML =
       `<p class="story-line">${escapeHtml(L(stage.ceremony.text))}</p>
        <button type="button" class="btn" id="authInitBtn">${L({ ru: "Принять нашивку", en: "Take the patch", da: "Tag mærket" })}</button>`;
+    window.StoryEngine?.applyDialogueCamera?.("razor");
     dlg.querySelector("#authInitBtn").onclick = () => {
       dlg.classList.remove("active");
+      window.StoryEngine?.clearDialogueCamera?.();
       finishInitiation();
     };
     return;
@@ -395,6 +401,7 @@ function openNoRatChoice() {
   dlg.querySelector(".story-dialog-title").textContent = L({ ru: "Смотритель давит", en: "Keeper presses you", da: "Vogteren presser" });
   const body = dlg.querySelector(".story-dialog-body");
   body.innerHTML = "";
+  window.StoryEngine?.applyDialogueCamera?.("gravedigger");
   [
     {
       id: "loyal",
@@ -419,6 +426,7 @@ function openNoRatChoice() {
     btn.onclick = () => {
       c.fn();
       dlg.classList.remove("active");
+      window.StoryEngine?.clearDialogueCamera?.();
     };
     body.appendChild(btn);
   });

@@ -146,6 +146,15 @@ async function validateAuthorityPng(filePath, frame, npcId = "") {
   }
   const heads = [frame?.player, frame?.npc].filter(Boolean);
   if (heads.length < 2) throw new Error(`${path.basename(filePath)} missing head projections`);
+  if (frame?.pass === false) {
+    throw new Error(`${path.basename(filePath)} measureDialogueFraming failed: ${(frame.reasons || []).join(",")}`);
+  }
+  const minHeadPx = h * 0.06;
+  if ((frame.headSpanP ?? 0) < minHeadPx || (frame.headSpanN ?? 0) < minHeadPx) {
+    throw new Error(
+      `${path.basename(filePath)} head too small (P=${(frame.headSpanP ?? 0).toFixed(0)} N=${(frame.headSpanN ?? 0).toFixed(0)} need ${minHeadPx.toFixed(0)})`
+    );
+  }
   const headPxSep = Math.abs((frame.player?.px ?? 0) - (frame.npc?.px ?? 0));
   const isMobileShot = /mobile-/i.test(path.basename(filePath));
   if (!isMobileShot) {

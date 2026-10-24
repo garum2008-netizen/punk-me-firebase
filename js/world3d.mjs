@@ -73,6 +73,7 @@ let meLastDy = 0;
 let playerAnimState = "idle";
 let modelsReady = false;
 let captureFrameLock = false;
+let portalGraceUntil = 0;
 let captureSavedRotY = 0;
 let captureHideActors = null;
 let elevatorCutawaySaved = null;
@@ -734,14 +735,14 @@ const LOCATION_CAMERA = {
     fov: 34,
     pos: [0.35, 1.78, 4.25],
     look: [0, 0.94, 0.04],
-    player: { x: 0, z: 0.2, yaw: 0 },
+    player: { x: 0, z: 0, yaw: 0 },
     dog: { dx: 0.76, dz: -0.06 },
     mobile: {
       portraitFromPlayer: true,
       fov: 48,
       camOffset: [0.12, 2.38, 6.93],
       lookAtPlayerY: 0.92,
-      player: { x: 0, z: 0.2, yaw: 0 },
+      player: { x: 0, z: 0, yaw: 0 },
       dog: { dx: 0.7, dz: -0.04 }
     }
   },
@@ -1029,6 +1030,7 @@ function tickNpcPatrols(dt) {
 
 function checkPortals() {
   if (motionProbe || captureFrameLock) return;
+  if (performance.now() < portalGraceUntil) return;
   const player = actors.get("player");
   if (!player || !bounds) return;
   const portals = PORTALS[currentLoc] || [];
@@ -1148,9 +1150,14 @@ function sync(data) {
     const dogActor = actors.get("dog");
     if (dogActor) dogActor._placed = false;
   }
-  if (justChangedLoc && location === "elevator" && player && bounds) {
-    const g = worldToGameLoc(0, 0.2, bounds);
-    hooks.onMove?.(g.x, g.y);
+  if (justChangedLoc && player && bounds) {
+    portalGraceUntil = performance.now() + 1600;
+    if (location === "elevator") {
+      const g = worldToGameLoc(0, 0, bounds);
+      player.x = g.x;
+      player.y = g.y;
+      hooks.onMove?.(g.x, g.y, { sync3d: false });
+    }
   }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
     const g = worldToGameLoc(-0.12, 0.36, bounds);
@@ -1170,7 +1177,8 @@ function sync(data) {
     }
   }
 
-  const otherEntries = Object.entries(others || {}).slice(0, 5);
+  const hideCrowd = isDuelActive() || captureFrameLock;
+  const otherEntries = hideCrowd ? [] : Object.entries(others || {}).slice(0, 5);
   otherEntries.forEach(([id, p], idx) => {
     keep.add(id);
     const a = ensureActor(id, p.characterId || "cobalt", false);
@@ -1490,6 +1498,9 @@ const api = {
   refreshHangoutStage: stage => {
     if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
   },
+  setPortalGrace: (ms = 1500) => {
+    portalGraceUntil = performance.now() + ms;
+  },
   releaseCaptureFrame: () => {
     const a = actors.get("player");
     if (a) a.group.rotation.y = captureSavedRotY;
@@ -1661,11 +1672,9 @@ const api = {
       }
       return ok;
     };
-    if (mobileQuality) {
-      const minHead = ch * 0.06;
-      if (headSpanP < minHead) reasons.push("player_head_small");
-      if (headSpanN < minHead) reasons.push("npc_head_small");
-    }
+    const minHead = ch * 0.06;
+    if (headSpanP < minHead) reasons.push("player_head_small");
+    if (headSpanN < minHead) reasons.push("npc_head_small");
     const pass =
       check("player", player) &&
       check("npc", npc) &&
@@ -1698,6 +1707,12 @@ const api = {
       car.group.visible = false;
       captureHideActors.push({ group: car.group, _carHide: true });
     }
+    locationRoot?.traverse?.(o => {
+      if (o.userData?.propTag === "street_car" || o.userData?.propTag === "low_poly_car") {
+        o.visible = false;
+        captureHideActors.push({ group: o, _propHide: true });
+      }
+    });
     const npcKey = `npc_${npcId}`;
     const npc = ensureActor(npcKey, npcId, true);
     actors.forEach((a, id) => {

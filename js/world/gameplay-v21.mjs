@@ -277,6 +277,22 @@ function startDuel3D(nid, opts = {}) {
   restoreActorMaterials(opponent);
   layoutDuelFighters(ctx, pl, opponent);
   hideDuelOccluders(ctx);
+  ctx.actors.forEach((act, id) => {
+    if (id === "player" || id === `npc_${nid}` || id === "dog") return;
+    act.group.visible = false;
+  });
+  if (opponent.actions?.idle) {
+    opponent.actions.idle.reset().setEffectiveWeight(1).fadeIn(0.12).play();
+  }
+  opponent._anim = "idle";
+  if (ctx.camera) {
+    const midX = (pl.wx + opponent.wx) * 0.5;
+    const midZ = (pl.wz + opponent.wz) * 0.5;
+    ctx.camera.position.set(midX + 0.15, 2.05, midZ + 3.45);
+    ctx.camera.lookAt(midX, 1.36, midZ);
+    ctx.camera.fov = 36;
+    ctx.camera.updateProjectionMatrix();
+  }
   const training = !!opts.training;
   const firstTo = opts.firstTo || (training ? 3 : 0);
   state.duel = {
@@ -319,6 +335,10 @@ function stopDuel3D(win) {
   }
   state.duel = null;
   document.getElementById("duel3dHud")?.classList.add("hidden");
+  const ctx = ctxGet?.();
+  ctx?.actors?.forEach(act => {
+    if (act.group) act.group.visible = true;
+  });
   const reward = win ? 70 + Math.floor(Math.random() * 40) : 0;
   const res = document.getElementById("duel3dResult");
   if (res) {

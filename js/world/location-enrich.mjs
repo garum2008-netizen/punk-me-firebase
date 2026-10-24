@@ -301,6 +301,7 @@ function buildLowPolyCar(color, emissive = 0x000000) {
   const head2 = head.clone();
   head2.position.z = -0.3;
   g.add(body, cabin, bumper, head, head2);
+  g.userData.propTag = "street_car";
   return g;
 }
 
@@ -583,8 +584,8 @@ export function addCityDressing(root, helpers) {
   pushCollider(colliders, -1.5, 3.8, 0.28, 0.28);
   addTrafficLight(root, 2.2, 3.2);
   const carA = buildLowPolyCar(0x2244aa);
-  carA.position.set(-5.5, 0, -0.8);
-  carA.rotation.y = 0.35;
+  carA.position.set(-8.2, 0, 2.4);
+  carA.rotation.y = 0.85;
   root.add(carA);
   const carB = buildLowPolyCar(0xcc3333, 0x440000);
   carB.position.set(5, 0, 0.5);
