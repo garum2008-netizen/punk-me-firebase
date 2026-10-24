@@ -1,4 +1,5 @@
 import { punkSignOut, onGoogleSignInClick, authErrorMessage } from "./account-auth.mjs";
+import { connectFirebaseEmulatorsIfRequested } from "./firebase-emulator.mjs";
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyACAXPV9H4vfWNUoRYEWzXi6CSX0kpCaho",
@@ -9,7 +10,6 @@ const FIREBASE_CONFIG = {
   appId: "1:761070335468:web:4bffd5120ef98e79f47cc9",
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
-const OWNER_EMAIL = "garum2008@gmail.com";
 const GAME_VERSION = "living3d-v22r5-accounts-r1";
 
 function t(key) {
@@ -28,8 +28,14 @@ if (!window.toast) {
   window.toast = ownerToast;
 }
 
-function isOwnerUser(user) {
-  return user && user.email === OWNER_EMAIL && user.emailVerified;
+async function userHasAdminClaim(user) {
+  if (!user || user.isAnonymous) return false;
+  try {
+    const token = await user.getIdTokenResult();
+    return token.claims.admin === true;
+  } catch (_) {
+    return false;
+  }
 }
 
 async function loadStats(db) {
@@ -56,21 +62,23 @@ function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-function setUi({ user, denied }) {
+function setUi({ user, denied, admin }) {
   document.getElementById("ownerGameVersion").textContent = GAME_VERSION;
   document.getElementById("ownerSignIn").hidden = !!user;
-  document.getElementById("ownerPanel").hidden = !user || denied;
+  document.getElementById("ownerPanel").hidden = !user || denied || !admin;
   document.getElementById("ownerDenied").hidden = !user || !denied;
   const st = document.getElementById("ownerStatus");
   if (!user) st.textContent = t("owner_sign_in_prompt");
-  else if (denied) st.textContent = user.email || "";
-  else st.textContent = `${t("owner_welcome")} ${user.email}`;
+  else if (denied) st.textContent = t("owner_admin_claim_hint");
+  else if (!admin) st.textContent = t("owner_admin_claim_hint");
+  else st.textContent = `${t("owner_welcome")} ${user.email || user.uid}`;
 }
 
 export function initOwnerAdmin() {
   if (typeof initLanguage === "function") initLanguage();
   if (typeof applyI18nDom === "function") applyI18nDom();
   if (!window.firebase?.apps?.length) firebase.initializeApp(FIREBASE_CONFIG);
+  connectFirebaseEmulatorsIfRequested(firebase);
   const auth = window.firebase.auth();
   const db = window.firebase.database();
 
@@ -89,21 +97,21 @@ export function initOwnerAdmin() {
 
   auth.onAuthStateChanged(async user => {
     if (!user || user.isAnonymous) {
-      setUi({ user: null, denied: false });
+      setUi({ user: null, denied: false, admin: false });
       return;
     }
-    if (!isOwnerUser(user)) {
-      setUi({ user, denied: true });
+    const admin = await userHasAdminClaim(user);
+    if (!admin) {
+      setUi({ user, denied: true, admin: false });
       return;
     }
-    setUi({ user, denied: false });
+    setUi({ user, denied: false, admin: true });
     try {
       await loadStats(db);
     } catch (e) {
       document.getElementById("ownerStatus").textContent = t("owner_rules_hint");
     }
   });
-
 }
 
 initOwnerAdmin();

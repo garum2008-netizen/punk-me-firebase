@@ -8,6 +8,15 @@
     "test": "node scripts/smoke-check.js",
     "test:loading": "node scripts/test-loading-recovery.js",
     "test:loading-early-save": "node scripts/test-loading-early-save.js",
-    "test:accounts": "node scripts/test-accounts-auth.js"
+    "test:accounts": "node scripts/test-accounts-auth.js",
+    "test:rules": "node scripts/run-rules-emulator.js",
+    "test:deploy-order": "node scripts/test-deploy-order-phase.js a1 && sleep 20 && node scripts/test-deploy-order-phase.js a2 && sleep 20 && node scripts/test-deploy-order-phase.js b",
+    "test:emulator": "node scripts/run-emulator-integration.js"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase-admin": "^12.7.0",
+    "firebase-tools": "^13.29.1",
+    "playwright": "^1.64.1"
   }
 }

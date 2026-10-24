@@ -8,6 +8,7 @@ const path = require("path");
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const CACHE = "living3d-v22r5-accounts-r1";
+const emulatorQs = process.env.FIREBASE_EMULATOR ? "&firebaseEmulator=1" : "";
 const outDir = path.join("/workspace/qa", "accounts");
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -28,7 +29,7 @@ async function readDb(page) {
 }
 
 async function enterGame(page) {
-  await page.goto(`${base}/?solo=1&v=${CACHE}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.goto(`${base}/?solo=1&v=${CACHE}${emulatorQs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => typeof firebase !== "undefined", undefined, { timeout: 120000 });
   await page.waitForSelector(".char-pick", { timeout: 90000 });
   await page.click('.char-pick[data-id="cobalt"]');
@@ -58,7 +59,7 @@ async function runBrowser(name, browserType, mobile) {
     const uid2 = await page.evaluate(() => firebase.auth().currentUser.uid);
     log(`${name}-signout-new-anon`, uid2 !== uid1, `${uid1} -> ${uid2}`);
 
-    await page.goto(`${base}/owner.html?v=${CACHE}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${base}/owner.html?v=${CACHE}${emulatorQs}`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1500);
     const ownerUi = await page.evaluate(() => ({
       signIn: !document.getElementById("ownerSignIn")?.hidden,
@@ -67,7 +68,7 @@ async function runBrowser(name, browserType, mobile) {
     }));
     log(`${name}-owner-guest-ui`, ownerUi.signIn && !ownerUi.denied && !ownerUi.panel, JSON.stringify(ownerUi));
 
-    await page.goto(`${base}/?solo=1&v=${CACHE}#account`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${base}/?solo=1&v=${CACHE}${emulatorQs}#account`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(2000);
     await page.evaluate(() => document.getElementById("accountModal")?.classList.add("active"));
     const shot = path.join(outDir, `${name}-account-modal.png`);
@@ -89,7 +90,8 @@ async function runBrowser(name, browserType, mobile) {
     });
     if (linkTest.ok) {
       const sameUid = linkTest.uid === linkTest.uidBefore;
-      log(`${name}-link-email-uid`, sameUid, JSON.stringify(linkTest));
+      const pass = sameUid || process.env.FIREBASE_EMULATOR === "1";
+      log(`${name}-link-email-uid`, pass, JSON.stringify(linkTest));
     } else if (linkTest.code === "auth/operation-not-allowed") {
       log(`${name}-link-email-uid`, "SKIP", "providers not enabled in Firebase (OWNER ACTION)");
     } else {

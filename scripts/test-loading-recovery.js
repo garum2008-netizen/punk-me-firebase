@@ -8,6 +8,7 @@ const fs = require("fs");
 const path = require("path");
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
+const emulatorQs = process.env.FIREBASE_EMULATOR ? "&firebaseEmulator=1" : "";
 const outDir = "/workspace/qa/hotfix-loading";
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -17,7 +18,7 @@ async function runSuite(browserName, browserType) {
   const page = await context.newPage();
   const log = [];
 
-  await page.goto(`${base}/?solo=1&v=loadfix2`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.goto(`${base}/?solo=1&v=loadfix2${emulatorQs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(
     () => window.__punkApplyFirebaseSnapshot && window.CharSelect && window.getCharacterDef,
     { timeout: 120000 }
