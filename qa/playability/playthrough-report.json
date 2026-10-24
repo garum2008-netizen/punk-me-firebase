@@ -1,0 +1,372 @@
+{
+  "startedAt": "2026-10-24T20:23:55.083Z",
+  "suites": [
+    {
+      "tag": "desk-chromium",
+      "touchOnly": false,
+      "log": [
+        [
+          "quest_panel_visible",
+          true
+        ],
+        [
+          "talk_button_present",
+          true,
+          {
+            "desktop": true,
+            "touch": true
+          }
+        ],
+        [
+          "talk_razor_step",
+          true,
+          3
+        ],
+        [
+          "onboarding_done",
+          true
+        ],
+        [
+          "reload_no_dup_grants",
+          true,
+          {
+            "coinsBefore": 267,
+            "afterReload": {
+              "coins": 267,
+              "granted": {
+                "duel:payout:razor": 1792873595024,
+                "onboard:go_street": 1792873483596,
+                "onboard:shop_buy": 1792873660307,
+                "onboard:talk_razor": 1792873514341,
+                "onboard:visit_cemetery": 1792873558471,
+                "onboard:win_fight": 1792873595024
+              }
+            }
+          }
+        ],
+        [
+          "authority_ui_actions",
+          20,
+          [
+            {
+              "name": "nav_street"
+            },
+            {
+              "name": "gang_mohawk_s1"
+            },
+            {
+              "name": "mohawk_choice"
+            },
+            {
+              "name": "nav_city_pizza"
+            },
+            {
+              "name": "gang_tony_pizza"
+            },
+            {
+              "name": "nav_cemetery_rat"
+            },
+            {
+              "name": "gang_gravedigger_no_rat"
+            },
+            {
+              "name": "no_rat_loyal"
+            },
+            {
+              "name": "nav_roof_item"
+            },
+            {
+              "name": "gang_cobalt_item"
+            },
+            {
+              "name": "nav_toilet_prank"
+            },
+            {
+              "name": "gang_plukh_prank"
+            },
+            {
+              "name": "nav_cemetery_trial"
+            },
+            {
+              "name": "job_cemetery_night_start"
+            },
+            {
+              "name": "job_cemetery_night_wait"
+            },
+            {
+              "name": "nav_parkour_trial"
+            },
+            {
+              "name": "btn_parkour_trial"
+            },
+            {
+              "name": "nav_street_duel"
+            },
+            {
+              "name": "gang_mohawk_duel"
+            },
+            {
+              "name": "duel_mohawk"
+            }
+          ]
+        ],
+        [
+          "authority_stage4_ready",
+          true,
+          {
+            "stage": 4,
+            "s1Done": true,
+            "authority": 81,
+            "tasks": {
+              "pizza": true,
+              "no_rat": true,
+              "cobalt_item": true,
+              "ghost_prank": true
+            },
+            "trials": {
+              "cemetery": true,
+              "roof_parkour": true,
+              "duel_mohawk": true
+            },
+            "joined": false
+          }
+        ],
+        [
+          "authority_ui_action_count",
+          20,
+          [
+            {
+              "name": "nav_street"
+            },
+            {
+              "name": "gang_mohawk_s1"
+            },
+            {
+              "name": "mohawk_choice"
+            },
+            {
+              "name": "nav_city_pizza"
+            },
+            {
+              "name": "gang_tony_pizza"
+            },
+            {
+              "name": "nav_cemetery_rat"
+            },
+            {
+              "name": "gang_gravedigger_no_rat"
+            },
+            {
+              "name": "no_rat_loyal"
+            },
+            {
+              "name": "nav_roof_item"
+            },
+            {
+              "name": "gang_cobalt_item"
+            },
+            {
+              "name": "nav_toilet_prank"
+            },
+            {
+              "name": "gang_plukh_prank"
+            },
+            {
+              "name": "nav_cemetery_trial"
+            },
+            {
+              "name": "job_cemetery_night_start"
+            },
+            {
+              "name": "job_cemetery_night_wait"
+            },
+            {
+              "name": "nav_parkour_trial"
+            },
+            {
+              "name": "btn_parkour_trial"
+            },
+            {
+              "name": "nav_street_duel"
+            },
+            {
+              "name": "gang_mohawk_duel"
+            },
+            {
+              "name": "duel_mohawk"
+            }
+          ]
+        ],
+        [
+          "gang_member_ui",
+          true,
+          {
+            "joined": true,
+            "rank": "gang_member"
+          }
+        ],
+        [
+          "hangout_stage_4",
+          true,
+          {
+            "hangoutStage": 4,
+            "joined": true,
+            "actionLog": [
+              {
+                "type": "where_to_get",
+                "stage": 0
+              },
+              {
+                "type": "buy_mat"
+              },
+              {
+                "type": "build_click",
+                "stage": 0
+              },
+              {
+                "type": "where_to_get",
+                "stage": 1
+              },
+              {
+                "type": "buy_mat"
+              },
+              {
+                "type": "build_click",
+                "stage": 1
+              },
+              {
+                "type": "where_to_get",
+                "stage": 2
+              },
+              {
+                "type": "buy_mat"
+              },
+              {
+                "type": "build_click",
+                "stage": 2
+              },
+              {
+                "type": "where_to_get",
+                "stage": 3
+              },
+              {
+                "type": "buy_mat"
+              },
+              {
+                "type": "build_click",
+                "stage": 3
+              }
+            ]
+          }
+        ],
+        [
+          "hangout_ui_actions",
+          12,
+          [
+            {
+              "type": "where_to_get",
+              "stage": 0
+            },
+            {
+              "type": "buy_mat"
+            },
+            {
+              "type": "build_click",
+              "stage": 0
+            },
+            {
+              "type": "where_to_get",
+              "stage": 1
+            },
+            {
+              "type": "buy_mat"
+            },
+            {
+              "type": "build_click",
+              "stage": 1
+            },
+            {
+              "type": "where_to_get",
+              "stage": 2
+            },
+            {
+              "type": "buy_mat"
+            },
+            {
+              "type": "build_click",
+              "stage": 2
+            },
+            {
+              "type": "where_to_get",
+              "stage": 3
+            },
+            {
+              "type": "buy_mat"
+            },
+            {
+              "type": "build_click",
+              "stage": 3
+            }
+          ]
+        ]
+      ],
+      "ok": true,
+      "final": {
+        "joined": true,
+        "rank": "gang_member"
+      },
+      "hangout": {
+        "hangoutStage": 4,
+        "joined": true,
+        "actionLog": [
+          {
+            "type": "where_to_get",
+            "stage": 0
+          },
+          {
+            "type": "buy_mat"
+          },
+          {
+            "type": "build_click",
+            "stage": 0
+          },
+          {
+            "type": "where_to_get",
+            "stage": 1
+          },
+          {
+            "type": "buy_mat"
+          },
+          {
+            "type": "build_click",
+            "stage": 1
+          },
+          {
+            "type": "where_to_get",
+            "stage": 2
+          },
+          {
+            "type": "buy_mat"
+          },
+          {
+            "type": "build_click",
+            "stage": 2
+          },
+          {
+            "type": "where_to_get",
+            "stage": 3
+          },
+          {
+            "type": "buy_mat"
+          },
+          {
+            "type": "build_click",
+            "stage": 3
+          }
+        ]
+      }
+    }
+  ],
+  "pass": true,
+  "finishedAt": "2026-10-24T20:39:35.354Z"
+}

@@ -25,26 +25,52 @@ export function initTouchControls(opts = {}) {
     setTouchMove(0, 0, false);
   };
 
+  const moveKnob = e => {
+    let dx = e.clientX - joyOrigin.x;
+    let dy = e.clientY - joyOrigin.y;
+    const len = Math.hypot(dx, dy);
+    if (len > maxR) {
+      dx = (dx / len) * maxR;
+      dy = (dy / len) * maxR;
+    }
+    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    const rawNx = dx / maxR;
+    const rawNy = -dy / maxR;
+    touchJoySmooth.x = (touchJoySmooth.x || 0) * 0.55 + rawNx * 0.45;
+    touchJoySmooth.y = (touchJoySmooth.y || 0) * 0.55 + rawNy * 0.45;
+    const smLen = Math.hypot(touchJoySmooth.x, touchJoySmooth.y);
+    const run = smLen > 0.58;
+    setTouchMove(touchJoySmooth.x, touchJoySmooth.y, run);
+  };
+
+  const endJoy = e => {
+    if (joyId != null && e.pointerId !== joyId) return;
+    try {
+      joy.releasePointerCapture(joyId);
+    } catch (err) {}
+    joyId = null;
+    resetKnob();
+  };
+
   joy.addEventListener("pointerdown", e => {
     active = true;
     joyId = e.pointerId;
     const r = joy.getBoundingClientRect();
     joyOrigin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     joy.setPointerCapture(e.pointerId);
-    moveKnob(e, knob, maxR);
+    moveKnob(e);
   });
   joy.addEventListener("pointermove", e => {
     if (e.pointerId !== joyId) return;
-    moveKnob(e, knob, maxR);
+    moveKnob(e);
   });
-  joy.addEventListener("pointerup", e => {
-    if (e.pointerId !== joyId) return;
-    joyId = null;
-    resetKnob();
-  });
-  joy.addEventListener("pointercancel", resetKnob);
+  joy.addEventListener("pointerup", endJoy);
+  joy.addEventListener("pointercancel", endJoy);
 
-  interact?.addEventListener("click", () => touchInteract());
+  interact?.addEventListener("click", e => {
+    e.preventDefault();
+    touchInteract();
+  });
 
   const stage = document.getElementById("stage3d");
   stage?.addEventListener("pointerdown", e => {
@@ -64,22 +90,4 @@ export function initTouchControls(opts = {}) {
   stage?.addEventListener("pointerup", e => {
     if (e.pointerId === camId) camId = null;
   });
-}
-
-function moveKnob(e, knob, maxR) {
-  let dx = e.clientX - joyOrigin.x;
-  let dy = e.clientY - joyOrigin.y;
-  const len = Math.hypot(dx, dy);
-  if (len > maxR) {
-    dx = (dx / len) * maxR;
-    dy = (dy / len) * maxR;
-  }
-  knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-  const rawNx = dx / maxR;
-  const rawNy = -dy / maxR;
-  touchJoySmooth.x = (touchJoySmooth.x || 0) * 0.55 + rawNx * 0.45;
-  touchJoySmooth.y = (touchJoySmooth.y || 0) * 0.55 + rawNy * 0.45;
-  const smLen = Math.hypot(touchJoySmooth.x, touchJoySmooth.y);
-  const run = smLen > 0.58;
-  setTouchMove(touchJoySmooth.x, touchJoySmooth.y, run);
 }
