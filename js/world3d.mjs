@@ -791,6 +791,22 @@ const LOCATION_CAMERA = {
   cemetery: { dist: 7.0, height: 2.5, lookY: 1.3, yaw: 0.32 },
   roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
+  construction: {
+    fixed: true,
+    fov: 52,
+    pos: [0.5, 3.1, 5.2],
+    look: [0, 1.35, -2.2],
+    player: { x: 1.8, z: 3.5, yaw: -2.4 },
+    dog: { dx: 0.65, dz: -0.2 },
+    mobile: {
+      portraitFromPlayer: false,
+      fov: 50,
+      pos: [0.35, 2.85, 5.8],
+      look: [0, 1.2, -2.2],
+      player: { x: 1.6, z: 3.8, yaw: -2.35 },
+      dog: { dx: 0.55, dz: -0.15 }
+    }
+  },
   kitchen: {
     fixed: true,
     fov: 56,
@@ -1589,6 +1605,9 @@ const api = {
       }
     });
     captureFrameLock = false;
+    if (renderer && renderer.toneMappingExposure > 1.45) {
+      renderer.toneMappingExposure = 1.2;
+    }
   },
   captureDogCloseup: () => {
     const dog = actors.get("dog");

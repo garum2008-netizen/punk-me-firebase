@@ -1021,6 +1021,7 @@ function closeDialogue() {
 
 export function dismissAllStoryUi() {
   closeDialogue();
+  clearDialogueCamera();
   document.getElementById("storyDialog")?.classList.remove("active");
   const body = document.getElementById("storyDialog")?.querySelector(".story-dialog-body");
   if (body && !activeDlg) body.innerHTML = "";

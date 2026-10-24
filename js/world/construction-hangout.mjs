@@ -16,7 +16,7 @@ export function buildHangoutVisual(stage, root) {
   const matNeon = new THREE.MeshStandardMaterial({
     color: 0xff00ff,
     emissive: 0xff00ff,
-    emissiveIntensity: 0.85
+    emissiveIntensity: 0.42
   });
 
   if (s >= 1) {

@@ -315,6 +315,21 @@ async function materialsSufficientForStage(page) {
   });
 }
 
+async function snapHangoutBuild(page, outDir, tag, builtStage) {
+  await dismissStoryDialog(page);
+  await dismissFightOverlay(page);
+  await navGo(page, "construction");
+  await page.evaluate(stage => {
+    window.StoryEngine?.dismissAllStoryUi?.();
+    window.StoryEngine?.clearDialogueCamera?.();
+    window.World3D?.refreshHangoutStage?.(stage);
+    window.World3D?.snapScreenshotView?.();
+  }, builtStage);
+  await sleep(800);
+  const pad = String(builtStage).padStart(2, "0");
+  await snap(page, outDir, tag, `hangout-stage-${pad}`);
+}
+
 async function clickWhereToGetMaterials(page) {
   await dismissStoryDialog(page);
   if (await page.evaluate(() => window.me?.location !== "construction")) await navGo(page, "construction");
@@ -326,8 +341,9 @@ async function clickWhereToGetMaterials(page) {
   await sleep(350);
 }
 
-async function buildAllHangoutStages(page, log = []) {
+async function buildAllHangoutStages(page, log = [], snapOpts = null) {
   const actionLog = [];
+  const capturedStages = new Set();
   await dismissStoryDialog(page);
   await navGo(page, "construction");
   for (let guard = 0; guard < 90; guard++) {
@@ -346,9 +362,13 @@ async function buildAllHangoutStages(page, log = []) {
       await sleep(600);
       const after = await readHangoutSnapshot(page);
       if (after.hangoutStage > snap.hangoutStage) {
-      await dismissStoryDialog(page);
-      continue;
-    }
+        if (snapOpts?.outDir && snapOpts?.tag && !capturedStages.has(after.hangoutStage)) {
+          capturedStages.add(after.hangoutStage);
+          await snapHangoutBuild(page, snapOpts.outDir, snapOpts.tag, after.hangoutStage);
+        }
+        await dismissStoryDialog(page);
+        continue;
+      }
     }
 
     actionLog.push({ type: "where_to_get", stage: snap.hangoutStage });
@@ -551,6 +571,7 @@ module.exports = {
   runJobOnce,
   runStoryJob,
   buildAllHangoutStages,
+  snapHangoutBuild,
   completeAuthorityPathUi,
   finishInitiationUi,
   readAuthSnapshot,

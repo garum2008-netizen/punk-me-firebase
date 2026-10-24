@@ -95,7 +95,8 @@ async function runSuite(page, tag, touchOnly) {
   let hangout = { hangoutStage: 0 };
   if (process.env.RUN_CH2 !== "0" && !touchOnly) {
     const hangoutLog = [];
-    hangout = await H.buildAllHangoutStages(page, hangoutLog);
+    hangout = await H.buildAllHangoutStages(page, hangoutLog, { outDir, tag });
+    await H.snapHangoutBuild(page, outDir, tag, hangout.hangoutStage || 4);
     await H.snap(page, outDir, tag, "06-hangout-complete");
     log.push(["hangout_stage_4", hangout.hangoutStage >= 4, hangout]);
     log.push(...hangoutLog);
@@ -105,6 +106,12 @@ async function runSuite(page, tag, touchOnly) {
         logPath,
         JSON.stringify({ hangout, actions: hangout.actionLog, authActions: authPath.actions.length }, null, 2)
       );
+      if (hangout.hangoutStage >= 4) {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+        await H.sleep(600);
+        await H.snapHangoutBuild(page, outDir, "mob-chromium", 4);
+      }
     }
   }
 
