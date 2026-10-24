@@ -1,7 +1,7 @@
 # Playability fixes — PR #17 QA report
 
 **Branch:** `cursor/playability-fixes-d81d`  
-**Base:** `main` @ `a0e15b5`  
+**Base:** `main` @ `7ee242b` (rebased; no merge)  
 **Version label:** `living3d-v22r6-master-p1-r1` (see `index.html` cache bust)  
 **Date:** 2026-10-24
 
@@ -39,6 +39,18 @@
 - **Authority path:** automated run uses **20 counted UI actions** (nav, gang NPC, jobs, parkour button, Mohawk training duel). No `page.evaluate` save prep.
 - **Duels:** headless uses 2D fallback for Mohawk training when 3D duel cannot run (`webdriver` / `__force2dFight`); not a substitute for manual 3D duel QA.
 - **Hangout:** `RUN_CH2=1` desktop only (~15 min): jobs for coins, **«Где взять?»** → City → Bolt gang UI, four **Build** stages. Log: `hangout-ch2.log`.
+
+## Construction overexposure (Ch.2 hangout captures)
+
+| Backend | Result |
+|---------|--------|
+| Chromium (default headless) | Hangout visible after `snapHangoutBuildShot` + lighting reset (`qa/playability/gl-diag/construction-chromium-default.png`) |
+| Chromium `--use-gl=angle` + `--enable-unsafe-swiftshader` | **WebGL context failed** on this CI VM (char-select); not comparable here |
+| WebKit | Hangout visible (`qa/playability/gl-diag/construction-webkit.png`) |
+
+**Root cause (game, not SwiftShader-only):** Bolt / story **cinematic dialogue** leaves `locFillLight` near the NPC at high intensity (~11) and can leave boosted hemisphere / exposure if `dialogueCaptureBoost` is cleared without restore. Playthrough snaps after stages 2–4 inherited that state → progressive blowout. **Fix:** `resetConstructionSceneLighting()` + `beginHangoutSnapDimming()` (reset fill light position, restore/clear dialogue boost, dim site point lights + emissives for capture only).
+
+**Committed proof PNGs:** `desk-chromium-hangout-stage-01.png` … `04.png`, `desk-chromium-06-hangout-complete.png` (copy of stage 4), `mob-chromium-hangout-stage-04.png` (390×844).
 
 ## Rollback
 

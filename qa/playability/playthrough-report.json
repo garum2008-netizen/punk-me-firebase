@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-24T20:23:55.083Z",
+  "startedAt": "2026-10-24T23:33:50.066Z",
   "suites": [
     {
       "tag": "desk-chromium",
@@ -30,16 +30,16 @@
           "reload_no_dup_grants",
           true,
           {
-            "coinsBefore": 267,
+            "coinsBefore": 259,
             "afterReload": {
-              "coins": 267,
+              "coins": 259,
               "granted": {
-                "duel:payout:razor": 1792873595024,
-                "onboard:go_street": 1792873483596,
-                "onboard:shop_buy": 1792873660307,
-                "onboard:talk_razor": 1792873514341,
-                "onboard:visit_cemetery": 1792873558471,
-                "onboard:win_fight": 1792873595024
+                "duel:payout:razor": 1792884940839,
+                "onboard:go_street": 1792884873577,
+                "onboard:shop_buy": 1792884993703,
+                "onboard:talk_razor": 1792884889628,
+                "onboard:visit_cemetery": 1792884917303,
+                "onboard:win_fight": 1792884940839
               }
             }
           }
@@ -368,5 +368,5 @@
     }
   ],
   "pass": true,
-  "finishedAt": "2026-10-24T20:39:35.354Z"
+  "finishedAt": "2026-10-24T23:48:16.573Z"
 }

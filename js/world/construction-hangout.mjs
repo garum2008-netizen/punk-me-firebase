@@ -14,9 +14,9 @@ export function buildHangoutVisual(stage, root) {
   const matWood = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.85 });
   const matBrick = new THREE.MeshStandardMaterial({ color: 0x994433, roughness: 0.88 });
   const matNeon = new THREE.MeshStandardMaterial({
-    color: 0xff00ff,
-    emissive: 0xff00ff,
-    emissiveIntensity: 0.42
+    color: 0xff44ff,
+    roughness: 0.55,
+    metalness: 0.05
   });
 
   if (s >= 1) {

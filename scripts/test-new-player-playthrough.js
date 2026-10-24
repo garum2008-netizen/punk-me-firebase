@@ -96,8 +96,12 @@ async function runSuite(page, tag, touchOnly) {
   if (process.env.RUN_CH2 !== "0" && !touchOnly) {
     const hangoutLog = [];
     hangout = await H.buildAllHangoutStages(page, hangoutLog, { outDir, tag });
-    await H.snapHangoutBuild(page, outDir, tag, hangout.hangoutStage || 4);
-    await H.snap(page, outDir, tag, "06-hangout-complete");
+    const built = hangout.hangoutStage || 4;
+    await H.snapHangoutBuild(page, outDir, tag, built);
+    fs.copyFileSync(
+      path.join(outDir, `${tag}-hangout-stage-${String(built).padStart(2, "0")}.png`),
+      path.join(outDir, `${tag}-06-hangout-complete.png`)
+    );
     log.push(["hangout_stage_4", hangout.hangoutStage >= 4, hangout]);
     log.push(...hangoutLog);
     if (tag === "desk-chromium") {

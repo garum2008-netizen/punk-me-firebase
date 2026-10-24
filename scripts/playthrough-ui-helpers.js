@@ -1,4 +1,5 @@
 /** Shared Playwright UI helpers (no game-state cheats). */
+const fs = require("fs");
 const path = require("path");
 
 async function sleep(ms) {
@@ -319,15 +320,17 @@ async function snapHangoutBuild(page, outDir, tag, builtStage) {
   await dismissStoryDialog(page);
   await dismissFightOverlay(page);
   await navGo(page, "construction");
-  await page.evaluate(stage => {
+  await page.evaluate(async stage => {
     window.StoryEngine?.dismissAllStoryUi?.();
-    window.StoryEngine?.clearDialogueCamera?.();
-    window.World3D?.refreshHangoutStage?.(stage);
-    window.World3D?.snapScreenshotView?.();
+    if (window.me?.location !== "construction") window.goLocation?.("construction");
+    window.World3D?.snapHangoutBuildShot?.(stage);
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    window.World3D?.renderCaptureFrame?.();
   }, builtStage);
-  await sleep(800);
+  await sleep(200);
   const pad = String(builtStage).padStart(2, "0");
-  await snap(page, outDir, tag, `hangout-stage-${pad}`);
+  await page.screenshot({ path: path.join(outDir, `${tag}-hangout-stage-${pad}.png`) });
+  await page.evaluate(() => window.World3D?.releaseCaptureFrame?.());
 }
 
 async function clickWhereToGetMaterials(page) {
