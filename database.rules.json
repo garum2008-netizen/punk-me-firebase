@@ -39,7 +39,7 @@
           ".validate": "newData.isString() && newData.val().length <= 512"
         },
         "characterId": {
-          ".validate": "newData.isString() && newData.val().length <= 32"
+          ".validate": "!newData.exists() || newData.val() == null || (newData.isString() && newData.val().length <= 32)"
         },
         "gang_rank": {
           ".validate": "newData.isString() && newData.val().length <= 64"
@@ -65,38 +65,41 @@
         "owner": {
           ".validate": "newData.isBoolean()"
         },
-        "owned": {
-          ".validate": "newData.hasChildren()"
-        },
-        "inventory": {
-          ".validate": "newData.hasChildren()"
-        },
-        "equipment": {
-          ".validate": "newData.hasChildren()"
-        },
-        "quests": {
-          ".validate": "newData.hasChildren()"
-        },
-        "story": {
-          ".validate": "newData.hasChildren()"
-        },
-        "stats": {
-          ".validate": "newData.hasChildren()"
-        },
-        "jobCooldowns": {
-          ".validate": "newData.hasChildren()"
-        },
         "pet": {
-          ".validate": "newData.hasChildren()"
+          ".validate": "!newData.exists() || newData.val() == null || (newData.isString() && newData.val().length <= 32)"
         },
-        "dog": {
-          ".validate": "newData.hasChildren()"
+        "owned": {
+          ".validate": "true"
         },
         "decor": {
-          ".validate": "newData.hasChildren()"
+          ".validate": "true"
+        },
+        "inventory": {
+          ".validate": "true"
+        },
+        "equipment": {
+          ".validate": "true"
+        },
+        "quests": {
+          ".validate": "true"
+        },
+        "story": {
+          ".validate": "true"
+        },
+        "stats": {
+          ".validate": "true"
+        },
+        "jobCooldowns": {
+          ".validate": "true"
+        },
+        "dog": {
+          ".validate": "!newData.exists() || newData.val() == null || (newData.hasChildren(['x', 'y']) && newData.child('x').isNumber() && newData.child('y').isNumber())"
+        },
+        "onboarding": {
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
         },
         "linkedAuth": {
-          ".validate": "newData.isBoolean() || newData.isString()"
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
         }
       }
     },

@@ -152,6 +152,14 @@ async function run() {
   });
   assert(r.status === 200, `alice write own: ${r.status} ${r.body}`);
 
+  console.log("rules: alice write pet string (pet_dog)");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/pet`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify("pet_dog")
+  });
+  assert(r.status === 200, `alice pet string: ${r.status} ${r.body}`);
+
   console.log("rules: bob write alice → deny");
   r = await fetchJson(dbUrl(`players/${aliceUid}/coins`, bobAuth.idToken), {
     method: "PUT",
@@ -181,6 +189,7 @@ async function run() {
   assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
 
   console.log("\nAll database rules tests passed.");
+  process.exit(0);
 }
 
 run().catch(e => {

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Start Auth + Database emulators, run rules tests, shut down.
- * Avoids firebase emulators:exec double useEmulator() issue with rules-unit-testing.
+ * Start Auth + Database emulators, run rules + save fixture + gameplay save tests.
  */
 const { spawn } = require("child_process");
 const path = require("path");
 
 const root = path.join(__dirname, "..");
 const project = "punk-me-40605";
+const servePort = process.env.PUNK_PORT || "9876";
 
 function spawnEmulators() {
   return spawn(
@@ -17,7 +17,7 @@ function spawnEmulators() {
   );
 }
 
-function waitForLog(proc, needle, timeoutMs = 60000) {
+function waitForLog(proc, needle, timeoutMs = 90000) {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error("emulator start timeout")), timeoutMs);
     const onData = buf => {
@@ -38,21 +38,46 @@ function waitForLog(proc, needle, timeoutMs = 60000) {
   });
 }
 
+function runNode(script, extraEnv = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [path.join(__dirname, script)], {
+      cwd: root,
+      stdio: "inherit",
+      env: { ...process.env, ...extraEnv }
+    });
+    child.on("exit", c => (c === 0 ? resolve() : reject(new Error(`${script} exit ${c}`))));
+  });
+}
+
+function startServe() {
+  return new Promise((resolve, reject) => {
+    const child = spawn("npx", ["--yes", "serve", "-l", servePort, "."], {
+      cwd: root,
+      stdio: "pipe"
+    });
+    child.on("error", reject);
+    setTimeout(() => resolve(child), 3000);
+  });
+}
+
 (async () => {
   delete process.env.FIREBASE_DATABASE_EMULATOR_HOST;
   delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
   const emu = spawnEmulators();
+  let serve;
   try {
     await waitForLog(emu, "All emulators ready");
-    const test = spawn(process.execPath, [path.join(__dirname, "test-database-rules.js")], {
-      cwd: root,
-      stdio: "inherit",
-      env: { ...process.env, RULES_TEST_STANDALONE: "1" }
+    await runNode("test-database-rules.js");
+    await runNode("test-save-fixtures.js");
+    serve = await startServe();
+    await runNode("test-save-gameplay-emulator.js", {
+      PUNK_BASE: `http://127.0.0.1:${servePort}`
     });
-    await new Promise((res, rej) => {
-      test.on("exit", c => (c === 0 ? res() : rej(new Error(`rules test exit ${c}`))));
-    });
+    console.log("run-rules-emulator: all tests PASS");
   } finally {
+    try {
+      serve?.kill("SIGKILL");
+    } catch (_) {}
     try {
       emu.kill("SIGKILL");
     } catch (_) {}
