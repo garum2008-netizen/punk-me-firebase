@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v22r4-loadfix">
+<link rel="stylesheet" href="css/game.css?v=living3d-v22r5-accounts-r1">
+<link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r5-accounts-r1">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -13,6 +14,9 @@
   <canvas id="charSelect3d" width="640" height="360"></canvas>
   <p id="charSelectIntro" class="char-intro"></p>
   <div id="charSelectUi" class="char-select-ui"></div>
+  <div class="account-auth-bar" data-account-signed-out>
+    <button type="button" class="btn-account" id="btnAccountOpenChar" data-i18n="auth_sign_in">Войти</button>
+  </div>
 </div>
 <div id="loading">
   <div style="font-size:22px;font-weight:800;color:#ff00ff">PUNK ME</div>
@@ -20,6 +24,13 @@
   <div class="legal-footer legal-footer-start">
     <span class="age-badge-inline" data-i18n="age_13">13+</span>
     <a href="subscribe.html" data-i18n="footer_subscribe">Цена и условия</a>
+  </div>
+  <div class="account-auth-bar" data-account-signed-out>
+    <button type="button" class="btn-account" id="btnAccountOpenLoading" data-i18n="auth_sign_in">Войти</button>
+  </div>
+  <div class="account-auth-bar" data-account-signed-in hidden>
+    <span class="account-hud-chip linked" data-account-label></span>
+    <button type="button" class="btn-account secondary" id="btnAccountSignOutLoading" data-i18n="auth_sign_out">Выйти</button>
   </div>
 </div>
 <div id="game">
@@ -83,6 +94,11 @@
         <button type="button" class="lang-btn" data-lang="da">DA</button>
       </div>
       <button type="button" class="lang-btn hud-desktop-only" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
+    </div>
+    <div class="account-hud-wrap hud-account-row">
+      <span class="account-hud-chip" id="accountHudChip" data-account-label hidden></span>
+      <button type="button" class="btn-account" id="btnAccountOpen" data-account-signed-out data-i18n="auth_sign_in">Войти</button>
+      <button type="button" class="btn-account secondary" id="btnAccountSignOut" data-account-signed-in hidden data-i18n="auth_sign_out">Выйти</button>
     </div>
     <div class="hud-actions hud-desktop-only">
       <button type="button" class="lang-btn" onclick="changeCharacter()" data-i18n="char_change_btn">Сменить героя</button>
@@ -206,6 +222,34 @@
     </div>
   </div>
 </div>
+<div class="modal" id="accountModal">
+  <button type="button" class="close" id="accountModalClose">✕</button>
+  <div class="account-panel">
+    <h2 data-i18n="auth_modal_title">Войти в аккаунт</h2>
+    <p style="font-size:12px;opacity:.85" data-i18n="auth_modal_hint">Сохраните прогресс на всех устройствах. Гостевой прогресс сохранится в этом же аккаунте.</p>
+    <div class="account-actions">
+      <button type="button" class="btn" id="btnAccountGoogle" data-i18n="auth_google">Google</button>
+    </div>
+    <form id="accountEmailForm">
+      <label data-i18n="auth_email">Email</label>
+      <input type="email" id="accountEmail" autocomplete="email" required>
+      <label data-i18n="auth_password">Пароль</label>
+      <input type="password" id="accountPassword" autocomplete="current-password" minlength="6" required>
+      <button type="submit" class="btn secondary" data-i18n="auth_email_sign_in">Email: войти / создать</button>
+      <button type="button" class="btn secondary" id="btnAccountReset" data-i18n="auth_reset_password">Сброс пароля</button>
+    </form>
+  </div>
+</div>
+<div class="account-conflict-dialog" id="accountConflictDialog" role="dialog" aria-modal="true">
+  <div class="account-conflict-panel">
+    <h3 data-i18n="auth_conflict_title">Аккаунт уже существует</h3>
+    <p class="account-conflict-body"></p>
+    <div class="account-conflict-actions">
+      <button type="button" class="btn" data-conflict="use" data-i18n="auth_conflict_use">Войти в этот аккаунт</button>
+      <button type="button" class="btn secondary" data-conflict="keep" data-i18n="auth_conflict_keep">Остаться гостем</button>
+    </div>
+  </div>
+</div>
 <div id="howToOverlay" class="howto-overlay"></div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -214,25 +258,30 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v22r4-loadfix"></script>
-<script src="js/i18n.js?v=living3d-v22r4-loadfix"></script>
-<script src="js/voice.js?v=living3d-v22r4-loadfix"></script>
-<script src="js/onboarding.js?v=living3d-v22r4-loadfix"></script>
-<script type="module" src="js/context-hints.mjs?v=living3d-v22r4-loadfix"></script>
-<script type="module" src="js/how-to-play.mjs?v=living3d-v22r4-loadfix"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v22r4-loadfix"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v22r4-loadfix"></script>
-<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r4-loadfix"></script>
-<script src="js/life.js?v=living3d-v22r4-loadfix"></script>
-<script src="js/game.js?v=living3d-v22r4-loadfix"></script>
+<script src="js/characters.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/i18n.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/voice.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/onboarding.js?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/life.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/game.js?v=living3d-v22r5-accounts-r1"></script>
 <script type="module">
-  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r4-loadfix";
-  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r4-loadfix";
+  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1";
+  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r5-accounts-r1";
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
   window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.me = window.me || {};
+</script>
+<script type="module">
+  import { initAccountAuth } from "./js/account-auth.mjs?v=living3d-v22r5-accounts-r1";
+  initAccountAuth().catch(err => console.error("initAccountAuth", err));
+  document.getElementById("btnAccountSignOutLoading")?.addEventListener("click", () => window.__punkSignOut?.());
 </script>
 <p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
   3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0

@@ -35,7 +35,7 @@
 
   <h2 data-sub="eu_title"></h2>
   <p data-sub="eu_body"></p>
-  <div class="consent-box">
+  <div class="consent-box consent-box-disabled" aria-disabled="true">
     <label>
       <input type="checkbox" id="euConsent" disabled aria-describedby="euHint">
       <span data-sub="eu_checkbox" id="euHint"></span>
@@ -46,7 +46,10 @@
     <span data-sub="subscribe_btn"></span>
     <span class="soon" data-sub="subscribe_soon"></span>
   </button>
-  <a class="btn btn-play" href="index.html" data-sub="back_game"></a>
+  <div class="play-account-row">
+    <a class="btn btn-play" href="index.html" data-sub="back_game"></a>
+    <a class="btn btn-account-link" href="index.html#account" data-sub="account_link">Войти в аккаунт</a>
+  </div>
 
   <h2 data-sub="seller_title"></h2>
   <p class="seller" data-sub="seller_body"></p>

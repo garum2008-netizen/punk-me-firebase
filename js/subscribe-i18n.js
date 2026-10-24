@@ -19,7 +19,8 @@ const SUB_I18N = {
     seller_body: "ContractBot / Inna Kragh · support@contractbot.dk (контакт для цены и условий)",
     links_terms: "Условия использования (черновик)",
     links_privacy: "Политика конфиденциальности (черновик)",
-    not_gated: "Игра сейчас доступна без оплаты — этот раздел только информирует о будущей модели."
+    not_gated: "Игра сейчас доступна без оплаты — этот раздел только информирует о будущей модели.",
+    account_link: "Войти в аккаунт"
   },
   en: {
     page_title: "PUNK ME — Price & terms",
@@ -41,7 +42,8 @@ const SUB_I18N = {
     seller_body: "ContractBot / Inna Kragh · support@contractbot.dk (price & terms contact)",
     links_terms: "Terms of use (draft)",
     links_privacy: "Privacy policy (draft)",
-    not_gated: "The game is currently playable without payment — this page describes the upcoming model only."
+    not_gated: "The game is currently playable without payment — this page describes the upcoming model only.",
+    account_link: "Sign in to your account"
   },
   da: {
     page_title: "PUNK ME — Pris og vilkår",
@@ -63,7 +65,8 @@ const SUB_I18N = {
     seller_body: "ContractBot / Inna Kragh · support@contractbot.dk (pris og vilkår)",
     links_terms: "Brugsvilkår (udkast)",
     links_privacy: "Privatlivspolitik (udkast)",
-    not_gated: "Spillet kan spilles uden betaling nu — denne side beskriver kun den kommende model."
+    not_gated: "Spillet kan spilles uden betaling nu — denne side beskriver kun den kommende model.",
+    account_link: "Log ind på konto"
   }
 };
 

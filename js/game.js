@@ -9,7 +9,13 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r4-loadfix";
+const GAME_VERSION = "living3d-v22r5-accounts-r1";
+window.GAME_VERSION = GAME_VERSION;
+window.__punkFirebaseReady =
+  window.__punkFirebaseReady ||
+  new Promise(resolve => {
+    window.__punkResolveFirebaseReady = resolve;
+  });
 const PRESENCE_STALE_MS = 120000;
 const PRIVATE_ROOM_ID = "room";
 let moveSaveTimer = null;
@@ -700,6 +706,8 @@ function init() {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
     db = firebase.database();
+    window.__punkFirebaseReady = Promise.resolve();
+    window.dispatchEvent(new Event("punkme-firebase-ready"));
   } catch (bootErr) {
     console.error("Firebase init failed", bootErr);
     showLoadingFailure(t("loading_boot_error"), bootErr.message || String(bootErr));
@@ -710,6 +718,7 @@ function init() {
       uid = u.uid;
       window.uid = uid;
       isOwner = u.email === OWNER_EMAIL && u.emailVerified;
+      window.__punkUpdateAccountUi?.(u);
       try {
         if (new URLSearchParams(location.search).get("loadtest") !== "timeout") loadMe();
       } catch (e) {
@@ -863,6 +872,7 @@ function continueGameBoot() {
     else dogPos = { x: me.x - 4, y: me.y + 2 };
     applyHashRoute();
     syncStage3D();
+    window.__punkUpdateAccountUi?.(auth?.currentUser);
   } catch (err) {
     console.error("continueGameBoot", err);
     showLoadingFailure(t("loading_boot_error"), err.message || String(err));
@@ -969,7 +979,8 @@ function sanitizePlayer(p) {
     energy: p.energy,
     mood: p.mood,
     owner: isOwner,
-    lastSeen: p.lastSeen
+    lastSeen: p.lastSeen,
+    linkedAuth: p.linkedAuth || null
   };
 }
 
@@ -1081,15 +1092,12 @@ function listenPlayersInLocation() {
     updateOnlineUI({});
     return;
   }
-  playersListenRef = db.ref("players");
+  playersListenRef = db.ref("presence/" + me.location);
   playersListenRef.on("value", snap => {
-    const all = snap.val() || {};
+    const locMap = snap.val() || {};
     others = {};
-    const now = Date.now();
-    Object.entries(all).forEach(([id, p]) => {
-      if (id === uid || !p || p.location !== me.location) return;
-      const seen = p.lastSeen || 0;
-      if (!seen || now - seen > PRESENCE_STALE_MS) return;
+    Object.entries(locMap).forEach(([id, p]) => {
+      if (id === uid || !p || p.probe || !playerPresenceFresh(p)) return;
       others[id] = {
         name: p.name,
         x: p.x || 50,
@@ -1097,12 +1105,12 @@ function listenPlayersInLocation() {
         avatar: p.avatar,
         level: p.level || 1,
         characterId: p.characterId || "cobalt",
-        anim: "idle"
+        anim: p.anim || "idle"
       };
     });
     renderPlayers();
     renderPlayersList();
-    updateOnlineUI(all);
+    updateOnlineUI({});
   });
 }
 
@@ -1186,12 +1194,7 @@ function updateOnlineCount() {
     const global = countLivePresenceTree(s.val());
     const gEl = document.getElementById("onlineGlobal");
     if (gEl) gEl.textContent = String(global);
-  }).catch(() => {
-    db.ref("players").once("value").then(s => {
-      const gEl = document.getElementById("onlineGlobal");
-      if (gEl) gEl.textContent = String(countLivePlayers(s.val()));
-    });
-  });
+  }).catch(() => {});
 }
 
 function afterLocationChange() {

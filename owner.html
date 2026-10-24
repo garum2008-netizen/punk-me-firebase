@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUNK ME — Owner</title>
+<link rel="stylesheet" href="css/game.css?v=living3d-v22r5-accounts-r1">
+<link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r5-accounts-r1">
+<style>
+  body { min-height: 100vh; background: #05000a; color: #fff; padding: 20px; font-family: system-ui, sans-serif; }
+  .owner-wrap { max-width: 720px; margin: 0 auto; }
+  .owner-denied { color: #ff8888; font-weight: 700; margin: 24px 0; }
+  .owner-stat { background: rgba(20,8,40,0.9); border: 1px solid rgba(0,255,255,0.3); border-radius: 12px; padding: 12px; margin: 10px 0; }
+  table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+</style>
+</head>
+<body>
+<div class="owner-wrap">
+  <h1 style="color:#ff00ff">PUNK ME Owner</h1>
+  <p id="ownerStatus" data-i18n="owner_loading">Загрузка…</p>
+  <div id="ownerSignIn" class="account-auth-bar" data-owner-signed-out hidden>
+    <button type="button" class="btn-account" id="ownerBtnGoogle">Google</button>
+    <button type="button" class="btn-account" id="ownerBtnEmail">Email</button>
+  </div>
+  <div id="ownerPanel" hidden>
+    <div class="owner-stat"><span data-i18n="owner_version">Версия игры</span>: <strong id="ownerGameVersion">—</strong></div>
+    <div class="owner-stat"><span data-i18n="owner_player_count">Игроков в базе</span>: <strong id="ownerPlayerCount">—</strong></div>
+    <div class="owner-stat">
+      <b data-i18n="owner_recent">Недавно активные</b>
+      <table><thead><tr><th>UID</th><th>Имя</th><th>Монеты</th><th>Локация</th><th>lastSeen</th></tr></thead>
+      <tbody id="ownerRecentBody"></tbody></table>
+    </div>
+    <p><a class="btn-account" href="index.html?test=1" data-i18n="owner_tester_link">Тестовая сборка (?test=1)</a></p>
+    <button type="button" class="btn-account secondary" id="ownerSignOut" data-i18n="auth_sign_out">Выйти</button>
+  </div>
+  <p class="owner-denied" id="ownerDenied" hidden data-i18n="owner_denied">Нет доступа</p>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="js/i18n.js?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/owner-admin.mjs?v=living3d-v22r5-accounts-r1"></script>
+</body>
+</html>

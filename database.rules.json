@@ -3,9 +3,10 @@
     ".read": false,
     ".write": false,
     "players": {
-      ".read": true,
+      ".read": "auth != null && auth.token.email === 'garum2008@gmail.com' && auth.token.email_verified === true",
       "$uid": {
-        ".write": "auth != null && (auth.uid === $uid || (auth.token.email === 'garum2008@gmail.com' && auth.token.email_verified === true))",
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && (auth.uid === $uid || (auth.token.email === 'garum2008@gmail.com' && auth.token.email_verified === true))"
       }
     },
     "presence": {
