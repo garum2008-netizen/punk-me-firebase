@@ -434,6 +434,150 @@
         }
       ],
       "rewards": [{ "type": "coins", "value": 45 }, { "type": "material", "id": "board", "value": 2 }]
+    },
+    {
+      "id": "q_kitchen_snack",
+      "loc": "kitchen",
+      "chapter": 1,
+      "type": "side",
+      "title": { "ru": "Перекус у Зои", "en": "Snack with Zoya", "da": "Snack med Zoya" },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": { "ru": "Поговори с Зоей на кухне", "en": "Talk to Zoya in the kitchen", "da": "Tal med Zoya i køkkenet" },
+          "beacon": "npc_zoya",
+          "complete_on": "event:kitchen_talk_zoya"
+        }
+      ],
+      "rewards": [{ "type": "energy", "value": 15 }, { "type": "xp", "value": 10 }]
+    },
+    {
+      "id": "q_toilet_supplies",
+      "loc": "toilet",
+      "chapter": 1,
+      "type": "side",
+      "title": { "ru": "Запас в туалете", "en": "WC supplies", "da": "WC-forråd" },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": { "ru": "Принеси 2 гвоздя на стройку", "en": "Bring 2 nails to construction", "da": "Bring 2 søm til byggepladsen" },
+          "beacon": "npc_plukh",
+          "complete_on": "material:nails>=2"
+        }
+      ],
+      "rewards": [{ "type": "coins", "value": 20 }]
+    },
+    {
+      "id": "q_elevator_neighbor",
+      "loc": "elevator",
+      "chapter": 1,
+      "type": "side",
+      "title": { "ru": "Сосед в лифте", "en": "Elevator neighbor", "da": "Elevator-nabo" },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": { "ru": "Дойди до крыши без портала-ошибки", "en": "Reach the roof via the elevator", "da": "Nå taget via elevatoren" },
+          "beacon": "portal_roof",
+          "complete_on": "event:elevator_roof_ok"
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 12 }]
+    },
+    {
+      "id": "q_roof_wind",
+      "loc": "roof",
+      "chapter": 1,
+      "type": "side",
+      "title": { "ru": "Ветер на крыше", "en": "Roof wind", "da": "Tagvind" },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": { "ru": "Поговори с Кобальтом", "en": "Talk to Cobalt", "da": "Tal med Cobalt" },
+          "beacon": "npc_cobalt_roof",
+          "complete_on": "event:roof_talk_cobalt"
+        }
+      ],
+      "rewards": [{ "type": "rep", "value": 5 }]
+    },
+    {
+      "id": "q_street_tags",
+      "loc": "street",
+      "chapter": 1,
+      "type": "side",
+      "title": { "ru": "Тег на стене", "en": "Wall tag", "da": "Vægtag" },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": { "ru": "Найди Рейзора на улице", "en": "Find Razor on the street", "da": "Find Razor på gaden" },
+          "beacon": "npc_razor",
+          "complete_on": "event:street_talk_razor"
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 15 }]
+    },
+    {
+      "id": "q_city_neon",
+      "loc": "city",
+      "chapter": 1,
+      "type": "side",
+      "title": { "ru": "Неон в городе", "en": "City neon", "da": "By-neon" },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": { "ru": "Зайди в лавку Болта", "en": "Visit Bolt's shop", "da": "Besøg Bolts butik" },
+          "beacon": "npc_bolt",
+          "complete_on": "event:city_visit_bolt"
+        }
+      ],
+      "rewards": [{ "type": "coins", "value": 25 }]
+    },
+    {
+      "id": "q_cemetery_flowers",
+      "loc": "cemetery",
+      "chapter": 1,
+      "type": "side",
+      "title": { "ru": "Цветы на могиле", "en": "Grave flowers", "da": "Gravblomster" },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": { "ru": "Поговори со Сторожем", "en": "Talk to the Watchman", "da": "Tal med Vogteren" },
+          "beacon": "npc_gravedigger",
+          "complete_on": "event:cemetery_talk_keeper"
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 18 }]
+    },
+    {
+      "id": "q_construction_sign",
+      "loc": "construction",
+      "chapter": 1,
+      "type": "side",
+      "title": { "ru": "Вывеска стройки", "en": "Site sign", "da": "Skiltskilt" },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": { "ru": "Собери 5 кирпичей для фундамента", "en": "Gather 5 bricks for the foundation", "da": "Saml 5 mursten til fundamentet" },
+          "beacon": "obj_hangout_site",
+          "complete_on": "material:brick>=5"
+        }
+      ],
+      "rewards": [{ "type": "material", "id": "brick", "value": 2 }]
+    },
+    {
+      "id": "q_parkour_time",
+      "loc": "parkour",
+      "chapter": 1,
+      "type": "side",
+      "title": { "ru": "На время", "en": "Against the clock", "da": "Mod uret" },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": { "ru": "Дойди до финиша паркура", "en": "Reach the parkour finish", "da": "Nå parkour-målet" },
+          "beacon": "obj_parkour_finish",
+          "complete_on": "event:parkour_win"
+        }
+      ],
+      "rewards": [{ "type": "rep", "value": 6 }]
     }
   ]
 }

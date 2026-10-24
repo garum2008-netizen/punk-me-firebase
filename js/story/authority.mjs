@@ -139,7 +139,6 @@ export function openStage1Dialog(opts = {}) {
   dlg.querySelector(".story-dialog-title").textContent = L(stage.title);
   const body = dlg.querySelector(".story-dialog-body");
   body.innerHTML = `<p class="story-line"><b>${L({ ru: "Ирокез", en: "Mohawk", da: "Mohawk" })}:</b> ${escapeHtml(L(stage.intro.text))}</p>`;
-  window.StoryEngine?.applyDialogueCamera?.("mohawk");
   stage.choices.forEach(c => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -162,6 +161,7 @@ export function openStage1Dialog(opts = {}) {
     };
     body.appendChild(btn);
   });
+  window.StoryEngine?.applyDialogueCamera?.("mohawk");
 }
 
 function escapeHtml(s) {
@@ -394,14 +394,13 @@ export function tryAuthorityNpc(npcId, p = me()) {
   return false;
 }
 
-function openNoRatChoice() {
+export function openNoRatChoice() {
   const dlg = document.getElementById("storyDialog");
   if (!dlg) return;
   dlg.classList.add("active");
   dlg.querySelector(".story-dialog-title").textContent = L({ ru: "Смотритель давит", en: "Keeper presses you", da: "Vogteren presser" });
   const body = dlg.querySelector(".story-dialog-body");
   body.innerHTML = "";
-  window.StoryEngine?.applyDialogueCamera?.("gravedigger");
   [
     {
       id: "loyal",
@@ -430,6 +429,7 @@ function openNoRatChoice() {
     };
     body.appendChild(btn);
   });
+  window.StoryEngine?.applyDialogueCamera?.("gravedigger");
 }
 
 const STAGE1_CALLOUT_MS = 9000;
@@ -459,6 +459,7 @@ export function openTrialsChooserDialog() {
   dlg.classList.add("active");
   dlg.querySelector(".story-dialog-title").textContent = L(pathData.stages[2]?.title);
   const body = dlg.querySelector(".story-dialog-body");
+  window.StoryEngine?.applyDialogueCamera?.("mohawk");
   body.innerHTML = `<p class="story-line">${escapeHtml(L({ ru: "Три испытания — провал можно повторить.", en: "Three trials — you can retry if you fail.", da: "Tre prøver — du kan prøve igen." }))}</p>`;
   trials.forEach(t => {
     const btn = document.createElement("button");

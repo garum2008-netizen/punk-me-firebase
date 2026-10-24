@@ -1508,6 +1508,7 @@ const api = {
       captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
       captureHideActors = null;
     }
+    actors.forEach(a => setDialogueCaptureScale(a, 1));
     setElevatorCutaway(false);
     resetPropDimOpacity();
     resetOccluderOpacity();
@@ -1688,7 +1689,8 @@ const api = {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
   },
-  snapDialogueNpcShot: (npcId = "mohawk") => {
+  engageDialogueFraming(npcId = "mohawk", opts = {}) {
+    const live = opts.live === true;
     const pl = actors.get("player");
     if (!pl || !camera || !renderer) return false;
     resetPropDimOpacity();
@@ -1722,12 +1724,16 @@ const api = {
     npc._patrol = null;
     npc._patrolLoc = null;
     const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
-    const sep = npcId === "razor"
-      ? (mobileQuality ? 1.48 : 2.55)
-      : (mobileQuality ? 1.68 : 2.75);
-    let shiftX = npcId === "razor"
-      ? (mobileQuality ? 0.78 : 0.94)
-      : (mobileQuality ? 0.62 : 0.68);
+    const sep = live
+      ? (mobileQuality ? (npcId === "mohawk" ? 1.38 : 1.15) : 2.05)
+      : npcId === "razor"
+        ? (mobileQuality ? 1.48 : 2.55)
+        : (mobileQuality ? 1.68 : 2.75);
+    let shiftX = live
+      ? (mobileQuality ? 0.5 : 0.72)
+      : npcId === "razor"
+        ? (mobileQuality ? 0.78 : 0.94)
+        : (mobileQuality ? 0.62 : 0.68);
     const px = shiftX - sep * 0.5;
     const ax = shiftX + sep * 0.5;
     const pz = midZ;
@@ -1748,21 +1754,24 @@ const api = {
     npc.group.position.y = 0;
     pl.group.rotation.set(0, plYaw, 0);
     npc.group.rotation.set(0, npcYaw, 0);
-    if (mobileQuality) {
+    if (mobileQuality && !live) {
       const capMul =
         npcId === "gravedigger" ? 7.4 : npcId === "razor" ? 5.8 : 5.35;
       setDialogueCaptureScale(pl, capMul);
       setDialogueCaptureScale(npc, capMul);
       pl.group.updateMatrixWorld(true);
       npc.group.updateMatrixWorld(true);
+    } else if (live) {
+      setDialogueCaptureScale(pl, 1);
+      setDialogueCaptureScale(npc, 1);
     }
     let camX = shiftX;
-    let camY = mobileQuality ? 1.44 : 1.66;
-    let camZ = midZ + (mobileQuality ? 2.15 : 6.15);
+    let camY = live ? (mobileQuality ? 1.52 : 1.58) : (mobileQuality ? 1.44 : 1.66);
+    let camZ = midZ + (live ? (mobileQuality ? 1.85 : 3.9) : (mobileQuality ? 2.15 : 6.15));
     let lookX = shiftX;
     let lookY = mobileQuality ? 1.26 : 1.36;
     let lookZ = midZ;
-    camera.fov = mobileQuality ? 34 : 38;
+    camera.fov = live ? (mobileQuality ? 32 : 40) : (mobileQuality ? 34 : 38);
     const canvas = document.getElementById("stage3d");
     const cw = canvas?.clientWidth || 1;
     const ch = canvas?.clientHeight || 1;
@@ -1783,8 +1792,8 @@ const api = {
     };
     if (mobileQuality) {
       const minHeadPx = ch * 0.06;
-      const minCamZ = midZ + 0.42;
-      for (let pass = 0; pass < 36; pass++) {
+      const minCamZ = midZ + (live ? 0.18 : 0.42);
+      for (let pass = 0; pass < (live ? 48 : 36); pass++) {
         camera.position.set(camX, camY, camZ);
         camera.lookAt(lookX, lookY, lookZ);
         camera.updateProjectionMatrix();
@@ -1870,6 +1879,28 @@ const api = {
         }
       }
     }
+    if (live) {
+      const minHeadPx = ch * 0.06;
+      let liveScale = 1;
+      for (let pass = 0; pass < 32; pass++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const sp = headSpanPx(pl);
+        const sn = headSpanPx(npc);
+        if (sp >= minHeadPx && sn >= minHeadPx) break;
+        camZ -= 0.1;
+        if (camera.fov > 26) camera.fov -= 0.28;
+        if (mobileQuality && pass > 12 && liveScale < 2.15) {
+          liveScale += 0.22;
+          setDialogueCaptureScale(pl, liveScale);
+          setDialogueCaptureScale(npc, liveScale);
+        }
+      }
+    }
     camera.position.set(camX, camY, camZ);
     camera.lookAt(lookX, lookY, lookZ);
     camera.updateProjectionMatrix();
@@ -1945,22 +1976,45 @@ const api = {
         npc.group.updateMatrixWorld(true);
       }
     }
+    if (live && mobileQuality) {
+      const minHeadPx = ch * 0.06;
+      const scaleMax =
+        npcId === "gravedigger" ? 4.5 : npcId === "mohawk" ? 4.9 : npcId === "razor" ? 5.3 : 3.85;
+      for (let sc = 2.4; sc <= scaleMax; sc += 0.2) {
+        setDialogueCaptureScale(pl, sc);
+        setDialogueCaptureScale(npc, sc);
+        camZ = midZ + 1.28;
+        camera.fov = 29;
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        if (headSpanPx(pl) >= minHeadPx && headSpanPx(npc) >= minHeadPx) break;
+      }
+    }
     pl.group.visible = true;
     npc.group.visible = true;
     if (locFillLight) {
-      locFillLight.intensity = 11;
+      locFillLight.intensity = live ? 4.6 : 11;
       locFillLight.position.set(lookX, lookY + 2.4, lookZ + 0.5);
     }
     dialogueCaptureBoost = { fogD: scene.fog?.density, exp: renderer.toneMappingExposure, bg: scene.background?.getHex?.(), hemi: null };
     scene.traverse(c => {
       if (c.isHemisphereLight) {
         dialogueCaptureBoost.hemi = c.intensity;
-        c.intensity = 4.8;
+        c.intensity = live ? c.intensity * 1.1 : 4.8;
       }
     });
-    if (scene.fog?.density != null) scene.fog.density = 0.0018;
-    if (scene.background?.setHex) scene.background.setHex(0x2a2438);
-    renderer.toneMappingExposure = 2.15;
+    if (!live) {
+      if (scene.fog?.density != null) scene.fog.density = 0.0018;
+      if (scene.background?.setHex) scene.background.setHex(0x2a2438);
+      renderer.toneMappingExposure = 2.15;
+    } else {
+      if (scene.fog?.density != null) scene.fog.density *= 0.92;
+      renderer.toneMappingExposure = Math.min(1.15, renderer.toneMappingExposure * 1.04);
+    }
     if (!dialogueKeyLight) {
       dialogueKeyLight = new THREE.DirectionalLight(0xfff4ff, 4.2);
       dialogueKeyLight.castShadow = false;
@@ -1985,16 +2039,14 @@ const api = {
       locationRoot.add(dialogueBackdrop);
     }
     if (dialogueBackdrop) dialogueBackdrop.visible = false;
-    boostActorCaptureLight(pl, true);
-    boostActorCaptureLight(npc, true);
+    boostActorCaptureLight(pl, !live);
+    boostActorCaptureLight(npc, !live);
     document.getElementById("storyDialog")?.classList.add("story-dialog-cinematic");
     guideTarget = null;
     setQuestMarkersVisible(false);
     setTalking(npcId, true);
     freezeActorIdleForCapture(pl);
     freezeActorIdleForCapture(npc);
-    boostActorCaptureLight(pl, true);
-    boostActorCaptureLight(npc, true);
     const dogActor = actors.get("dog");
     if (dogActor) {
       dogActor.group.visible = false;
@@ -2427,6 +2479,7 @@ bindGameplayToWorld3D(api, () => ({
   camera,
   car
 }));
+api.snapDialogueNpcShot = (npcId = "mohawk") => api.engageDialogueFraming(npcId, { live: false });
 window.World3D = api;
 window.Scene3D = api;
 window.PORTALS_LIST = PORTALS;

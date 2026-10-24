@@ -554,7 +554,7 @@ export function buildLocationScene(locId, texLoader) {
     addHangingChain(root, 7, 3.4, 1.5);
     addDustParticles(root, 120);
     addEmberParticles(root, 90);
-    props.showCar = true;
+    props.showCar = false;
     props.cats.push(buildCat(-3, 3, 0x111122), buildCat(4, -2, 0x442266));
     addLights(root, [
       { type: "point", color: 0xff66ff, intensity: 4.2, x: 0, y: 4.5, z: 0 },

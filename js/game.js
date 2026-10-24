@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r1";
+const GAME_VERSION = "living3d-v22r2";
 const PRESENCE_STALE_MS = 120000;
 const PRIVATE_ROOM_ID = "room";
 let moveSaveTimer = null;
@@ -479,7 +479,7 @@ function syncStage3D() {
     npcs: npcData,
     location: me.location,
     hasDog: hasDog(),
-    carVisible: !!loc.night
+    carVisible: false
   });
 }
 

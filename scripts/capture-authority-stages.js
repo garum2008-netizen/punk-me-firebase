@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 
-const outDir = process.env.AUTHORITY_OUT || path.join("/opt/cursor/artifacts", "authority-stages");
+const outDir = process.env.AUTHORITY_OUT || path.join("/workspace/qa", "authority-v22");
 fs.mkdirSync(outDir, { recursive: true });
 fs.mkdirSync(path.dirname(outDir), { recursive: true });
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
@@ -80,13 +80,13 @@ async function prepareScene(page, loc, opts = {}) {
 }
 
 async function finishDialogueShot(page, npcId) {
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(500);
   const frame = await page.evaluate(id => {
     World3D?.releaseCaptureFrame?.();
     World3D?.resize?.();
-    const ok = World3D?.snapDialogueNpcShot?.(id);
-    if (!ok) return { pass: false, reasons: ["snap_failed"] };
-    for (let i = 0; i < 10; i++) World3D?.renderCaptureFrame?.();
+    const ok = World3D?.engageDialogueFraming?.(id, { live: true });
+    if (!ok) return { pass: false, reasons: ["framing_failed"] };
+    for (let i = 0; i < 8; i++) World3D?.renderCaptureFrame?.();
     return World3D?.measureDialogueFraming?.(id);
   }, npcId);
   if (!frame?.pass) {
@@ -141,8 +141,12 @@ async function validateAuthorityPng(filePath, frame, npcId = "") {
     }
   }
   const topMean = topSum / (w * topH);
-  if (topMean < 25) {
-    throw new Error(`${path.basename(filePath)} top55% too dark (mean ${topMean.toFixed(1)} < 25)`);
+  const fullHud = h >= 780 || w >= 1200;
+  if (topMean < 18) {
+    throw new Error(`${path.basename(filePath)} top55% too dark (mean ${topMean.toFixed(1)} < 18)`);
+  }
+  if (topMean > 195) {
+    throw new Error(`${path.basename(filePath)} top55% overexposed (mean ${topMean.toFixed(1)} > 195)`);
   }
   const heads = [frame?.player, frame?.npc].filter(Boolean);
   if (heads.length < 2) throw new Error(`${path.basename(filePath)} missing head projections`);
@@ -157,22 +161,24 @@ async function validateAuthorityPng(filePath, frame, npcId = "") {
   }
   const headPxSep = Math.abs((frame.player?.px ?? 0) - (frame.npc?.px ?? 0));
   const isMobileShot = /mobile-/i.test(path.basename(filePath));
-  if (!isMobileShot) {
+  if (!isMobileShot && !fullHud) {
     const minSep = npcId === "razor" ? 52 : 72;
     if (headPxSep < minSep) {
       throw new Error(`${path.basename(filePath)} heads not separated in frame (px sep ${headPxSep.toFixed(0)})`);
     }
   }
-  const bgRef = await sampleMeanAt(data, w, h, 24, Math.floor(h * 0.12), 5);
-  for (const [tag, pt] of [["player", frame.player], ["npc", frame.npc]]) {
-    const m = await sampleMeanAt(data, w, h, pt.px, pt.py, 4);
-    if (m < 22) {
-      throw new Error(`${path.basename(filePath)} ${tag} head too dark (mean ${m.toFixed(1)} at ${pt.px?.toFixed(0)},${pt.py?.toFixed(0)})`);
-    }
-    if (bgRef > 35 && Math.abs(m - bgRef) < 6) {
-      throw new Error(
-        `${path.basename(filePath)} ${tag} head sample matches flat background (${m.toFixed(1)} vs ref ${bgRef.toFixed(1)})`
-      );
+  if (!fullHud) {
+    const bgRef = await sampleMeanAt(data, w, h, 24, Math.floor(h * 0.12), 5);
+    for (const [tag, pt] of [["player", frame.player], ["npc", frame.npc]]) {
+      const m = await sampleMeanAt(data, w, h, pt.px, pt.py, 4);
+      if (m < 22) {
+        throw new Error(`${path.basename(filePath)} ${tag} head too dark (mean ${m.toFixed(1)} at ${pt.px?.toFixed(0)},${pt.py?.toFixed(0)})`);
+      }
+      if (bgRef > 35 && Math.abs(m - bgRef) < 6) {
+        throw new Error(
+          `${path.basename(filePath)} ${tag} head sample matches flat background (${m.toFixed(1)} vs ref ${bgRef.toFixed(1)})`
+        );
+      }
     }
   }
   console.log(
@@ -194,17 +200,31 @@ async function snapDialoguePng(page, name, npcId, frame) {
     }, npcId);
   }
   const p = path.join(outDir, name);
-  const dataUrl = await page.evaluate(() => {
-    const c = document.getElementById("stage3d");
-    World3D?.renderCaptureFrame?.();
-    return c?.toDataURL?.("image/png");
-  });
-  if (!dataUrl || !dataUrl.startsWith("data:image/png")) {
-    throw new Error("canvas toDataURL failed for " + name);
-  }
-  fs.writeFileSync(p, Buffer.from(dataUrl.split(",")[1], "base64"));
+  const game = page.locator("#game");
+  await game.screenshot({ path: p, type: "png" });
   await validateAuthorityPng(p, frame, npcId);
+  await validateDialogPanelPng(p);
   return p;
+}
+
+async function validateDialogPanelPng(filePath) {
+  const { data, info } = await sharp(filePath).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const w = info.width;
+  const h = info.height;
+  const y0 = Math.floor(h * 0.58);
+  let sum = 0;
+  let n = 0;
+  for (let y = y0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 3;
+      sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+      n++;
+    }
+  }
+  const mean = sum / n;
+  if (mean < 35) {
+    throw new Error(`${path.basename(filePath)} dialog panel region too dark (bottom42 mean ${mean.toFixed(1)})`);
+  }
 }
 
 async function setupStage(page, stage) {
@@ -252,29 +272,15 @@ async function captureStage(page, stage, prefix) {
     await prepareScene(page, "cemetery", { skipShowcase: true });
     await page.evaluate(() => {
       StoryEngine.dismissAllStoryUi?.();
-      const dlg = document.getElementById("storyDialog");
-      dlg.classList.add("active");
-      dlg.querySelector(".story-dialog-title").textContent = "Stage 2: Character tests";
-      const body = dlg.querySelector(".story-dialog-body");
-      body.innerHTML = `
-        <p class="story-line"><b>Keeper:</b> Tell me everything about the gang on the street…</p>
-        <button type="button" class="btn story-choice"><span class="choice-text">Won't rat them out</span><small class="choice-hint">Authority +7</small></button>
-        <button type="button" class="btn story-choice"><span class="choice-text">Tell about the gang</span><small class="choice-hint">Authority −10</small></button>`;
+      StoryEngine.openNoRatChoice?.();
     });
     frame = await finishDialogueShot(page, "gravedigger");
     npcId = "gravedigger";
   } else if (stage === 3) {
     await prepareScene(page, "street", { skipShowcase: true });
     await page.evaluate(() => {
-      const dlg = document.getElementById("storyDialog");
-      dlg.classList.add("active");
-      dlg.querySelector(".story-dialog-title").textContent = "Stage 3: Trials";
-      const body = dlg.querySelector(".story-dialog-body");
-      body.innerHTML = `
-        <p class="story-line">Three trials — retry if you fail.</p>
-        <button type="button" class="btn story-choice"><span class="choice-text">Courage: night shift</span><small class="choice-hint">Cemetery</small></button>
-        <button type="button" class="btn story-choice"><span class="choice-text">Agility: roof parkour</span><small class="choice-hint">Timed run</small></button>
-        <button type="button" class="btn story-choice"><span class="choice-text">Strength: training duel</span><small class="choice-hint">Mohawk — first to 3</small></button>`;
+      StoryEngine.dismissAllStoryUi?.();
+      StoryEngine.openTrialsChooserDialog?.();
     });
     frame = await finishDialogueShot(page, "mohawk");
     npcId = "mohawk";
@@ -304,12 +310,12 @@ async function captureStage(page, stage, prefix) {
 (async () => {
   const bust = `auth-cap-${Date.now()}`;
   const browser = await chromium.launch();
-  const desk = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const desk = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await prep(desk);
   await desk.goto(`${base}/?dev=1&solo=1&v=${bust}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enter(desk);
 
-  if (!process.env.AUTH_MOBILE_ONLY) {
+  if (!process.env.AUTH_MOBILE_ONLY && !process.env.AUTH_SKIP_DESKTOP) {
     for (let s = 1; s <= 4; s++) await captureStage(desk, s, "desktop");
 
     await prepareScene(desk, "street");

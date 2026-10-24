@@ -583,12 +583,8 @@ export function addCityDressing(root, helpers) {
   root.add(can, canLid);
   pushCollider(colliders, -1.5, 3.8, 0.28, 0.28);
   addTrafficLight(root, 2.2, 3.2);
-  const carA = buildLowPolyCar(0x2244aa);
-  carA.position.set(-8.2, 0, 2.4);
-  carA.rotation.y = 0.85;
-  root.add(carA);
   const carB = buildLowPolyCar(0xcc3333, 0x440000);
-  carB.position.set(5, 0, 0.5);
+  carB.position.set(8.5, 0, -3.5);
   carB.rotation.y = -1.1;
   root.add(carB);
   const busStop = wall(2.2, 2.4, 0.12, new THREE.MeshStandardMaterial({ color: 0x3a4050 }));

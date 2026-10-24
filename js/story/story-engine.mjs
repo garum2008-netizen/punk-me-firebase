@@ -119,9 +119,9 @@ function speakerToNpcId(speaker) {
 }
 
 export function applyDialogueCamera(npcId) {
-  if (!npcId || !window.World3D?.snapDialogueNpcShot) return;
+  if (!npcId || !window.World3D?.engageDialogueFraming) return;
   requestAnimationFrame(() => {
-    window.World3D.snapDialogueNpcShot(npcId);
+    window.World3D.engageDialogueFraming(npcId, { live: true });
   });
 }
 
@@ -781,6 +781,11 @@ function triggerCalloutDialogue(d) {
   playSfx(d.callout?.sound || "sfx_whistle");
   showBubble(speaker, text);
   setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker);
+  const ind = document.getElementById("storyDirection");
+  if (ind) {
+    ind.textContent = d.callout?.icon || "!";
+    ind.classList.add("visible");
+  }
   const stFlags = ensureStoryState(me()).flags;
   if (d.id === "dlg_razor_initiation" && !stFlags.joined_gang) {
     setTimeout(() => openDialogueTree(d), 800);
@@ -969,8 +974,8 @@ export function initStoryEngine(h) {
       }
       renderObjectivePanel();
       window.StoryEngine = api;
-      window.StoryEngine.openNoRatChoice = () => Authority.openNoRatChoice();
-      window.StoryEngine.openTrialsChooserDialog = () => Authority.openTrialsChooserDialog();
+      window.StoryEngine.openNoRatChoice = () => Authority.openNoRatChoice?.();
+      window.StoryEngine.openTrialsChooserDialog = () => Authority.openTrialsChooserDialog?.();
       return true;
     })
     .catch(err => {

@@ -644,14 +644,25 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   #storyDialog.story-dialog-cinematic {
     align-items: flex-end;
     justify-content: center;
-    background: linear-gradient(180deg, rgba(4, 2, 12, 0.08) 0%, rgba(4, 2, 12, 0.08) 58%, rgba(4, 2, 12, 0.42) 58%);
+    background: linear-gradient(
+      180deg,
+      rgba(4, 2, 12, 0) 0%,
+      rgba(4, 2, 12, 0.02) 52%,
+      rgba(4, 2, 12, 0.55) 52%,
+      rgba(4, 2, 12, 0.88) 100%
+    );
   }
   #storyDialog.story-dialog-cinematic .story-dialog-panel {
     max-height: 40vh;
+    min-height: 28vh;
     max-width: 94vw;
-    margin-bottom: 2vh;
+    margin-bottom: calc(var(--dock-h, 168px) + 6px);
     overflow-y: auto;
+    background: rgba(14, 8, 28, 0.97);
   }
+}
+#storyDialog.story-dialog-cinematic .story-dialog-panel {
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
 }
 .story-dialog-panel {
   max-width: min(420px, 92vw); background: rgba(14, 8, 28, 0.96); border: 2px solid #ff00ff;
