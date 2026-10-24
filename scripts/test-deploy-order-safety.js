@@ -8,6 +8,7 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
+const https = require("https");
 
 const root = path.join(__dirname, "..");
 const { useSnapshot, restore } = require("./emulator-rules-swap");
@@ -16,6 +17,28 @@ const PROJECT_ID = process.env.FIREBASE_EMULATOR_PROJECT || "punk-me-40605";
 const DB_NS = `${PROJECT_ID}-default-rtdb`;
 const AUTH_HOST = "127.0.0.1";
 const AUTH_PORT = 9099;
+
+function fetchJson(url, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith("https") ? https : http;
+    const req = lib.request(url, { method: opts.method || "GET", headers: opts.headers || {} }, res => {
+      let body = "";
+      res.on("data", c => (body += c));
+      res.on("end", () => {
+        let json = null;
+        try {
+          json = body ? JSON.parse(body) : null;
+        } catch (_) {
+          json = body;
+        }
+        resolve({ status: res.statusCode, json, body });
+      });
+    });
+    req.on("error", reject);
+    if (opts.body) req.write(opts.body);
+    req.end();
+  });
+}
 
 function runNode(script, env = {}) {
   return new Promise((resolve, reject) => {
@@ -28,6 +51,28 @@ function runNode(script, env = {}) {
   });
 }
 
+async function waitForHttp(port, timeoutMs = 60000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const code = await new Promise((resolve, reject) => {
+        const req = http.get(`http://127.0.0.1:${port}/`, res => {
+          res.resume();
+          resolve(res.statusCode);
+        });
+        req.on("error", reject);
+        req.setTimeout(2000, () => {
+          req.destroy();
+          reject(new Error("timeout"));
+        });
+      });
+      if (code && code < 500) return;
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 500));
+  }
+  throw new Error(`static server not ready on :${port}`);
+}
+
 function startServe(dir, port) {
   return new Promise((resolve, reject) => {
     const child = spawn("npx", ["--yes", "serve", "-l", String(port), "."], {
@@ -35,7 +80,15 @@ function startServe(dir, port) {
       stdio: "pipe"
     });
     child.on("error", reject);
-    setTimeout(() => resolve(child), 3000);
+    child.stderr.on("data", d => process.stderr.write(d));
+    waitForHttp(port)
+      .then(() => resolve(child))
+      .catch(e => {
+        try {
+          child.kill("SIGKILL");
+        } catch (_) {}
+        reject(e);
+      });
   });
 }
 
@@ -57,12 +110,7 @@ function patchOldJsForEmulator(worktreeRoot) {
   }
   const ownerPath = path.join(worktreeRoot, "js/owner-admin.mjs");
   let owner = fs.readFileSync(ownerPath, "utf8");
-  if (!owner.includes("firebaseEmulator")) {
-    owner = owner.replace(
-      "const db = window.firebase.database();",
-      `connectFirebaseEmulatorsIfRequested(firebase);
-  const db = window.firebase.database();`
-    );
+  if (!owner.includes("connectFirebaseEmulatorsIfRequested")) {
     if (!owner.includes("firebase-emulator")) {
       owner = owner.replace(
         'import { punkSignOut',
@@ -70,6 +118,10 @@ function patchOldJsForEmulator(worktreeRoot) {
       );
       fs.copyFileSync(path.join(root, "js/firebase-emulator.mjs"), path.join(worktreeRoot, "js/firebase-emulator.mjs"));
     }
+    owner = owner.replace(
+      "if (!window.firebase?.apps?.length) firebase.initializeApp(FIREBASE_CONFIG);\n  const auth = window.firebase.auth();",
+      "if (!window.firebase?.apps?.length) firebase.initializeApp(FIREBASE_CONFIG);\n  connectFirebaseEmulatorsIfRequested(firebase);\n  const auth = window.firebase.auth();"
+    );
     fs.writeFileSync(ownerPath, owner);
   }
 }
@@ -137,7 +189,27 @@ async function testNewJsPublicProfilesNonFatal(base) {
   }
 }
 
-async function testOldJsGameplayAndOwner(worktreeBase) {
+async function ensureEmulatorEmailUser(email, password) {
+  const url = `http://${AUTH_HOST}:${AUTH_PORT}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`;
+  const res = await fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, returnSecureToken: true })
+  });
+  if (res.status === 200) return res.json;
+  const signInUrl = `http://${AUTH_HOST}:${AUTH_PORT}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key`;
+  const res2 = await fetchJson(signInUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, returnSecureToken: true })
+  });
+  if (res2.status !== 200) throw new Error(`auth seed failed ${res2.status} ${res2.body}`);
+  return res2.json;
+}
+
+async function emulatorCustomTokenForUid(uid) {
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = `${AUTH_HOST}:${AUTH_PORT}`;
+  process.env.FIREBASE_DATABASE_EMULATOR_HOST = `127.0.0.1:9000`;
   const admin = require("firebase-admin");
   if (!admin.apps.length) {
     admin.initializeApp({
@@ -145,17 +217,10 @@ async function testOldJsGameplayAndOwner(worktreeBase) {
       databaseURL: `http://127.0.0.1:9000/?ns=${DB_NS}`
     });
   }
-  const legacyUid = "legacy-owner-email";
-  try {
-    await admin.auth().createUser({
-      uid: legacyUid,
-      email: "garum2008@gmail.com",
-      emailVerified: true
-    });
-  } catch (e) {
-    if (e.code !== "auth/uid-already-exists") throw e;
-  }
+  return admin.auth().createCustomToken(uid);
+}
 
+async function testOldJsGameplayAndOwner(worktreeBase) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
   try {
@@ -180,70 +245,120 @@ async function testOldJsGameplayAndOwner(worktreeBase) {
     });
     if (gameplay.coins !== 3333) throw new Error(`old js save failed: ${JSON.stringify(gameplay)}`);
     console.log("deploy-order (b): old JS gameplay save PASS", JSON.stringify(gameplay));
+  } finally {
+    await browser.close();
+  }
 
-    const token = await authCustomToken(admin, legacyUid);
-    await page.goto(`${worktreeBase}/owner.html?firebaseEmulator=1`, { waitUntil: "domcontentloaded" });
-    await page.evaluate(async t => {
-      await firebase.auth().signInWithCustomToken(t);
-    }, token.idToken);
-    await page.waitForTimeout(1500);
-    const ownerUi = await page.evaluate(() => ({
+  const ownerBrowser = await chromium.launch();
+  const ownerPage = await ownerBrowser.newPage();
+  const ownerEmail = "garum2008@gmail.com";
+  const ownerPass = "LegacyOwnerTest1!";
+  try {
+    const seeded = await ensureEmulatorEmailUser(ownerEmail, ownerPass);
+    const customToken = await emulatorCustomTokenForUid(seeded.localId);
+    await ownerPage.goto(`${worktreeBase}/owner?firebaseEmulator=1`, { waitUntil: "domcontentloaded" });
+    await ownerPage.waitForFunction(
+      () => {
+        const st = document.getElementById("ownerStatus")?.textContent || "";
+        return window.firebase?.apps?.length && st && !/^(Загрузка|Loading)/i.test(st.trim());
+      },
+      undefined,
+      { timeout: 60000 }
+    );
+    await ownerPage.evaluate(async token => {
+      await firebase.auth().signInWithCustomToken(token);
+    }, customToken);
+    await ownerPage.waitForFunction(
+      () => {
+        const st = document.getElementById("ownerStatus")?.textContent || "";
+        const denied = !document.getElementById("ownerDenied")?.hidden;
+        const panel = !document.getElementById("ownerPanel")?.hidden;
+        return denied || panel || /rules|players|deploy|Нет прав/i.test(st);
+      },
+      undefined,
+      { timeout: 15000 }
+    );
+    const ownerUi = await ownerPage.evaluate(() => ({
       panel: !document.getElementById("ownerPanel")?.hidden,
       denied: !document.getElementById("ownerDenied")?.hidden,
       status: document.getElementById("ownerStatus")?.textContent || ""
     }));
-    const ok =
-      ownerUi.panel &&
-      (ownerUi.status.includes("rules") ||
-        ownerUi.status.includes("rules") ||
-        ownerUi.status.toLowerCase().includes("deploy") ||
-        ownerUi.status.length > 0);
-    if (!ownerUi.panel && ownerUi.denied) {
-      console.log("deploy-order (b): old owner denied UI (acceptable)");
-    } else if (ownerUi.panel && !ownerUi.status.includes("Владелец") && !ownerUi.status.includes("Owner")) {
-      console.log("deploy-order (b): old owner no stats (rules hint) PASS", JSON.stringify(ownerUi));
+    const rulesHint = /rules|players|deploy|Нет прав|Cannot read/i.test(ownerUi.status);
+    if (ownerUi.panel && rulesHint) {
+      console.log("deploy-order (b): old owner rules hint (no /players list) PASS", JSON.stringify(ownerUi));
+    } else if (!ownerUi.panel && ownerUi.denied) {
+      console.log("deploy-order (b): old owner access denied UI PASS", JSON.stringify(ownerUi));
+    } else if (ownerUi.panel && !rulesHint) {
+      throw new Error(`old owner unexpectedly loaded /players stats: ${JSON.stringify(ownerUi)}`);
     } else {
       console.log("deploy-order (b): old owner UI PASS", JSON.stringify(ownerUi));
     }
   } finally {
-    await browser.close();
+    await ownerBrowser.close();
   }
 }
 
+async function stopEmulator(emu) {
+  if (!emu) return;
+  await new Promise(resolve => {
+    emu.once("exit", () => resolve());
+    try {
+      emu.kill("SIGKILL");
+    } catch (_) {
+      resolve();
+    }
+    setTimeout(resolve, 15000);
+  });
+  await freeEmulatorPorts();
+}
+
 async function withEmulatorAndRules(snapshot, fn) {
+  await freeEmulatorPorts();
   useSnapshot(snapshot);
   const emu = spawn("npx", ["firebase", "emulators:start", "--only", "auth,database", "--project", PROJECT_ID], {
     cwd: root,
     stdio: "pipe"
   });
+  let started = false;
   await new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error("emulator timeout")), 90000);
-    emu.stdout.on("data", buf => {
+    const t = setTimeout(() => reject(new Error("emulator timeout")), 120000);
+    const onData = buf => {
       process.stdout.write(buf);
-      if (buf.toString().includes("All emulators ready")) {
+      if (!started && buf.toString().includes("All emulators ready")) {
+        started = true;
         clearTimeout(t);
+        emu.stdout.off("data", onData);
         resolve();
       }
-    });
+    };
+    emu.stdout.on("data", onData);
     emu.stderr.on("data", d => process.stderr.write(d));
-    emu.on("exit", c => {
-      clearTimeout(t);
-      reject(new Error(`emu exit ${c}`));
+    emu.once("exit", c => {
+      if (!started) {
+        clearTimeout(t);
+        reject(new Error(`emu exit ${c}`));
+      }
     });
   });
   try {
     await fn();
   } finally {
-    emu.kill("SIGKILL");
-    restore();
+    await stopEmulator(emu);
   }
 }
 
-(async () => {
-  const newJsPort = 9876;
-  const oldJsPort = 9880;
-  const worktree = path.join(root, ".worktrees", "main-7ee242b");
+async function freeEmulatorPorts() {
+  const { execSync } = require("child_process");
+  try {
+    execSync('pkill -9 -f database-emulator 2>/dev/null; pkill -9 -f "firebase emulators" 2>/dev/null; fuser -k 9000/tcp 9099/tcp 2>/dev/null', {
+      stdio: "ignore",
+      shell: "/bin/bash"
+    });
+  } catch (_) {}
+  await new Promise(r => setTimeout(r, 8000));
+}
 
+async function ensureOldWorktree(worktree) {
   if (!fs.existsSync(worktree)) {
     fs.mkdirSync(path.dirname(worktree), { recursive: true });
     await new Promise((res, rej) => {
@@ -252,47 +367,71 @@ async function withEmulatorAndRules(snapshot, fn) {
     });
   }
   patchOldJsForEmulator(worktree);
+}
 
-  console.log("\n=== (a1) New JS + repo-main rules (unpublished #16) ===\n");
-  await withEmulatorAndRules("repo-main-7ee242b.json", async () => {
-    const serve = await startServe(root, newJsPort);
-    try {
-      await testNewJsPublicProfilesNonFatal(`http://127.0.0.1:${newJsPort}`);
-      await runNode("test-save-gameplay-emulator.js", {
-        PUNK_BASE: `http://127.0.0.1:${newJsPort}`
-      });
-    } finally {
-      serve.kill("SIGKILL");
-    }
+async function runPhase(phase) {
+  const newJsPort = 9876;
+  const oldJsPort = 9880;
+  const worktree = path.join(root, ".worktrees", "main-7ee242b");
+
+  if (phase === "a1") {
+    console.log("\n=== (a1) New JS + repo-main rules (unpublished #16) ===\n");
+    await withEmulatorAndRules("repo-main-7ee242b.json", async () => {
+      const serve = await startServe(root, newJsPort);
+      try {
+        await testNewJsPublicProfilesNonFatal(`http://127.0.0.1:${newJsPort}`);
+        await runNode("test-save-gameplay-emulator.js", { PUNK_BASE: `http://127.0.0.1:${newJsPort}` });
+      } finally {
+        serve.kill("SIGKILL");
+      }
+    });
+    return;
+  }
+  if (phase === "a2") {
+    console.log("\n=== (a2) New JS + live-published-open rules ===\n");
+    await withEmulatorAndRules("live-published-open.json", async () => {
+      const serve = await startServe(root, newJsPort);
+      try {
+        await testNewJsPublicProfilesNonFatal(`http://127.0.0.1:${newJsPort}`);
+        await runNode("test-save-gameplay-emulator.js", { PUNK_BASE: `http://127.0.0.1:${newJsPort}` });
+      } finally {
+        serve.kill("SIGKILL");
+      }
+    });
+    return;
+  }
+  if (phase === "b") {
+    await ensureOldWorktree(worktree);
+    console.log("\n=== (b) Old JS (7ee242b) + secure PR33 rules ===\n");
+    await withEmulatorAndRules("secure-pr33.json", async () => {
+      const serve = await startServe(worktree, oldJsPort);
+      try {
+        await testOldJsGameplayAndOwner(`http://127.0.0.1:${oldJsPort}`);
+      } finally {
+        serve.kill("SIGKILL");
+      }
+    });
+    return;
+  }
+  throw new Error(`unknown phase ${phase}`);
+}
+
+module.exports = { runPhase, ensureOldWorktree };
+
+if (require.main === module) {
+  (async () => {
+    const { ensureBackup, restore } = require("./emulator-rules-swap");
+    ensureBackup();
+    await runPhase("a1");
+    await runPhase("a2");
+    await ensureOldWorktree(path.join(root, ".worktrees", "main-7ee242b"));
+    await runPhase("b");
+    console.log("\ndeploy-order-safety: all PASS\n");
+    restore();
+    process.exit(0);
+  })().catch(e => {
+    console.error(e);
+    require("./emulator-rules-swap").restore();
+    process.exit(1);
   });
-
-  console.log("\n=== (a2) New JS + live-published-open rules ===\n");
-  await withEmulatorAndRules("live-published-open.json", async () => {
-    const serve = await startServe(root, newJsPort);
-    try {
-      await testNewJsPublicProfilesNonFatal(`http://127.0.0.1:${newJsPort}`);
-      await runNode("test-save-gameplay-emulator.js", {
-        PUNK_BASE: `http://127.0.0.1:${newJsPort}`
-      });
-    } finally {
-      serve.kill("SIGKILL");
-    }
-  });
-
-  console.log("\n=== (b) Old JS (7ee242b) + secure PR33 rules ===\n");
-  await withEmulatorAndRules("secure-pr33.json", async () => {
-    const serve = await startServe(worktree, oldJsPort);
-    try {
-      await testOldJsGameplayAndOwner(`http://127.0.0.1:${oldJsPort}`);
-    } finally {
-      serve.kill("SIGKILL");
-    }
-  });
-
-  console.log("\ndeploy-order-safety: all PASS\n");
-  process.exit(0);
-})().catch(e => {
-  console.error(e);
-  restore();
-  process.exit(1);
-});
+}

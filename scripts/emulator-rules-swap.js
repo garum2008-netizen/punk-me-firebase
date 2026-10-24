@@ -7,12 +7,16 @@ const root = path.join(__dirname, "..");
 const liveRules = path.join(root, "database.rules.json");
 const backup = path.join(root, "database.rules.json.emulator-backup");
 
-function useSnapshot(snapshotName) {
-  const src = path.join(__dirname, "rules-deploy-snapshots", snapshotName);
-  if (!fs.existsSync(src)) throw new Error(`missing snapshot ${src}`);
+function ensureBackup() {
   if (!fs.existsSync(backup)) {
     fs.copyFileSync(liveRules, backup);
   }
+}
+
+function useSnapshot(snapshotName) {
+  const src = path.join(__dirname, "rules-deploy-snapshots", snapshotName);
+  if (!fs.existsSync(src)) throw new Error(`missing snapshot ${src}`);
+  ensureBackup();
   fs.copyFileSync(src, liveRules);
 }
 
@@ -23,7 +27,7 @@ function restore() {
   }
 }
 
-module.exports = { useSnapshot, restore };
+module.exports = { useSnapshot, restore, ensureBackup };
 
 if (require.main === module) {
   const cmd = process.argv[2];

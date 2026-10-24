@@ -4,3 +4,4 @@ package-lock.json
 qa-out/
 database-debug.log
 firebase-debug.log
+.worktrees/
