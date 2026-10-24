@@ -9,7 +9,8 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r4";
+const GAME_VERSION = "living3d-v22r5";
+window.GAME_VERSION = GAME_VERSION;
 const PRESENCE_STALE_MS = 120000;
 const PRIVATE_ROOM_ID = "room";
 let moveSaveTimer = null;
@@ -45,7 +46,10 @@ function othersForStage3D() {
 
 function devCoinsEnabled() {
   try {
-    return new URLSearchParams(location.search).has("dev") || localStorage.getItem("punkme_dev") === "1";
+    if (new URLSearchParams(location.search).has("dev")) return true;
+    if (localStorage.getItem("punkme_dev") === "1") return true;
+    if (localStorage.getItem("punkme_test") === "1") return true;
+    return new URLSearchParams(location.search).has("test");
   } catch (e) { return false; }
 }
 
@@ -504,6 +508,7 @@ function init() {
   auth.onAuthStateChanged(u => {
     if (u) {
       uid = u.uid;
+      window._punkUid = uid;
       isOwner = u.email === OWNER_EMAIL && u.emailVerified;
       loadMe();
     } else {
@@ -648,6 +653,7 @@ function continueGameBoot() {
   else dogPos = { x: me.x - 4, y: me.y + 2 };
   applyHashRoute();
   syncStage3D();
+  window.dispatchEvent(new CustomEvent("punkme-game-ready"));
 }
 
 function applyHashRoute() {

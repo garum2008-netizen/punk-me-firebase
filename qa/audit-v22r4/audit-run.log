@@ -1,0 +1,17 @@
+works onboarding {"hasInit":true,"defaultStep":0}
+works quests no panel
+works auth-1 authority=8
+works auth-2 authority=28
+works auth-4 authority=92
+works ch2 choices=2
+works shop items=4
+works build build toggle
+works duel hud=true
+partly save 500→100
+works mon-subscribe €4.99 / month | Coming soon — not chargeable yet
+works mon-legal 
+works mon-terms 
+works mon-privacy 
+partly mobile {"overlap":false,"testPanel":false}
+works jobs kitchen location
+wrote /workspace/qa/audit-v22r4/audit-results.json

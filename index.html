@@ -4,8 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
+<meta name="theme-color" content="#ff00ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PUNK ME">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v22r4">
+<link rel="stylesheet" href="css/game.css?v=living3d-v22r5">
+<link rel="stylesheet" href="css/test-mode.css?v=living3d-v22r5">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -138,6 +144,10 @@
       <button class="btn" id="btnParkour" data-i18n="parkour" style="display:none" onclick="runParkour()">Паркур</button>
     </div>
     </div>
+    <div class="pwa-actions" id="pwaActions">
+      <button type="button" class="btn secondary" id="btnShareGame" data-i18n="share_game">Поделиться</button>
+      <button type="button" class="btn" id="btnInstallApp" hidden data-i18n="install_app">Установить</button>
+    </div>
     <footer class="legal-footer legal-footer-game">
       <span class="age-badge-inline" data-i18n="age_13">13+</span>
       <a href="subscribe.html" data-i18n="footer_subscribe">Цена и условия</a>
@@ -206,6 +216,37 @@
     </div>
   </div>
 </div>
+<div id="testModePanel" class="test-mode-panel" hidden>
+  <div class="test-mode-head">
+    <span>TEST <strong id="testModeVersion">…</strong></span>
+    <button type="button" class="btn secondary" id="testModeToggle" aria-expanded="true">▾</button>
+  </div>
+  <div class="test-mode-body">
+    <div class="test-mode-actions">
+      <button type="button" class="btn" id="testModeFeedback">Bug report</button>
+      <button type="button" class="btn secondary" id="testModeCoins">+5000 coins</button>
+      <button type="button" class="btn danger" id="testModeReset">Reset progress</button>
+    </div>
+    <p style="opacity:.75;margin:4px 0 0">Authority / chapter:</p>
+    <div class="test-mode-actions">
+      <button type="button" class="btn secondary" id="testModeAuth1">Auth stage 1</button>
+      <button type="button" class="btn secondary" id="testModeAuth4">Auth stage 4</button>
+      <button type="button" class="btn secondary" id="testModeCh2">Chapter 2</button>
+    </div>
+    <p style="opacity:.75;margin:4px 0 0">Locations:</p>
+    <div class="test-mode-locs" id="testModeLocs"></div>
+  </div>
+</div>
+<div class="modal" id="shareModal">
+  <button class="close" id="shareCloseBtn">✕</button>
+  <div class="share-modal-panel">
+    <h2 data-i18n="share_title">Поделиться игрой</h2>
+    <p style="font-size:13px;opacity:.85" data-i18n="share_hint">Скопируйте ссылку или отсканируйте QR на другом устройстве.</p>
+    <input id="shareLinkField" readonly aria-label="Game link">
+    <canvas id="shareQrCanvas" width="200" height="200" aria-hidden="true"></canvas>
+    <button type="button" class="btn" id="shareCopyBtn" data-i18n="share_copy">Копировать ссылку</button>
+  </div>
+</div>
 <div id="howToOverlay" class="howto-overlay"></div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -214,25 +255,35 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v22r4"></script>
-<script src="js/i18n.js?v=living3d-v22r4"></script>
-<script src="js/voice.js?v=living3d-v22r4"></script>
-<script src="js/onboarding.js?v=living3d-v22r4"></script>
-<script type="module" src="js/context-hints.mjs?v=living3d-v22r4"></script>
-<script type="module" src="js/how-to-play.mjs?v=living3d-v22r4"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v22r4"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v22r4"></script>
-<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r4"></script>
-<script src="js/life.js?v=living3d-v22r4"></script>
-<script src="js/game.js?v=living3d-v22r4"></script>
+<script src="js/characters.js?v=living3d-v22r5"></script>
+<script src="js/i18n.js?v=living3d-v22r5"></script>
+<script src="js/voice.js?v=living3d-v22r5"></script>
+<script src="js/onboarding.js?v=living3d-v22r5"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v22r5"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v22r5"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v22r5"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v22r5"></script>
+<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r5"></script>
+<script src="js/life.js?v=living3d-v22r5"></script>
+<script src="js/game.js?v=living3d-v22r5"></script>
 <script type="module">
-  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r4";
-  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r4";
+  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5";
+  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r5";
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
   window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.me = window.me || {};
+</script>
+<script type="module">
+  import { initTestMode } from "./js/test-mode.mjs?v=living3d-v22r5";
+  import { initPwaUi } from "./js/pwa.mjs?v=living3d-v22r5";
+  initPwaUi();
+  const bootTest = () => {
+    initTestMode();
+  };
+  if (document.getElementById("game")?.style.display !== "none") bootTest();
+  window.addEventListener("punkme-game-ready", bootTest);
 </script>
 <p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
   3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0

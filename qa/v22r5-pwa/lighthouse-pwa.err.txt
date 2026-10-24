@@ -1,0 +1,12 @@
+Command failed: npx --yes lighthouse http://127.0.0.1:8765/index.html?solo=1 --only-categories=pwa --chrome-flags="--headless --no-sandbox" --output=json --output-path=/workspace/qa/v22r5-pwa/lighthouse-pwa.json --quiet
+npm warn deprecated @opentelemetry/sdk-trace-base@2.12.0: Use @opentelemetry/sdk-trace package
+Runtime error encountered: unrecognized category in 'onlyCategories': pwa
+Error: unrecognized category in 'onlyCategories': pwa
+    at errorOnUnknownOnlyCategories (file:///home/ubuntu/.npm/_npx/0f94ee7615faf582/node_modules/lighthouse/core/config/filters.js:190:11)
+    at filterConfigByExplicitFilters (file:///home/ubuntu/.npm/_npx/0f94ee7615faf582/node_modules/lighthouse/core/config/filters.js:272:3)
+    at initializeConfig (file:///home/ubuntu/.npm/_npx/0f94ee7615faf582/node_modules/lighthouse/core/config/config.js:251:20)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async navigationGather (file:///home/ubuntu/.npm/_npx/0f94ee7615faf582/node_modules/lighthouse/core/gather/navigation-runner.js:263:28)
+    at async navigation (file:///home/ubuntu/.npm/_npx/0f94ee7615faf582/node_modules/lighthouse/core/index.js:58:24)
+    at async runLighthouse (file:///home/ubuntu/.npm/_npx/0f94ee7615faf582/node_modules/lighthouse/cli/run.js:210:26)
+    at async file:///home/ubuntu/.npm/_npx/0f94ee7615faf582/node_modules/lighthouse/cli/index.js:10:1
