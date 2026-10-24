@@ -46,8 +46,9 @@
 
 | Путь | Было | Стало |
 |------|------|--------|
-| `players` `.read` | `true` | только owner verified |
-| `players/$uid` `.read` | наследование | `auth.uid === $uid` |
+| `players` `.read` | `true` (live) | только `auth.token.admin === true` |
+| `players/$uid` `.read` | часто публично (live) | `auth.uid === $uid` или admin |
+| `publicProfiles/$uid` | — | публично: name, avatar, coins |
 
 Мультиплеер в локации: **`presence/`** (`.read: true`).
 
@@ -56,7 +57,8 @@
 1. Гость → **Войти** → link Google/email → тот же **uid**.
 2. Другой браузер → тот же аккаунт → тот же save.
 3. **Выйти** → новый anonymous; старые данные в RTDB не удаляются.
-4. `owner.html` — только `garum2008@gmail.com` verified.
+4. `owner.html` — Google sign-in + **admin Custom Claim** (`node scripts/set-admin-claim.mjs`).
+5. Перед публикацией rules: `docs/release/RULES_PUBLISH_CHECKLIST.md`.
 
 ## 5. Тесты
 

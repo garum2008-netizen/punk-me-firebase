@@ -17,6 +17,20 @@ window.__punkFirebaseReady =
     window.__punkResolveFirebaseReady = resolve;
   });
 const PRESENCE_STALE_MS = 120000;
+
+function connectFirebaseEmulatorsIfRequested() {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (!q.has("firebaseEmulator")) return;
+    const host = q.get("firebaseEmulatorHost") || "127.0.0.1";
+    const dbPort = parseInt(q.get("firebaseEmulatorDbPort") || "9000", 10);
+    const authPort = parseInt(q.get("firebaseEmulatorAuthPort") || "9099", 10);
+    firebase.database().useEmulator(host, dbPort);
+    firebase.auth().useEmulator(`http://${host}:${authPort}`);
+  } catch (e) {
+    console.warn("Firebase emulator connect failed", e);
+  }
+}
 const PRIVATE_ROOM_ID = "room";
 let moveSaveTimer = null;
 let portalCooldown = 0;
@@ -706,6 +720,7 @@ function init() {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
     db = firebase.database();
+    connectFirebaseEmulatorsIfRequested();
     window.__punkFirebaseReady = Promise.resolve();
     window.dispatchEvent(new Event("punkme-firebase-ready"));
   } catch (bootErr) {
@@ -713,11 +728,16 @@ function init() {
     showLoadingFailure(t("loading_boot_error"), bootErr.message || String(bootErr));
     return;
   }
-  auth.onAuthStateChanged(u => {
+  auth.onAuthStateChanged(async u => {
     if (u) {
       uid = u.uid;
       window.uid = uid;
-      isOwner = u.email === OWNER_EMAIL && u.emailVerified;
+      isOwner = false;
+      try {
+        const token = await u.getIdTokenResult();
+        isOwner = token.claims.admin === true;
+      } catch (_) {}
+      window.isOwner = isOwner;
       window.__punkUpdateAccountUi?.(u);
       try {
         if (new URLSearchParams(location.search).get("loadtest") !== "timeout") loadMe();
@@ -945,7 +965,16 @@ function saveMe() {
   me.level = levelFromXp(me.xp || 0);
   if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
   me.lastSeen = Date.now();
-  db.ref("players/" + uid).update(sanitizePlayer(me));
+  const payload = sanitizePlayer(me);
+  // players/{uid} must succeed even when publicProfiles is denied (pre-rules-publish).
+  db.ref("players/" + uid).update(payload);
+  db.ref("publicProfiles/" + uid)
+    .set({
+      name: payload.name || me.name || "Player",
+      avatar: payload.avatar || me.avatar || "",
+      coins: payload.coins ?? 0
+    })
+    .catch(() => {});
   pushPresence();
 }
 

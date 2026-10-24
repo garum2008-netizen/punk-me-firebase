@@ -1,0 +1,38 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "players": {
+      ".read": "auth != null && auth.token.email === 'garum2008@gmail.com' && auth.token.email_verified === true",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && (auth.uid === $uid || (auth.token.email === 'garum2008@gmail.com' && auth.token.email_verified === true))"
+      }
+    },
+    "presence": {
+      "$location": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['name', 'x', 'y', 'ts'])"
+        }
+      }
+    },
+    "chat": {
+      ".read": true,
+      "$msgId": {
+        ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 280",
+        ".validate": "newData.hasChildren(['uid', 'name', 'text', 'time'])"
+      }
+    },
+    "buildings": {
+      "$zone": {
+        ".read": true,
+        "$pieceId": {
+          ".write": "auth != null && ((!data.exists() && newData.child('owner').val() === auth.uid) || (data.exists() && data.child('owner').val() === auth.uid) || (auth.token.email == 'garum2008@gmail.com' && auth.token.email_verified == true))",
+          ".validate": "newData.hasChildren(['type', 'x', 'y', 'owner'])"
+        }
+      }
+    }
+  }
+}
