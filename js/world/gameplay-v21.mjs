@@ -57,6 +57,17 @@ export function bindGameplayToWorld3D(api, getCtx) {
     state.duel
       ? { active: state.duel.active, plHits: state.duel.plHits, npcHits: state.duel.npcHits, nid: state.duel.nid }
       : null;
+  api.measureDuelFraming = () => measureDuelFraming();
+  api.frameDuelCamera = () => {
+    const ctx = ctxGet?.();
+    const d = state.duel;
+    if (!ctx || !d) return false;
+    const pl = ctx.actors.get("player");
+    const npc = ctx.actors.get("npc_" + d.nid) || ctx.actors.get("npc_razor");
+    if (!pl || !npc) return false;
+    frameDuelCamera(ctx, pl, npc);
+    return true;
+  };
   api.armDuelCaptureSpam = () => {
     if (!state.duel) return false;
     state.duel.cd = 0;
@@ -256,6 +267,92 @@ function hideDuelOccluders(ctx) {
   });
 }
 
+function frameDuelCamera(ctx, pl, npc) {
+  if (!ctx.camera) return;
+  const canvas = document.getElementById("stage3d");
+  const cw = canvas?.clientWidth || 1280;
+  const ch = canvas?.clientHeight || 800;
+  const mobile = cw < 520;
+  const midX = (pl.wx + npc.wx) * 0.5;
+  const midZ = (pl.wz + npc.wz) * 0.5;
+  let camY = mobile ? 2.22 : 2.05;
+  let camZ = midZ + (mobile ? 4.35 : 3.45);
+  let camX = midX + (mobile ? 0.05 : 0.15);
+  let fov = mobile ? 42 : 36;
+  const projChest = actor => {
+    if (!actor || typeof World3D?.projectWorldPoint !== "function") return null;
+    const wx = actor.wx ?? actor.group?.position?.x;
+    const wz = actor.wz ?? actor.group?.position?.z;
+    return World3D.projectWorldPoint(wx, 1.25, wz);
+  };
+  for (let pass = 0; pass < (mobile ? 22 : 8); pass++) {
+    ctx.camera.position.set(camX, camY, camZ);
+    ctx.camera.lookAt(midX, 1.32, midZ);
+    ctx.camera.fov = fov;
+    ctx.camera.updateProjectionMatrix();
+    ctx.camera.updateMatrixWorld(true);
+    pl.group?.updateMatrixWorld(true);
+    npc.group?.updateMatrixWorld(true);
+    const pp = projChest(pl);
+    const np = projChest(npc);
+    if (!pp || !np) break;
+    const minX = Math.min(pp.x, np.x);
+    const maxX = Math.max(pp.x, np.x);
+    const okX = minX >= cw * 0.08 && maxX <= cw * 0.92;
+    const okY = pp.y >= ch * 0.12 && np.y >= ch * 0.12 && pp.y <= ch * 0.72 && np.y <= ch * 0.72;
+    if (okX && okY) break;
+    if (!okX || maxX - minX > cw * 0.78) {
+      camZ += mobile ? 0.22 : 0.12;
+      if (fov < 48) fov += 0.6;
+    } else if (minX < cw * 0.08) {
+      camX -= 0.15;
+    } else if (maxX > cw * 0.92) {
+      camX += 0.15;
+    }
+  }
+  ctx.camera.position.set(camX, camY, camZ);
+  ctx.camera.lookAt(midX, 1.32, midZ);
+  ctx.camera.fov = fov;
+  ctx.camera.updateProjectionMatrix();
+  ctx.camera.updateMatrixWorld(true);
+}
+
+function measureDuelFraming() {
+  const ctx = ctxGet?.();
+  const d = state.duel;
+  if (!ctx?.camera || !d?.active) return { pass: false, reasons: ["no_duel"] };
+  const pl = ctx.actors.get("player");
+  const npc = ctx.actors.get("npc_" + d.nid) || ctx.actors.get("npc_razor");
+  if (!pl || !npc) return { pass: false, reasons: ["missing_actor"] };
+  const canvas = document.getElementById("stage3d");
+  const cw = canvas?.clientWidth || 1;
+  const ch = canvas?.clientHeight || 1;
+  const proj = actor => {
+    if (!World3D?.projectWorldPoint) return null;
+    const wx = actor.wx ?? actor.group.position.x;
+    const wz = actor.wz ?? actor.group.position.z;
+    const p = World3D.projectWorldPoint(wx, 1.35, wz);
+    if (!p) return null;
+    return { x: p.x / cw, y: p.y / ch, px: p.x, py: p.y };
+  };
+  const player = proj(pl);
+  const opponent = proj(npc);
+  const reasons = [];
+  const inFrame = (pt, tag) => {
+    if (!pt) {
+      reasons.push(`${tag}_missing`);
+      return false;
+    }
+    if (pt.x < 0.1 || pt.x > 0.9 || pt.y < 0.12 || pt.y > 0.78) {
+      reasons.push(`${tag}_oob`);
+      return false;
+    }
+    return true;
+  };
+  const pass = inFrame(player, "player") && inFrame(opponent, "npc");
+  return { pass, player, opponent, reasons };
+}
+
 function layoutDuelFighters(ctx, pl, npc) {
   const b = ctx.bounds;
   const cx = b ? (b.minX + b.maxX) * 0.5 : 0;
@@ -296,14 +393,7 @@ function startDuel3D(nid, opts = {}) {
     opponent.actions.idle.reset().setEffectiveWeight(1).fadeIn(0.12).play();
   }
   opponent._anim = "idle";
-  if (ctx.camera) {
-    const midX = (pl.wx + opponent.wx) * 0.5;
-    const midZ = (pl.wz + opponent.wz) * 0.5;
-    ctx.camera.position.set(midX + 0.15, 2.05, midZ + 3.45);
-    ctx.camera.lookAt(midX, 1.36, midZ);
-    ctx.camera.fov = 36;
-    ctx.camera.updateProjectionMatrix();
-  }
+  frameDuelCamera(ctx, pl, opponent);
   const training = !!opts.training;
   const firstTo = opts.firstTo || (training ? 3 : 0);
   state.duel = {
@@ -475,15 +565,7 @@ function prepareDuelCapturePose(nid = "razor") {
   if (pl.actions?.run) pl.actions.run.reset().fadeIn(0.08).play();
   pl._spd = 2.4;
   if (npc.actions?.idle) npc.actions.idle.reset().fadeIn(0.08).play();
-  if (ctx.camera) {
-    const midX = (pl.wx + npc.wx) * 0.5;
-    const midZ = (pl.wz + npc.wz) * 0.5;
-    ctx.camera.position.set(midX - 0.2, 2.08, midZ + 3.65);
-    ctx.camera.lookAt(midX, 1.38, midZ);
-    ctx.camera.fov = 34;
-    ctx.camera.updateProjectionMatrix();
-    ctx.camera.updateMatrixWorld(true);
-  }
+  frameDuelCamera(ctx, pl, npc);
   const canvas = document.getElementById("stage3d");
   const cw = canvas?.clientWidth || 1;
   const ch = canvas?.clientHeight || 1;

@@ -527,35 +527,86 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   .game-bottom-bar .legal-footer-game { font-size: 10px; padding: 5px 12px; }
   .chat {
     position: fixed;
-    width: min(220px, 72vw);
+    width: auto;
+    min-width: 0;
     left: auto;
     right: 8px;
-    top: 78px;
+    top: 72px;
     bottom: auto;
-    padding: 6px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
     z-index: 29;
+    pointer-events: none;
+  }
+  .chat.chat-open {
+    width: min(220px, 72vw);
+    padding: 6px;
+    background: rgba(10, 6, 22, 0.94);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 12px;
+    pointer-events: auto;
   }
   .chat-toggle {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     position: fixed;
-    top: 40px;
-    right: 52px;
-    z-index: 30;
-    min-height: 40px;
-    min-width: 56px;
-    max-width: none;
+    top: 6px;
+    right: 6px;
+    z-index: 31;
+    min-height: 32px;
+    height: 32px;
+    width: auto;
+    max-width: 64px;
+    padding: 0 10px;
     margin: 0;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    pointer-events: auto;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  }
+  .players-panel {
+    max-width: min(46vw, 168px);
+  }
+  .players-toggle {
+    max-width: 140px;
+    padding: 0 10px;
+    font-size: 10px;
+    white-space: nowrap;
+    min-height: 32px;
+    height: 32px;
+    border-radius: 999px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
   }
   .chat:not(.chat-open) .chat-body { display: none; }
   .chat:not(.chat-open) { padding: 4px; width: auto; min-width: 40px; }
-  .chat:not(.chat-open) .chat-toggle { margin-bottom: 0; min-width: 72px; }
+  .chat:not(.chat-open) .chat-toggle { margin-bottom: 0; min-width: 0; max-width: 64px; }
   .chat-open .chat-messages { height: 72px; }
   .side.players-panel {
-    top: 36px; right: 6px; width: auto; max-width: none;
-    padding: 0; background: transparent; border: none;
-    max-height: none; overflow: visible;
+    position: fixed;
+    left: 6px;
+    top: 6px;
+    right: auto;
+    width: auto;
+    max-width: min(46vw, 168px);
+    padding: 0;
+    background: transparent;
+    border: none;
+    max-height: none;
+    overflow: visible;
+    z-index: 30;
+    pointer-events: none;
   }
-  .players-toggle { display: inline-flex; align-items: center; min-height: 40px; min-width: 40px; }
+  .players-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    min-width: 0;
+  }
   .players-drawer {
     display: none;
     position: absolute; right: 0; top: calc(100% + 4px);

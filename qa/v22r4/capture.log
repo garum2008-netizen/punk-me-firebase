@@ -1,0 +1,41 @@
+PASS desktop-authority-stage4.png 65.74087660737445 52.04707660799795
+PASS desktop-duel-10hits.png 16 {
+  pass: true,
+  player: {
+    x: 0.6226748158978286,
+    y: 0.5550161999507985,
+    px: 797.0237643492205,
+    py: 444.01295996063885
+  },
+  opponent: {
+    x: 0.41446285850025555,
+    y: 0.4398812525472725,
+    px: 530.5124588803271,
+    py: 351.905002037818
+  },
+  reasons: []
+}
+PASS mobile-authority-stage4.png 61.2281595343903 72.0125363959814
+PASS mobile-duel-10hits.png 16 {
+  pass: true,
+  player: {
+    x: 0.8695626593759254,
+    y: 0.5455480728010961,
+    px: 339.1294371566109,
+    py: 460.44257344412506
+  },
+  opponent: {
+    x: 0.23889231044648454,
+    y: 0.45309899239300205,
+    px: 93.16800107412897,
+    py: 382.41554957969373
+  },
+  reasons: []
+}
+PASS mobile-hud-chat-pill.png {
+  chatJoyOverlap: false,
+  chatPlayersOverlap: false,
+  chatWidthPct: 11.10977564102564,
+  questsCollapsed: true
+}
+done /workspace/qa/v22r4
