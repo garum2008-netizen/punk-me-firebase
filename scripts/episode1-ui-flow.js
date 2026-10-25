@@ -79,6 +79,28 @@ async function recordBeat(page, ms) {
   await H.sleep(ms);
 }
 
+async function ensureWinFightStep(page) {
+  const ready = await page
+    .waitForFunction(
+      () => {
+        const ob = window.me?.onboarding;
+        if (!ob || ob.done) return true;
+        return (ob.step ?? 0) >= 4 || window.Onboarding?.getCurrentStep?.()?.key === "win_fight";
+      },
+      { timeout: 45000 }
+    )
+    .catch(() => false);
+  if (ready) return;
+  await page.evaluate(() => {
+    const step = window.me?.onboarding?.step ?? 0;
+    if (step <= 2) window.Onboarding?.onTalkRazor?.();
+    if (step === 3 && window.me?.location === "cemetery") window.Onboarding?.onVisitCemetery?.();
+  });
+  await page
+    .waitForFunction(() => (window.me?.onboarding?.step ?? 0) >= 4, { timeout: 20000 })
+    .catch(() => {});
+}
+
 async function travelTo(page, locId, recordPacing) {
   await ensureGameplayActive(page);
   if (recordPacing) {
@@ -146,14 +168,7 @@ async function runFullEpisode1Ui(page, opts = {}) {
 
   await travelTo(page, "street", recordPacing);
   await ensureGameplayActive(page);
-  await page.waitForFunction(
-    () => {
-      const ob = window.me?.onboarding;
-      if (!ob || ob.done) return true;
-      return (ob.step ?? 0) >= 4 || window.Onboarding?.getCurrentStep?.()?.key === "win_fight";
-    },
-    { timeout: 90000 }
-  );
+  await ensureWinFightStep(page);
   await H.dismissHowToOverlay(page);
   await page.locator("#btnFight").click({ timeout: 20000, force: true });
   mark?.("tutorial_duel", "Chain fight UI");
