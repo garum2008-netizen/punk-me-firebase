@@ -38,10 +38,14 @@ function progress() {
 function bump(key, amt = 1) {
   const st = currentStep();
   if (!st || st.key !== key) return;
+  if (!window.me.onboarding.progress || typeof window.me.onboarding.progress !== "object") {
+    window.me.onboarding.progress = {};
+  }
   const p = window.me.onboarding.progress;
   p[key] = (p[key] || 0) + amt;
   if (p[key] >= st.goal) completeStep();
   else saveMeQuiet();
+  lastOnboardActivity = Date.now();
   renderOnboardingQuest();
 }
 
@@ -49,13 +53,21 @@ function completeStep() {
   const st = currentStep();
   if (!st) return;
   const r = st.reward || {};
-  if (!window.isOwner && r.coins) window.me.coins += r.coins;
-  if (r.xp) window.me.xp += r.xp;
-  toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + (r.coins || 0));
+  const eventId = `onboard:${st.id}`;
+  const firstTime = window.grantRewardOnce?.(eventId, () => {
+    if (!window.isOwner && r.coins) window.me.coins += r.coins;
+    if (r.xp) window.me.xp += r.xp;
+  });
+  const coinMsg = firstTime && r.coins ? " +" + r.coins : firstTime ? "" : "";
+  toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + coinMsg);
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
     window.me.onboarding.done = true;
+    if (window.me.quests?.active === "intro") {
+      window.me.quests.active = null;
+      window.me.quests.progress = {};
+    }
     toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");
     window.StoryEngine?.onOnboardingComplete?.();
   }
@@ -63,6 +75,9 @@ function completeStep() {
   else saveMeQuiet();
   renderOnboardingQuest();
   syncGuideTarget();
+  const next = currentStep();
+  if (next) window.playEpisodeTutorialLine?.(next.id);
+  if (firstTime && r.coins) window.AudioManager?.playSfx?.("reward_coins");
 }
 
 function saveMeQuiet() {
@@ -146,10 +161,26 @@ function adaptSpawnLocation() {
   const loc = window.me.location;
   if (!loc || loc === "room") return;
   const st = currentStep();
-  if (st?.key === "moved") {
-    window.me.onboarding.progress.moved = st.goal;
-    completeStep();
+  if (st?.key === "moved" && (window.me.onboarding.step || 0) === 0) {
+    window.me.onboarding.step = 1;
+    window.me.onboarding.progress = {};
+    saveMeQuiet();
+    renderOnboardingQuest();
+    syncGuideTarget();
   }
+}
+
+let lastOnboardActivity = Date.now();
+
+function tickOnboardIdleHint() {
+  if (!window.me?.onboarding || window.me.onboarding.done) return;
+  if (Date.now() - lastOnboardActivity < 45000) return;
+  lastOnboardActivity = Date.now();
+  const st = currentStep();
+  if (!st) return;
+  const hint = typeof t === "function" ? t(`onboard_${st.id}_text`) : "";
+  if (hint) window.toast?.(hint);
+  window.Onboarding?.syncGuideTarget?.();
 }
 
 function initOnboarding() {
@@ -157,8 +188,28 @@ function initOnboarding() {
   if (!window.me.onboarding) {
     window.me.onboarding = { step: 0, progress: {}, done: false };
   }
+  lastOnboardActivity = Date.now();
+  if (!window._onboardIdleTimer) {
+    window._onboardIdleTimer = setInterval(tickOnboardIdleHint, 15000);
+  }
   renderOnboardingQuest();
   syncGuideTarget();
+}
+
+function replayTutorial() {
+  if (!window.me) return;
+  window.me.onboarding = { step: 0, progress: {}, done: false };
+  window.me.tutorial = {
+    ...(window.me.tutorial || {}),
+    version: 1,
+    replayCount: (window.me.tutorial?.replayCount || 0) + 1
+  };
+  window.me._onboardOrigin = null;
+  lastOnboardActivity = Date.now();
+  saveMeQuiet();
+  renderOnboardingQuest();
+  syncGuideTarget();
+  window.StoryEngine?.dismissAllStoryUi?.();
 }
 
 window.Onboarding = {
@@ -173,5 +224,6 @@ window.Onboarding = {
   onWinFight,
   onShopBuy,
   getGuideTarget,
+  replay: replayTutorial,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

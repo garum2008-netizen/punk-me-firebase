@@ -5,3 +5,7 @@ qa-out/
 database-debug.log
 firebase-debug.log
 .worktrees/
+video-chromium/
+youtube-capture-raw/
+qa/episode1/frames/
+qa/episode1/episode1-audio-tmp/
