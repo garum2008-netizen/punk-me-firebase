@@ -12,6 +12,7 @@
     "test:save-sanitize": "node scripts/test-save-sanitize.js",
     "test:earn-state": "node scripts/test-earn-state.mjs",
     "test:story-preview": "node scripts/test-story-preview-smoke.js",
+    "test:quest-table-sync": "node scripts/test-quest-table-sync.mjs",
     "test:rules": "node scripts/run-rules-emulator.js",
     "list:test-artifacts": "node scripts/list-test-artifacts.mjs",
     "generate:voice-audit-samples": "node scripts/generate-voice-audit-samples.mjs",
