@@ -6,8 +6,9 @@ async function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function bootSolo(page, base, cacheBust = "playtest-ui") {
-  await page.goto(`${base}/?solo=1&v=${cacheBust}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+async function bootSolo(page, base, cacheBust = "playtest-ui", opts = {}) {
+  const ep = opts.episodeCapture ? "&episodeCapture=1" : "";
+  await page.goto(`${base}/?solo=1${ep}&v=${cacheBust}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => window.__punkFinishLoadMeFlow, { timeout: 120000 });
   await page.evaluate(() => {
     try {

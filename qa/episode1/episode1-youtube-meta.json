@@ -1,27 +1,91 @@
 {
-  "fullArtifactWebm": "/opt/cursor/artifacts/episode1-youtube-full.webm",
-  "fullArtifactMp4": "/opt/cursor/artifacts/episode1-youtube-full.mp4",
-  "fullWebmDurationSec": 739.72,
-  "fullMp4DurationSec": 739.72,
-  "gitWebmPath": "qa/episode1/episode1-youtube.webm",
-  "gitWebmDurationSec": 739.72,
-  "gitWebmBytes": 9863168,
   "marks": [
-    {"sec": 0, "label": "boot", "extra": "solo new player"},
-    {"sec": 32.931, "label": "char_select", "extra": "Cobalt"},
-    {"sec": 40.449, "label": "start_game", "extra": "audio unlock gesture"},
-    {"sec": 91.122, "label": "tutorial_move", "extra": "WASD / joystick — room"},
-    {"sec": 164.121, "label": "tutorial_street", "extra": "map nav → street"},
-    {"sec": 214.091, "label": "razor_talk", "extra": "gang UI → Razor dialog"},
-    {"sec": 291.801, "label": "quest_journal", "extra": "pause menu journal"},
-    {"sec": 353.966, "label": "tutorial_cemetery", "extra": "cemetery visit"},
-    {"sec": 408.787, "label": "tutorial_duel", "extra": "Chain fight UI"},
-    {"sec": 471.775, "label": "tutorial_duel_result", "extra": "win_fight progress=0 at mark (see TIMECODES.md)"},
-    {"sec": 531.55, "label": "shop_open", "extra": "shop modal — prices on grid"},
-    {"sec": 559.161, "label": "shop_buy", "extra": "first item purchased"},
-    {"sec": 572.614, "label": "onboarding_reward", "extra": "onboarding.done + grantRewardOnce"},
-    {"sec": 657.653, "label": "propiska_intro", "extra": "q_initiation_pay accepted"},
-    {"sec": 698.057, "label": "reload_continue", "extra": "reload persistence"}
+    {
+      "sec": 0,
+      "label": "boot",
+      "extra": "solo new player"
+    },
+    {
+      "sec": 23.595,
+      "label": "char_select",
+      "extra": "Cobalt"
+    },
+    {
+      "sec": 23.845,
+      "label": "start_overlay",
+      "extra": "Episode 1 intro lines"
+    },
+    {
+      "sec": 27.052,
+      "label": "start_game",
+      "extra": "audio unlock gesture"
+    },
+    {
+      "sec": 127.93,
+      "label": "tutorial_move",
+      "extra": "WASD / joystick — room"
+    },
+    {
+      "sec": 248.281,
+      "label": "tutorial_street",
+      "extra": "map nav → street"
+    },
+    {
+      "sec": 299.077,
+      "label": "razor_talk",
+      "extra": "gang UI → Razor dialog"
+    },
+    {
+      "sec": 408.087,
+      "label": "quest_journal",
+      "extra": "pause menu journal"
+    },
+    {
+      "sec": 540.839,
+      "label": "tutorial_cemetery",
+      "extra": "cemetery visit"
+    },
+    {
+      "sec": 686.204,
+      "label": "tutorial_duel",
+      "extra": "Chain fight UI"
+    },
+    {
+      "sec": 750.002,
+      "label": "tutorial_duel_result",
+      "extra": "win_fight progress=0 — fight UI did not finish in time"
+    },
+    {
+      "sec": 901.837,
+      "label": "shop_open",
+      "extra": "shop modal — prices on grid"
+    },
+    {
+      "sec": 951.379,
+      "label": "shop_buy",
+      "extra": "first item purchased"
+    },
+    {
+      "sec": 988.189,
+      "label": "onboarding_reward",
+      "extra": "onboarding.done + grantRewardOnce"
+    },
+    {
+      "sec": 1093.221,
+      "label": "propiska_intro",
+      "extra": "q_initiation_pay accepted"
+    },
+    {
+      "sec": 1150.372,
+      "label": "reload_continue",
+      "extra": "onboarding.done=true quest=q_initiation_pay coins 262 (was 262)"
+    }
   ],
-  "validation": "qa/episode1/episode1-recording-validation.json"
+  "hadAudio": true,
+  "rawAudioBytes": 22454190,
+  "rawVideoDurationSec": 1161.76,
+  "deliverableWebmDurationSec": 1161.768,
+  "deliverableMp4DurationSec": 1161.76,
+  "probeWebm": "codec_name=vp8\ncodec_type=video\ncodec_name=opus\ncodec_type=audio\nsample_rate=48000\nchannels=2\nformat_duration=1161.768000",
+  "probeMp4": "codec_name=h264\ncodec_type=video\ncodec_name=aac\ncodec_type=audio\nsample_rate=96000\nchannels=2\nformat_duration=1161.760000"
 }

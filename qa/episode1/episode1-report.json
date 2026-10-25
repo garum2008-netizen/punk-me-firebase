@@ -11,7 +11,7 @@
       {
         "onboardingDone": true,
         "quest": "q_initiation_pay",
-        "coins": 264,
+        "coins": 246,
         "granted": [
           "onboard:go_street",
           "onboard:talk_razor",
@@ -31,12 +31,12 @@
       "reload_keeps_progress",
       true,
       {
-        "coinsBefore": 264,
+        "coinsBefore": 246,
         "stepBefore": 6,
         "after": {
           "step": 6,
           "done": true,
-          "coins": 264,
+          "coins": 246,
           "quest": "q_initiation_pay"
         }
       }
@@ -59,9 +59,8 @@
       {
         "onboardingDone": true,
         "quest": "q_initiation_pay",
-        "coins": 260,
+        "coins": 269,
         "granted": [
-          "onboard:move",
           "onboard:go_street",
           "onboard:talk_razor",
           "onboard:visit_cemetery",
@@ -80,12 +79,12 @@
       "reload_keeps_progress",
       true,
       {
-        "coinsBefore": 260,
+        "coinsBefore": 269,
         "stepBefore": 6,
         "after": {
           "step": 6,
           "done": true,
-          "coins": 260,
+          "coins": 269,
           "quest": "q_initiation_pay"
         }
       }

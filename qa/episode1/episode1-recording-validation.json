@@ -1,7 +1,7 @@
 {
-  "videoPath": "/opt/cursor/artifacts/episode1-youtube-full.webm",
-  "durationSec": 739.72,
-  "lastMarkSec": 698.057,
+  "videoPath": "qa/episode1/episode1-youtube.mp4",
+  "durationSec": 1161.76,
+  "lastMarkSec": 1150.372,
   "frameCount": 16,
   "contactSheet": "qa/episode1/contact-sheet.png",
   "frames": [
@@ -12,78 +12,265 @@
     },
     {
       "label": "char_select",
-      "sec": 32.931,
-      "path": "qa/episode1/frames/0032s_char_select.png"
+      "sec": 23.595,
+      "path": "qa/episode1/frames/0023s_char_select.png"
     },
     {
       "label": "start_overlay",
-      "sec": 32.932,
-      "path": "qa/episode1/frames/0032s_start_overlay.png"
+      "sec": 23.845,
+      "path": "qa/episode1/frames/0023s_start_overlay.png"
     },
     {
       "label": "start_game",
-      "sec": 40.449,
-      "path": "qa/episode1/frames/0040s_start_game.png"
+      "sec": 27.052,
+      "path": "qa/episode1/frames/0027s_start_game.png"
     },
     {
       "label": "tutorial_move",
-      "sec": 91.122,
-      "path": "qa/episode1/frames/0091s_tutorial_move.png"
+      "sec": 127.93,
+      "path": "qa/episode1/frames/0127s_tutorial_move.png"
     },
     {
       "label": "tutorial_street",
-      "sec": 164.121,
-      "path": "qa/episode1/frames/0164s_tutorial_street.png"
+      "sec": 248.281,
+      "path": "qa/episode1/frames/0248s_tutorial_street.png"
     },
     {
       "label": "razor_talk",
-      "sec": 214.091,
-      "path": "qa/episode1/frames/0214s_razor_talk.png"
+      "sec": 299.077,
+      "path": "qa/episode1/frames/0299s_razor_talk.png"
     },
     {
       "label": "quest_journal",
-      "sec": 291.801,
-      "path": "qa/episode1/frames/0291s_quest_journal.png"
+      "sec": 408.087,
+      "path": "qa/episode1/frames/0408s_quest_journal.png"
     },
     {
       "label": "tutorial_cemetery",
-      "sec": 353.966,
-      "path": "qa/episode1/frames/0353s_tutorial_cemetery.png"
+      "sec": 540.839,
+      "path": "qa/episode1/frames/0540s_tutorial_cemetery.png"
     },
     {
       "label": "tutorial_duel",
-      "sec": 408.787,
-      "path": "qa/episode1/frames/0408s_tutorial_duel.png"
+      "sec": 686.204,
+      "path": "qa/episode1/frames/0686s_tutorial_duel.png"
     },
     {
       "label": "tutorial_duel_result",
-      "sec": 471.775,
-      "path": "qa/episode1/frames/0471s_tutorial_duel_result.png"
+      "sec": 750.002,
+      "path": "qa/episode1/frames/0750s_tutorial_duel_result.png"
     },
     {
       "label": "shop_open",
-      "sec": 531.55,
-      "path": "qa/episode1/frames/0531s_shop_open.png"
+      "sec": 901.837,
+      "path": "qa/episode1/frames/0901s_shop_open.png"
     },
     {
       "label": "shop_buy",
-      "sec": 559.161,
-      "path": "qa/episode1/frames/0559s_shop_buy.png"
+      "sec": 951.379,
+      "path": "qa/episode1/frames/0951s_shop_buy.png"
     },
     {
       "label": "onboarding_reward",
-      "sec": 572.614,
-      "path": "qa/episode1/frames/0572s_onboarding_reward.png"
+      "sec": 988.189,
+      "path": "qa/episode1/frames/0988s_onboarding_reward.png"
     },
     {
       "label": "propiska_intro",
-      "sec": 657.653,
-      "path": "qa/episode1/frames/0657s_propiska_intro.png"
+      "sec": 1093.221,
+      "path": "qa/episode1/frames/1093s_propiska_intro.png"
     },
     {
       "label": "reload_continue",
-      "sec": 698.057,
-      "path": "qa/episode1/frames/0698s_reload_continue.png"
+      "sec": 1150.372,
+      "path": "qa/episode1/frames/1150s_reload_continue.png"
+    }
+  ],
+  "audioWindows": [
+    {
+      "startSec": 27,
+      "windowSec": 30,
+      "meanVolumeDb": -7.5
+    },
+    {
+      "startSec": 57,
+      "windowSec": 30,
+      "meanVolumeDb": -7.5
+    },
+    {
+      "startSec": 87,
+      "windowSec": 30,
+      "meanVolumeDb": -7.6
+    },
+    {
+      "startSec": 117,
+      "windowSec": 30,
+      "meanVolumeDb": -7.5
+    },
+    {
+      "startSec": 147,
+      "windowSec": 30,
+      "meanVolumeDb": -7.5
+    },
+    {
+      "startSec": 177,
+      "windowSec": 30,
+      "meanVolumeDb": -11.4
+    },
+    {
+      "startSec": 207,
+      "windowSec": 30,
+      "meanVolumeDb": -7.9
+    },
+    {
+      "startSec": 237,
+      "windowSec": 30,
+      "meanVolumeDb": -7.8
+    },
+    {
+      "startSec": 267,
+      "windowSec": 30,
+      "meanVolumeDb": -22.7
+    },
+    {
+      "startSec": 297,
+      "windowSec": 30,
+      "meanVolumeDb": -25
+    },
+    {
+      "startSec": 327,
+      "windowSec": 30,
+      "meanVolumeDb": -25.3
+    },
+    {
+      "startSec": 357,
+      "windowSec": 30,
+      "meanVolumeDb": -25
+    },
+    {
+      "startSec": 387,
+      "windowSec": 30,
+      "meanVolumeDb": -14.9
+    },
+    {
+      "startSec": 417,
+      "windowSec": 30,
+      "meanVolumeDb": -7.8
+    },
+    {
+      "startSec": 447,
+      "windowSec": 30,
+      "meanVolumeDb": -8.2
+    },
+    {
+      "startSec": 477,
+      "windowSec": 30,
+      "meanVolumeDb": -28.6
+    },
+    {
+      "startSec": 507,
+      "windowSec": 30,
+      "meanVolumeDb": -28.7
+    },
+    {
+      "startSec": 537,
+      "windowSec": 30,
+      "meanVolumeDb": -28.7
+    },
+    {
+      "startSec": 567,
+      "windowSec": 30,
+      "meanVolumeDb": -27.4
+    },
+    {
+      "startSec": 597,
+      "windowSec": 30,
+      "meanVolumeDb": -12
+    },
+    {
+      "startSec": 627,
+      "windowSec": 30,
+      "meanVolumeDb": -7.8
+    },
+    {
+      "startSec": 657,
+      "windowSec": 30,
+      "meanVolumeDb": -10.6
+    },
+    {
+      "startSec": 687,
+      "windowSec": 30,
+      "meanVolumeDb": -23.6
+    },
+    {
+      "startSec": 717,
+      "windowSec": 30,
+      "meanVolumeDb": -23.6
+    },
+    {
+      "startSec": 747,
+      "windowSec": 30,
+      "meanVolumeDb": -23.6
+    },
+    {
+      "startSec": 777,
+      "windowSec": 30,
+      "meanVolumeDb": -23.9
+    },
+    {
+      "startSec": 807,
+      "windowSec": 30,
+      "meanVolumeDb": -24.1
+    },
+    {
+      "startSec": 837,
+      "windowSec": 30,
+      "meanVolumeDb": -25.5
+    },
+    {
+      "startSec": 867,
+      "windowSec": 30,
+      "meanVolumeDb": -23.8
+    },
+    {
+      "startSec": 897,
+      "windowSec": 30,
+      "meanVolumeDb": -31.5
+    },
+    {
+      "startSec": 927,
+      "windowSec": 30,
+      "meanVolumeDb": -31.2
+    },
+    {
+      "startSec": 957,
+      "windowSec": 30,
+      "meanVolumeDb": -31.2
+    },
+    {
+      "startSec": 987,
+      "windowSec": 30,
+      "meanVolumeDb": -30.6
+    },
+    {
+      "startSec": 1017,
+      "windowSec": 30,
+      "meanVolumeDb": -29.2
+    },
+    {
+      "startSec": 1047,
+      "windowSec": 30,
+      "meanVolumeDb": -29.2
+    },
+    {
+      "startSec": 1077,
+      "windowSec": 30,
+      "meanVolumeDb": -29.6
+    },
+    {
+      "startSec": 1107,
+      "windowSec": 30,
+      "meanVolumeDb": -38.5
     }
   ],
   "ok": true,

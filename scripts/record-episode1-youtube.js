@@ -11,7 +11,8 @@ const { start, stop } = require("./local-static-server");
 const H = require("./playthrough-ui-helpers");
 const Flow = require("./episode1-ui-flow");
 const { validateEpisode1Recording, probeDuration } = require("./validate-episode1-recording");
-const { muxVideoWithAudio, concatAudioParts, makeSilenceWav } = require("./episode1-audio-mux");
+const { muxVideoWithAudio, normalizeAudioLufs } = require("./episode1-audio-mux");
+const audioIngest = require("./episode1-audio-ingest");
 
 const outDir = path.join(__dirname, "../qa/episode1");
 const artifactDir = "/opt/cursor/artifacts";
@@ -62,47 +63,68 @@ function ffprobeSummary(filePath) {
   }
 }
 
-async function startInPageAudioRecorder(page) {
-  await page.waitForFunction(() => window.AudioManager?.isUnlocked?.(), { timeout: 15000 }).catch(() => {});
-  return page.evaluate(async () => {
-    await window.AudioManager?.unlockAudio?.();
-    const stream = window.AudioManager?.installCaptureTap?.();
-    if (!stream) return { ok: false, reason: "no tap" };
-    window.__ep1AudioChunks = [];
-    const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-      ? "audio/webm;codecs=opus"
-      : "audio/webm";
-    const rec = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 128000 });
-    rec.ondataavailable = e => {
-      if (e.data?.size) window.__ep1AudioChunks.push(e.data);
+async function injectEpisodeAudioBridge(context, port) {
+  await context.addInitScript(p => {
+    const segmentEndpoint = `http://127.0.0.1:${p}/segment`;
+    window.__ep1AudioEndpoint = segmentEndpoint;
+    window.__ep1CaptureActive = false;
+    window.__ep1StartAudioCapture = async function resume() {
+      await window.AudioManager?.unlockAudio?.();
+      const loc = window.me?.location || "room";
+      window.AudioManager?.setLocationMusic?.(loc);
+      window.AudioManager?.setChannelVolume?.("music", 0.82);
+      window.AudioManager?.setChannelVolume?.("sfx", 0.88);
+      window.AudioManager?.setChannelVolume?.("speech", 0.9);
+      const stream = window.AudioManager?.installCaptureTap?.();
+      if (!stream) return { ok: false };
+      if (window.__ep1AudioRecorder) {
+        try {
+          window.__ep1AudioRecorder.stop();
+        } catch (e) {}
+      }
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      const rec = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 160000 });
+      const blobs = [];
+      rec.ondataavailable = e => {
+        if (e.data?.size) blobs.push(e.data);
+      };
+      rec.onstop = () => {
+        const body = new Blob(blobs, { type: mime });
+        if (body.size > 256) {
+          fetch(segmentEndpoint, { method: "POST", body, mode: "cors" }).catch(() => {});
+        }
+      };
+      rec.start();
+      window.__ep1AudioRecorder = rec;
+      window.__ep1CaptureActive = true;
+      return { ok: true, resume: !!resume };
     };
-    rec.start(250);
-    window.__ep1AudioRecorder = rec;
-    return { ok: true, mime, tracks: stream.getAudioTracks().length };
-  });
-}
-
-async function stopInPageAudioRecorder(page, destPath) {
-  const b64 = await page.evaluate(async () => {
-    const rec = window.__ep1AudioRecorder;
-    if (!rec) return null;
-    await new Promise(resolve => {
-      rec.onstop = resolve;
-      rec.stop();
+    window.__ep1StopAudioCapture = async function () {
+      window.__ep1CaptureActive = false;
+      const rec = window.__ep1AudioRecorder;
+      if (!rec || rec.state === "inactive") return;
+      await new Promise(resolve => {
+        const prev = rec.onstop;
+        rec.onstop = () => {
+          if (typeof prev === "function") prev();
+          resolve();
+        };
+        try {
+          rec.stop();
+        } catch (e) {
+          resolve();
+        }
+      });
+      window.__ep1AudioRecorder = null;
+    };
+    window.addEventListener("pageshow", () => {
+      if (window.__ep1CaptureActive && document.documentElement.classList.contains("episode-capture")) {
+        window.__ep1StartAudioCapture(true);
+      }
     });
-    const blob = new Blob(window.__ep1AudioChunks || [], { type: rec.mimeType || "audio/webm" });
-    const buf = await blob.arrayBuffer();
-    let binary = "";
-    const bytes = new Uint8Array(buf);
-    const chunk = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunk) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-    }
-    return btoa(binary);
-  });
-  if (!b64) return false;
-  fs.writeFileSync(destPath, Buffer.from(b64, "base64"));
-  return fs.statSync(destPath).size > 200;
+  }, port);
 }
 
 function publishDeliverables(videoOnly, webmOut, mp4Out, meta) {
@@ -153,8 +175,17 @@ async function main() {
     process.exit(1);
   }
   const base = process.env.PUNK_BASE || await start();
+  const rawAudioPath = path.join(outDir, "episode1-youtube-audio-raw.webm");
+  const audioPort = await audioIngest.start(rawAudioPath);
   const videoDir = path.join(outDir, "youtube-capture-raw");
   fs.mkdirSync(videoDir, { recursive: true });
+  for (const f of fs.readdirSync(videoDir)) {
+    if (f.endsWith(".webm")) {
+      try {
+        fs.unlinkSync(path.join(videoDir, f));
+      } catch (e) {}
+    }
+  }
   const browser = await chromium.launch();
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
@@ -164,20 +195,21 @@ async function main() {
   await context.addInitScript(() => {
     document.documentElement.classList.add("episode-capture");
   });
+  await injectEpisodeAudioBridge(context, audioPort);
   const page = await context.newPage();
   try {
     fs.unlinkSync(path.join(outDir, "episode1-youtube-marks.jsonl"));
   } catch (e) {}
   t0 = Date.now();
   mark("boot", "solo new player");
-  await H.bootSolo(page, base, "yt-ep1-full");
+  await H.bootSolo(page, base, "yt-ep1-full", { episodeCapture: true });
   await H.pickCobaltUi(page);
   mark("char_select", "Cobalt");
   mark("start_overlay", "Episode 1 intro lines");
   await page.locator("#btnStartGame").click({ force: true, timeout: 20000 });
   mark("start_game", "audio unlock gesture");
-  const audioMeta = await startInPageAudioRecorder(page);
-  if (!audioMeta?.ok) console.warn("episode1 audio tap:", audioMeta);
+  const audioMeta = await page.evaluate(() => window.__ep1StartAudioCapture());
+  if (!audioMeta?.ok) console.warn("episode1 audio capture:", audioMeta);
   await H.sleep(1200);
 
   await Flow.runFullEpisode1Ui(page, {
@@ -188,21 +220,17 @@ async function main() {
     snapTag: "youtube"
   });
 
-  const audioA = path.join(outDir, "episode1-youtube-audio-a.webm");
-  const audioStopSec = (Date.now() - t0) / 1000;
-  const hadAudioA = await stopInPageAudioRecorder(page, audioA).catch(() => false);
-
   const reload = await Flow.reloadAndContinue(page);
-  const audioRestartSec = (Date.now() - t0) / 1000;
   mark(
     "reload_continue",
     `onboarding.done=${reload.after.done} quest=${reload.after.quest} coins ${reload.after.coins} (was ${reload.coinsBefore})`
   );
 
-  await startInPageAudioRecorder(page);
   await H.sleep(3500);
-  const audioB = path.join(outDir, "episode1-youtube-audio-b.webm");
-  const hadAudioB = await stopInPageAudioRecorder(page, audioB).catch(() => false);
+  await page.evaluate(() => window.__ep1StopAudioCapture());
+  await new Promise(r => setTimeout(r, 3000));
+  audioIngest.finalizeConcat();
+  audioIngest.stop();
 
   await context.close();
   await browser.close();
@@ -216,18 +244,11 @@ async function main() {
   if (!webmRaw) throw new Error("no Playwright recordVideo output");
   fs.copyFileSync(path.join(videoDir, webmRaw), videoOnly);
 
-  const tmpAudio = path.join(outDir, "episode1-audio-tmp");
-  const silenceWav = path.join(tmpAudio, "reload-gap.wav");
-  const gapSec = Math.max(0, audioRestartSec - audioStopSec);
-  const parts = [];
-  if (hadAudioA) parts.push(audioA);
-  if (gapSec > 0.1) {
-    makeSilenceWav(silenceWav, gapSec);
-    if (fs.existsSync(silenceWav)) parts.push(silenceWav);
+  const audioPath = path.join(outDir, "episode1-youtube-audio-norm.m4a");
+  const hadAudio = fs.existsSync(rawAudioPath) && fs.statSync(rawAudioPath).size > 8000;
+  if (hadAudio) {
+    normalizeAudioLufs(rawAudioPath, audioPath);
   }
-  if (hadAudioB) parts.push(audioB);
-  const audioPath = path.join(outDir, "episode1-youtube-audio.webm");
-  const hadAudio = concatAudioParts(parts, audioPath, tmpAudio);
 
   const mp4 = path.join(outDir, "episode1-youtube.mp4");
   const webmOut = path.join(outDir, "episode1-youtube.webm");
@@ -249,8 +270,7 @@ async function main() {
   const meta = {
     marks,
     hadAudio,
-    audioStopSec,
-    audioRestartSec,
+    rawAudioBytes: hadAudio ? fs.statSync(rawAudioPath).size : 0,
     rawVideoDurationSec: rawVideoDur,
     deliverableWebmDurationSec: webmDur,
     deliverableMp4DurationSec: mp4Dur,
@@ -261,13 +281,13 @@ async function main() {
   meta.marks = marks;
   fs.writeFileSync(path.join(outDir, "episode1-youtube-meta.json"), JSON.stringify(meta, null, 2));
 
-  validateEpisode1Recording(
-    process.env.VALIDATE_FULL
+  const validatePath =
+    process.env.VALIDATE_FULL && fs.existsSync(path.join(artifactDir, "episode1-youtube-full.webm"))
       ? path.join(artifactDir, "episode1-youtube-full.webm")
-      : webmOut,
-    marks,
-    outDir
-  );
+      : hadAudio && fs.existsSync(mp4)
+        ? mp4
+        : webmOut;
+  validateEpisode1Recording(validatePath, marks, outDir);
 
   if (process.env.SKIP_PUBLISH !== "1") {
     publishDeliverables(videoOnly, webmOut, mp4, meta);
@@ -304,7 +324,10 @@ async function main() {
 
   console.log("Wrote", deliverable, sizeMb.toFixed(2), "MB", `duration=${webmDur.toFixed(3)}s`);
   console.log(meta.probeWebm);
-  if (!process.env.PUNK_BASE) stop();
+  if (!process.env.PUNK_BASE) {
+    stop();
+    audioIngest.stop();
+  }
 }
 
 main().catch(e => {

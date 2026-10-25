@@ -5,8 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v22r6-master-p1-r1">
+<link rel="stylesheet" href="css/game.css?v=episode1-capture-1">
 <link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r6-master-p1-r1">
+<script>
+(function () {
+  if (/\bepisodeCapture=1\b/.test(location.search)) {
+    document.documentElement.classList.add("episode-capture");
+  }
+})();
+</script>
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">

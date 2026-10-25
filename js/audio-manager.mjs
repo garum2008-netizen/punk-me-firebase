@@ -96,6 +96,7 @@ export function createAudioManager() {
   let currentMusicKey = null;
   let ducking = false;
   let captureDest = null;
+  let captureGain = null;
 
   const buffers = new Map();
   const speechQueue = [];
@@ -548,7 +549,10 @@ export function createAudioManager() {
     if (!ensureGraph()) return null;
     if (!captureDest) {
       captureDest = ctx.createMediaStreamDestination();
-      masterGain.node.connect(captureDest);
+      captureGain = ctx.createGain();
+      captureGain.gain.value = 5.5;
+      masterGain.node.connect(captureGain);
+      captureGain.connect(captureDest);
     }
     return captureDest.stream;
   }

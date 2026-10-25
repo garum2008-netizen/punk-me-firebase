@@ -61,6 +61,7 @@ async function travelTo(page, locId, recordPacing) {
   } else {
     await H.navGo(page, locId);
   }
+  await page.evaluate(id => window.AudioManager?.setLocationMusic?.(id), locId);
 }
 
 async function runFullEpisode1Ui(page, opts = {}) {
@@ -163,11 +164,20 @@ async function runFullEpisode1Ui(page, opts = {}) {
 async function reloadAndContinue(page) {
   const coinsBefore = await page.evaluate(() => window.me?.coins ?? 0);
   const stepBefore = await page.evaluate(() => window.me?.onboarding?.step);
+  await page.evaluate(async () => {
+    await window.__ep1StopAudioCapture?.();
+  });
+  await page.evaluate(() => {
+    window.__ep1CaptureActive = true;
+  });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__playerLoaded, { timeout: 120000 });
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     window.__force2dFight = true;
     document.documentElement.classList.add("episode-capture");
+    window.__ep1CaptureActive = true;
+    await window.__ep1StartAudioCapture?.(true);
+    window.AudioManager?.setLocationMusic?.(window.me?.location || "room");
   });
   await H.sleep(2000);
   const after = await page.evaluate(() => ({

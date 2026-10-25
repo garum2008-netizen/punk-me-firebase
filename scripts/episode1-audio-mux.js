@@ -82,4 +82,25 @@ function muxVideoWithAudio(videoPath, audioPath, outPath, { videoCodec = "copy",
   return { videoDurationSec: vDur, audioDurationSec: aDur };
 }
 
-module.exports = { muxVideoWithAudio, concatAudioParts, makeSilenceWav };
+function normalizeAudioLufs(inPath, outPath, targetI = -13) {
+  const r = spawnSync(
+    "ffmpeg",
+    [
+      "-y",
+      "-i",
+      inPath,
+      "-af",
+      `loudnorm=I=${targetI}:TP=-1.5:LRA=7,volume=18dB`,
+      "-c:a",
+      "aac",
+      "-b:a",
+      "192k",
+      outPath
+    ],
+    { encoding: "utf8" }
+  );
+  if (r.status !== 0) throw new Error(r.stderr || r.stdout || "loudnorm failed");
+  return outPath;
+}
+
+module.exports = { muxVideoWithAudio, concatAudioParts, makeSilenceWav, normalizeAudioLufs };

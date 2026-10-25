@@ -59,6 +59,43 @@ function layoutGrid() {
   return "";
 }
 
+function measureWindowMeanDb(mediaPath, startSec, windowSec) {
+  const r = spawnSync(
+    "ffmpeg",
+    [
+      "-hide_banner",
+      "-ss",
+      String(Math.max(0, startSec)),
+      "-t",
+      String(windowSec),
+      "-i",
+      mediaPath,
+      "-af",
+      "volumedetect",
+      "-f",
+      "null",
+      "-"
+    ],
+    { encoding: "utf8" }
+  );
+  const blob = `${r.stdout || ""}\n${r.stderr || ""}`;
+  const m = blob.match(/mean_volume:\s*([-\d.]+)\s*dB/);
+  return m ? parseFloat(m[1]) : -99;
+}
+
+function validateAudioWindows(mediaPath, marks, durationSec) {
+  const startMark = marks.find(m => m.label === "start_game");
+  const startSec = startMark ? Number(startMark.sec) : 0;
+  const windows = [];
+  const errors = [];
+  for (let t = Math.floor(startSec); t + 30 <= durationSec; t += 30) {
+    const mean = measureWindowMeanDb(mediaPath, t, 30);
+    windows.push({ startSec: t, windowSec: 30, meanVolumeDb: mean });
+    if (mean <= -40) errors.push(`audio@${t}s mean_volume=${mean}dB (need > -40)`);
+  }
+  return { windows, errors };
+}
+
 /**
  * @param {string} videoPath
  * @param {{ sec: number, label: string }[]} marks
@@ -112,6 +149,9 @@ function validateEpisode1Recording(videoPath, marks, qaDir) {
     if (r.status !== 0) errors.push(`contact-sheet build failed: ${r.stderr || r.stdout}`);
   }
 
+  const audioCheck = validateAudioWindows(videoPath, marks, duration);
+  errors.push(...audioCheck.errors);
+
   const report = {
     videoPath,
     durationSec: duration,
@@ -119,6 +159,7 @@ function validateEpisode1Recording(videoPath, marks, qaDir) {
     frameCount: framePaths.length,
     contactSheet: contact,
     frames: frameMeta,
+    audioWindows: audioCheck.windows,
     ok: errors.length === 0,
     errors
   };
