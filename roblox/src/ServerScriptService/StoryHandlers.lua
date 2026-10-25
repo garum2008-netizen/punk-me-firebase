@@ -264,7 +264,6 @@ function StoryHandlers.handleEnding(profile: ProfileSchema.Profile, endingId: st
 			local g = QuestEngine.grantReward(profile.story, ending.grantKey)
 			applyGrants(profile, g)
 		end
-		profile.story.freePlay = true
 		local world = workspace:FindFirstChild("World")
 		if world and world:IsA("Folder") then
 			WorldState.applyEnding(world, endingId)
