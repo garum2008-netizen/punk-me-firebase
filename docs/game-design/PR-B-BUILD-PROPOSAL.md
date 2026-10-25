@@ -1,6 +1,6 @@
 # PR B proposal — building layer (Roblox / Avatar World style)
 
-**Status:** proposal only (not implemented in PR A).  
+**Status:** implemented in `cursor/pr-b-build-d81d` (PR B).  
 **Canon:** chapters 0–4 unchanged; mechanics overlay existing quests.
 
 ## Chapter 2 — «Своя точка»

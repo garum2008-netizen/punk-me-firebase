@@ -5,8 +5,5 @@ qa-out/
 database-debug.log
 firebase-debug.log
 .worktrees/
-qa/episode1/youtube-capture-raw/
-qa/episode1/*.webm
-qa/episode1/*.mp4
-qa/episode1/episode1-audio*/
-qa/episode1/episode1-youtube*
+qa/episode1/
+assets/audio/music/_dl/

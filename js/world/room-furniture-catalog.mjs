@@ -28,7 +28,9 @@ export const FURNITURE_CATALOG = [
   { id: "tv", label: "TV" },
   { id: "bed", label: "Bed" },
   { id: "neon_sign", label: "Neon sign" },
-  { id: "skull_lamp", label: "Skull lamp" }
+  { id: "skull_lamp", label: "Skull lamp" },
+  { id: "urn", label: "Urn" },
+  { id: "crypt_bench", label: "Crypt bench" }
 ];
 
 export function buildFurnitureMesh(type) {
@@ -138,6 +140,24 @@ export function buildFurnitureMesh(type) {
       const tube = box(0.9, 0.12, 0.03, mat(0xff00ff, 0xff00ff));
       tube.position.set(0, 0.55, 0.06);
       g.add(sign, tube);
+      break;
+    }
+    case "urn": {
+      const base = box(0.28, 0.45, 0.28, mat(0x5a5a68));
+      base.position.y = 0.22;
+      const lid = box(0.3, 0.08, 0.3, mat(0x6a6a78));
+      lid.position.y = 0.48;
+      g.add(base, lid);
+      break;
+    }
+    case "crypt_bench": {
+      const seat = box(1.2, 0.12, 0.45, mat(0x4a4a55));
+      seat.position.y = 0.35;
+      const legL = box(0.1, 0.35, 0.4, mat(0x3a3a44));
+      legL.position.set(-0.5, 0.18, 0);
+      const legR = legL.clone();
+      legR.position.x = 0.5;
+      g.add(seat, legL, legR);
       break;
     }
     case "skull_lamp": {

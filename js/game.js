@@ -438,6 +438,9 @@ function migratePlayerFromSave(raw) {
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
   if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
+  try {
+    window.__migrateBuildSave?.(v);
+  } catch (e) {}
   return v;
 }
 
@@ -1671,7 +1674,15 @@ function doJob(action) {
 
 function runJobAction(action) {
   if (action === "cemetery_night") {
-    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe });
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe }, "night");
+    return;
+  }
+  if (action === "dig") {
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe }, "paths");
+    return;
+  }
+  if (action === "cobwebs") {
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe }, "lamps");
     return;
   }
   if (action === "pizza_delivery") {
@@ -1691,7 +1702,7 @@ function runJobAction(action) {
     runParkourJob();
     return;
   }
-  const cemeteryActions = ["dig", "cobwebs", "clean", "water"];
+  const cemeteryActions = ["clean", "water"];
   if (!cemeteryActions.includes(action)) return;
   if (me.location !== "cemetery") {
     pendingJobAction = action;

@@ -14,6 +14,9 @@
     "test:emulator": "node scripts/run-emulator-integration.js",
     "generate:audio": "node scripts/generate-audio-assets.mjs",
     "test:pr-a": "node scripts/test-pr-a-quality.js",
+    "test:pr-b": "node scripts/test-pr-b-build.js",
+    "download:music": "node scripts/download-licensed-music.mjs",
+    "record:pr-b": "node scripts/record-pr-b-playthrough.js",
     "proof:idle": "node scripts/proof-idle-stability.js"
   },
   "devDependencies": {
