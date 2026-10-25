@@ -1,0 +1,12 @@
+[error] Failed to load resource: the server responded with a status of 404 ()
+[warning] [2026-10-25T19:22:26.868Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/qSVVnnvCTKPWc9OwxwpTSKVKief2 failed: permission_denied 
+[warning] Presence disabled: write
+[warning] [2026-10-25T19:22:29.416Z]  @firebase/database: FIREBASE WARNING: set at /publicProfiles/qSVVnnvCTKPWc9OwxwpTSKVKief2 failed: permission_denied 
+[warning] [2026-10-25T19:22:29.417Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/qSVVnnvCTKPWc9OwxwpTSKVKief2 failed: permission_denied 
+[warning] [2026-10-25T19:22:29.670Z]  @firebase/database: FIREBASE WARNING: set at /publicProfiles/qSVVnnvCTKPWc9OwxwpTSKVKief2 failed: permission_denied 
+[warning] [2026-10-25T19:22:29.671Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/qSVVnnvCTKPWc9OwxwpTSKVKief2 failed: permission_denied 
+[warning] [2026-10-25T19:22:41.837Z]  @firebase/database: FIREBASE WARNING: set at /publicProfiles/qSVVnnvCTKPWc9OwxwpTSKVKief2 failed: permission_denied 
+[warning] [2026-10-25T19:22:41.842Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/qSVVnnvCTKPWc9OwxwpTSKVKief2 failed: permission_denied 
+[warning] Presence disabled: write
+[warning] [2026-10-25T19:22:41.843Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/qSVVnnvCTKPWc9OwxwpTSKVKief2 failed: permission_denied 
+[warning] [2026-10-25T19:22:41.863Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/qSVVnnvCTKPWc9OwxwpTSKVKief2 failed: permission_denied 

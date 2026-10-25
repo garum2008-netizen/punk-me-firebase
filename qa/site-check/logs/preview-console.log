@@ -1,0 +1,21 @@
+[error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[warning] [2026-10-25T19:23:04.012Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] presence set: PERMISSION_DENIED
+[warning] Presence disabled: write
+[warning] [2026-10-25T19:23:04.033Z]  @firebase/database: FIREBASE WARNING: set at /publicProfiles/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] [2026-10-25T19:23:04.033Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] presence set: PERMISSION_DENIED
+[warning] [2026-10-25T19:23:04.033Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] presence set: PERMISSION_DENIED
+[warning] [2026-10-25T19:23:04.035Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] [2026-10-25T19:23:04.175Z]  @firebase/database: FIREBASE WARNING: set at /publicProfiles/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] [2026-10-25T19:23:04.175Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] presence set: PERMISSION_DENIED
+[warning] [2026-10-25T19:23:04.175Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] [2026-10-25T19:23:17.539Z]  @firebase/database: FIREBASE WARNING: set at /publicProfiles/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] [2026-10-25T19:23:17.539Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] presence set: PERMISSION_DENIED
+[warning] Presence disabled: write
+[warning] [2026-10-25T19:23:17.539Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] [2026-10-25T19:23:17.693Z]  @firebase/database: FIREBASE WARNING: set at /presence/room/7zpRXcIMToT6Pv461JsrWdZXP213 failed: permission_denied 
+[warning] presence set: PERMISSION_DENIED
