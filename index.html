@@ -108,6 +108,15 @@
       </div>
     </div>
   </div>
+  <div id="concertPrep" class="story-dialog-panel-wrap" aria-hidden="true" role="dialog" aria-modal="true" style="display:none">
+    <div class="story-dialog-panel" style="max-width:420px;margin:12vh auto">
+      <div class="story-dialog-title" data-i18n="concert_prep_title">Концерт у Колокола</div>
+      <p class="ending-preview" data-i18n="concert_prep_hint">Кто выведет банду на сцену?</p>
+      <button type="button" class="btn" data-headliner="family" data-i18n="concert_headliner_family">Семья Мёртвиновых</button>
+      <button type="button" class="btn secondary" data-headliner="zombina" data-i18n="concert_headliner_zombina">Зомбина и банда</button>
+      <button type="button" class="btn secondary" data-headliner="count" data-i18n="concert_headliner_count">Граф (сюрприз)</button>
+    </div>
+  </div>
   <div id="storyConstructionHud" aria-live="polite">
     <div class="stage-name"></div>
     <div class="need-line"></div>
@@ -360,11 +369,24 @@
   initAudioManager();
   initAudioSettingsUi();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
-  await import("./js/story/story-endings.mjs?v=story-endings-2");
+  await import("./js/story/story-endings.mjs?v=story-endings-3");
+  await import("./js/story/ending-resolve.mjs?v=ending-resolve-1");
+  await import("./js/story/castle-gameplay.mjs?v=castle-gp-1");
   await import("./js/story/story-scenes.mjs?v=story-scenes-1");
   await import("./js/story/story-checkpoints.mjs?v=story-checkpoints-1");
   await import("./js/story/angelina-guide.mjs?v=angelina-1");
   await import("./js/story/quest-catalog.mjs?v=quest-catalog-1").then(m => m.loadQuestCatalog());
+  const concertEl = document.getElementById("concertPrep");
+  concertEl?.querySelectorAll("[data-headliner]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      concertEl.style.display = "none";
+      concertEl.classList.remove("active");
+      window.CastleGameplay?.confirmConcertPrep?.(btn.dataset.headliner, {
+        toast: m => window.toast?.(m),
+        save: () => window.saveMe?.()
+      });
+    });
+  });
   document.querySelectorAll("#endingChoice [data-ending]").forEach(btn => {
     btn.addEventListener("click", () => window.StoryEndings?.applyEnding(window.me, btn.dataset.ending, {
       toast: m => window.toast?.(m),

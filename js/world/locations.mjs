@@ -29,6 +29,7 @@ import { addV21Clutter } from "./location-clutter-v21.mjs";
 import { addShowcaseProps } from "./location-showcase-props.mjs";
 import { addOriginalBandPoster } from "./original-punk-props.mjs";
 import { buildHangoutVisual } from "./construction-hangout.mjs";
+import { addCastleScene, applyCastleEndingVisual } from "./castle-location.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
 export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
@@ -101,6 +102,7 @@ export const LOCATION_BOUNDS = {
   city: { minX: -10, maxX: 10, minZ: -9, maxZ: 9 },
   parkour: { minX: -8, maxX: 8, minZ: -10, maxZ: 10 },
   construction: { minX: -11, maxX: 11, minZ: -10, maxZ: 10 },
+  castle: { minX: -13, maxX: 13, minZ: -11, maxZ: 11 },
   default: { minX: -8, maxX: 8, minZ: -8, maxZ: 8 }
 };
 
@@ -115,7 +117,8 @@ export const NPC_WORLD = {
     mohawk: { x: -2, z: 2.5 },
     vienna: { x: 2, z: 1.5 },
     cobalt: { x: -0.5, z: -1.5 },
-    ghost: { x: 5, z: 3 }
+    ghost: { x: 5, z: 3 },
+    rookie: { x: 5.5, z: -2.2 }
   },
   roof: {
     mohawk: { x: -1.5, z: 2 }
@@ -137,6 +140,13 @@ export const NPC_WORLD = {
   construction: {
     foreman: { x: -3.5, z: 1.5 },
     vintik: { x: 3.8, z: 2.2 }
+  },
+  castle: {
+    count: { x: -2, z: 0.5 },
+    vienna: { x: 5, z: 3 },
+    razor: { x: 2, z: 4 },
+    mohawk: { x: 8, z: -2 },
+    rookie: { x: 6, z: 6 }
   }
 };
 
@@ -191,6 +201,14 @@ export const NPC_PATROL = {
       { x: -2, z: 2.5 }
     ]
   },
+  castle: {
+    count: [
+      { x: -2, z: 0.5 },
+      { x: -4, z: 2 },
+      { x: 0, z: -1 },
+      { x: -2, z: 0.5 }
+    ]
+  },
   cemetery: {
     cobalt: [
       { x: -4, z: -1 },
@@ -233,7 +251,12 @@ export const PORTALS = {
     { to: "street", labelKey: "door_street", x: -8, z: 7, r: 1.5 },
     { to: "construction", labelKey: "door_construction", x: 8, z: -6, r: 1.5 }
   ],
-  construction: [{ to: "city", labelKey: "door_city", x: 0, z: 8.5, r: 1.5 }]
+  construction: [{ to: "city", labelKey: "door_city", x: 0, z: 8.5, r: 1.5 }],
+  cemetery: [
+    { to: "street", labelKey: "door_street", x: -9, z: 0, r: 1.5 },
+    { to: "castle", labelKey: "door_castle", x: 9, z: -3, r: 1.6 }
+  ],
+  castle: [{ to: "cemetery", labelKey: "door_cemetery", x: 0, z: 9.5, r: 1.6 }]
 };
 
 export const LOCATION_THEME = {
@@ -242,6 +265,7 @@ export const LOCATION_THEME = {
   roof: { bg: 0x1a2848, fog: 0x142038, fogD: 0.0045, hemi: 0xaaccff, ground: 0x2a3448 },
   street: { bg: 0x1a1028, fog: 0x140c20, fogD: 0.0082, hemi: 0xff88ff, ground: 0x282038 },
   cemetery: { bg: 0x142018, fog: 0x101818, fogD: 0.0105, hemi: 0x99ffbb, ground: 0x243028 },
+  castle: { bg: 0x0a0818, fog: 0x080612, fogD: 0.012, hemi: 0x9988cc, ground: 0x2a2838 },
   toilet: { bg: 0x182838, fog: 0x121828, fogD: 0.0055, hemi: 0x99ccff, ground: 0x2a3040 },
   elevator: { bg: 0x2a2a38, fog: 0x2a2a38, fogD: 0.11, hemi: 0xccccff, ground: 0x3a3a48 },
   city: { bg: 0x221028, fog: 0x1a0c18, fogD: 0.0055, hemi: 0xff99cc, ground: 0x2a2030 },
@@ -655,6 +679,16 @@ export function buildLocationScene(locId, texLoader) {
       { type: "point", color: 0xffaa66, intensity: 4.5, x: 0, y: 4, z: 0 },
       { type: "point", color: 0xffffcc, intensity: 3.2, x: -6, y: 3, z: -3 }
     ]);
+  } else if (locId === "castle") {
+    const castleHelpers = { wall, neonSign, tiledFloor, pushCollider, colliders };
+    addCastleScene(root, castleHelpers);
+    addLights(root, [
+      { type: "point", color: 0xc9a227, intensity: 3.5, x: -6, y: 6, z: -8 },
+      { type: "point", color: 0xff00ff, intensity: 2.8, x: 4, y: 3.5, z: 2 },
+      { type: "point", color: 0x6688ff, intensity: 2.2, x: 0, y: 4, z: 0 }
+    ]);
+    const ending = window.me?.story?.ending;
+    if (ending) applyCastleEndingVisual(root, ending);
   } else if (locId === "parkour") {
     floor = tiledFloor(16, 22, theme.ground, false);
     root.add(floor);

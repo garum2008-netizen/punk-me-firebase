@@ -87,14 +87,38 @@
 
 **Правило:** новые id только через правку этого файла + `QuestTable.lua` + `quest-table.json` в одном PR/паре PR.
 
+## Обязательные механики по главам (t105u — веб и Roblox)
+
+| gl | Обязательно | Критерий успеха (канон) |
+|----|-------------|-------------------------|
+| 0 | Знакомство, настройка аватара, дом, обучение, Рейзор | `q_ch0_newbie` → шаги `ch0_s_*` / веб: intro + onboarding + razor |
+| 1 | Заработок + взнос 150 **или** настоящая дуэль **или** 8 флаеров | ровно одна ветка `q_initiation_*` → `joined_gang` |
+| 2 | Тусовка: **4 разных игровых этапа** + конфликт с новичком | `hangout_stage>=4` (этапы 1–4 с разными `gameplayId` в `construction-hangout.json`) + `q_ch2_antibully` → `ch2_antibully_resolved` |
+| 3 | Смена, призрак, склеп, Обод (rim) | `q_ch3_cemetery_night` → `bell_rim` |
+| 4 | Язык (Зоя/дом зомби), башня-головоломка, концерт + хедлайнер, кульминация | `bell_tongue_*`, `bell_crown`, `concert_ready` + `concert_headliner`, `graph_truth`, затем `ending_*` |
+
+**Этапы Тусовки (веб, `gameplayId`):** `foundation_materials` → `frame_materials` → `shell_materials` → `punk_finish` (каждый этап — отдельная петля «заработок материалов + постройка», события `hangout_stage_1`…`hangout_stage_4`).
+
+## Концовки: логика, не только кнопка (t105u)
+
+Исход рекомендуется движком (`js/story/ending-resolve.mjs`) по сохранённым **решениям** (`story.decisions`), **отношениям** (`story.rel`), **хедлайнеру** (`flags.concert_headliner`), antibully, ветке Языка. Игрок может выбрать другой `ending_*` в UI — тогда фиксируется `decisions.ending_override`.
+
+| ending id | Сдвигает вес (кратко) |
+|-----------|------------------------|
+| `ending_break_curse` | antibully help, высокий `rel.zombie`, хедлайнер «семья» |
+| `ending_zombie_style` | `bell_tongue_zombie`, высокий `rel.gang_rust`, хедлайнер zombina/банда |
+| `ending_count_deal` | `bell_tongue_zoya`, `rel.count`, хедлайнер count |
+
+У каждой концовки — **своя** сцена, анимация/озвучка, диалоги, музыка, награды (`reward_ending_*`), изменение мира (`castle_club`, `night_shop`, `zombina_npc` и 3D `applyCastleEndingVisual`). Автотесты (`npm run test:*`) **не** заменяют игровую приёмку.
+
 ## Статус реализации (веб preview `cursor/scenario-preview-d81d`)
 
 | Глава | id | Статус |
 |-------|-----|--------|
 | 0 | q_ch0_newbie | интро + onboarding ≈ шаги; мама/аватар — частично |
 | 1 | q_initiation_* | pay/duel/graffiti в data; одна ветка за раз |
-| 2 | q_ch2_hangout | 4 этапа engine; свободная стройка WIP |
-| 2 | q_ch2_antibully | PLANNED диалог |
-| 3 | q_ch3_cemetery_night | смена кладбища; склеп/призрак — частично |
-| 4 | q_ch4_castle | замок 3D блокер; confession + UI концовок |
-| 4 | ending_* | UI + save + награды 1×; сцены финала PLANNED |
+| 2 | q_ch2_hangout | 4 этапа (разные gameplayId); 3D стройка; **не** полная приёмка |
+| 2 | q_ch2_antibully | диалог + save; **не** полная приёмка |
+| 3 | q_ch3_cemetery_night | смена; склеп/призрак — частично; **не** полная приёмка |
+| 4 | q_ch4_castle | локация `castle` 3D WIP: орган, концерт, граф; **не** полная приёмка |
+| 4 | ending_* | scoring + UI; оверлей-сцена; 3D-финал и мир — **не** полная приёмка |

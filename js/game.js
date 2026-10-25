@@ -153,14 +153,23 @@ const LOCATIONS = {
       { x: 85, y: 45, w: 10, h: 18, to: "cemetery", labelKey: "door_cemetery" },
       { x: 45, y: 70, w: 14, h: 14, to: "city", labelKey: "door_city" }
     ],
-    npcs: ["razor", "mohawk", "vienna", "cobalt", "ghost"],
+    npcs: ["razor", "mohawk", "vienna", "cobalt", "ghost", "rookie"],
     night: true
   },
   cemetery: {
     id: "cemetery", title: "Кладбище у Вены", bg: "imagine_images/RgdDh.jpg",
-    doors: [{ x: 4, y: 52, w: 10, h: 16, to: "street", labelKey: "door_street" }],
+    doors: [
+      { x: 4, y: 52, w: 10, h: 16, to: "street", labelKey: "door_street" },
+      { x: 88, y: 40, w: 12, h: 16, to: "castle", labelKey: "door_castle" }
+    ],
     job: true, night: true,
     npcs: ["gravedigger", "cobalt"]
+  },
+  castle: {
+    id: "castle", title: "Замок Графа", bg: "imagine_images/RgdDh.jpg",
+    doors: [{ x: 50, y: 58, w: 12, h: 14, to: "cemetery", labelKey: "door_cemetery" }],
+    npcs: ["count", "razor", "mohawk", "vienna", "rookie"],
+    night: true
   },
   city: {
     id: "city", title: "Город", bg: "imagine_images/Z7wM3.jpg",
@@ -278,6 +287,22 @@ const NPCS = {
       ru: ["Три минуты смены — и доски твои!"],
       en: ["Three-minute shift — boards are yours!"],
       da: ["Tre minutter — så er brædderne dine!"]
+    }
+  },
+  count: {
+    id: "count", name: "Граф", visualId: "ghost", img: "imagine_images/iVbon.jpg",
+    linesI18n: {
+      ru: ["Колокол помнит каждый удар…"],
+      en: ["The Bell remembers every strike…"],
+      da: ["Klokken husker hvert slag…"]
+    }
+  },
+  rookie: {
+    id: "rookie", name: "Новичок", visualId: "cobalt", img: "imagine_images/QTaiE.jpg",
+    linesI18n: {
+      ru: ["Я только вступил… не подведи."],
+      en: ["I just joined… don't let me down."],
+      da: ["Jeg er ny…"]
     }
   },
   gravedigger: {
@@ -856,6 +881,12 @@ function init() {
       onNpcClick: (nid) => openNpcDialog(nid),
       onInteract: () => {
         const playCtx = { toast, save: saveMe, hasDog };
+        if (
+          me.location === "castle" &&
+          window.CastleGameplay?.tryCastleInteract?.(playCtx)
+        ) {
+          return;
+        }
         if (window.PlayV21?.tryInteract(me, playCtx)) return;
         if (window.World3D?.getNearestDog?.()) {
           petDog(true);

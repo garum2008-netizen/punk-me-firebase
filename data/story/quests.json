@@ -120,6 +120,29 @@
       "rewards": [{ "type": "rep", "value": 20 }, { "type": "xp", "value": 80 }]
     },
     {
+      "id": "q_ch2_antibully",
+      "chapter": 2,
+      "type": "main",
+      "title": {
+        "ru": "Новичок на улице",
+        "en": "Rookie on the street",
+        "da": "Nybegynder på gaden"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Поговори с новичком — заступись или нет",
+            "en": "Talk to the rookie — stand up for them or not",
+            "da": "Tal med nybegynderen"
+          },
+          "beacon": "npc_rookie",
+          "complete_on": "flag:ch2_antibully_resolved"
+        }
+      ],
+      "rewards": [{ "type": "rep", "value": 8 }]
+    },
+    {
       "id": "q_room_morning",
       "loc": "room",
       "chapter": 1,
@@ -618,11 +641,11 @@
         {
           "id": "s1",
           "objective": {
-            "ru": "Иди на Стройку — двор замка у Тусовки",
-            "en": "Go to Construction — castle yard at the hangout",
-            "da": "Gå til byggepladsen — slotsgård ved hænget"
+            "ru": "Иди к Замку с кладбища — орган, концерт, Граф",
+            "en": "Enter the Castle from the cemetery — organ, concert, Count",
+            "da": "Gå til slottet fra kirkegården"
           },
-          "beacon": "obj_hangout_site",
+          "beacon": "npc_count",
           "complete_on": "flag:concert_ready",
           "hint_nudge": {
             "ru": "С Ободом — к Тусовке, Граф соберёт части.",

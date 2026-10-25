@@ -24,6 +24,7 @@ import {
 import { createAtmospherePipeline, renderAtmosphere } from "./world/atmosphere.mjs";
 import { loadPunkDogTemplate, createMeshyDog, updateMeshyDogAnim } from "./world/meshy-dog.mjs";
 import { pulseScene } from "./world/location-enrich.mjs";
+import { applyCastleEndingVisual } from "./world/castle-location.mjs";
 import {
   bindGameplayToWorld3D,
   onGameplayLocationBuilt,
@@ -491,6 +492,10 @@ function rebuildLocation(locId) {
   spawnParticles(locId);
   ensureMarkerRoot(scene);
   onGameplayLocationBuilt(locId, locationRoot, bounds);
+  if (locId === "castle") {
+    const ending = window.me?.story?.ending;
+    if (ending) applyCastleEndingVisual(locationRoot, ending);
+  }
 }
 
 function spawnParticles(locId) {
@@ -885,6 +890,14 @@ const LOCATION_CAMERA = {
   cemetery: { dist: 7.0, height: 2.5, lookY: 1.3, yaw: 0.32 },
   roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
+  castle: {
+    fixed: true,
+    fov: 48,
+    pos: [2, 3.4, 10],
+    look: [-2, 2, -2],
+    player: { x: 2, z: 6, yaw: -2.8 },
+    dog: { dx: 0.7, dz: -0.2 }
+  },
   construction: {
     fixed: true,
     fov: 52,
@@ -2648,6 +2661,47 @@ const api = {
     if (!captureFrameLock) updateThirdPersonCamera(dt);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return motionProbe.frames.length;
+  },
+  getPlayerWorldPos: () => {
+    const pl = actors.get("player");
+    if (!pl) return null;
+    return { x: pl.wx, z: pl.wz };
+  },
+  getCastleCandleSlots: () => {
+    if (!locationRoot || currentLoc !== "castle") return [];
+    const grp = locationRoot.getObjectByName("castle_candles");
+    if (!grp) return [];
+    return grp.children.map((g, i) => ({
+      slot: g.userData.slot ?? i,
+      note: g.userData.noteId,
+      x: g.position.x,
+      z: g.position.z
+    }));
+  },
+  lightCastleCandle: (slot, on) => {
+    const grp = locationRoot?.getObjectByName("castle_candles");
+    const g = grp?.children[slot];
+    const flame = g?.getObjectByName("flame");
+    if (flame) flame.visible = !!on;
+  },
+  resetCastleCandles: () => {
+    const grp = locationRoot?.getObjectByName("castle_candles");
+    grp?.children.forEach(c => {
+      const flame = c.getObjectByName("flame");
+      if (flame) flame.visible = false;
+    });
+  },
+  spawnCastleCrownPickup: () => {
+    hooks.toast?.(
+      typeof window.t === "function"
+        ? window.t("castle_crown_ready")
+        : "Bell crown ready."
+    );
+  },
+  applyCastleEndingVisualFromSave: () => {
+    if (locationRoot && currentLoc === "castle" && window.me?.story?.ending) {
+      applyCastleEndingVisual(locationRoot, window.me.story.ending);
+    }
   },
   countVisibleProps: (opts = {}) => countVisiblePropsInScene(opts),
   auditLargeMeshes: (minSize = 1.5) => {

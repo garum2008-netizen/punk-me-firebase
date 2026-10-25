@@ -45,6 +45,10 @@ function maxUnlockedIndex() {
 }
 
 export function isLocationUnlocked(locId) {
+  if (locId === "castle") {
+    const st = window.StoryEngine?.ensureStoryState?.(window.me);
+    return !!(st?.unique?.bell_rim);
+  }
   const idx = CH0_UNLOCK_ORDER.indexOf(locId);
   if (idx < 0) return true;
   return idx <= maxUnlockedIndex();

@@ -6,6 +6,7 @@ import * as Authority from "./authority.mjs";
 import { buildEarnState, resolveReturnBeacon, resolveReturnLabel } from "./earn-state.mjs";
 import { ensureStoryProgressSave, grantRewardOnce } from "./story-save-schema.mjs";
 import { recordChapterCheckpoint } from "./story-checkpoints.mjs";
+import { applyAntibullyChoice, maybeStartAntibully } from "./antibully-quest.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -31,11 +32,14 @@ const BEACONS = {
   portal_construction: { loc: "city", portalTo: "construction" },
   npc_mohawk_street: { loc: "street", npcId: "mohawk" },
   npc_cobalt_roof: { loc: "roof", npcId: "cobalt" },
-  obj_roof_parkour: { loc: "roof", wx: 4, wz: -3 }
+  obj_roof_parkour: { loc: "roof", wx: 4, wz: -3 },
+  npc_count: { loc: "castle", npcId: "count" },
+  npc_rookie: { loc: "street", npcId: "rookie" },
+  obj_castle_stage: { loc: "castle", wx: 4, wz: 2 }
 };
 
 const STORY_NPC_IDS = new Set([
-  "razor", "tony", "bolt", "zoya", "plukh", "gravedigger", "foreman", "vintik"
+  "razor", "tony", "bolt", "zoya", "plukh", "gravedigger", "foreman", "vintik", "count", "rookie"
 ]);
 
 let data = { quests: [], dialogues: [], jobs: [], balance: null, hangout: null };
@@ -416,7 +420,7 @@ export function startQuest(qid) {
   logEvent("quest_start", qid);
 }
 
-function completeQuest(qid) {
+export function completeQuest(qid) {
   const p = me();
   const st = ensureStoryState(p);
   const q = data.quests.find(x => x.id === qid);
@@ -611,6 +615,8 @@ export function fireStoryEvent(name) {
     completeQuest("q_ch4_castle");
     window.StoryEndings?.showEndingChoice?.({ toast: hooks.toast });
   }
+  if (name === "antibully_help") applyAntibullyChoice(true, hooks);
+  if (name === "antibully_mock") applyAntibullyChoice(false, hooks);
   checkStepComplete();
   if (st.earn && name.startsWith("job_")) {
     onEarnProgress();
@@ -871,9 +877,12 @@ export function buildHangoutStage() {
     }
   }
   for (const [k, n] of Object.entries(need)) st.materials[k] -= n;
-  st.hangoutStage += 1;
+  const builtStage = st.hangoutStage + 1;
+  st.hangoutStage = builtStage;
+  st.events[`hangout_stage_${builtStage}`] = true;
   window.World3D?.refreshHangoutStage?.(st.hangoutStage);
   hooks.toast?.(L({ ru: "Этап построен!", en: "Stage built!", da: "Etape bygget!" }));
+  fireStoryEvent(`hangout_stage_${builtStage}`);
   if (st.hangoutStage >= 4) fireStoryEvent("hangout_complete");
   checkStepComplete();
   renderObjectivePanel();
@@ -1149,6 +1158,7 @@ function showRankNpcChatter(npcId) {
 export function tryStoryNpc(npcId) {
   if (Authority.tryAuthorityNpc(npcId)) return true;
   const st = story();
+  const loc = me().location;
   if (npcId === "bolt" && st.flags.joined_gang) {
     openBoltMaterialShop();
     return true;
@@ -1161,8 +1171,13 @@ export function tryStoryNpc(npcId) {
   if (npcId === "razor" && st.flags.joined_gang) {
     return showRankNpcChatter("razor");
   }
+  if (npcId === "rookie" && st.quest.activeId === "q_ch2_antibully" && !st.flags.ch2_antibully_resolved) {
+    return openDialogueById("dlg_antibully_rookie");
+  }
+  if (npcId === "count" && loc === "castle") {
+    return window.CastleGameplay?.tryCastleInteract?.(hooks) || openDialogueById("dlg_count_confession");
+  }
   if (!STORY_NPC_IDS.has(npcId)) return false;
-  const loc = me().location;
   const dlg = data.dialogues.find(d => {
     if (d.location !== loc) return false;
     if (st.flags.joined_gang && d.id === "dlg_razor_initiation") return false;
@@ -1205,15 +1220,20 @@ export function onLocationChange(loc) {
   dismissAllStoryUi();
   const p = me();
   const st = ensureStoryState(p);
+  if (loc === "street") maybeStartAntibully();
   if (
-    loc === "construction" &&
-    st.quest.activeId === "q_ch4_castle" &&
+    loc === "castle" &&
     st.unique?.bell_rim &&
-    !st.flags.concert_ready &&
-    !st.flags.castle_prep_scene
+    !st.flags.castle_enter_hint
   ) {
-    st.flags.castle_prep_scene = true;
-    window.StoryScenes?.playCastlePrepScene?.(p, hooks);
+    st.flags.castle_enter_hint = true;
+    hooks.toast?.(
+      L({
+        ru: "Замок: зажги свечи у органа (ноты C E G C E), подготовь концерт на сцене, затем поговори с Графом.",
+        en: "Castle: light organ candles (C E G C E), prep the concert stage, then speak to the Count.",
+        da: "Slot: tænd orgellys, forbered koncerten, tal med greven."
+      })
+    );
   }
   p._storyJustEntered = loc;
   setTimeout(() => {
@@ -1312,6 +1332,7 @@ const api = {
   syncBeacon,
   resolveGuideTarget,
   startQuest,
+  completeQuest,
   ensureStoryState,
   syncUnifiedMaterials,
   onOnboardingComplete,

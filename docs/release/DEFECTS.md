@@ -19,7 +19,7 @@
 | D-ONBOARD-01 | Нет авто-обучения | отчёт B | интеграция | main да | preview: intro+6 steps | preview pending |
 | D-QUEST-01 | Квест не после F5 | отчёт B | интеграция | main | `QUEST_TABLE` + engine | pending |
 | D-STORY-01 | Нет 3 концовок | t104u | интеграция | preview код | `story-endings.mjs` + `story-scenes.mjs` + UI | браузер честное прохождение — pending |
-| D-STORY-02 | Замок не в 3D | MASTER TZ | интеграция | — | — | блокер гл.4 сцен |
+| D-STORY-02 | Замок не в 3D | MASTER TZ | интеграция | WIP `castle` локация | — | частично: двор 3D, орган, концерт; **не** приёмка |
 | D-BUILD-01 | Стройка построек WIP | t104u | интеграция | да | `build_wip` toast | да (код) |
 | D-MONO-01 | Terms/Privacy draft | t104u | интеграция | да | v2026-10-25 terms/privacy | pending |
 | D-MONO-02 | Stripe sandbox | t104u | интеграция | — | `functions/stripe-sandbox/`, subscribe disabled on prod host | live pay OFF |

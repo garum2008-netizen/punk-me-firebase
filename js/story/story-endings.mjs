@@ -2,6 +2,7 @@
  * Three canonical endings — ids match docs/release/QUEST_TABLE.md + Roblox QuestTable.lua.
  */
 import { grantRewardOnce, ensureStoryProgressSave } from "./story-save-schema.mjs";
+import { annotateEndingChoiceUi, recommendEnding } from "./ending-resolve.mjs";
 
 export const ENDINGS = {
   ending_break_curse: {
@@ -32,6 +33,8 @@ export function showEndingChoice(hooks) {
   }
   root.classList.add("active");
   root.setAttribute("aria-hidden", "false");
+  const st = ensureStoryProgressSave(window.me);
+  annotateEndingChoiceUi(st);
 }
 
 export function applyEnding(player, endingId, hooks) {
@@ -43,6 +46,9 @@ export function applyEnding(player, endingId, hooks) {
     hooks?.toast?.(hooks.L?.({ ru: "Финал уже выбран", en: "Ending already chosen", da: "Afslutning valgt" }));
     return false;
   }
+  const rec = recommendEnding(st);
+  st.decisions.ending_pick = canonical;
+  if (canonical !== rec) st.decisions.ending_override = true;
   st.ending = def.id;
   st.flags.postgame = true;
   st.flags.ending_chosen = true;
@@ -52,6 +58,7 @@ export function applyEnding(player, endingId, hooks) {
     if (canonical === "ending_count_deal") st.flags.night_shop = true;
   });
   document.getElementById("endingChoice")?.classList.remove("active");
+  window.World3D?.applyCastleEndingVisualFromSave?.();
   window.StoryScenes?.playEndingScene?.(def.id, player, hooks);
   return true;
 }
