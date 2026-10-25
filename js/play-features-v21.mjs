@@ -29,12 +29,18 @@ function applyJobShift(me, hooks, opts) {
   }
   hooks.save();
   window.StoryEngine?.fireStoryEvent?.("job_shift_done");
+  window.StoryEngine?.onEconomyChanged?.();
 }
 
 export function initPlayV21(ctx) {
   const api = {
     tryInteract(me, hooks) {
       const loc = me.location;
+      const nearNpc = window.World3D?.getNearestNpc?.();
+      if (nearNpc && window.openNpcDialog) {
+        window.openNpcDialog(nearNpc);
+        return true;
+      }
       if (loc === "room") {
         const nearSofa = me.x < 55 && me.y > 45;
         if (nearSofa) {
@@ -61,9 +67,18 @@ export function initPlayV21(ctx) {
         return true;
       }
       if (loc === "street") {
-        hooks.toast(t("interact_arcade"));
-        me.coins += 12;
+        const cap = window.StoryEngine?.getArcadeDailyCap?.() ?? 100;
+        const day = todayKey();
+        if (!me._arcadeDay || me._arcadeDay.day !== day) me._arcadeDay = { day, coins: 0 };
+        if (me._arcadeDay.coins >= cap) {
+          hooks.toast(t("interact_arcade_cap") || t("interact_arcade"));
+          return true;
+        }
+        const pay = Math.min(12, cap - me._arcadeDay.coins);
+        if (!window.isOwner) me.coins += pay;
+        me._arcadeDay.coins += pay;
         me.xp += 5;
+        hooks.toast(t("interact_arcade") + (pay < 12 ? ` (+${pay})` : ""));
         hooks.save();
         return true;
       }
