@@ -396,17 +396,20 @@ function startDuel3D(nid, opts = {}) {
   frameDuelCamera(ctx, pl, opponent);
   const training = !!opts.training;
   const firstTo = opts.firstTo || (training ? 3 : 0);
+  const onboardDuel = window.Onboarding?.getCurrentStep?.()?.key === "win_fight";
+  const tutorialHp = onboardDuel ? 32 : 100;
   state.duel = {
     active: true,
     nid,
     training,
     firstTo,
+    onboardDuel,
     plHits: 0,
     npcHits: 0,
     plHp: training ? 999 : 100,
-    npcHp: training ? 999 : 100,
+    npcHp: training ? 999 : tutorialHp,
     plMax: training ? 999 : 100,
-    npcMax: training ? 999 : 100,
+    npcMax: training ? 999 : tutorialHp,
     cd: 0,
     npcCd: 0,
     plBlock: 0,
@@ -449,6 +452,7 @@ function stopDuel3D(win) {
       : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
     setTimeout(() => res.classList.add("hidden"), 3200);
   }
+  if (win && d?.onboardDuel) window.Onboarding?.onWinFight?.();
   window._duel3dEnd?.(win);
 }
 
@@ -611,7 +615,7 @@ function tickDuel(dt, ctx) {
     }
   });
   if (window._duelAttack && d.cd <= 0) {
-    const dmg = 12 + Math.floor(Math.random() * 8);
+    const dmg = d.onboardDuel ? 16 + Math.floor(Math.random() * 6) : 12 + Math.floor(Math.random() * 8);
     if (d.training) d.plHits += 1;
     else d.npcHp -= dmg;
     d.plLunge = 0.32;

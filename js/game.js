@@ -893,6 +893,11 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    window.StoryGoalHud?.init?.();
+    window.AudioManager?.setLocationMusic?.(me.location || "room");
+    if (window.ChapterIntro?.shouldShowChapterIntro?.()) {
+      window.ChapterIntro.playChapterIntro({});
+    }
   } catch (err) {
     console.error("continueGameBoot", err);
     showLoadingFailure(t("loading_boot_error"), err.message || String(err));
@@ -929,9 +934,13 @@ function applyHashRoute() {
 function renderMapModal() {
   const grid = document.getElementById("mapGrid");
   if (!grid) return;
-  grid.innerHTML = Object.values(LOCATIONS).map(loc => `
-    <div class="card">
-      <img src="${loc.bg}" alt="">
+  const brand = `<div class="map-brand-banner" aria-label="PUNK ME">
+    <span class="map-brand-logo">PUNK ME</span>
+    <span class="map-brand-tag">${escapeHtml(t("map_brand_tag"))}</span>
+  </div>`;
+  grid.innerHTML = brand + Object.values(LOCATIONS).map(loc => `
+    <div class="card map-card">
+      <div class="map-thumb-wrap"><img src="${loc.bg}" alt=""></div>
       <div><b>${escapeHtml(locTitle(loc.id))}</b></div>
       <button class="btn" style="margin-top:6px;width:100%" ${me.location === loc.id ? "disabled" : ""}
         onclick="goLocation('${loc.id}'); closeModal('mapModal');">
@@ -1265,6 +1274,8 @@ function goLocation(id, fromHash) {
     setTimeout(() => runJobAction(act), 350);
   }
   afterLocationChange();
+  window.AudioManager?.setLocationMusic?.(id);
+  window.StoryGoalHud?.refresh?.();
 }
 
 function onRoomClick(e) {
