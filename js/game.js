@@ -371,6 +371,7 @@ function defaultPlayer() {
     quests: { active: "intro", progress: {} },
     onboarding: { step: 0, progress: {}, done: false },
     tutorial: { version: 1, episode1Started: false, replayCount: 0 },
+    settings: { audio: null },
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -439,6 +440,7 @@ function migratePlayerFromSave(raw) {
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
   if (v.tutorial != null && typeof v.tutorial !== "object") v.tutorial = { version: 1, episode1Started: false, replayCount: 0 };
+  if (v.settings != null && typeof v.settings !== "object") v.settings = { audio: null };
   if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
   return v;
 }
@@ -497,6 +499,8 @@ function applyFirebasePlayerSnapshot(snap) {
     me.quests = v.quests && typeof v.quests === "object" ? v.quests : me.quests;
     me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
     me.tutorial = v.tutorial && typeof v.tutorial === "object" ? v.tutorial : me.tutorial;
+    me.settings = v.settings && typeof v.settings === "object" ? v.settings : me.settings;
+    if (v.settings?.audio) window.AudioManager?.importFromPlayerSave?.(v.settings.audio);
     me.story = v.story || me.story;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
@@ -1054,6 +1058,7 @@ function sanitizePlayer(p) {
     quests,
     onboarding,
     tutorial: p.tutorial && typeof p.tutorial === "object" ? { ...p.tutorial } : undefined,
+    settings: p.settings && typeof p.settings === "object" ? { ...p.settings } : undefined,
     jobCooldowns: p.jobCooldowns,
     lastJob: p.lastJob,
     built: p.built,

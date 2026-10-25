@@ -80,6 +80,9 @@ function buildPlayerSaveFixtures() {
   push("fx-tutorial-started", {
     tutorial: { version: 1, episode1Started: true, replayCount: 0 }
   });
+  push("fx-settings-audio", {
+    settings: { audio: { music: 0.5, speech: 0.8, sfx: 0.6, muted: false, temporaryVoice: false } }
+  });
   push("fx-linked-auth", {
     linkedAuth: { email: "player@example.com", provider: "google.com" }
   });
