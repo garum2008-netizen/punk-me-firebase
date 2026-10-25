@@ -10,6 +10,8 @@
     "test:loading-early-save": "node scripts/test-loading-early-save.js",
     "test:accounts": "node scripts/test-accounts-auth.js",
     "test:rules": "node scripts/run-rules-emulator.js",
+    "test:save-sanitize": "node scripts/test-save-sanitize.js",
+    "list:test-artifacts": "node scripts/list-test-artifacts.mjs",
     "test:deploy-order": "node scripts/test-deploy-order-phase.js a1 && sleep 20 && node scripts/test-deploy-order-phase.js a2 && sleep 20 && node scripts/test-deploy-order-phase.js b",
     "test:emulator": "node scripts/run-emulator-integration.js"
   },

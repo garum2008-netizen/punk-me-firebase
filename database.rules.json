@@ -65,6 +65,15 @@
         "owner": {
           ".validate": "newData.isBoolean()"
         },
+        "premium": {
+          ".validate": "!newData.exists() || auth.token.admin === true"
+        },
+        "entitlements": {
+          ".validate": "!newData.exists() || auth.token.admin === true"
+        },
+        "qa": {
+          ".validate": "!newData.exists() || auth.token.admin === true"
+        },
         "pet": {
           ".validate": "!newData.exists() || newData.val() == null || (newData.isString() && newData.val().length <= 32)"
         },

@@ -9,6 +9,18 @@
   },
   "hosting": {
     "public": ".",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "package-lock.json"]
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "package-lock.json",
+      "qa/**",
+      "artifacts/**",
+      "walkthrough/**",
+      "tools/piper.tgz",
+      "**/*.mp4",
+      "**/*.webm",
+      "scripts/recordings/**"
+    ]
   }
 }

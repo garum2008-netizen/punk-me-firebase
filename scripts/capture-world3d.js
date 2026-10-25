@@ -1,3 +1,4 @@
+require('./lib/require-local-capture.js');
 const { chromium } = require("playwright");
 const fs = require("fs");
 const out = "/opt/cursor/artifacts";

@@ -188,6 +188,22 @@ async function run() {
   });
   assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
 
+  console.log("rules: alice write premium → deny");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/premium`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(true)
+  });
+  assert(r.status === 401 || r.json?.error, `expected deny premium, got ${r.status}`);
+
+  console.log("rules: alice write entitlements → deny");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/entitlements`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stripe: "x" })
+  });
+  assert(r.status === 401 || r.json?.error, `expected deny entitlements, got ${r.status}`);
+
   console.log("\nAll database rules tests passed.");
   process.exit(0);
 }
