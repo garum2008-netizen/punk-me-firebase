@@ -70,8 +70,30 @@ function saveDecor(items) {
   localStorage.setItem(DECOR_KEY, JSON.stringify(items));
 }
 
+let duelKeysBound = false;
+function bindDuelKeyboard() {
+  if (duelKeysBound) return;
+  duelKeysBound = true;
+  window.addEventListener("keydown", e => {
+    if (!state.duel?.active || e.repeat) return;
+    if (e.target?.matches?.("input, textarea, select")) return;
+    const k = e.key;
+    if (k === " " || k === "Enter" || k === "f" || k === "F") {
+      e.preventDefault();
+      window._duelAttack = true;
+    } else if (k === "b" || k === "B") {
+      e.preventDefault();
+      window._duelBlock = true;
+    } else if (k === "v" || k === "V") {
+      e.preventDefault();
+      window._duelDodge = true;
+    }
+  });
+}
+
 export function bindGameplayToWorld3D(api, getCtx) {
   ctxGet = getCtx;
+  bindDuelKeyboard();
   api.startCemeteryJobMini = () => startCemeteryJob("night");
   api.startDuel3D = (nid, opts) => startDuel3D(nid || "razor", opts);
   api.prepareDuelCapturePose = (nid) => prepareDuelCapturePose(nid || "razor");
@@ -521,7 +543,7 @@ function startDuel3D(nid, opts = {}) {
   const training = !!opts.training;
   const firstTo = opts.firstTo || (training ? 3 : 0);
   const onboardDuel = window.Onboarding?.getCurrentStep?.()?.key === "win_fight";
-  const tutorialHp = onboardDuel ? 32 : 100;
+  const tutorialHp = onboardDuel ? 28 : 100;
   state.duel = {
     active: true,
     nid,
@@ -576,8 +598,9 @@ function stopDuel3D(win) {
       : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
     setTimeout(() => res.classList.add("hidden"), 3200);
   }
-  if (win && d?.onboardDuel) window.Onboarding?.onWinFight?.();
-  window._duel3dEnd?.(win);
+  const endCb = window._duel3dEnd;
+  window._duel3dEnd = null;
+  endCb?.(win);
 }
 
 function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
@@ -739,7 +762,7 @@ function tickDuel(dt, ctx) {
     }
   });
   if (window._duelAttack && d.cd <= 0) {
-    const dmg = d.onboardDuel ? 16 + Math.floor(Math.random() * 6) : 12 + Math.floor(Math.random() * 8);
+    const dmg = d.onboardDuel ? 18 + Math.floor(Math.random() * 5) : 12 + Math.floor(Math.random() * 8);
     if (d.training) d.plHits += 1;
     else d.npcHp -= dmg;
     d.plLunge = 0.32;
@@ -776,7 +799,7 @@ function tickDuel(dt, ctx) {
     pl.group.rotation.x *= 0.85;
   }
   if (d.npcCd <= 0 && d.npcHp > 0) {
-    d.npcCd = 1.15;
+    d.npcCd = d.onboardDuel ? 1.65 : 1.15;
     d.npcLunge = 0.28;
     if (d.dodgeT <= 0 && d.plBlock <= 0) {
       let dmg = 8 + Math.floor(Math.random() * 6);

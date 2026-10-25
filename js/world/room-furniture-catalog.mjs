@@ -30,7 +30,10 @@ export const FURNITURE_CATALOG = [
   { id: "neon_sign", label: "Neon sign" },
   { id: "skull_lamp", label: "Skull lamp" },
   { id: "urn", label: "Urn" },
-  { id: "crypt_bench", label: "Crypt bench" }
+  { id: "crypt_bench", label: "Crypt bench" },
+  { id: "speaker", label: "Speaker stack" },
+  { id: "candles", label: "Candles" },
+  { id: "tombstone", label: "Tombstone" }
 ];
 
 export function buildFurnitureMesh(type) {
@@ -105,13 +108,20 @@ export function buildFurnitureMesh(type) {
       break;
     }
     case "guitar": {
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.1), mat(0xcc2222));
-      body.position.set(0, 0.35, 0);
-      body.rotation.z = 0.35;
-      const neck = box(0.06, 0.55, 0.04, mat(0x5a4030));
-      neck.position.set(0.12, 0.62, 0);
-      neck.rotation.z = -0.5;
-      g.add(body, neck);
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.1, 16), mat(0x8b1a1a));
+      body.rotation.z = Math.PI / 2;
+      body.position.set(0, 0.38, 0);
+      const waist = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.08), mat(0x6a1010));
+      waist.position.set(0, 0.38, 0);
+      const neck = box(0.05, 0.62, 0.035, mat(0x5a4030));
+      neck.position.set(0.2, 0.72, 0);
+      neck.rotation.z = -0.42;
+      const head = box(0.09, 0.14, 0.03, mat(0x3a3028));
+      head.position.set(0.38, 1.02, 0);
+      head.rotation.z = -0.42;
+      const stand = box(0.04, 0.42, 0.04, mat(0x222228));
+      stand.position.set(-0.05, 0.21, 0);
+      g.add(body, waist, neck, head, stand);
       break;
     }
     case "tv": {
@@ -135,11 +145,19 @@ export function buildFurnitureMesh(type) {
       break;
     }
     case "neon_sign": {
-      const sign = box(1.1, 0.32, 0.05, mat(0x00ffff, 0x00ffff));
-      sign.position.y = 0.55;
-      const tube = box(0.9, 0.12, 0.03, mat(0xff00ff, 0xff00ff));
-      tube.position.set(0, 0.55, 0.06);
-      g.add(sign, tube);
+      const back = box(1.15, 0.55, 0.04, mat(0x1a1a22));
+      back.position.y = 0.72;
+      const p = mat(0xff00ff, 0xff00ff);
+      const p2 = mat(0x00ffff, 0x00ffff);
+      const letterP = box(0.12, 0.32, 0.03, p);
+      letterP.position.set(-0.38, 0.72, 0.05);
+      const letterU = box(0.28, 0.12, 0.03, p2);
+      letterU.position.set(-0.05, 0.6, 0.05);
+      const letterN = box(0.12, 0.32, 0.03, p);
+      letterN.position.set(0.32, 0.72, 0.05);
+      const letterK = box(0.12, 0.32, 0.03, p2);
+      letterK.position.set(0.48, 0.72, 0.05);
+      g.add(back, letterP, letterU, letterN, letterK);
       break;
     }
     case "urn": {
@@ -158,6 +176,46 @@ export function buildFurnitureMesh(type) {
       const legR = legL.clone();
       legR.position.x = 0.5;
       g.add(seat, legL, legR);
+      break;
+    }
+    case "speaker": {
+      const cab = box(0.42, 0.75, 0.38, mat(0x1a1a20));
+      cab.position.y = 0.38;
+      const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.04, 12), mat(0x333340));
+      cone.position.set(0, 0.52, 0.2);
+      cone.rotation.x = Math.PI / 2;
+      const tweeter = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 10), mat(0x555566));
+      tweeter.position.set(0, 0.68, 0.2);
+      tweeter.rotation.x = Math.PI / 2;
+      const led = box(0.08, 0.04, 0.02, mat(0x00ffcc, 0x00ffcc));
+      led.position.set(0.15, 0.78, 0.2);
+      g.add(cab, cone, tweeter, led);
+      break;
+    }
+    case "candles": {
+      const tray = box(0.55, 0.04, 0.22, mat(0x3a3028));
+      tray.position.y = 0.02;
+      for (let i = 0; i < 3; i++) {
+        const wax = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.22, 8), mat(0xfff0dd));
+        wax.position.set(-0.14 + i * 0.14, 0.13, 0);
+        const flame = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.08, 6), mat(0xffaa44, 0xff6600));
+        flame.position.set(-0.14 + i * 0.14, 0.28, 0);
+        g.add(wax, flame);
+      }
+      g.add(tray);
+      break;
+    }
+    case "tombstone": {
+      const stone = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.72, 0.12), mat(0x5a5a62));
+      stone.position.y = 0.36;
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(0.275, 0.275, 0.12, 16, 1, false, 0, Math.PI), mat(0x5a5a62));
+      top.rotation.z = Math.PI;
+      top.position.set(0, 0.72, 0);
+      const cross = box(0.06, 0.22, 0.02, mat(0x888890));
+      cross.position.set(0, 0.55, 0.07);
+      const crossH = box(0.18, 0.05, 0.02, mat(0x888890));
+      crossH.position.set(0, 0.62, 0.07);
+      g.add(stone, top, cross, crossH);
       break;
     }
     case "skull_lamp": {
