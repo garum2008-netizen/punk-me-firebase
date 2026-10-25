@@ -125,6 +125,12 @@ async function runFullEpisode1Ui(page, opts = {}) {
   await H.dismissStoryDialog(page);
   await H.closeGangModal(page);
   await ensureGameplayActive(page);
+  await page
+    .waitForFunction(
+      () => (window.me?.onboarding?.step ?? 0) >= 3 || (window.me?.onboarding?.progress?.talk_razor || 0) >= 1,
+      { timeout: 20000 }
+    )
+    .catch(() => {});
 
   await openJournalMenu(page, recordPacing ? 2800 : 0);
   mark?.("quest_journal", "pause menu journal");
@@ -140,6 +146,15 @@ async function runFullEpisode1Ui(page, opts = {}) {
 
   await travelTo(page, "street", recordPacing);
   await ensureGameplayActive(page);
+  await page.waitForFunction(
+    () => {
+      const ob = window.me?.onboarding;
+      if (!ob || ob.done) return true;
+      return (ob.step ?? 0) >= 4 || window.Onboarding?.getCurrentStep?.()?.key === "win_fight";
+    },
+    { timeout: 90000 }
+  );
+  await H.dismissHowToOverlay(page);
   await page.locator("#btnFight").click({ timeout: 20000, force: true });
   mark?.("tutorial_duel", "Chain fight UI");
   await H.winFightUi(page, 55000);

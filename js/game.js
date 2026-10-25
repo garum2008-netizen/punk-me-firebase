@@ -1529,6 +1529,10 @@ function renderGangList() {
 function openNpcDialog(nid) {
   if (window.StoryEngine?.tryStoryNpc?.(nid)) {
     closeModal("gangModal");
+    if (nid === "razor") {
+      questBump("talk_razor");
+      window.Onboarding?.onTalkRazor?.();
+    }
     return;
   }
   const n = NPCS[nid];
