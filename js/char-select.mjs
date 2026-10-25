@@ -148,7 +148,25 @@ function open(onPick) {
   wrap.classList.add("active");
   const canvas = document.getElementById("charSelect3d");
   if (!renderer) {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    } catch (e) {
+      wrap.classList.remove("active");
+      const msg = e?.message || String(e);
+      const detail = /webgl/i.test(msg) ? msg : `Error creating WebGL context: ${msg}`;
+      if (typeof window.__punkShowBootFailure === "function") {
+        window.__punkShowBootFailure("webgl", detail, { kind: "webgl", code: "webgl" });
+      } else if (typeof window.__showLoadingFailure === "function") {
+        window.__showLoadingFailure(typeof t === "function" ? t("boot_title_webgl") : "WebGL", detail, { kind: "webgl" });
+      }
+      return;
+    }
+    if (!renderer.getContext()) {
+      wrap.classList.remove("active");
+      const detail = "Error creating WebGL context";
+      window.__punkShowBootFailure?.("webgl", detail, { kind: "webgl", code: "webgl" });
+      return;
+    }
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;

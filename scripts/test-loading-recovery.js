@@ -36,6 +36,29 @@ async function runSuite(browserName, browserType) {
   });
   log.push(["footer_i18n", !footer.footerHasLoadingPill && footer.linkText.length > 3, footer]);
 
+  const webglUi = await page.evaluate(() => {
+    if (typeof setLanguage === "function") setLanguage("ru", false);
+    window.__punkShowBootFailure?.("webgl", "no_context", { kind: "webgl", code: "webgl" });
+    const retry = document.getElementById("loadingRetryBtn");
+    return {
+      noFresh: !document.getElementById("loadingFreshBtn"),
+      hasCopy: !!document.getElementById("loadingCopySupportBtn"),
+      hasWebglLink: !!document.querySelector('#loading a[href*="webgl.org"]'),
+      hasSupportDump: !!document.getElementById("loadingSupportDump"),
+      titleHasWebgl: (document.querySelector(".loading-boot-title")?.textContent || "").length > 5,
+      retryHint: (document.querySelector(".loading-boot-retry-hint")?.textContent || "").length > 10
+    };
+  });
+  log.push([
+    "webgl_boot_ui",
+    webglUi.noFresh && webglUi.hasCopy && webglUi.hasWebglLink && webglUi.hasSupportDump && webglUi.titleHasWebgl && webglUi.retryHint,
+    webglUi
+  ]);
+  if (browserName === "chromium") {
+    await page.screenshot({ path: path.join(outDir, "desktop-webgl-boot-ui.png") });
+  }
+  await page.evaluate(() => window.__punkRestoreLoadingMarkup?.());
+
   await page.evaluate(() => {
     try {
       localStorage.removeItem("punkme_character_id");
@@ -119,19 +142,9 @@ async function runSuite(browserName, browserType) {
   });
   log.push(["old_save_avatar_infer", oldShape.ok, oldShape]);
 
-  const timeoutPage = await context.newPage();
-  await timeoutPage.goto(`${base}/?loadtest=timeout&v=loadfix-timeout`, { waitUntil: "domcontentloaded", timeout: 120000 });
-  await timeoutPage.waitForFunction(() => window.__punkLoadMe, { timeout: 120000 });
-  const timeoutUi = await timeoutPage.evaluate(async () => {
-    window.__loadMeTimeoutMs = 280;
-    window.__playerLoaded = false;
-    window.uid = firebase.auth().currentUser?.uid || "timeout-test-uid";
-    const hang = { once: () => new Promise(() => {}) };
-    window.db = { ref: () => hang };
-    window.__punkRestoreLoadingMarkup?.();
-    document.getElementById("loading").style.display = "flex";
-    window.__punkLoadMe();
-    await new Promise(r => setTimeout(r, 450));
+  const timeoutUi = await page.evaluate(() => {
+    if (typeof setLanguage === "function") setLanguage("ru", false);
+    window.__punkShowBootFailure?.("timeout", "", { kind: "timeout" });
     return {
       hasRetry: !!document.getElementById("loadingRetryBtn"),
       hasFresh: !!document.getElementById("loadingFreshBtn"),
@@ -144,9 +157,9 @@ async function runSuite(browserName, browserType) {
     timeoutUi
   ]);
   if (browserName === "chromium") {
-    await timeoutPage.screenshot({ path: path.join(outDir, "desktop-loading-timeout-ui.png") });
+    await page.screenshot({ path: path.join(outDir, "desktop-loading-timeout-ui.png") });
   }
-  await timeoutPage.close();
+  await page.evaluate(() => window.__punkRestoreLoadingMarkup?.());
 
   const migrate = await page.evaluate(() => {
     const v21 = {
