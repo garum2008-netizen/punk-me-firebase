@@ -1,0 +1,5 @@
+
+> record:episode1-youtube
+> node scripts/record-episode1-youtube.js
+
+VALIDATION FAIL audio@1107s mean_volume=-45.5dB (need > -40)

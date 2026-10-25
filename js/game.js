@@ -17,6 +17,23 @@ window.__punkFirebaseReady =
     window.__punkResolveFirebaseReady = resolve;
   });
 const PRESENCE_STALE_MS = 120000;
+window.__punkFirebaseEmulatorActive = false;
+
+function isLocalDevHost() {
+  const h = location.hostname;
+  return h === "localhost" || h === "127.0.0.1";
+}
+
+/** True when the page talks to production RTDB (not emulator / not localhost). */
+function isProductionFirebaseClient() {
+  if (window.__punkFirebaseEmulatorActive) return false;
+  if (isLocalDevHost()) return false;
+  try {
+    if (new URLSearchParams(location.search).has("firebaseEmulator")) return false;
+  } catch (e) {}
+  return true;
+}
+window.isProductionFirebaseClient = isProductionFirebaseClient;
 
 function connectFirebaseEmulatorsIfRequested() {
   try {
@@ -27,6 +44,7 @@ function connectFirebaseEmulatorsIfRequested() {
     const authPort = parseInt(q.get("firebaseEmulatorAuthPort") || "9099", 10);
     firebase.database().useEmulator(host, dbPort);
     firebase.auth().useEmulator(`http://${host}:${authPort}`);
+    window.__punkFirebaseEmulatorActive = true;
   } catch (e) {
     console.warn("Firebase emulator connect failed", e);
   }
@@ -64,9 +82,28 @@ function othersForStage3D() {
 }
 
 function devCoinsEnabled() {
+  if (isProductionFirebaseClient()) return false;
   try {
     return new URLSearchParams(location.search).has("dev") || localStorage.getItem("punkme_dev") === "1";
   } catch (e) { return false; }
+}
+
+function qaSessionEnabled() {
+  if (isProductionFirebaseClient()) return false;
+  try {
+    return new URLSearchParams(location.search).has("qa") || localStorage.getItem("punkme_qa") === "1";
+  } catch (e) { return false; }
+}
+
+function prodDevWriteBlocked() {
+  if (!isProductionFirebaseClient()) return false;
+  try {
+    if (new URLSearchParams(location.search).has("dev")) return true;
+    if (new URLSearchParams(location.search).has("qa")) return true;
+    if (localStorage.getItem("punkme_dev") === "1") return true;
+    if (localStorage.getItem("punkme_qa") === "1") return true;
+  } catch (e) {}
+  return false;
 }
 
 const LOCATIONS = {
@@ -755,11 +792,12 @@ function init() {
   };
   initLanguage();
   const bindLang = btn => {
-    btn.onclick = () => setLanguage(btn.dataset.lang, true);
-    btn.classList.toggle("active", btn.dataset.lang === getLanguage());
+    const lang = btn.dataset.lang;
+    if (!lang) return;
+    btn.onclick = () => setLanguage(lang, true);
+    btn.classList.toggle("active", lang === getLanguage());
   };
-  document.querySelectorAll(".lang-btn").forEach(bindLang);
-  document.querySelectorAll("#langCorner .lang-btn").forEach(bindLang);
+  document.querySelectorAll(".lang-btn[data-lang]").forEach(bindLang);
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
@@ -1048,13 +1086,21 @@ function hideLoading() {
 function saveMe() {
   if (!uid) return;
   if (!window.__playerLoaded) return;
+  if (prodDevWriteBlocked()) {
+    console.warn("saveMe blocked: dev/qa test flags on production — use localhost + firebaseEmulator");
+    return;
+  }
   const prevLvl = me.level || 1;
   me.level = levelFromXp(me.xp || 0);
   if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
   me.lastSeen = Date.now();
-  const payload = sanitizePlayer(me);
+  const payload = stripUndefinedDeep(sanitizePlayer(me));
+  if (!payload) return;
   // players/{uid} must succeed even when publicProfiles is denied (pre-rules-publish).
-  db.ref("players/" + uid).update(payload);
+  db.ref("players/" + uid).update(payload).catch(err => {
+    console.error("saveMe players", err);
+    toast(typeof t === "function" ? t("save_failed") : "Save failed");
+  });
   db.ref("publicProfiles/" + uid)
     .set({
       name: payload.name || me.name || "Player",
@@ -1065,12 +1111,27 @@ function saveMe() {
   pushPresence();
 }
 
+function stripUndefinedDeep(value) {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    return value.map(stripUndefinedDeep).filter(v => v !== undefined);
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (v === undefined) continue;
+    const next = stripUndefinedDeep(v);
+    if (next !== undefined) out[k] = next;
+  }
+  return out;
+}
+
 function sanitizeStory(st) {
   if (!st || typeof st !== "object") return st;
   try {
-    return JSON.parse(JSON.stringify(st));
+    return stripUndefinedDeep(JSON.parse(JSON.stringify(st)));
   } catch (e) {
-    return st;
+    return stripUndefinedDeep(st);
   }
 }
 
@@ -1399,17 +1460,17 @@ function onRoomClick(e) {
 function onKey(e) {
   if (document.body.classList.contains("mode-world3d")) return;
   const step = 4;
-  if (["w", "a", "s", "d", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-    if (e.key === "w" || e.key === "ArrowUp") me.y -= step;
-    if (e.key === "s" || e.key === "ArrowDown") me.y += step;
-    if (e.key === "a" || e.key === "ArrowLeft") me.x -= step;
-    if (e.key === "d" || e.key === "ArrowRight") me.x += step;
-    me.x = Math.max(5, Math.min(95, me.x));
-    me.y = Math.max(20, Math.min(92, me.y));
-    saveMe();
-    renderPlayers();
-    syncStage3D();
-  }
+  const moveCodes = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+  if (!moveCodes.has(e.code)) return;
+  if (e.code === "KeyW" || e.code === "ArrowUp") me.y -= step;
+  if (e.code === "KeyS" || e.code === "ArrowDown") me.y += step;
+  if (e.code === "KeyA" || e.code === "ArrowLeft") me.x -= step;
+  if (e.code === "KeyD" || e.code === "ArrowRight") me.x += step;
+  me.x = Math.max(5, Math.min(95, me.x));
+  me.y = Math.max(20, Math.min(92, me.y));
+  saveMe();
+  renderPlayers();
+  syncStage3D();
 }
 
 function renderAll() {
@@ -2030,24 +2091,56 @@ function runParkour() {
 function runParkourJob() {
   const steps = [t("parkour_step1"), t("parkour_step2"), t("parkour_step3"), t("parkour_step4")];
   let i = 0;
-  const next = () => {
+  const ov = document.getElementById("parkourPrompt");
+  const titleEl = ov?.querySelector(".parkour-prompt-title");
+  const bodyEl = ov?.querySelector(".parkour-prompt-body");
+  const okBtn = ov?.querySelector(".parkour-prompt-ok");
+  const cancelBtn = ov?.querySelector(".parkour-prompt-cancel");
+  if (!ov || !okBtn) {
+    toast(t("parkour_fail"));
+    return;
+  }
+  const finish = () => {
+    ov.classList.remove("active");
+    ov.setAttribute("aria-hidden", "true");
+    me.rep += 12;
+    me.xp += 30;
+    const pay = 65 + Math.floor(Math.random() * 30);
+    if (!isOwner) me.coins += pay;
+    saveMe();
+    renderAll();
+    questBump("parkour_win");
+    toast(t("parkour_done") + " +" + pay);
+  };
+  const fail = () => {
+    ov.classList.remove("active");
+    ov.setAttribute("aria-hidden", "true");
+    toast(t("parkour_fail"));
+  };
+  const showStep = () => {
     if (i >= steps.length) {
-      me.rep += 12;
-      me.xp += 30;
-      const pay = 65 + Math.floor(Math.random() * 30);
-      if (!isOwner) me.coins += pay;
-      saveMe();
-      renderAll();
-      questBump("parkour_win");
-      toast(t("parkour_done") + " +" + pay);
+      finish();
       return;
     }
-    if (confirm(steps[i] + " — нажми OK вовремя")) {
-      i++;
-      setTimeout(next, 280);
-    } else toast(t("parkour_fail"));
+    if (titleEl) titleEl.textContent = t("parkour");
+    if (bodyEl) bodyEl.textContent = steps[i] + " — " + (t("parkour_tap_ok") || "OK");
+    ov.classList.add("active");
+    ov.setAttribute("aria-hidden", "false");
+    const onOk = () => {
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn?.removeEventListener("click", onFail);
+      i += 1;
+      setTimeout(showStep, 280);
+    };
+    const onFail = () => {
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn?.removeEventListener("click", onFail);
+      fail();
+    };
+    okBtn.addEventListener("click", onOk);
+    cancelBtn?.addEventListener("click", onFail);
   };
-  next();
+  showStep();
 }
 
 function sendChat() {

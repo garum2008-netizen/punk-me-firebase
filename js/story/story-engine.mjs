@@ -618,15 +618,18 @@ export function beginEarnCoins(shortfall, context) {
     return;
   }
   const job = pickNearestJob(p.location);
+  const need = Math.max(0, Number(shortfall) || 0);
+  const employer = job?.employer;
+  const employerBeacon = employer
+    ? (employer.startsWith("npc_") ? employer : "npc_" + employer)
+    : "npc_tony";
   st.earn = {
-    needTotal: p.coins + shortfall,
-    shortfall,
-    jobId: job?.id,
-    employerBeacon: job?.employer?.startsWith("npc_")
-      ? job.employer
-      : "npc_" + (job?.employer || "tony"),
-    returnBeacon: context?.returnBeacon || st.beacon,
-    returnLabel: context?.returnLabel || L(getActiveQuest()?.title)
+    needTotal: p.coins + need,
+    shortfall: need,
+    jobId: job?.id || null,
+    employerBeacon,
+    returnBeacon: context?.returnBeacon || st.beacon || null,
+    returnLabel: context?.returnLabel || L(getActiveQuest()?.title) || null
   };
   setBeacon(st.earn.employerBeacon);
   st.flags.earn_mode = true;

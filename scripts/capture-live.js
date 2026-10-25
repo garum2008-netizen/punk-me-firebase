@@ -1,3 +1,6 @@
+const { assertSafeTestFirebaseTarget } = require("./lib/guard-no-prod-firebase");
+console.error("capture-live.js: use read-only verify against prod is disabled. Use local preview + emulator.");
+assertSafeTestFirebaseTarget();
 const { chromium } = require("playwright");
 const fs = require("fs");
 const out = "/opt/cursor/artifacts";
