@@ -13,9 +13,16 @@ async function acceptPropiskaPayQuest(page) {
   await H.navGo(page, "street");
   await H.openGangNpc(page, "razor");
   await page.waitForSelector("#storyDialog.active", { timeout: 25000 });
-  const pay = page.locator('.story-choice[data-choice="c_pay"]');
-  if (await pay.count()) await pay.click({ timeout: 10000 });
-  else await H.clickFirstStoryChoice(page);
+  for (let i = 0; i < 8; i++) {
+    const pay = page.locator('.story-choice[data-next="n3a"], .story-choice[data-choice="c_pay"]');
+    if (await pay.count()) {
+      await pay.first().click({ timeout: 10000 });
+      break;
+    }
+    const next = page.locator("#storyDlgNext");
+    if (await next.isVisible()) await next.click();
+    else await H.sleep(300);
+  }
   await H.advanceStoryNext(page);
   await H.dismissStoryDialog(page);
   await H.closeGangModal(page);
@@ -66,8 +73,11 @@ async function runFullEpisode1Ui(page, opts = {}) {
   await H.navGo(page, "street");
   await page.locator("#btnFight").click({ timeout: 20000, force: true });
   mark?.("tutorial_duel", "Chain fight UI");
-  const won = await H.winFightUi(page, 45000);
-  mark?.("tutorial_duel_result", won ? "win_fight onboarding" : "fight timeout");
+  await H.winFightUi(page, 45000);
+  const won = await page.evaluate(
+    () => (window.me?.onboarding?.progress?.win_fight || 0) >= 1 || !!window.me?.onboarding?.done
+  );
+  mark?.("tutorial_duel_result", won ? "win_fight onboarding" : "fight incomplete");
 
   await H.navGo(page, "room");
   await page.locator('button[onclick*="openModal(\'shopModal\')"]').click({ timeout: 15000 });

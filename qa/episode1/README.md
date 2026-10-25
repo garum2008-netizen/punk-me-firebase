@@ -21,7 +21,18 @@ npm run record:episode1-youtube
 
 ```bash
 ffprobe -v error -show_entries stream=codec_type,codec_name,sample_rate,channels \
-  -of default=noprint_wrappers=1 qa/episode1/episode1-youtube.mp4
+  -of default=noprint_wrappers=1 qa/episode1/episode1-youtube.webm
 ```
 
-Expected: at least one `codec_type=video` and one `codec_type=audio` stream.
+Example output (2026-10-25 capture):
+
+```
+codec_name=vp8
+codec_type=video
+codec_name=opus
+codec_type=audio
+sample_rate=48000
+channels=2
+```
+
+H.264/AAC copy: `qa/episode1/episode1-youtube.mp4` (same timeline, muxed via ffmpeg).

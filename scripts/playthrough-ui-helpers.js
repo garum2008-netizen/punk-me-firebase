@@ -63,6 +63,7 @@ async function walkMobile(page, ms = 2200) {
 }
 
 async function navGo(page, locId) {
+  await closeGameMenuIfOpen(page);
   await dismissStoryDialog(page);
   await page.locator("#gangModal .close").click({ timeout: 1500, force: true }).catch(() => {});
   await page.locator("#jobModal .close").click({ timeout: 1500, force: true }).catch(() => {});
@@ -70,7 +71,16 @@ async function navGo(page, locId) {
   if (here === locId) return;
   const quick = page.locator(`#navQuick button[onclick="goLocation('${locId}')"]`);
   if (await quick.count()) {
-    await quick.first().click({ timeout: 20000, noWaitAfter: true, force: true });
+    await quick.first().click({ timeout: 20000, noWaitAfter: true, force: true }).catch(() => {});
+    const jumped = await page
+      .waitForFunction(id => window.me?.location === id, locId, { timeout: 4000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!jumped) {
+      await page.evaluate(id => {
+        document.querySelector(`#navQuick button[onclick="goLocation('${id}')"]`)?.click();
+      }, locId);
+    }
   } else {
     await page.locator('button[onclick*="openModal(\'mapModal\')"]').click({ noWaitAfter: true });
     await page.waitForSelector("#mapGrid");
@@ -107,6 +117,7 @@ async function pressInteract(page, touchOnly) {
 }
 
 async function openGangNpc(page, nid) {
+  await closeGameMenuIfOpen(page);
   await dismissFightOverlay(page);
   await page.locator('button[onclick*="openModal(\'gangModal\')"]').click();
   await page.waitForSelector("#gangList");
@@ -175,12 +186,18 @@ async function winFightUi(page, maxMs = 35000) {
     await sleep(120);
   }
   await page.locator('#fightOverlay button[onclick="closeFight()"]').click({ timeout: 2000 }).catch(() => {});
-  return false;
+  const final = await page.evaluate(
+    () => (window.me?.onboarding?.progress?.win_fight || 0) >= 1 || !!window.me?.onboarding?.done
+  );
+  return final;
 }
 
 async function buyCheapestShop(page) {
-  await page.locator('button[onclick*="openModal(\'shopModal\')"]').click();
-  await page.waitForSelector("#shopGrid, .shop-grid, #shopModal");
+  const already = await page.locator("#shopModal.active").count();
+  if (!already) {
+    await page.locator('button[onclick*="openModal(\'shopModal\')"]').click();
+    await page.waitForSelector("#shopGrid, .shop-grid, #shopModal");
+  }
   const buy = page.locator("#shopGrid button.btn").first();
   if (await buy.count()) await buy.click();
   await page.locator("#shopModal .close").click().catch(() => {});
@@ -191,6 +208,13 @@ async function clickFirstStoryChoice(page) {
   const c = page.locator(".story-choice");
   await c.first().click({ timeout: 15000 });
   await sleep(400);
+}
+
+async function closeGameMenuIfOpen(page) {
+  await page.evaluate(() => {
+    document.body.dataset.gamePaused = "0";
+    document.getElementById("gameMenuOverlay")?.classList.remove("active");
+  });
 }
 
 async function dismissStoryDialog(page) {
@@ -214,7 +238,7 @@ async function dismissStoryDialog(page) {
     }
     await sleep(250);
   }
-  await page.keyboard.press("Escape").catch(() => {});
+  await closeGameMenuIfOpen(page);
 }
 
 async function advanceStoryNext(page) {
@@ -555,6 +579,7 @@ module.exports = {
   bootSolo,
   pickCobaltUi,
   snap,
+  focusStage,
   walkDesktop,
   walkMobile,
   navGo,
@@ -571,6 +596,7 @@ module.exports = {
   dismissFightOverlay,
   advanceStoryNext,
   closeGangModal,
+  closeGameMenuIfOpen,
   runJobOnce,
   runStoryJob,
   buildAllHangoutStages,

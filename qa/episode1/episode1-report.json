@@ -6,54 +6,39 @@
       1
     ],
     [
-      "tutorial_started",
-      true
-    ],
-    [
-      "onboard_step_after_move",
+      "onboarding_done",
       true,
       {
-        "step": 1,
-        "coins": 120,
+        "onboardingDone": true,
+        "quest": "q_initiation_pay",
+        "coins": 264,
         "granted": [
-          "onboard:move"
+          "onboard:go_street",
+          "onboard:talk_razor",
+          "onboard:visit_cemetery",
+          "duel:payout:razor",
+          "onboard:win_fight",
+          "onboard:shop_buy"
         ]
       }
     ],
     [
-      "reload_keeps_step",
+      "propiska_quest",
       true,
-      {
-        "step": 1,
-        "coins": 120
-      }
+      "q_initiation_pay"
     ],
     [
-      "reload_no_dup_coins",
+      "reload_keeps_progress",
       true,
       {
-        "coinsBefore": 120,
-        "afterReload": {
-          "step": 1,
-          "coins": 120
+        "coinsBefore": 264,
+        "stepBefore": 6,
+        "after": {
+          "step": 6,
+          "done": true,
+          "coins": 264,
+          "quest": "q_initiation_pay"
         }
-      }
-    ],
-    [
-      "street_arcade_blocked_during_onboarding",
-      true,
-      {
-        "blocked": true,
-        "gain": 0
-      }
-    ],
-    [
-      "razor_talk_opens_dialog",
-      true,
-      {
-        "ok": true,
-        "dlg": true,
-        "step": 3
       }
     ],
     [
@@ -69,55 +54,53 @@
       1
     ],
     [
-      "tutorial_started",
-      true
-    ],
-    [
-      "onboard_step_after_move",
+      "onboarding_done",
       true,
       {
-        "step": 1,
-        "coins": 120,
+        "onboardingDone": true,
+        "quest": "q_initiation_pay",
+        "coins": 260,
         "granted": [
-          "onboard:move"
+          "onboard:move",
+          "onboard:go_street",
+          "onboard:talk_razor",
+          "onboard:visit_cemetery",
+          "duel:payout:razor",
+          "onboard:win_fight",
+          "onboard:shop_buy"
         ]
       }
     ],
     [
-      "reload_keeps_step",
+      "propiska_quest",
       true,
-      {
-        "step": 1,
-        "coins": 120
-      }
+      "q_initiation_pay"
     ],
     [
-      "reload_no_dup_coins",
+      "reload_keeps_progress",
       true,
       {
-        "coinsBefore": 120,
-        "afterReload": {
-          "step": 1,
-          "coins": 120
+        "coinsBefore": 260,
+        "stepBefore": 6,
+        "after": {
+          "step": 6,
+          "done": true,
+          "coins": 260,
+          "quest": "q_initiation_pay"
         }
       }
-    ],
-    [
-      "street_arcade_blocked_during_onboarding",
-      true,
-      {
-        "blocked": true,
-        "gain": 0
-      }
-    ],
-    [
-      "razor_talk_opens_dialog",
-      true,
-      {
-        "ok": true,
-        "dlg": true,
-        "step": 3
-      }
     ]
-  ]
+  ],
+  "mobile": [],
+  "keye_mobile": {
+    "key_e_blocked_in_input": true,
+    "key_e_opens_npc": true,
+    "mobile_talk_same": true
+  },
+  "keye_desktop": {
+    "key_e_blocked_in_input": true,
+    "key_e_opens_npc": true,
+    "mobile_talk_same": true
+  },
+  "pass": true
 }

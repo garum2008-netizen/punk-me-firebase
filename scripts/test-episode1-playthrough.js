@@ -23,19 +23,20 @@ async function testKeyEAndMobileTalk(page, touchOnly) {
     window.Onboarding.syncGuideTarget?.();
   });
 
-  const inputBlocks = await page.evaluate(async () => {
+  await page.evaluate(() => {
     const inp = document.createElement("input");
     inp.id = "ep1-test-input";
     document.body.appendChild(inp);
     inp.focus();
-    const before = document.getElementById("gangModal")?.classList.contains("active");
-    window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyE", key: "e", bubbles: true }));
-    await new Promise(r => setTimeout(r, 200));
+  });
+  await page.keyboard.press("e");
+  await H.sleep(250);
+  const inputBlocks = await page.evaluate(() => {
     const duringInput =
       !document.getElementById("gangModal")?.classList.contains("active") &&
       !document.getElementById("storyDialog")?.classList.contains("active");
-    inp.remove();
-    return { duringInput, before };
+    document.getElementById("ep1-test-input")?.remove();
+    return { duringInput };
   });
 
   await page.evaluate(() => {
@@ -53,6 +54,8 @@ async function testKeyEAndMobileTalk(page, touchOnly) {
 
   let mobileSame = true;
   if (touchOnly) {
+    await H.dismissStoryDialog(page);
+    await H.closeGangModal(page);
     await page.evaluate(() => {
       if (window.World3D) window.World3D.getNearestNpc = () => "razor";
     });
@@ -156,6 +159,7 @@ async function main() {
     report.keye_desktop.key_e_blocked_in_input &&
     report.keye_desktop.key_e_opens_npc &&
     report.keye_mobile.key_e_blocked_in_input &&
+    report.keye_mobile.key_e_opens_npc &&
     report.keye_mobile.mobile_talk_same;
   const ok = flat.every(([, pass]) => pass !== false) && keyOk;
   report.pass = ok;

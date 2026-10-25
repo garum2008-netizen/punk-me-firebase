@@ -1,0 +1,88 @@
+{
+  "deliverable": "/workspace/qa/episode1/episode1-youtube.webm",
+  "sizeMb": 8.868380546569824,
+  "probe": "codec_name=vp8\ncodec_type=video\ncodec_name=opus\ncodec_type=audio\nsample_rate=48000\nchannels=2",
+  "hadAudio": true,
+  "marks": [
+    {
+      "sec": "0.0",
+      "label": "boot",
+      "extra": "solo new player"
+    },
+    {
+      "sec": "23.0",
+      "label": "char_select",
+      "extra": "Cobalt"
+    },
+    {
+      "sec": "23.0",
+      "label": "start_overlay",
+      "extra": "Episode 1 intro lines"
+    },
+    {
+      "sec": "26.9",
+      "label": "start_game",
+      "extra": "audio unlock gesture"
+    },
+    {
+      "sec": "40.2",
+      "label": "tutorial_move",
+      "extra": "WASD / joystick — room"
+    },
+    {
+      "sec": "55.2",
+      "label": "tutorial_street",
+      "extra": "quick nav → street"
+    },
+    {
+      "sec": "72.5",
+      "label": "razor_talk",
+      "extra": "gang UI → Razor dialog"
+    },
+    {
+      "sec": "114.7",
+      "label": "quest_journal",
+      "extra": "pause menu journal"
+    },
+    {
+      "sec": "145.4",
+      "label": "tutorial_cemetery",
+      "extra": "cemetery visit"
+    },
+    {
+      "sec": "165.4",
+      "label": "tutorial_duel",
+      "extra": "Chain fight UI"
+    },
+    {
+      "sec": "216.7",
+      "label": "tutorial_duel_result",
+      "extra": "fight timeout"
+    },
+    {
+      "sec": "238.5",
+      "label": "shop_open",
+      "extra": "shop modal — prices on grid"
+    },
+    {
+      "sec": "256.8",
+      "label": "shop_buy",
+      "extra": "first item purchased"
+    },
+    {
+      "sec": "257.8",
+      "label": "onboarding_reward",
+      "extra": "onboarding.done + grantRewardOnce"
+    },
+    {
+      "sec": "333.5",
+      "label": "propiska_intro",
+      "extra": "q_initiation_pay accepted"
+    },
+    {
+      "sec": "357.6",
+      "label": "reload_continue",
+      "extra": "onboarding.done=true quest=q_initiation_pay coins 235 (was 235)"
+    }
+  ]
+}

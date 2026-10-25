@@ -49,20 +49,23 @@ function ffprobeSummary(filePath) {
 }
 
 async function startInPageAudioRecorder(page) {
+  await page.waitForFunction(() => window.AudioManager?.isUnlocked?.(), { timeout: 15000 }).catch(() => {});
   return page.evaluate(async () => {
+    await window.AudioManager?.unlockAudio?.();
     const stream = window.AudioManager?.installCaptureTap?.();
     if (!stream) return { ok: false, reason: "no tap" };
+    window.AudioManager?.playSfx?.("ui_click");
     window.__ep1AudioChunks = [];
     const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
       ? "audio/webm;codecs=opus"
       : "audio/webm";
-    const rec = new MediaRecorder(stream, { mimeType: mime });
+    const rec = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 128000 });
     rec.ondataavailable = e => {
       if (e.data?.size) window.__ep1AudioChunks.push(e.data);
     };
     rec.start(250);
     window.__ep1AudioRecorder = rec;
-    return { ok: true, mime };
+    return { ok: true, mime, tracks: stream.getAudioTracks().length };
   });
 }
 
@@ -124,15 +127,20 @@ async function main() {
   mark("start_overlay", "Episode 1 intro lines");
   await page.locator("#btnStartGame").click({ force: true, timeout: 20000 });
   mark("start_game", "audio unlock gesture");
-  await startInPageAudioRecorder(page);
+  const audioMeta = await startInPageAudioRecorder(page);
+  if (!audioMeta?.ok) console.warn("episode1 audio tap:", audioMeta);
   await page.waitForTimeout(800);
 
   await Flow.runFullEpisode1Ui(page, {
     mark,
-    walkMs: 2600,
+    walkMs: 3200,
     snapDir: outDir,
     snapTag: "youtube"
   });
+
+  const audioA = path.join(outDir, "episode1-youtube-audio-a.webm");
+  const audioB = path.join(outDir, "episode1-youtube-audio-b.webm");
+  const hadAudioA = await stopInPageAudioRecorder(page, audioA).catch(() => false);
 
   const reload = await Flow.reloadAndContinue(page);
   mark(
@@ -140,10 +148,25 @@ async function main() {
     `onboarding.done=${reload.after.done} quest=${reload.after.quest} coins ${reload.after.coins} (was ${reload.coinsBefore})`
   );
 
+  await startInPageAudioRecorder(page);
   await page.waitForTimeout(1500);
+  const hadAudioB = await stopInPageAudioRecorder(page, audioB).catch(() => false);
 
   const audioPath = path.join(outDir, "episode1-youtube-audio.webm");
-  const hadAudio = await stopInPageAudioRecorder(page, audioPath).catch(() => false);
+  let hadAudio = hadAudioA || hadAudioB;
+  if (hadAudioA && hadAudioB) {
+    const list = path.join(outDir, "episode1-audio-list.txt");
+    fs.writeFileSync(list, `file '${audioA}'\nfile '${audioB}'\n`);
+    spawnSync("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy", audioPath], {
+      encoding: "utf8"
+    });
+  } else if (hadAudioA) {
+    fs.copyFileSync(audioA, audioPath);
+  } else if (hadAudioB) {
+    fs.copyFileSync(audioB, audioPath);
+  } else {
+    hadAudio = false;
+  }
 
   await context.close();
   await browser.close();
