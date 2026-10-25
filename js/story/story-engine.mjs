@@ -808,6 +808,14 @@ function showDialogueNode(dlg, node) {
   el.classList.add("active");
   const speaker = (node.speaker || "npc").replace("npc_", "");
   applyDialogueCamera(speakerToNpcId(node.speaker) || speaker);
+  const st = ensureStoryState(me());
+  const metKey = `met_${speaker}`;
+  if (!st.flags[metKey] && speaker && speaker !== "player") {
+    st.flags[metKey] = true;
+    const introKey = `npc_intro_${speaker}`;
+    const introLine = typeof window.t === "function" ? window.t(introKey) : "";
+    if (introLine && introLine !== introKey) hooks.toast?.(introLine);
+  }
   el.querySelector(".story-dialog-title").textContent =
     typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker;
   const body = el.querySelector(".story-dialog-body");

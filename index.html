@@ -56,6 +56,23 @@
   <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
   <div id="storyBubbles" aria-hidden="true"></div>
   <div id="storyDirection" aria-hidden="true">!</div>
+  <div id="storyGoalBar" class="story-goal-bar" aria-live="polite">
+    <div class="story-goal-chapter"></div>
+    <div class="story-goal-main"></div>
+    <div class="story-goal-hint"></div>
+    <div class="story-goal-progress"></div>
+  </div>
+  <div id="chapterIntro" class="chapter-intro" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="chapter-intro-panel">
+      <div class="chapter-intro-title"></div>
+      <div class="chapter-intro-body"></div>
+      <div class="chapter-intro-actions">
+        <span class="chapter-intro-progress"></span>
+        <button type="button" class="btn secondary chapter-intro-skip" data-i18n="intro_skip">Пропустить</button>
+        <button type="button" class="btn chapter-intro-next" data-i18n="intro_next">Далее</button>
+      </div>
+    </div>
+  </div>
   <div id="storyConstructionHud" aria-live="polite">
     <div class="stage-name"></div>
     <div class="need-line"></div>
@@ -262,6 +279,10 @@
 <script src="js/i18n.js?v=living3d-v22r5-accounts-r1"></script>
 <script src="js/voice.js?v=living3d-v22r5-accounts-r1"></script>
 <script src="js/onboarding.js?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/audio-manager.mjs?v=pr-a-quality-1"></script>
+<script type="module" src="js/audio-settings-ui.mjs?v=pr-a-quality-1"></script>
+<script type="module" src="js/story/chapter-intro.mjs?v=pr-a-quality-1"></script>
+<script type="module" src="js/story/story-goal-hud.mjs?v=pr-a-quality-1"></script>
 <script type="module" src="js/context-hints.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/how-to-play.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/world3d.mjs?v=living3d-v22r5-accounts-r1"></script>
@@ -273,6 +294,10 @@
   import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1";
   import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r5-accounts-r1";
   initPlayV21();
+  const { initAudioSettingsUi } = await import("./js/audio-settings-ui.mjs?v=pr-a-quality-1");
+  const { initAudioManager } = await import("./js/audio-manager.mjs?v=pr-a-quality-1");
+  initAudioManager();
+  initAudioSettingsUi();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
   window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });

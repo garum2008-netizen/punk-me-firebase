@@ -46,6 +46,7 @@ import {
   consumeInteract,
   initControls3D
 } from "./controls-3d.mjs";
+import { createLocomotionState, stepLocomotion } from "./world/locomotion-sm.mjs";
 
 function resolveAnimName(name) {
   if (name === "wave" && !WAVE_EMOTE_ENABLED) return "idle";
@@ -236,28 +237,23 @@ function fadeTo(actor, name) {
   actor.current = key;
 }
 
+function ensureLocoState(actor) {
+  if (!actor._locoSm) actor._locoSm = createLocomotionState();
+  return actor._locoSm;
+}
+
 function pickLocomotionAnim(actor, speed, talking) {
   if (actor._holdAnim && actor._holdUntil > performance.now()) {
     if (actor._holdAnim === "walk" || actor._holdAnim === "run") return actor._holdAnim;
     return resolveAnimName(actor._holdAnim);
   }
-  if (talking && speed < 0.08) return "idle";
-  if (actor.isPlayer && actor._intentRun && speed > 0.05) return "run";
-  const walkGate = actor._meshy ? 0.14 : 0.08;
-  const prev = actor.current === "walk" || actor.current === "run" ? actor.current : "idle";
-  if (prev === "run") {
-    if (speed > 0.92) return "run";
-    if (speed > walkGate * 0.75) return "walk";
-    return "idle";
-  }
-  if (prev === "walk") {
-    if (speed > 1.42) return "run";
-    if (speed > walkGate * 0.65) return "walk";
-    return "idle";
-  }
-  if (speed > 1.42) return "run";
-  if (speed > walkGate) return "walk";
-  return "idle";
+  const intentRun = !!(actor.isPlayer && actor._intentRun);
+  return stepLocomotion(ensureLocoState(actor), {
+    speed,
+    intentRun,
+    talking: !!talking,
+    meshy: !!actor._meshy
+  });
 }
 
 function playOneShot(actor, name, ms = 1400) {
@@ -511,10 +507,13 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
   actor._moveT = now;
   let speed = dist / dt;
   if (actor.id.startsWith("demo_")) speed = 0;
+  if (dist < (isPlayer ? 0.006 : 0.022)) speed = 0;
   if (!isPlayer && isNpc && dist < 0.025) speed = 0;
   if (!isPlayer && actor._netAnim === "idle") speed = 0;
   const smooth = actor._locoSpeed ?? speed;
-  actor._locoSpeed = smooth * 0.72 + speed * 0.28;
+  const blend = speed < 0.02 ? 0.42 : 0.72;
+  actor._locoSpeed = smooth * blend + speed * (1 - blend);
+  if (isPlayer && !actor._fromLocomotion && actor._locoSpeed < 0.04) actor._locoSpeed = 0;
   actor._spd = actor._locoSpeed;
   if (isPlayer) { meLastDx = dx; meLastDy = dz; }
   actor.wx = actor.group.position.x;
@@ -1061,7 +1060,8 @@ function tickNpcPatrols(dt) {
     a.group.rotation.y = Math.atan2(ux, uz);
     const spd = move / Math.max(dt, 0.001);
     a._spd = spd;
-    fadeTo(a, spd > 1.15 ? "run" : "walk");
+    a._intentRun = false;
+    fadeTo(a, pickLocomotionAnim(a, spd, false));
     updateLocomotionTimeScale(a);
     a.group.position.x = a.wx;
     a.group.position.z = a.wz;
@@ -1127,9 +1127,11 @@ function processInput(dt) {
       window.StoryEngine?.onPlayerMove?.();
     }
   } else {
-    player._locoSpeed = (player._locoSpeed || 0) * 0.55;
-    player._spd = player._locoSpeed;
-    fadeTo(player, pickLocomotionAnim(player, player._locoSpeed, false));
+    player._intentRun = false;
+    player._locoSpeed = 0;
+    player._spd = 0;
+    fadeTo(player, "idle");
+    ensureLocoState(player).mode = "idle";
     updateLocomotionTimeScale(player);
   }
   if (consumeJump() && (player._onGround ?? true)) {
