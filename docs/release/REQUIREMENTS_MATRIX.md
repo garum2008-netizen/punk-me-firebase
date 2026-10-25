@@ -3,7 +3,7 @@
 Пункт ТЗ → реализация → проверка → статус.  
 Дефекты аудита §3: ссылки **`DEFECTS.md`** (`D-*`).
 
-**Интеграция:** ветка `cursor/scenario-preview-d81d` (единый preview).  
+**Интеграция:** ветка `cursor/scenario-preview-d81d` (единый preview), commit `e5de1fb`.  
 **Production / rules:** не публиковать до «приёмка подтверждена» (Инна).
 
 ---
