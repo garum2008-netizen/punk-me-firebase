@@ -26,11 +26,11 @@
 | Гл.2 | 4 этапа + `HangoutMinigame`; антибуллинг — **код** |
 | Гл.3 | Смена; 3 загадки призрака; 3 фазы склепа — **код** |
 | Гл.4 | Язык Zoya/zombie; башня свечи+орган; концерт; Граф; `EndingLogic` + `WorldState` — **код** |
-| 3 концовки | Текстовая сцена + смена освещения/атрибутов мира; кат-сцены — **нет** |
+| 3 концовки | `SceneDirector` (камера, диалог, муз. слоты) + `WorldState`; озвучка — **нет** |
 
 ## Автотесты
 
-`roblox/scripts/check.sh` — **14/14 lune** (см. `release/TEST_MATRIX.md`). Studio: **NOT RUN**.
+`roblox/scripts/check.sh` — **16/16 lune**; копирует `.rbxlx` в `release/` и `/opt/cursor/artifacts/`. Studio: **NOT RUN**.
 
 ## Блокеры приёмки
 
