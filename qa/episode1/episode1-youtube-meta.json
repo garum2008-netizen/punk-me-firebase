@@ -4,8 +4,8 @@
   "fullWebmDurationSec": 739.72,
   "fullMp4DurationSec": 739.72,
   "gitWebmPath": "qa/episode1/episode1-youtube.webm",
-  "gitWebmDurationSec": null,
-  "gitWebmBytes": null,
+  "gitWebmDurationSec": 739.72,
+  "gitWebmBytes": 9863168,
   "marks": [
     {"sec": 0, "label": "boot", "extra": "solo new player"},
     {"sec": 32.931, "label": "char_select", "extra": "Cobalt"},
