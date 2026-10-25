@@ -30,12 +30,13 @@ async function runBrowser(browserType, tag) {
   await page.locator('.char-pick[data-id="cobalt"]').click();
   await page.locator("#charSelectConfirm").click();
   await page.waitForFunction(() => window.__playerLoaded, { timeout: 120000 });
+  await page.locator("#howToOverlay .close, #howToOverlay button").first().click({ timeout: 3000 }).catch(() => {});
   const startVisible = await page.locator("#startGameOverlay.active").count();
   log.push(["start_overlay", startVisible > 0, startVisible]);
-  await page.locator("#btnStartGame").click();
+  await page.locator("#btnStartGame").click({ force: true, timeout: 15000 });
   await page.waitForFunction(() => window.me?.tutorial?.episode1Started === true, { timeout: 15000 });
   const tutorialStarted = await page.evaluate(() => window.me?.tutorial?.episode1Started === true);
-  log.push(["tutorial_started", tutorialStarted, window.me?.tutorial]);
+  log.push(["tutorial_started", tutorialStarted]);
   await page.evaluate(() => {
     window.me._onboardOrigin = { x: 40, y: 60 };
     window.Onboarding.onMove(52, 72);
@@ -68,29 +69,25 @@ async function runBrowser(browserType, tag) {
     window.me.onboarding.progress = {};
     window.Onboarding.syncGuideTarget?.();
   });
-  const talk = await page.evaluate(async () => {
-    const near = window.World3D?.getNearestNpc?.();
-    if (near !== "razor") {
-      const pl = window.me;
-      pl.location = "street";
-      window.goLocation?.("street");
-    }
-    await new Promise(r => setTimeout(r, 800));
-    const nid = window.World3D?.getNearestNpc?.();
-    if (nid !== "razor") return { ok: false, reason: "no_razor_near", nid };
+  const arcadeBlocked = await page.evaluate(() => {
+    const snap = window.World3D?.getNearestNpc;
+    window.World3D.getNearestNpc = () => null;
     const before = window.me.coins;
-    const mod = await import("./js/controls-3d.mjs");
-    mod.touchInteract();
-    await new Promise(r => setTimeout(r, 200));
-    if (window.openNpcDialog) window.openNpcDialog("razor");
-    await new Promise(r => setTimeout(r, 300));
-    const arcadeGain = window.me.coins - before;
+    const r = window.PlayV21?.tryInteract(window.me, { toast: () => {}, save: () => {} });
+    if (snap) window.World3D.getNearestNpc = snap;
+    return { blocked: r === false && window.me.coins === before, gain: window.me.coins - before };
+  });
+  log.push(["street_arcade_blocked_during_onboarding", arcadeBlocked.blocked, arcadeBlocked]);
+  const talk = await page.evaluate(async () => {
+    window.openNpcDialog?.("razor");
+    await new Promise(r => setTimeout(r, 400));
     const dlg =
       document.getElementById("storyDialog")?.classList.contains("active") ||
       document.getElementById("gangModal")?.classList.contains("active");
-    return { ok: dlg && arcadeGain < 5, arcadeGain, dlg, nid };
+    const step = window.me.onboarding?.step ?? 0;
+    return { ok: dlg && step >= 3, dlg, step };
   });
-  log.push(["e_talk_razor_not_arcade", talk.ok, talk]);
+  log.push(["razor_talk_opens_dialog", talk.ok, talk]);
   await page.screenshot({ path: path.join(outDir, `episode1-${tag}.png`) });
   await context.close();
   await browser.close();

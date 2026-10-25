@@ -1,0 +1,123 @@
+{
+  "chromium": [
+    [
+      "start_overlay",
+      true,
+      1
+    ],
+    [
+      "tutorial_started",
+      true
+    ],
+    [
+      "onboard_step_after_move",
+      true,
+      {
+        "step": 1,
+        "coins": 120,
+        "granted": [
+          "onboard:move"
+        ]
+      }
+    ],
+    [
+      "reload_keeps_step",
+      true,
+      {
+        "step": 1,
+        "coins": 120
+      }
+    ],
+    [
+      "reload_no_dup_coins",
+      true,
+      {
+        "coinsBefore": 120,
+        "afterReload": {
+          "step": 1,
+          "coins": 120
+        }
+      }
+    ],
+    [
+      "street_arcade_blocked_during_onboarding",
+      true,
+      {
+        "blocked": true,
+        "gain": 0
+      }
+    ],
+    [
+      "razor_talk_opens_dialog",
+      true,
+      {
+        "ok": true,
+        "dlg": true,
+        "step": 3
+      }
+    ],
+    [
+      "video",
+      true,
+      "/workspace/qa/episode1/playthrough-demo.webm"
+    ]
+  ],
+  "webkit": [
+    [
+      "start_overlay",
+      true,
+      1
+    ],
+    [
+      "tutorial_started",
+      true
+    ],
+    [
+      "onboard_step_after_move",
+      true,
+      {
+        "step": 1,
+        "coins": 120,
+        "granted": [
+          "onboard:move"
+        ]
+      }
+    ],
+    [
+      "reload_keeps_step",
+      true,
+      {
+        "step": 1,
+        "coins": 120
+      }
+    ],
+    [
+      "reload_no_dup_coins",
+      true,
+      {
+        "coinsBefore": 120,
+        "afterReload": {
+          "step": 1,
+          "coins": 120
+        }
+      }
+    ],
+    [
+      "street_arcade_blocked_during_onboarding",
+      true,
+      {
+        "blocked": true,
+        "gain": 0
+      }
+    ],
+    [
+      "razor_talk_opens_dialog",
+      true,
+      {
+        "ok": true,
+        "dlg": true,
+        "step": 3
+      }
+    ]
+  ]
+}

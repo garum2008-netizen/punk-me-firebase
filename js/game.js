@@ -922,7 +922,9 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
-    window.__punkEpisode1StartGate?.(() => {});
+    const runStartGate = () => window.__punkEpisode1StartGate?.(() => {});
+    if (window.__punkEpisode1StartGate) runStartGate();
+    else window.addEventListener("punk-episode1-ready", runStartGate, { once: true });
   } catch (err) {
     console.error("continueGameBoot", err);
     showLoadingFailure(t("loading_boot_error"), err.message || String(err));

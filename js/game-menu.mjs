@@ -21,11 +21,16 @@ function renderJournal() {
 
 function syncAudioSliders() {
   const s = AudioManager.getSettings();
-  el("audioMusic")?.value = String(Math.round(s.music * 100));
-  el("audioVoice")?.value = String(Math.round(s.voice * 100));
-  el("audioSfx")?.value = String(Math.round(s.sfx * 100));
-  el("audioMuted")?.checked = !!s.muted;
-  el("audioTtsFallback")?.checked = !!s.ttsFallback;
+  const music = el("audioMusic");
+  const voice = el("audioVoice");
+  const sfx = el("audioSfx");
+  const muted = el("audioMuted");
+  const tts = el("audioTtsFallback");
+  if (music) music.value = String(Math.round(s.music * 100));
+  if (voice) voice.value = String(Math.round(s.voice * 100));
+  if (sfx) sfx.value = String(Math.round(s.sfx * 100));
+  if (muted) muted.checked = !!s.muted;
+  if (tts) tts.checked = !!s.ttsFallback;
 }
 
 export function openGameMenu() {
@@ -96,4 +101,8 @@ export function showStartGameOverlay(onStart) {
 export function initStartFlow() {
   window.openGameMenu = openGameMenu;
   window.closeGameMenu = closeGameMenu;
+  if (window.__playerLoaded && window.me?.characterId && !window.me.tutorial?.episode1Started) {
+    showStartGameOverlay(() => {});
+  }
+  window.dispatchEvent(new Event("punk-episode1-ready"));
 }

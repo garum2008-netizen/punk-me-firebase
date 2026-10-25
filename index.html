@@ -304,17 +304,19 @@
 <script type="module" src="js/world3d.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module" src="js/char-select.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module" src="js/play-features-v21.mjs?v=living3d-v22r6-master-p1-r1"></script>
-<script src="js/life.js?v=living3d-v22r6-master-p1-r1"></script>
-<script src="js/game.js?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module">
-  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r6-master-p1-r1";
-  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r6-master-p1-r1";
   import { initAudioManager } from "./js/audio-manager.mjs?v=living3d-v22r6-master-p1-r1";
   import { initGameMenu, initStartFlow, showStartGameOverlay } from "./js/game-menu.mjs?v=living3d-v22r6-master-p1-r1";
   initAudioManager();
   initGameMenu();
   initStartFlow();
   window.__punkEpisode1StartGate = showStartGameOverlay;
+</script>
+<script src="js/life.js?v=living3d-v22r6-master-p1-r1"></script>
+<script src="js/game.js?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module">
+  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r6-master-p1-r1";
+  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r6-master-p1-r1";
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
