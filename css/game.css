@@ -400,6 +400,17 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 #loading .loading-error { max-width: min(420px, 92vw); text-align: center; color: #ffb4b4; font-size: 14px; line-height: 1.45; }
 #loading .loading-error-detail { max-width: min(420px, 92vw); text-align: center; color: #aaa; font-size: 12px; }
 #loading .loading-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 4px; }
+#loading .loading-boot-title { max-width: min(440px, 92vw); text-align: center; color: #f0e8ff; font-size: 17px; font-weight: 800; margin: 0; line-height: 1.35; }
+#loading .loading-boot-tips { max-width: min(440px, 92vw); text-align: center; color: #c8b8e8; font-size: 13px; line-height: 1.5; white-space: pre-line; }
+#loading .loading-boot-link { font-size: 13px; }
+#loading .loading-boot-link a { color: #0ff; text-decoration: underline; }
+#loading .loading-boot-retry-hint { max-width: min(440px, 92vw); text-align: center; color: #9aa; font-size: 12px; line-height: 1.45; }
+#loading .loading-boot-support-label { max-width: min(440px, 92vw); width: 100%; text-align: left; font-size: 11px; font-weight: 700; color: #888; margin: 10px 0 0; text-transform: uppercase; letter-spacing: 0.04em; }
+#loading .loading-support-dump {
+  max-width: min(440px, 92vw); max-height: 140px; overflow: auto; margin: 8px 0 0;
+  padding: 10px 12px; font-size: 11px; line-height: 1.4; text-align: left;
+  background: rgba(0,0,0,0.45); border: 1px solid rgba(255,0,255,0.25); border-radius: 8px; color: #bbb;
+}
 .btn-howto {
   position: absolute; top: 8px; right: 8px; z-index: 22;
   width: 40px; height: 40px; border-radius: 50%;

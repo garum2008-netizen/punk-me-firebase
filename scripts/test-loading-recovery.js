@@ -36,6 +36,29 @@ async function runSuite(browserName, browserType) {
   });
   log.push(["footer_i18n", !footer.footerHasLoadingPill && footer.linkText.length > 3, footer]);
 
+  const webglUi = await page.evaluate(() => {
+    if (typeof setLanguage === "function") setLanguage("ru", false);
+    window.__punkShowBootFailure?.("webgl", "no_context", { kind: "webgl", code: "webgl" });
+    const retry = document.getElementById("loadingRetryBtn");
+    return {
+      noFresh: !document.getElementById("loadingFreshBtn"),
+      hasCopy: !!document.getElementById("loadingCopySupportBtn"),
+      hasWebglLink: !!document.querySelector('#loading a[href*="webgl.org"]'),
+      hasSupportDump: !!document.getElementById("loadingSupportDump"),
+      titleHasWebgl: (document.querySelector(".loading-boot-title")?.textContent || "").length > 5,
+      retryHint: (document.querySelector(".loading-boot-retry-hint")?.textContent || "").length > 10
+    };
+  });
+  log.push([
+    "webgl_boot_ui",
+    webglUi.noFresh && webglUi.hasCopy && webglUi.hasWebglLink && webglUi.hasSupportDump && webglUi.titleHasWebgl && webglUi.retryHint,
+    webglUi
+  ]);
+  if (browserName === "chromium") {
+    await page.screenshot({ path: path.join(outDir, "desktop-webgl-boot-ui.png") });
+  }
+  await page.evaluate(() => window.__punkRestoreLoadingMarkup?.());
+
   await page.evaluate(() => {
     try {
       localStorage.removeItem("punkme_character_id");
