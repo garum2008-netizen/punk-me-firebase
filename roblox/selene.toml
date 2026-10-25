@@ -1,0 +1,6 @@
+std = "roblox"
+exclude = ["tests/**", ".tools/**", "build/**"]
+
+[rules]
+global_usage = "allow"
+incorrect_standard_library_use = "allow"
