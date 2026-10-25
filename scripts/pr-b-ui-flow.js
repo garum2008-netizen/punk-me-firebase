@@ -198,4 +198,11 @@ async function runFullPrBPlaythrough(page, opts = {}) {
   return { ...epSnap, prB: true };
 }
 
-module.exports = { runFullPrBPlaythrough, ensureGameplayActive };
+module.exports = {
+  runFullPrBPlaythrough,
+  ensureGameplayActive,
+  recordRoomBuildShowcase,
+  recordCryptShowcase,
+  purchaseCityPlotUi,
+  runCemeteryMiniJob
+};

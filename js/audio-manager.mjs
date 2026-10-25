@@ -97,6 +97,10 @@ export function createAudioManager() {
   let ducking = false;
   let captureDest = null;
   let captureGain = null;
+  let captureMusicDest = null;
+  let captureMusicGain = null;
+  let captureSfxDest = null;
+  let captureSfxGain = null;
 
   const buffers = new Map();
   const speechQueue = [];
@@ -544,9 +548,8 @@ export function createAudioManager() {
     return "Music & SFX: PUNK ME (procedural, CC0). Voice lines: cast recordings (pending).";
   }
 
-  /** QA / episode capture: parallel tap of master bus for MediaRecorder in-page. */
-  function installCaptureTap() {
-    if (!ensureGraph()) return null;
+  function ensureCaptureTaps() {
+    if (!ensureGraph()) return false;
     if (!captureDest) {
       captureDest = ctx.createMediaStreamDestination();
       captureGain = ctx.createGain();
@@ -554,7 +557,38 @@ export function createAudioManager() {
       masterGain.node.connect(captureGain);
       captureGain.connect(captureDest);
     }
+    if (!captureMusicDest) {
+      captureMusicDest = ctx.createMediaStreamDestination();
+      captureMusicGain = ctx.createGain();
+      captureMusicGain.gain.value = 5.5;
+      channel.music.duck.connect(captureMusicGain);
+      captureMusicGain.connect(captureMusicDest);
+    }
+    if (!captureSfxDest) {
+      captureSfxDest = ctx.createMediaStreamDestination();
+      captureSfxGain = ctx.createGain();
+      captureSfxGain.gain.value = 5.5;
+      channel.sfx.gain.connect(captureSfxGain);
+      channel.speech.gain.connect(captureSfxGain);
+      captureSfxGain.connect(captureSfxDest);
+    }
+    return true;
+  }
+
+  /** QA / episode capture: parallel tap of master bus for MediaRecorder in-page. */
+  function installCaptureTap() {
+    if (!ensureCaptureTaps()) return null;
     return captureDest.stream;
+  }
+
+  /** QA content pack: separate music / SFX+speech taps plus full mix. */
+  function installCaptureTaps() {
+    if (!ensureCaptureTaps()) return null;
+    return {
+      mix: captureDest.stream,
+      music: captureMusicDest.stream,
+      sfx: captureSfxDest.stream
+    };
   }
 
   loadStorage();
@@ -584,6 +618,7 @@ export function createAudioManager() {
     getDuckFactor,
     getCreditsLine,
     installCaptureTap,
+    installCaptureTaps,
     /** @internal tests */
     _test: { getCtx: () => ctx, isDucking: () => ducking }
   };
