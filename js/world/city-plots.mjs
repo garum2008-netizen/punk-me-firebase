@@ -16,11 +16,20 @@ function box(w, h, d, m) {
 
 function buildShop() {
   const g = new THREE.Group();
-  const base = box(2.2, 1.6, 2, mat(0x3a2848));
-  base.position.y = 0.8;
-  const sign = box(2, 0.35, 0.1, mat(0xff00ff, 0xff00ff));
-  sign.position.set(0, 1.85, 1.05);
-  g.add(base, sign);
+  const base = box(2.4, 1.75, 2.2, mat(0x3a2848));
+  base.position.y = 0.88;
+  const awning = box(2.6, 0.12, 1.1, mat(0xff3399, 0xff0066));
+  awning.position.set(0, 1.95, 1.15);
+  awning.rotation.x = -0.22;
+  const sign = box(2.1, 0.42, 0.12, mat(0x00ffff, 0x00ffff));
+  sign.position.set(0, 2.35, 1.08);
+  const windowL = box(0.55, 0.65, 0.08, mat(0x88ccff, 0x4488ff));
+  windowL.position.set(-0.65, 1.05, 1.12);
+  const windowR = windowL.clone();
+  windowR.position.x = 0.65;
+  const door = box(0.75, 1.35, 0.1, mat(0xff00aa, 0xaa0066));
+  door.position.set(0, 0.72, 1.12);
+  g.add(base, awning, sign, windowL, windowR, door);
   return g;
 }
 

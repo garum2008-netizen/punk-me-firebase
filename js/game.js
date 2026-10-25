@@ -1886,6 +1886,7 @@ function npcTurn() {
 
 function endFight(win) {
   document.getElementById("fightOverlay").classList.remove("active");
+  document.getElementById("duel3dHud")?.classList.add("hidden");
   const shieldLeft = fight ? fight.shield : 0;
   if (win) {
     const reward = 70 + Math.floor(Math.random() * 40);
@@ -1902,6 +1903,7 @@ function endFight(win) {
     me.stats.hp = me.stats.maxHp;
   }
   fight = null;
+  window._duel3dEnd = null;
   if (shieldLeft) me.stats._shield = shieldLeft;
   saveMe();
   renderAll();

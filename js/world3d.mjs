@@ -490,25 +490,22 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
     actor.group.position.x = c.x;
     actor.group.position.z = c.z;
   } else {
-    const lerp = 0.22;
-    actor.group.position.x += (c.x - actor.group.position.x) * lerp;
-    actor.group.position.z += (c.z - actor.group.position.z) * lerp;
-    const snapped = clampWorld(actor.group.position.x, actor.group.position.z);
-    actor.group.position.x = snapped.x;
-    actor.group.position.z = snapped.z;
+    actor.group.position.x = c.x;
+    actor.group.position.z = c.z;
   }
   actor.group.position.y = 0;
-  const dx = c.x - (actor.wx ?? c.x);
-  const dz = c.z - (actor.wz ?? c.z);
+  const dx = isPlayer ? c.x - (actor.wx ?? c.x) : 0;
+  const dz = isPlayer ? c.z - (actor.wz ?? c.z) : 0;
   const dist = Math.hypot(dx, dz);
   const now = performance.now();
   const lastT = actor._moveT || now;
   const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
   actor._moveT = now;
-  let speed = dist / dt;
+  let speed = isPlayer ? dist / dt : 0;
+  if (isNpc && actor._patrol?.length) speed = actor._spd || 0;
   if (actor.id.startsWith("demo_")) speed = 0;
-  if (dist < (isPlayer ? 0.006 : 0.022)) speed = 0;
-  if (!isPlayer && isNpc && dist < 0.025) speed = 0;
+  if (dist < (isPlayer ? 0.006 : 0.022)) speed = isPlayer ? 0 : speed;
+  if (!isPlayer && isNpc && !actor._patrol?.length) speed = 0;
   if (!isPlayer && actor._netAnim === "idle") speed = 0;
   const smooth = actor._locoSpeed ?? speed;
   const blend = speed < 0.02 ? 0.42 : 0.72;
@@ -1049,7 +1046,14 @@ function tickNpcPatrols(dt) {
     const step = 1.55 * dt;
     if (dist < 0.4) {
       a._patrolIdx = (idx + 1) % path.length;
-      if (dist < 0.08) return;
+      if (dist < 0.08) {
+        a._spd = 0;
+        a.group.position.x = a.wx;
+        a.group.position.z = a.wz;
+        fadeTo(a, "idle");
+        updateLocomotionTimeScale(a);
+        return;
+      }
     }
     const ux = dx / (dist || 1);
     const uz = dz / (dist || 1);
