@@ -41,4 +41,14 @@ function RemoteValidation.validateEnum<T>(value: any, allowed: { T }): T?
 	return nil
 end
 
+function RemoteValidation.validateInt(value: any, min: number, max: number): number?
+	if type(value) ~= "number" or value % 1 ~= 0 then
+		return nil
+	end
+	if value < min or value > max then
+		return nil
+	end
+	return value
+end
+
 return RemoteValidation

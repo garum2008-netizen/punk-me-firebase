@@ -75,6 +75,8 @@ local function sanitizeStory(raw: any): QuestEngine.StoryState
 	base.concertHeadliner = type(raw.concertHeadliner) == "string" and raw.concertHeadliner or nil
 	base.flags = type(raw.flags) == "table" and raw.flags or base.flags
 	base.ch0HouseZones = type(raw.ch0HouseZones) == "table" and raw.ch0HouseZones or base.ch0HouseZones
+	base.ghostRiddleStep = type(raw.ghostRiddleStep) == "number" and raw.ghostRiddleStep or 0
+	base.cryptPhase = type(raw.cryptPhase) == "number" and raw.cryptPhase or 0
 	return base
 end
 

@@ -11,7 +11,11 @@
 | T2-01 | lune | `HangoutEngine` 4 этапа по порядку | PASS | NOT RUN |
 | T4-01 | lune | `TowerPuzzle.validate` | PASS | NOT RUN |
 | T4-02 | lune | `EndingLogic.canPick` | PASS | NOT RUN |
+| T2-02 | lune | `HangoutMinigame.validate` | PASS | NOT RUN |
+| T3-01 | lune | `GhostRiddleEngine` | PASS | NOT RUN |
+| T3-02 | lune | `CryptBuildEngine` | PASS | NOT RUN |
 | T0-03 | lune | Шаги `q_ch0_newbie` | PASS | NOT RUN |
+| ECO-02 | lune | `Economy.tryPurchase` | PASS | NOT RUN |
 | S0-01 | Studio | Гл.0: R15 NPC + 9 шагов | — | NOT RUN |
 | S1-01 | Studio | Дуэль initiation | — | NOT RUN |
 | S1-02 | Studio | 8 флаеров | — | NOT RUN |

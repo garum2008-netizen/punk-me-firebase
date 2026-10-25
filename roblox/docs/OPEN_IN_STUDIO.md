@@ -56,10 +56,10 @@ Studio → плагин Rojo → Connect (порт 34872).
 
 | Глава | id | Что должно быть (канон) | Статус Roblox (честно) |
 |-------|-----|-------------------------|-------------------------|
-| 1 | q_ch1_initiation_choice + `q_initiation_*` | Один путь: **150 монет + взнос** ИЛИ **настоящая дуэль** ИЛИ **8 флаеров** | Частично: взнос/дуэль/флаеры — **заглушки** |
-| 2 | q_ch2_hangout, q_ch2_antibully | 4 разных этапа Тусовки; конфликт с новичком | Заглушка (повтор interact) |
-| 3 | q_ch3_cemetery_night | Смена, призрак, склеп, **bell_rim** | Частично |
-| 4 | q_ch4_castle + ending_* | Язык, головоломка башни, концерт, Граф, 3 концовки | Заглушка / UI выбора |
+| 1 | q_ch1_initiation_choice + `q_initiation_*` | Взнос **или** дуэль на `zone_duel` **или** 8 флаеров (HUD счётчик) | **Код** — Studio NOT RUN |
+| 2 | q_ch2_hangout, q_ch2_antibully | 4 мини-игры `HangoutMinigame`; выбор за/против новичка | **Код** — Studio NOT RUN |
+| 3 | q_ch3_cemetery_night | Смена; 3 загадки призрака; 3 фазы склепа; **bell_rim** | **Код** — Studio NOT RUN |
+| 4 | q_ch4_castle + ending_* | Язык; UI башни (свечи+ноты); концерт; Граф; 3 концовки по `EndingLogic` | **Код** — Studio NOT RUN |
 
 Полная матрица тестов: `roblox/release/TEST_MATRIX.md`.
 

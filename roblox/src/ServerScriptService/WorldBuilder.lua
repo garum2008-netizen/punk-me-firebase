@@ -92,13 +92,14 @@ function WorldBuilder.build(parent: Folder)
 	})
 	addZone(street, "zone_street", Vector3.new(55, 10, 28), Vector3.new(80, 5, 0), Color3.fromRGB(255, 100, 180))
 	RigFactory.spawnNpc(street, "npc_razor", Vector3.new(70, 0, 5), "Talk")
-	makePart({
+	local shop = makePart({
 		Name = "Shop",
 		Size = Vector3.new(14, 10, 14),
 		Position = Vector3.new(100, 5, -10),
 		Color = Color3.fromRGB(90, 40, 120),
 		Parent = street,
 	})
+	shop:SetAttribute("ZoneId", "zone_shop")
 
 	local city = Instance.new("Folder")
 	city.Name = "City"
@@ -213,6 +214,24 @@ function WorldBuilder.build(parent: Folder)
 			Parent = castle,
 		})
 		candle:SetAttribute("CandleIndex", i)
+	end
+	local organ = makePart({
+		Name = "organ_console",
+		Size = Vector3.new(6, 3, 2),
+		Position = Vector3.new(-88, 2, 98),
+		Color = Color3.fromRGB(40, 30, 50),
+		Parent = castle,
+	})
+	local noteOffset = { C = 0, D = 1, E = 2, G = 3 }
+	for _, note in { "C", "D", "E", "G" } do
+		local key = makePart({
+			Name = "organ_" .. note,
+			Size = Vector3.new(1.2, 0.4, 1.2),
+			Position = Vector3.new(-90 + noteOffset[note], 3.5, 98),
+			Color = Color3.fromRGB(120, 80, 160),
+			Parent = organ,
+		})
+		key:SetAttribute("OrganNote", note)
 	end
 	RigFactory.spawnNpc(castle, "npc_count", Vector3.new(-80, 0, 80), "Talk")
 	RigFactory.spawnNpc(castle, "npc_zoya", Vector3.new(-65, 0, 70), "Talk")

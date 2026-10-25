@@ -8,6 +8,7 @@ local MonetizationService = require(script.Parent.MonetizationService)
 local StoryHandlers = require(script.Parent.StoryHandlers)
 local DuelService = require(script.Parent.DuelService)
 local AvatarService = require(script.Parent.AvatarService)
+local NpcInteractService = require(script.Parent.NpcInteractService)
 
 local RemoteValidation = require(ReplicatedStorage.Shared.RemoteValidation)
 local QuestEngine = require(ReplicatedStorage.Shared.QuestEngine)
@@ -35,6 +36,37 @@ end
 local function rateOk(player: Player, action: string): boolean
 	return RemoteValidation.checkRate(getBucket(player.UserId, action), os.clock(), 2, 12)
 end
+
+local function playerInZone(player: Player, zoneId: string): boolean
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not hrp then
+		return false
+	end
+	local world = workspace:FindFirstChild("World")
+	if not world then
+		return false
+	end
+	for _, inst in world:GetDescendants() do
+		if inst:IsA("BasePart") and inst:GetAttribute("ZoneId") == zoneId then
+			local rel = hrp.Position - inst.Position
+			if
+				math.abs(rel.X) <= inst.Size.X / 2
+				and math.abs(rel.Y) <= inst.Size.Y / 2
+				and math.abs(rel.Z) <= inst.Size.Z / 2
+			then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local NPC_TALK_EVENTS: { [string]: string } = {
+	ch0_mom_talk = "npc_mom",
+	ch0_razor_talk = "npc_razor",
+	ch0_pet_shnurok = "npc_shnurok",
+}
 
 local function pushProfile(player: Player)
 	local session = ProfileService.getSession(player.UserId)
@@ -115,7 +147,7 @@ function GameServer.setupRemotes()
 		elseif action == "cemetery_job" then
 			ok = StoryHandlers.handleCemeteryJob(profile)
 		elseif action == "duel_start" then
-			if profile.story.activeQuestId == "q_initiation_duel" then
+			if profile.story.activeQuestId == "q_initiation_duel" and playerInZone(player, "zone_duel") then
 				local started, state = DuelService.startDuel(player.UserId, "npc_razor")
 				if started and state then
 					duelUpdate:FireClient(player, state)
@@ -144,9 +176,12 @@ function GameServer.setupRemotes()
 				ok = StoryHandlers.handleFlyerPost(profile, spot)
 			end
 		elseif action == "hangout_build" then
-			local stage = RemoteValidation.validateString(payload, 24)
-			if stage then
-				ok = StoryHandlers.handleHangoutBuild(profile, stage)
+			if type(payload) == "table" then
+				local stage = RemoteValidation.validateString(payload.stage, 24)
+				local answer = RemoteValidation.validateString(payload.answer, 48)
+				if stage and answer then
+					ok = StoryHandlers.handleHangoutBuild(profile, stage, answer)
+				end
 			end
 		elseif action == "ch2_antibully" then
 			local choice = RemoteValidation.validateString(payload, 16)
@@ -154,9 +189,18 @@ function GameServer.setupRemotes()
 				ok = StoryHandlers.handleCh2Antibully(profile, choice)
 			end
 		elseif action == "ch3_ghost" then
-			ok = StoryHandlers.handleCh3Ghost(profile)
+			local ans = RemoteValidation.validateString(payload, 32)
+			if ans then
+				ok = StoryHandlers.handleCh3Ghost(profile, ans)
+			end
 		elseif action == "ch3_crypt" then
-			ok = StoryHandlers.handleCh3Crypt(profile)
+			if type(payload) == "table" then
+				local phase = RemoteValidation.validateString(payload.phase, 20)
+				local ans = RemoteValidation.validateString(payload.answer, 32)
+				if phase and ans then
+					ok = StoryHandlers.handleCh3Crypt(profile, phase, ans)
+				end
+			end
 		elseif action == "bell_tongue" then
 			local branch = RemoteValidation.validateString(payload, 16)
 			if branch then
@@ -177,7 +221,7 @@ function GameServer.setupRemotes()
 			ok = StoryHandlers.handleConfession(profile)
 		elseif action == "shop_buy" then
 			local itemId = RemoteValidation.validateString(payload, 64)
-			if itemId then
+			if itemId and playerInZone(player, "zone_shop") then
 				local item = ShopCatalog.get(itemId)
 				local owned = item and item.grantInventoryKey and (profile.inventory[item.grantInventoryKey] or 0) > 0
 				local purchase = Economy.tryPurchase(profile.coins, item, owned == true)
@@ -199,6 +243,12 @@ function GameServer.setupRemotes()
 		end
 
 		if ok then
+			if action == "quest_event" and type(payload) == "string" then
+				local npcId = NPC_TALK_EVENTS[payload]
+				if npcId then
+					NpcInteractService.playTalk(npcId)
+				end
+			end
 			ProfileService.saveSession(session)
 			pushProfile(player)
 			local extra: any = { ok = true }

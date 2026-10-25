@@ -7,8 +7,12 @@ local ProfileSchema = require(ReplicatedStorage.Shared.ProfileSchema)
 local QuestTable = require(ReplicatedStorage.Config.QuestTable)
 local FlyerEngine = require(ReplicatedStorage.Shared.FlyerEngine)
 local HangoutEngine = require(ReplicatedStorage.Shared.HangoutEngine)
+local HangoutMinigame = require(ReplicatedStorage.Shared.HangoutMinigame)
+local GhostRiddleEngine = require(ReplicatedStorage.Shared.GhostRiddleEngine)
+local CryptBuildEngine = require(ReplicatedStorage.Shared.CryptBuildEngine)
 local TowerPuzzle = require(ReplicatedStorage.Shared.TowerPuzzle)
 local EndingLogic = require(ReplicatedStorage.Shared.EndingLogic)
+local WorldState = require(script.Parent.WorldState)
 
 local StoryHandlers = {}
 
@@ -84,6 +88,9 @@ end
 
 function StoryHandlers.handleFlyerPost(profile: ProfileSchema.Profile, spotId: string): boolean
 	local story = profile.story
+	if story.activeQuestId ~= "q_initiation_graffiti" then
+		return false
+	end
 	local posted = FlyerEngine.postSpot(story.flyersPosted, spotId)
 	if not posted then
 		return false
@@ -98,12 +105,15 @@ function StoryHandlers.handleFlyerPost(profile: ProfileSchema.Profile, spotId: s
 	return true
 end
 
-function StoryHandlers.handleHangoutBuild(profile: ProfileSchema.Profile, stage: string): boolean
+function StoryHandlers.handleHangoutBuild(profile: ProfileSchema.Profile, stage: string, answer: string): boolean
 	local story = profile.story
 	if story.activeQuestId ~= QuestTable.CH2 then
 		return false
 	end
 	if stage ~= "foundation" and stage ~= "frame" and stage ~= "neon" and stage ~= "grand_open" then
+		return false
+	end
+	if not HangoutMinigame.validate(stage :: HangoutMinigame.StageId, answer) then
 		return false
 	end
 	local ok, count = HangoutEngine.complete(story.hangout, stage :: HangoutEngine.StageId)
@@ -139,22 +149,40 @@ function StoryHandlers.handleCh2Antibully(profile: ProfileSchema.Profile, choice
 	return true
 end
 
-function StoryHandlers.handleCh3Ghost(profile: ProfileSchema.Profile): boolean
-	if profile.story.activeQuestId == QuestTable.CH3 and profile.story.activeStepId == "ch3_s_ghost" then
-		return QuestEngine.tryCompleteEvent(profile.story, "ch3_ghost_helped") ~= false
+function StoryHandlers.handleCh3Ghost(profile: ProfileSchema.Profile, answer: string): boolean
+	local story = profile.story
+	if story.activeQuestId ~= QuestTable.CH3 or story.activeStepId ~= "ch3_s_ghost" then
+		return false
 	end
-	return false
+	local ok, nextStep = GhostRiddleEngine.submit(story.ghostRiddleStep, answer)
+	if not ok then
+		return false
+	end
+	story.ghostRiddleStep = nextStep
+	if GhostRiddleEngine.isComplete(nextStep) then
+		story.relationships.count = (story.relationships.count or 0) + 3
+		return QuestEngine.tryCompleteEvent(story, "ch3_ghost_helped") ~= false
+	end
+	return true
 end
 
-function StoryHandlers.handleCh3Crypt(profile: ProfileSchema.Profile): boolean
-	if profile.story.activeQuestId == QuestTable.CH3 and profile.story.activeStepId == "ch3_s_crypt" then
-		local ok, grant = QuestEngine.tryCompleteEvent(profile.story, "ch3_crypt_built")
+function StoryHandlers.handleCh3Crypt(profile: ProfileSchema.Profile, phaseId: string, answer: string): boolean
+	local story = profile.story
+	if story.activeQuestId ~= QuestTable.CH3 or story.activeStepId ~= "ch3_s_crypt" then
+		return false
+	end
+	if not CryptBuildEngine.validate(phaseId, answer, story.cryptPhase) then
+		return false
+	end
+	story.cryptPhase += 1
+	if CryptBuildEngine.isComplete(story.cryptPhase) then
+		local ok, grant = QuestEngine.tryCompleteEvent(story, "ch3_crypt_built")
 		if ok and grant then
 			applyGrants(profile, grant)
 		end
 		return ok
 	end
-	return false
+	return true
 end
 
 function StoryHandlers.handleCh4Enter(profile: ProfileSchema.Profile): boolean
@@ -235,6 +263,11 @@ function StoryHandlers.handleEnding(profile: ProfileSchema.Profile, endingId: st
 		if ending then
 			local g = QuestEngine.grantReward(profile.story, ending.grantKey)
 			applyGrants(profile, g)
+		end
+		profile.story.freePlay = true
+		local world = workspace:FindFirstChild("World")
+		if world and world:IsA("Folder") then
+			WorldState.applyEnding(world, endingId)
 		end
 		return true
 	end

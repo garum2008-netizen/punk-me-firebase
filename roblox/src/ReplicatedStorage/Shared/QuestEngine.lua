@@ -31,6 +31,8 @@ export type StoryState = {
 	concertHeadliner: string?,
 	flags: { [string]: boolean },
 	ch0HouseZones: { [string]: boolean },
+	ghostRiddleStep: number,
+	cryptPhase: number,
 }
 
 function QuestEngine.defaultStoryState(): StoryState
@@ -57,6 +59,8 @@ function QuestEngine.defaultStoryState(): StoryState
 		concertHeadliner = nil,
 		flags = {},
 		ch0HouseZones = {},
+		ghostRiddleStep = 0,
+		cryptPhase = 0,
 	}
 end
 

@@ -6,6 +6,9 @@ local RunService = game:GetService("RunService")
 local AngelinaLines = require(ReplicatedStorage.Shared.AngelinaLines)
 local AvatarPresets = require(ReplicatedStorage.Config.AvatarPresets)
 local QuestTable = require(ReplicatedStorage.Config.QuestTable)
+local EndingLogic = require(ReplicatedStorage.Shared.EndingLogic)
+local FlyerEngine = require(ReplicatedStorage.Shared.FlyerEngine)
+local ShopCatalog = require(ReplicatedStorage.Config.ShopCatalog)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -41,6 +44,26 @@ coinsLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
 coinsLabel.Font = Enum.Font.GothamBold
 coinsLabel.TextSize = 16
 coinsLabel.Parent = screen
+
+local flyerLabel = Instance.new("TextLabel")
+flyerLabel.Size = UDim2.new(0, 200, 0, 24)
+flyerLabel.Position = UDim2.new(0, 10, 0, 118)
+flyerLabel.BackgroundTransparency = 0.3
+flyerLabel.TextColor3 = Color3.fromRGB(255, 180, 220)
+flyerLabel.Font = Enum.Font.Gotham
+flyerLabel.TextSize = 14
+flyerLabel.Visible = false
+flyerLabel.Parent = screen
+
+local duelHint = Instance.new("TextLabel")
+duelHint.Size = UDim2.new(0, 280, 0, 40)
+duelHint.Position = UDim2.new(0.5, -140, 0.2, 0)
+duelHint.BackgroundTransparency = 0.2
+duelHint.TextColor3 = Color3.fromRGB(255, 120, 120)
+duelHint.Text =
+	"Дуэль: иди на арену (красная площадка) и поговори с Рейзором"
+duelHint.Visible = false
+duelHint.Parent = screen
 
 local angelinaFrame = Instance.new("Frame")
 angelinaFrame.Size = UDim2.new(0, 300, 0, 110)
@@ -102,37 +125,42 @@ local function say(ctx: AngelinaLines.Context)
 	angelinaText.Text = AngelinaLines.forContext(ctx, lang())
 end
 
-local function refreshQuest()
-	if not profile or not profile.story then
-		return
-	end
-	local st = profile.story
-	local step = QuestTable.stepDef(st.activeQuestId, st.activeStepId)
-	if step then
-		questLabel.Text = step.objective[lang()] or step.objective.en or st.activeStepId
-		if step.angelina then
-			say(step.angelina :: AngelinaLines.Context)
-		end
-	else
-		questLabel.Text = st.activeQuestId .. " / " .. st.activeStepId
-	end
-	coinsLabel.Text = "🪙 " .. tostring(profile.coins)
-	if st.activeStepId == "ch0_s_avatar" then
-		picker.Visible = true
-	end
-	if st.activeStepId == "ch1_s_choice" then
-		choiceFrame.Visible = true
-	end
-end
-
-profileUpdated.OnClientEvent:Connect(function(p)
-	profile = p
-	refreshQuest()
-end)
-
 helpBtn.MouseButton1Click:Connect(function()
 	say("stuck")
 end)
+
+local langRow = Instance.new("Frame")
+langRow.Size = UDim2.new(0, 200, 0, 28)
+langRow.Position = UDim2.new(0, 10, 0, 146)
+langRow.BackgroundTransparency = 1
+langRow.Parent = screen
+for i, code in { "ru", "uk", "en", "da" } do
+	local lb = Instance.new("TextButton")
+	lb.Size = UDim2.new(0, 46, 1, 0)
+	lb.Position = UDim2.new(0, (i - 1) * 48, 0, 0)
+	lb.Text = string.upper(code)
+	lb.Parent = langRow
+	lb.MouseButton1Click:Connect(function()
+		requestAction:FireServer("set_language", code)
+	end)
+end
+
+local shopFrame = Instance.new("Frame")
+shopFrame.Size = UDim2.new(0, 260, 0, 120)
+shopFrame.Position = UDim2.new(1, -270, 0.35, 0)
+shopFrame.BackgroundColor3 = Color3.fromRGB(25, 15, 35)
+shopFrame.Visible = false
+shopFrame.Parent = screen
+for i, item in ShopCatalog.list do
+	local sb = Instance.new("TextButton")
+	sb.Size = UDim2.new(1, -12, 0, 32)
+	sb.Position = UDim2.new(0, 6, 0, 6 + (i - 1) * 36)
+	sb.Text = string.format("%s — %d🪙", item.id, item.price)
+	sb.Parent = shopFrame
+	sb.MouseButton1Click:Connect(function()
+		requestAction:FireServer("shop_buy", item.id)
+	end)
+end
 
 task.delay(1.5, function()
 	if not lookedRoom then
@@ -148,16 +176,80 @@ endingFrame.BackgroundColor3 = Color3.fromRGB(25, 10, 35)
 endingFrame.Visible = false
 endingFrame.Parent = screen
 
+local endingButtons: { [string]: TextButton } = {}
 for id, def in QuestTable.endings do
 	local b = Instance.new("TextButton")
 	b.Size = UDim2.new(1, -12, 0, 36)
 	b.Text = def.title.ru
 	b.Parent = endingFrame
+	b.Visible = false
+	endingButtons[id] = b
 	b.MouseButton1Click:Connect(function()
 		requestAction:FireServer("pick_ending", id)
 		endingFrame.Visible = false
 	end)
 end
+
+local function refreshEndings()
+	if not profile or not profile.story then
+		return
+	end
+	local st = profile.story
+	local rec = EndingLogic.recommended(st)
+	for id, b in endingButtons do
+		local can = EndingLogic.canPick(st, id :: EndingLogic.EndingId)
+		b.Visible = can
+		local star = if id == rec then " ★" else ""
+		b.Text = QuestTable.endings[id].title.ru .. star
+	end
+end
+
+local bullyFrame: Frame
+local concertFrame: Frame
+
+local function refreshQuest()
+	if not profile or not profile.story then
+		return
+	end
+	local st = profile.story
+	local step = QuestTable.stepDef(st.activeQuestId, st.activeStepId)
+	if step then
+		questLabel.Text = step.objective[lang()] or step.objective.en or st.activeStepId
+		if step.angelina then
+			say(step.angelina :: AngelinaLines.Context)
+		end
+	else
+		questLabel.Text = st.activeQuestId .. " / " .. st.activeStepId
+	end
+	coinsLabel.Text = "🪙 " .. tostring(profile.coins)
+	if st.activeQuestId == "q_initiation_graffiti" then
+		flyerLabel.Visible = true
+		local n = FlyerEngine.count(st.flyersPosted)
+		flyerLabel.Text = string.format("Флаеры: %d / %d", n, #FlyerEngine.SPOT_IDS)
+	else
+		flyerLabel.Visible = false
+	end
+	duelHint.Visible = st.activeQuestId == "q_initiation_duel"
+	shopFrame.Visible = st.activeStepId == "s1" and st.activeQuestId == "q_initiation_pay"
+	if st.activeStepId == "ch0_s_avatar" then
+		picker.Visible = true
+	end
+	if st.activeStepId == "ch1_s_choice" then
+		choiceFrame.Visible = true
+	end
+	if bullyFrame then
+		bullyFrame.Visible = st.activeQuestId == "q_ch2_antibully"
+	end
+	if concertFrame then
+		concertFrame.Visible = st.activeStepId == "ch4_s_concert"
+	end
+end
+
+profileUpdated.OnClientEvent:Connect(function(p)
+	profile = p
+	refreshQuest()
+	refreshEndings()
+end)
 
 local function bindPrompt(prompt: ProximityPrompt)
 	if prompt:GetAttribute("Bound") then
@@ -189,28 +281,19 @@ local function bindPrompt(prompt: ProximityPrompt)
 			end
 		elseif npcId == "npc_gravedigger" then
 			requestAction:FireServer("cemetery_job")
-		elseif npcId == "npc_ghost" then
-			requestAction:FireServer("ch3_ghost")
 		elseif npcId == "npc_zoya" then
 			requestAction:FireServer("bell_tongue", "zoya")
 		elseif npcId == "npc_count" then
 			if st.activeStepId == "ch4_s_confession" then
 				requestAction:FireServer("graph_confession")
 			elseif st.activeStepId == "ch4_s_ending" then
+				refreshEndings()
 				endingFrame.Visible = true
 			end
 		end
 		local flyerId = parent and parent:GetAttribute("FlyerSpotId")
 		if flyerId then
 			requestAction:FireServer("flyer_post", flyerId)
-		end
-		local hangoutStage = parent and parent:GetAttribute("HangoutStage")
-		if hangoutStage then
-			requestAction:FireServer("hangout_build", hangoutStage)
-		end
-		local on = parent and parent.Name
-		if on == "obj_crypt_site" then
-			requestAction:FireServer("ch3_crypt")
 		end
 	end)
 end
@@ -242,7 +325,7 @@ addChoice("Взнос 150", "initiation_choice", "pay")
 addChoice("Дуэль", "initiation_choice", "duel")
 addChoice("Флаеры", "initiation_choice", "graffiti")
 
-local bullyFrame = Instance.new("Frame")
+bullyFrame = Instance.new("Frame")
 bullyFrame.Size = UDim2.new(0, 280, 0, 90)
 bullyFrame.Position = UDim2.new(0.5, -140, 0.65, 0)
 bullyFrame.BackgroundColor3 = Color3.fromRGB(30, 20, 40)
@@ -267,7 +350,7 @@ joinBtn.MouseButton1Click:Connect(function()
 	bullyFrame.Visible = false
 end)
 
-local concertFrame = Instance.new("Frame")
+concertFrame = Instance.new("Frame")
 concertFrame.Size = UDim2.new(0, 300, 0, 120)
 concertFrame.Position = UDim2.new(0.5, -150, 0.55, 0)
 concertFrame.BackgroundColor3 = Color3.fromRGB(25, 15, 35)
@@ -284,15 +367,6 @@ for i, head in { "vienna", "razor", "count", "ghost" } do
 		concertFrame.Visible = false
 	end)
 end
-
-profileUpdated.OnClientEvent:Connect(function(p)
-	if not p or not p.story then
-		return
-	end
-	endingFrame.Visible = p.story.activeStepId == "ch4_s_ending"
-	bullyFrame.Visible = p.story.activeQuestId == "q_ch2_antibully"
-	concertFrame.Visible = p.story.activeStepId == "ch4_s_concert"
-end)
 
 RunService.Heartbeat:Connect(function()
 	local char = player.Character

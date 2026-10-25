@@ -14,6 +14,9 @@ local FlyerEngine = require("../../src/ReplicatedStorage/Shared/FlyerEngine")
 local HangoutEngine = require("../../src/ReplicatedStorage/Shared/HangoutEngine")
 local TowerPuzzle = require("../../src/ReplicatedStorage/Shared/TowerPuzzle")
 local EndingLogic = require("../../src/ReplicatedStorage/Shared/EndingLogic")
+local HangoutMinigame = require("../../src/ReplicatedStorage/Shared/HangoutMinigame")
+local GhostRiddleEngine = require("../../src/ReplicatedStorage/Shared/GhostRiddleEngine")
+local CryptBuildEngine = require("../../src/ReplicatedStorage/Shared/CryptBuildEngine")
 local ReceiptStore = require("../../src/ReplicatedStorage/Shared/ReceiptStore")
 local DataStoreScope = require("../../src/ReplicatedStorage/Shared/DataStoreScope")
 local QuestTable = require("../../src/ReplicatedStorage/Config/QuestTable")
@@ -99,6 +102,40 @@ end)
 
 test("datastore test scope", function()
 	assertEq(DataStoreScope.profileStoreName("P", true, nil), "P_TEST", "t")
+end)
+
+test("hangout minigame answers", function()
+	assertEq(HangoutMinigame.validate("foundation", "241"), true, "f")
+	assertEq(HangoutMinigame.validate("foundation", "123"), false, "bad")
+end)
+
+test("ghost riddles sequence", function()
+	local step = 0
+	local ok, n = GhostRiddleEngine.submit(step, "колокол")
+	assertEq(ok, true, "r1")
+	step = n
+	ok, n = GhostRiddleEngine.submit(step, "склеп")
+	assertEq(ok, true, "r2")
+	ok, n = GhostRiddleEngine.submit(n, "вена")
+	assertEq(GhostRiddleEngine.isComplete(n), true, "done")
+end)
+
+test("crypt build phases", function()
+	local phase = 0
+	assertEq(CryptBuildEngine.validate("stakes", "4stakes", phase), true, "p1")
+	phase += 1
+	assertEq(CryptBuildEngine.validate("inscription", "mortwin", phase), true, "p2")
+	phase += 1
+	assertEq(CryptBuildEngine.validate("seal", "bellrim", phase), true, "p3")
+	assertEq(CryptBuildEngine.isComplete(3), true, "done")
+end)
+
+test("shop purchase funds", function()
+	local item = { id = "x", price = 50, category = "d", grantInventoryKey = "x" }
+	local r = Economy.tryPurchase(40, item, false)
+	assertEq(r.ok, false, "poor")
+	local r2 = Economy.tryPurchase(60, item, false)
+	assertEq(r2.ok, true, "buy")
 end)
 
 print(string.format("All %d tests passed", passed))
