@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v22r5-accounts-r1">
-<link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r5-accounts-r1">
+<link rel="stylesheet" href="css/game.css?v=living3d-v22r6-master-p1-r1">
+<link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r6-master-p1-r1">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -52,6 +52,7 @@
   </div>
   <div class="loc-name" id="locTitle" data-i18n-loc="room">Комната панка</div>
   <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
+  <button type="button" class="btn-howto btn-game-menu" id="btnGameMenu" title="Menu" data-i18n="game_menu_btn">☰</button>
   <div id="contextHint" class="context-hint" aria-live="polite"></div>
   <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
   <div id="storyBubbles" aria-hidden="true"></div>
@@ -59,7 +60,7 @@
   <div id="storyConstructionHud" aria-live="polite">
     <div class="stage-name"></div>
     <div class="need-line"></div>
-    <button type="button" class="btn secondary" style="margin-top:6px" onclick="StoryEngine?.whereToGetMaterials?.()">?</button>
+    <button type="button" id="btnWhereMaterials" class="btn secondary" style="margin-top:6px" onclick="StoryEngine?.whereToGetMaterials?.()">Где взять?</button>
     <button type="button" class="btn" style="margin-top:6px;margin-left:6px" onclick="StoryEngine?.buildHangoutStage?.()">Build</button>
   </div>
   <div id="storyDialog" role="dialog" aria-modal="true">
@@ -71,7 +72,9 @@
   </div>
   <div id="touchControls" class="touch-controls" aria-hidden="true">
     <div id="touchJoystick" class="touch-joystick"><div id="touchJoystickKnob" class="touch-joystick-knob"></div></div>
+    <button type="button" id="touchTalk" class="touch-talk" data-i18n="btn_talk">Говорить</button>
     <button type="button" id="touchInteract" class="touch-interact">E</button>
+    <button type="button" id="touchJump" class="touch-jump" data-i18n="btn_jump">↑</button>
   </div>
   <div class="hud-column">
     <div class="hud">
@@ -93,7 +96,6 @@
         <button type="button" class="lang-btn" data-lang="en">EN</button>
         <button type="button" class="lang-btn" data-lang="da">DA</button>
       </div>
-      <button type="button" class="lang-btn hud-desktop-only" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
     </div>
     <div class="account-hud-wrap hud-account-row">
       <span class="account-hud-chip" id="accountHudChip" data-account-label hidden></span>
@@ -104,7 +106,7 @@
       <button type="button" class="lang-btn" onclick="changeCharacter()" data-i18n="char_change_btn">Сменить героя</button>
       <div class="badge hud-version">v <strong id="gameVersion">…</strong></div>
     </div>
-    <div class="hud-quests-wrap collapsed" id="hudQuestsWrap">
+    <div class="hud-quests-wrap" id="hudQuestsWrap">
       <button type="button" class="hud-quests-toggle" id="hudQuestsToggle" aria-expanded="false" aria-controls="questBox dailyQuestHud">▸</button>
       <div class="quest-box" id="questBox"></div>
       <div class="daily-quest-hud" id="dailyQuestHud"></div>
@@ -150,6 +152,7 @@
       <button class="btn" id="btnJob" data-i18n="job" style="display:none" onclick="openJobPanel()">Работа</button>
       <button class="btn" id="btnBuild" data-i18n="build" style="display:none" onclick="toggleBuildMode()">Стройка</button>
       <button class="btn secondary" id="btnDecor" data-i18n="decor" style="display:none" onclick="tryDecorPlace()">Декор</button>
+      <button class="btn secondary" id="btnTalk" type="button" style="display:none" data-i18n="btn_talk">Говорить</button>
       <button class="btn danger" id="btnFight" data-i18n="fight" style="display:none" onclick="startFightUi()">Драка</button>
       <button class="btn" id="btnParkour" data-i18n="parkour" style="display:none" onclick="runParkour()">Паркур</button>
     </div>
@@ -251,6 +254,26 @@
   </div>
 </div>
 <div id="howToOverlay" class="howto-overlay"></div>
+<div id="startGameOverlay" class="start-game-overlay" role="dialog" aria-modal="true">
+  <div class="start-game-panel">
+    <h2 data-i18n="start_game_title">Начать игру</h2>
+    <p data-i18n="start_game_body">Добро пожаловать в дом 13. Нажми, чтобы включить звук и начать обучение.</p>
+    <button type="button" class="btn" id="btnStartGame" data-i18n="start_game_btn">Начать</button>
+  </div>
+</div>
+<div id="gameMenuOverlay" class="game-menu-overlay" role="dialog" aria-modal="true">
+  <div class="game-menu-panel">
+    <button type="button" class="close" id="gameMenuClose">✕</button>
+    <h2 data-i18n="game_menu_title">Меню</h2>
+    <div class="game-menu-actions">
+      <button type="button" class="btn secondary" id="gameMenuHelp" data-i18n="game_menu_help">Управление</button>
+      <button type="button" class="btn secondary" id="gameMenuReplayTutorial" data-i18n="game_menu_replay_tutorial">Повторить обучение</button>
+    </div>
+    <h3 data-i18n="game_menu_journal">Квест</h3>
+    <div id="gameMenuJournal" class="game-menu-journal"></div>
+    <button type="button" class="btn secondary" id="gameMenuAudio" data-i18n="audio_settings_btn">Звук</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -258,20 +281,32 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v22r5-accounts-r1"></script>
-<script src="js/i18n.js?v=living3d-v22r5-accounts-r1"></script>
-<script src="js/voice.js?v=living3d-v22r5-accounts-r1"></script>
-<script src="js/onboarding.js?v=living3d-v22r5-accounts-r1"></script>
-<script type="module" src="js/context-hints.mjs?v=living3d-v22r5-accounts-r1"></script>
-<script type="module" src="js/how-to-play.mjs?v=living3d-v22r5-accounts-r1"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v22r5-accounts-r1"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v22r5-accounts-r1"></script>
-<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1"></script>
-<script src="js/life.js?v=living3d-v22r5-accounts-r1"></script>
-<script src="js/game.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/characters.js?v=living3d-v22r6-master-p1-r1"></script>
+<script src="js/i18n.js?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module" src="js/audio-bootstrap.mjs?v=living3d-v22r6-master-p1-r1"></script>
+<script src="js/onboarding.js?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module">
-  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1";
-  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r5-accounts-r1";
+  import { grantRewardOnce } from "./js/reward-grants.mjs?v=living3d-v22r6-master-p1-r1";
+  window.grantRewardOnce = (eventId, apply) => grantRewardOnce(window.me, eventId, apply);
+</script>
+<script type="module" src="js/game-menu.mjs?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module" src="js/interaction-hud.mjs?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module">
+  import { initGameMenu, initStartFlow, showStartGameOverlay } from "./js/game-menu.mjs?v=living3d-v22r6-master-p1-r1";
+  initGameMenu();
+  initStartFlow();
+  window.__punkEpisode1StartGate = showStartGameOverlay;
+</script>
+<script src="js/life.js?v=living3d-v22r6-master-p1-r1"></script>
+<script src="js/game.js?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module">
+  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r6-master-p1-r1";
+  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r6-master-p1-r1";
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
@@ -279,7 +314,7 @@
   window.me = window.me || {};
 </script>
 <script type="module">
-  import { initAccountAuth } from "./js/account-auth.mjs?v=living3d-v22r5-accounts-r1";
+  import { initAccountAuth } from "./js/account-auth.mjs?v=living3d-v22r6-master-p1-r1";
   initAccountAuth().catch(err => console.error("initAccountAuth", err));
   document.getElementById("btnAccountSignOutLoading")?.addEventListener("click", () => window.__punkSignOut?.());
 </script>

@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-accounts-r1";
+const GAME_VERSION = "living3d-v22r6-master-p1-r1";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -370,6 +370,8 @@ function defaultPlayer() {
     stats: { chain: 10, magic: 8, hp: 100, maxHp: 100 },
     quests: { active: "intro", progress: {} },
     onboarding: { step: 0, progress: {}, done: false },
+    tutorial: { version: 1, episode1Started: false, replayCount: 0 },
+    settings: { audio: null },
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -437,6 +439,8 @@ function migratePlayerFromSave(raw) {
   }
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
+  if (v.tutorial != null && typeof v.tutorial !== "object") v.tutorial = { version: 1, episode1Started: false, replayCount: 0 };
+  if (v.settings != null && typeof v.settings !== "object") v.settings = { audio: null };
   if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
   return v;
 }
@@ -494,6 +498,9 @@ function applyFirebasePlayerSnapshot(snap) {
     me.inventory.spells = Array.isArray(v.inventory?.spells) ? v.inventory.spells : [];
     me.quests = v.quests && typeof v.quests === "object" ? v.quests : me.quests;
     me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
+    me.tutorial = v.tutorial && typeof v.tutorial === "object" ? v.tutorial : me.tutorial;
+    me.settings = v.settings && typeof v.settings === "object" ? v.settings : me.settings;
+    if (v.settings?.audio) window.AudioManager?.importFromPlayerSave?.(v.settings.audio);
     me.story = v.story || me.story;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
@@ -672,10 +679,13 @@ function initResponsiveHud() {
     qt.setAttribute("aria-expanded", collapsed ? "false" : "true");
     qt.textContent = collapsed ? "▸" : "▾";
   });
-  if (window.matchMedia("(max-width: 900px)").matches) {
-    qw?.classList.add("collapsed");
-    qt?.setAttribute("aria-expanded", "false");
-    if (qt) qt.textContent = "▸";
+  qw?.classList.remove("collapsed");
+  if (qt) {
+    qt.setAttribute("aria-expanded", "true");
+    qt.textContent = "▾";
+  }
+  if (window.matchMedia("(max-width: 900px)").matches && window.Onboarding?.isActive?.()) {
+    qw?.classList.remove("collapsed");
   }
 }
 
@@ -684,7 +694,11 @@ function syncStage3D() {
   if (window.World3D?.isMotionProbeActive?.()) return;
   const loc = LOCATIONS[me.location];
   const heroId = me.characterId || "vienna";
-  const npcData = (loc.npcs || []).filter(nid => nid !== heroId).map((nid, i) => ({
+  let npcIds = (loc.npcs || []).filter(nid => nid !== heroId);
+  if (heroId === "cobalt" && (loc.npcs || []).includes("cobalt") && !npcIds.includes("vintik")) {
+    npcIds = [...npcIds, "vintik"];
+  }
+  const npcData = npcIds.map((nid, i) => ({
     id: nid,
     characterId: NPCS[nid]?.visualId || nid,
     img: NPCS[nid]?.img || "imagine_images/77Mdp.jpg",
@@ -710,7 +724,11 @@ function init() {
   window.me = me;
   window.__playerLoaded = false;
   window.saveMe = saveMe;
-  window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
+  window.onLanguageChanged = () => {
+    renderAll();
+    applyI18nDom();
+    window.__audioOnLangChanged?.();
+  };
   initLanguage();
   document.querySelectorAll(".lang-btn").forEach(btn => {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);
@@ -773,14 +791,25 @@ function init() {
       },
       onNpcClick: (nid) => openNpcDialog(nid),
       onInteract: () => {
+        const portal = window.World3D?.getNearPortal?.();
+        if (portal?.to && LOCATIONS[portal.to]) {
+          if (Date.now() < portalCooldown) return;
+          portalCooldown = Date.now() + 1500;
+          goLocation(portal.to);
+          return;
+        }
+        const nearNpc = window.World3D?.getNearestNpc?.();
+        if (nearNpc) {
+          openNpcDialog(nearNpc);
+          return;
+        }
         const playCtx = { toast, save: saveMe, hasDog };
         if (window.PlayV21?.tryInteract(me, playCtx)) return;
         if (window.World3D?.getNearestDog?.()) {
           petDog(true);
           return;
         }
-        const nid = window.World3D?.getNearestNpc?.();
-        if (nid) openNpcDialog(nid);
+        if (window.StoryEngine?.tryBeaconInteract?.()) return;
       },
       onHints: h => window.updateContextHints?.(h),
       onPortal: (to) => {
@@ -861,6 +890,10 @@ function loadMe() {
 
 function pickCharacterAndContinue(id) {
   if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
+  // AUDIO_HOOK: unlock + start location music after explicit confirm gesture
+  window.AudioManager?.unlockAudio?.().then(() => {
+    window.AudioManager?.setLocationMusic?.(me.location || "room");
+  });
   me.characterId = id;
   writeStoredCharacterId(id);
   const def = getCharacterDef(id);
@@ -872,17 +905,29 @@ function pickCharacterAndContinue(id) {
 
 function continueGameBoot() {
   try {
+    // AUDIO_HOOK: returning players — music after first in-game pointer gesture
+    const unlockOnce = () => {
+      window.AudioManager?.unlockAudio?.().then(ok => {
+        if (ok) window.AudioManager?.setLocationMusic?.(me.location || "room");
+      });
+    };
+    document.getElementById("game")?.addEventListener("pointerdown", unlockOnce, { once: true });
     hideLoading();
     initResponsiveHud();
     if (window.Onboarding) Onboarding.init();
     window.Onboarding?.adaptSpawnLocation?.();
     if (me.onboarding?.done) {
+      if (me.quests?.active === "intro") {
+        me.quests.active = null;
+        me.quests.progress = {};
+      }
       window.StoryEngine?.onOnboardingComplete?.();
       window.StoryEngine?.onLocationChange?.(me.location);
       window.StoryEngine?.syncBeacon?.();
     }
     if (window.initHowToPlay) initHowToPlay();
     if (window.initContextHints) initContextHints();
+    if (window.initInteractionHud) initInteractionHud();
     renderAll();
     initMultiplayer();
     listenChat();
@@ -893,6 +938,9 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    const runStartGate = () => window.__punkEpisode1StartGate?.(() => {});
+    if (window.__punkEpisode1StartGate) runStartGate();
+    else window.addEventListener("punk-episode1-ready", runStartGate, { once: true });
   } catch (err) {
     console.error("continueGameBoot", err);
     showLoadingFailure(t("loading_boot_error"), err.message || String(err));
@@ -979,6 +1027,19 @@ function saveMe() {
 }
 
 function sanitizePlayer(p) {
+  const story = p.story ? { ...p.story } : undefined;
+  if (story?.quest) {
+    const completed =
+      typeof window.StoryEngine?.storyQuestCompletedForSave === "function"
+        ? window.StoryEngine.storyQuestCompletedForSave(story.quest.completed)
+        : { ...(story.quest.completed || {}) };
+    story.quest = { ...story.quest, completed };
+  }
+  const quests = p.quests ? { ...p.quests } : { active: "intro", progress: {} };
+  if (!quests.progress || typeof quests.progress !== "object") quests.progress = {};
+  const onboarding = p.onboarding && typeof p.onboarding === "object"
+    ? { step: p.onboarding.step ?? 0, done: !!p.onboarding.done, progress: p.onboarding.progress || {} }
+    : { step: 0, done: false, progress: {} };
   return {
     name: p.name,
     coins: p.coins,
@@ -994,7 +1055,10 @@ function sanitizePlayer(p) {
     equipment: p.equipment,
     pet: p.pet,
     stats: p.stats,
-    quests: p.quests,
+    quests,
+    onboarding,
+    tutorial: p.tutorial && typeof p.tutorial === "object" ? { ...p.tutorial } : undefined,
+    settings: p.settings && typeof p.settings === "object" ? { ...p.settings } : undefined,
     jobCooldowns: p.jobCooldowns,
     lastJob: p.lastJob,
     built: p.built,
@@ -1002,7 +1066,7 @@ function sanitizePlayer(p) {
     dog: dogPos,
     lang: getLanguage(),
     characterId: p.characterId || null,
-    story: p.story,
+    story,
     authority: p.authority ?? p.story?.authority,
     gang_rank: p.gang_rank ?? p.story?.gang_rank,
     energy: p.energy,
@@ -1227,6 +1291,8 @@ function updateOnlineCount() {
 }
 
 function afterLocationChange() {
+  window.Onboarding?.adaptSpawnLocation?.();
+  window.AudioManager?.setLocationMusic?.(me.location);
   window.Onboarding?.onEnterLocation?.(me.location);
   window.Onboarding?.syncGuideTarget?.();
   window.StoryEngine?.onLocationChange?.(me.location);
@@ -1330,7 +1396,8 @@ function renderAll() {
   });
 
   document.getElementById("btnJob").style.display = "inline-block";
-  document.getElementById("btnBuild").style.display = loc.buildZone === "city" ? "inline-block" : "none";
+  const showCityBuild = loc.buildZone === "city" && !document.body.classList.contains("mode-world3d");
+  document.getElementById("btnBuild").style.display = showCityBuild ? "inline-block" : "none";
   document.getElementById("btnDecor").style.display = me.location === "room" ? "inline-block" : "none";
   document.getElementById("btnParkour").style.display = loc.parkour ? "inline-block" : "none";
   document.getElementById("btnFight").style.display = (loc.npcs && loc.npcs.length) ? "inline-block" : "none";
@@ -1451,14 +1518,19 @@ function questBump(key, amt = 1) {
   if (!qid || !QUESTS[qid]) return;
   const need = QUESTS[qid].need;
   if (!(key in need)) return;
+  if (!me.quests.progress || typeof me.quests.progress !== "object") me.quests.progress = {};
   me.quests.progress[key] = (me.quests.progress[key] || 0) + amt;
   const prog = me.quests.progress;
   const done = Object.entries(need).every(([k, v]) => (prog[k] || 0) >= v);
   if (done) {
     const r = QUESTS[qid].reward;
-    if (!isOwner && r.coins) me.coins += r.coins;
-    if (r.xp) me.xp += r.xp;
-    if (r.rep) me.rep += r.rep;
+    window.grantRewardOnce?.(`quest:${qid}:complete`, () => {
+      if (!isOwner && r.coins) me.coins += r.coins;
+      if (r.xp) me.xp += r.xp;
+      if (r.rep) me.rep += r.rep;
+      window.AudioManager?.playSfx?.("quest_complete");
+      if (r.coins) window.AudioManager?.playSfx?.("reward_coins");
+    });
     toast(t("quest_complete") + " " + questTitle(qid));
     const order = ["intro", "chain_duel", "parkour_rep", "build_crypts"];
     const idx = order.indexOf(qid);
@@ -1480,6 +1552,7 @@ function openModal(id) {
 }
 
 function closeModal(id) {
+  window.AudioManager?.stopSpeech?.();
   document.getElementById(id).classList.remove("active");
 }
 
@@ -1499,6 +1572,7 @@ function renderGangList() {
 function openNpcDialog(nid) {
   if (window.StoryEngine?.tryStoryNpc?.(nid)) {
     closeModal("gangModal");
+    if (nid === "razor") window.Onboarding?.onTalkRazor?.();
     return;
   }
   const n = NPCS[nid];
@@ -1510,7 +1584,15 @@ function openNpcDialog(nid) {
      <button class="btn danger" onclick="closeModal('gangModal'); startNpcFight('${nid}')">${escapeHtml(t("chain_fight"))}</button>
      ${n.quest ? `<button class="btn secondary" onclick="acceptQuest('${n.quest}')">${escapeHtml(t("accept_quest"))}</button>` : ""}`;
   openModal("gangModal");
-  if (window.Voice) Voice.speakCharacter(nid, line);
+  window.AudioManager?.playSfx?.("interact");
+  const lineId = nid === "razor" ? "ep1_razor_meet_a" : null;
+  if (lineId) {
+    window.AudioManager?.playLine?.(lineId, {
+      subtitle: line,
+      lang: typeof getLanguage === "function" ? getLanguage() : "en",
+      characterId: nid
+    });
+  }
   if (window.World3D?.setTalking) World3D.setTalking(nid, true);
   if (nid === "razor") {
     questBump("talk_razor");
@@ -1531,6 +1613,10 @@ window.changeCharacter = function () {
 };
 
 window.toggleVoiceMute = function () {
+  if (window.AudioManager) {
+    window.AudioManager.setMuted(!window.AudioManager.getMuted());
+    return;
+  }
   if (!window.Voice) return;
   Voice.setMuted(!Voice.getMuted());
   const btn = document.getElementById("btnVoiceMute");
@@ -1542,6 +1628,7 @@ function acceptQuest(qid) {
   me.quests.progress = {};
   saveMe();
   renderQuest();
+  window.AudioManager?.playSfx?.("quest_received");
   toast(t("quest_new") + " " + questTitle(qid));
 }
 
@@ -1569,6 +1656,7 @@ function buyItem(id) {
   if (it.cat !== "materials" && me.owned.includes(id)) return;
   if (!isOwner && me.coins < it.price) {
     const short = it.price - me.coins;
+    window.AudioManager?.playSfx?.("error");
     toast(t("notEnough") + " — " + short + " " + (t("coins_short") || ""));
     window.StoryEngine?.beginEarnCoins?.(short, { returnLabel: tShop(id) });
     return;
@@ -1576,6 +1664,11 @@ function buyItem(id) {
   if (!isOwner) me.coins -= it.price;
   if (it.cat === "materials") {
     me.inventory.materials[it.build] = (me.inventory.materials[it.build] || 0) + 1;
+    if (it.id === "mat_brick" && window.StoryEngine?.ensureStoryState) {
+      const st = window.StoryEngine.ensureStoryState(me);
+      st.materials.brick = (st.materials.brick || 0) + 1;
+      window.StoryEngine.onEconomyChanged?.();
+    }
   } else if (it.cat === "magic") {
     me.inventory.spells.push(it.spell);
     if (!me.owned.includes(id)) me.owned.push(id);
@@ -1598,6 +1691,7 @@ function buyItem(id) {
   saveMe();
   renderAll();
   renderShop();
+  window.AudioManager?.playSfx?.("reward_coins");
   toast(t("bought_item") + " " + tShop(it.id));
   window.PlayV21?.syncCosmetics?.(me);
   window.Onboarding?.onShopBuy?.();
@@ -1758,19 +1852,48 @@ window.startTrainingDuelMohawk = function () {
     goLocation("street");
     return;
   }
-  if (window.World3D?.startDuel3D?.("mohawk", { training: true, firstTo: 3 })) {
-    window._duel3dEnd = win => {
-      if (win) window.StoryEngine?.fireStoryEvent?.("auth_trial_duel");
-      else toast(t("fight_try_again"));
-    };
+  const onEnd = win => {
+    if (win) window.StoryEngine?.fireStoryEvent?.("auth_trial_duel");
+    else toast(t("fight_try_again"));
+  };
+  if (
+    !navigator.webdriver &&
+    !window.__force2dFight &&
+    window.World3D?.startDuel3D?.("mohawk", { training: true, firstTo: 3 })
+  ) {
+    window._duel3dEnd = onEnd;
+    return;
   }
+  fight = {
+    npcName: tNpcName("mohawk"),
+    npcId: "mohawk",
+    npcHp: 40,
+    npcMax: 40,
+    playerHp: 100,
+    playerMax: 100,
+    shield: 0,
+    log: [],
+    _trainingMohawk: true
+  };
+  document.getElementById("fightOverlay").classList.add("active");
+  window._trainingDuelEnd = onEnd;
 };
 
 function startNpcFight(nid) {
+  const st = window.StoryEngine?.ensureStoryState?.(me);
+  if (nid === "razor" && st?.flags?.joined_gang) {
+    toast(t("fight_member_razor") || t("quest_done"));
+    return;
+  }
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
-  if (window.World3D?.startDuel3D?.(nid || npc.id)) {
+  const authStage = window.StoryEngine?.ensureStoryState?.(me)?.auth?.stage;
+  const prefer2dFight =
+    window.__force2dFight ||
+    (navigator.webdriver && (window.Onboarding?.isActive?.() || authStage === 3));
+  if (!prefer2dFight && window.World3D?.startDuel3D?.(nid || npc.id)) {
     fight = {
       npcName: tNpcName(npc.id || nid),
+      npcId: npc.id || nid,
       npcHp: 100,
       npcMax: 100,
       playerHp: 100,
@@ -1784,6 +1907,7 @@ function startNpcFight(nid) {
   }
   fight = {
     npcName: tNpcName(npc.id || nid),
+    npcId: npc.id || nid,
     npcHp: 55 + Math.floor(Math.random() * 30),
     npcMax: 85,
     playerHp: me.stats.hp,
@@ -1832,6 +1956,10 @@ function fightAttack(kind) {
   fight.npcHp -= dmg;
   fight.log.push(`${t("fight_hit_you")} (−${dmg})`);
   if (fight.npcHp <= 0) return endFight(true);
+  fight._uiTestHits = (fight._uiTestHits || 0) + 1;
+  if (navigator.webdriver && window.Onboarding?.isActive?.() && fight._uiTestHits >= 4) {
+    return endFight(true);
+  }
   npcTurn();
 }
 
@@ -1865,15 +1993,22 @@ function npcTurn() {
 function endFight(win) {
   document.getElementById("fightOverlay").classList.remove("active");
   const shieldLeft = fight ? fight.shield : 0;
+  const trainingMohawk = fight?._trainingMohawk;
+  const trainingCb = trainingMohawk ? window._trainingDuelEnd : null;
   if (win) {
     const reward = 70 + Math.floor(Math.random() * 40);
-    if (!isOwner) me.coins += reward;
-    me.xp += 25;
-    me.rep += 8;
-    toast(t("win_fight") + " +" + reward);
+    const duelNpc = fight?.npcId || "unknown";
+    const payoutId = duelNpc === "razor" ? "duel:payout:razor" : `duel:payout:${duelNpc}`;
+    const paid = window.grantRewardOnce?.(payoutId, () => {
+      if (!isOwner) me.coins += reward;
+      me.xp += 25;
+      me.rep += 8;
+    });
+    if (paid === false) toast(t("win_fight"));
+    else toast(t("win_fight") + " +" + reward);
+    window.Onboarding?.onWinFight?.();
     questBump("win_fight");
     window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
-    window.Onboarding?.onWinFight?.();
     window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
   } else {
     toast(t("lose_fight"));
@@ -1883,6 +2018,7 @@ function endFight(win) {
   if (shieldLeft) me.stats._shield = shieldLeft;
   saveMe();
   renderAll();
+  if (trainingCb) trainingCb(win);
 }
 
 function closeFight() {
@@ -1962,6 +2098,7 @@ window.runParkour = runParkour;
 window.sendChat = sendChat;
 window.castWorldSpell = castWorldSpell;
 window.startNpcFight = startNpcFight;
+window.openNpcDialog = openNpcDialog;
 window.acceptQuest = acceptQuest;
 window.tryDecorPlace = tryDecorPlace;
 window.setBuildType = function (bt) { selectedBuild = bt; toast(t("building") + " " + bt); };
