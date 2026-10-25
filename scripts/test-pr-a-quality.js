@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 /** PR A smoke: Chromium + WebKit + mobile viewport. */
+const { assertNoProductionBase } = require("./lib/guard-no-prod-firebase");
+assertNoProductionBase();
 const { chromium, webkit } = require("playwright");
 const fs = require("fs");
 const path = require("path");

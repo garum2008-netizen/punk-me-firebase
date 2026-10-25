@@ -17,8 +17,8 @@ const SUB_I18N = {
     subscribe_soon: "Скоро — оплата ещё не подключена",
     seller_title: "Продавец",
     seller_body: "ContractBot / Inna Kragh · support@contractbot.dk (контакт для цены и условий)",
-    links_terms: "Условия использования (черновик)",
-    links_privacy: "Политика конфиденциальности (черновик)",
+    links_terms: "Условия использования",
+    links_privacy: "Политика конфиденциальности",
     not_gated: "Игра сейчас доступна без оплаты — этот раздел только информирует о будущей модели.",
     account_link: "Войти в аккаунт"
   },
@@ -40,8 +40,8 @@ const SUB_I18N = {
     subscribe_soon: "Coming soon — not chargeable yet",
     seller_title: "Seller",
     seller_body: "ContractBot / Inna Kragh · support@contractbot.dk (price & terms contact)",
-    links_terms: "Terms of use (draft)",
-    links_privacy: "Privacy policy (draft)",
+    links_terms: "Terms of use",
+    links_privacy: "Privacy policy",
     not_gated: "The game is currently playable without payment — this page describes the upcoming model only.",
     account_link: "Sign in to your account"
   },

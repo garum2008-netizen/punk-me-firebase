@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 /** Win a 3D chain duel via normal UI (no recording hacks) and advance onboarding win_fight. */
+const { assertNoProductionBase } = require("./lib/guard-no-prod-firebase");
+assertNoProductionBase();
 const { chromium } = require("playwright");
 const { start, stop } = require("./local-static-server");
 const H = require("./playthrough-ui-helpers");

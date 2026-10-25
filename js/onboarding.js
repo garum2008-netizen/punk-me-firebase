@@ -55,6 +55,7 @@ function completeStep() {
   toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + (r.coins || 0));
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
+  applyPendingOnboardingWins();
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
     window.me.onboarding.done = true;
     toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");
@@ -142,7 +143,21 @@ function onEnterLocation(loc) {
 
 function onTalkRazor() { bump("talk_razor", 1); }
 function onVisitCemetery() { if (window.me?.location === "cemetery") bump("visit_cemetery", 1); }
-function onWinFight() { bump("win_fight", 1); }
+function onWinFight() {
+  if (!window.me?.onboarding || window.me.onboarding.done) return;
+  window.me._onboardWinFightPending = true;
+  const st = currentStep();
+  if (st?.key === "win_fight") bump("win_fight", 1);
+}
+
+function applyPendingOnboardingWins() {
+  if (!window.me?._onboardWinFightPending || window.me.onboarding?.done) return;
+  const st = currentStep();
+  if (st?.key === "win_fight") {
+    delete window.me._onboardWinFightPending;
+    bump("win_fight", 1);
+  }
+}
 
 /** True after win_fight step is done (progress cleared on advance). */
 function hasPassedWinFight() {
@@ -172,6 +187,7 @@ function initOnboarding() {
   }
   renderOnboardingQuest();
   syncGuideTarget();
+  applyPendingOnboardingWins();
   window.Narrator?.refresh?.();
   window.StoryGoalHud?.refresh?.();
 }

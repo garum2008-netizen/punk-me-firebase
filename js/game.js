@@ -1096,19 +1096,52 @@ function saveMe() {
   me.lastSeen = Date.now();
   const payload = stripUndefinedDeep(sanitizePlayer(me));
   if (!payload) return;
-  // players/{uid} must succeed even when publicProfiles is denied (pre-rules-publish).
-  db.ref("players/" + uid).update(payload).catch(err => {
-    console.error("saveMe players", err);
-    toast(typeof t === "function" ? t("save_failed") : "Save failed");
-  });
+  window.__punkSaveState = "saving";
+  updateSaveStatusUi("saving");
+  const playersRef = db.ref("players/" + uid);
+  playersRef
+    .update(payload)
+    .then(() => {
+      window.__punkSaveState = "saved";
+      updateSaveStatusUi("saved");
+    })
+    .catch(err => {
+      console.error("saveMe players", err);
+      window.__punkSaveState = "error";
+      updateSaveStatusUi("error");
+      toast(typeof t === "function" ? t("save_failed") : "Save failed");
+    });
   db.ref("publicProfiles/" + uid)
     .set({
       name: payload.name || me.name || "Player",
       avatar: payload.avatar || me.avatar || "",
       coins: payload.coins ?? 0
     })
-    .catch(() => {});
+    .catch(err => {
+      console.warn("saveMe publicProfiles", err);
+      if (window.__punkSaveState !== "error") {
+        window.__punkSaveState = "error";
+        updateSaveStatusUi("error");
+        toast(typeof t === "function" ? t("save_failed") : "Save failed");
+      }
+    });
   pushPresence();
+}
+
+function updateSaveStatusUi(state) {
+  const el = document.getElementById("saveStatus");
+  if (!el) return;
+  const key = state === "saved" ? "save_ok" : state === "saving" ? "save_saving" : state === "error" ? "save_failed" : "";
+  el.textContent = key && typeof t === "function" ? t(key) : "";
+  el.dataset.state = state || "";
+  el.classList.toggle("visible", state === "saved" || state === "error" || state === "saving");
+  if (state === "saved") {
+    clearTimeout(window.__punkSaveHideTimer);
+    window.__punkSaveHideTimer = setTimeout(() => {
+      el.classList.remove("visible");
+      el.textContent = "";
+    }, 2400);
+  }
 }
 
 function stripUndefinedDeep(value) {
@@ -1748,7 +1781,10 @@ function buyItem(id) {
   if (!isOwner && me.coins < it.price) {
     const short = it.price - me.coins;
     toast(t("notEnough") + " — " + short + " " + (t("coins_short") || ""));
-    window.StoryEngine?.beginEarnCoins?.(short, { returnLabel: tShop(id) });
+    window.StoryEngine?.beginEarnCoins?.(short, {
+      returnBeacon: "obj_shop",
+      returnLabel: tShop(id)
+    });
     return;
   }
   if (!isOwner) me.coins -= it.price;
@@ -1912,8 +1948,8 @@ function travelJob(action, loc) {
 }
 
 function toggleBuildMode() {
-  buildMode = !buildMode;
-  toast(buildMode ? t("build_mode_on") : t("build_mode_off"));
+  toast(t("build_wip"));
+  return;
 }
 
 function tryPlaceBuild(x, y) {
@@ -2052,7 +2088,13 @@ function endFight(win) {
   document.getElementById("fightOverlay").classList.remove("active");
   document.getElementById("duel3dHud")?.classList.add("hidden");
   const shieldLeft = fight ? fight.shield : 0;
+  if (win && fight?._rewarded) {
+    fight = null;
+    window._duel3dEnd = null;
+    return;
+  }
   if (win) {
+    if (fight) fight._rewarded = true;
     const reward = 70 + Math.floor(Math.random() * 40);
     if (!isOwner) me.coins += reward;
     me.xp += 25;

@@ -2,6 +2,8 @@
 /**
  * Episode 1: full UI onboarding + propiska intro, KeyE / mobile talk, Chromium + WebKit.
  */
+const { assertNoProductionBase } = require("./lib/guard-no-prod-firebase");
+assertNoProductionBase();
 const fs = require("fs");
 const path = require("path");
 const { chromium, webkit } = require("playwright");

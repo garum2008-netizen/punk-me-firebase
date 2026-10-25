@@ -3,6 +3,8 @@
  */
 
 import * as Authority from "./authority.mjs";
+import { buildEarnState, resolveReturnBeacon, resolveReturnLabel } from "./earn-state.mjs";
+import { ensureStoryProgressSave, grantRewardOnce } from "./story-save-schema.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -21,6 +23,7 @@ const BEACONS = {
   obj_fridge: { loc: "kitchen", wx: 4.2, wz: -3.2 },
   obj_dog_bowl: { loc: "room", wx: -2.5, wz: 3.5 },
   obj_decor_btn: { loc: "room", ui: "decor" },
+  obj_shop: { loc: "room", ui: "shop" },
   obj_scrap_roof: { loc: "roof", wx: 5, wz: -4 },
   obj_parkour_finish: { loc: "parkour", wx: 0, wz: -8 },
   portal_roof: { loc: "elevator", portalTo: "roof" },
@@ -132,6 +135,10 @@ export function ensureStoryState(p) {
   if (p.story.chapter == null) p.story.chapter = 1;
   if (p.story.authority == null) p.story.authority = 0;
   if (!p.story.gang_rank) p.story.gang_rank = "newbie";
+  ensureStoryProgressSave(p);
+  if (p.story.rewardsGiven && p.story.rewardsGranted) {
+    Object.assign(p.story.rewardsGranted, p.story.rewardsGiven);
+  }
   return p.story;
 }
 
@@ -351,6 +358,9 @@ function applyEffects(effects) {
         p.gang_rank = e.value;
         Authority.renderAuthorityHud(p);
         break;
+      case "story_event":
+        fireStoryEvent(e.name);
+        break;
       default:
         break;
     }
@@ -374,18 +384,24 @@ function onJoinedGang() {
     st.quest.step = 0;
   }
   st.earn = null;
-  if (!st.quest.completed.q_hangout_build && !st.quest.activeId) {
-    startQuest("q_hangout_build");
+  if (!st.quest.completed.q_ch2_hangout && !st.quest.activeId) {
+    startQuest("q_ch2_hangout");
   }
   hooks.toast?.(L({ ru: "Нашивка «Ржавые Цепи» получена!", en: "Rusty Chains patch earned!", da: "Rusty Chains-mærke!" }));
   renderObjectivePanel();
 }
+
+const INITIATION_QUESTS = new Set(["q_initiation_pay", "q_initiation_duel", "q_initiation_graffiti"]);
 
 export function startQuest(qid) {
   const p = me();
   const st = ensureStoryState(p);
   const q = data.quests.find(x => x.id === qid);
   if (!q || st.quest.completed[qid]) return;
+  if (INITIATION_QUESTS.has(qid)) {
+    st.flags.initiation_locked = true;
+    st.decisions.initiation_branch = qid;
+  }
   st.quest.activeId = qid;
   st.quest.step = 0;
   st.idleHintLevel = 0;
@@ -568,6 +584,10 @@ export function fireStoryEvent(name) {
   if (name === "duel_razor_win" && st.quest.activeId === "q_initiation_duel" && !st.flags.joined_gang) {
     applyEffects([{ type: "flag", value: "joined_gang" }]);
   }
+  if (name === "graph_confession_done") {
+    completeQuest("q_ch4_castle");
+    window.StoryEndings?.showEndingChoice?.({ toast: hooks.toast });
+  }
   checkStepComplete();
   if (st.earn && name.startsWith("job_")) {
     onEarnProgress();
@@ -599,13 +619,17 @@ function onEarnProgress() {
 export function beginEarnCoins(shortfall, context) {
   const p = me();
   const st = ensureStoryState(p);
+  const need = Math.max(0, Number(shortfall) || 0);
+  const returnBeacon = resolveReturnBeacon(context, st);
+  const returnLabel = resolveReturnLabel(context, () => L(getActiveQuest()?.title));
   if ((p.energy ?? st.energy) < 10) {
-    st.earn = {
+    st.earn = buildEarnState({
       mode: "snack",
-      needTotal: p.coins + shortfall,
-      returnBeacon: context?.returnBeacon,
-      returnLabel: context?.returnLabel
-    };
+      needTotal: p.coins + need,
+      shortfall: need,
+      returnBeacon,
+      returnLabel
+    });
     setBeacon("obj_fridge");
     renderObjectivePanel();
     hooks.toast?.(
@@ -618,19 +642,18 @@ export function beginEarnCoins(shortfall, context) {
     return;
   }
   const job = pickNearestJob(p.location);
-  const need = Math.max(0, Number(shortfall) || 0);
   const employer = job?.employer;
   const employerBeacon = employer
     ? (employer.startsWith("npc_") ? employer : "npc_" + employer)
     : "npc_tony";
-  st.earn = {
+  st.earn = buildEarnState({
     needTotal: p.coins + need,
     shortfall: need,
     jobId: job?.id || null,
     employerBeacon,
-    returnBeacon: context?.returnBeacon || st.beacon || null,
-    returnLabel: context?.returnLabel || L(getActiveQuest()?.title) || null
-  };
+    returnBeacon,
+    returnLabel
+  });
   setBeacon(st.earn.employerBeacon);
   st.flags.earn_mode = true;
   renderObjectivePanel();
@@ -739,7 +762,7 @@ export function renderObjectivePanel() {
     if (q && step) {
       title = L(q.title);
       objective = L(step.objective);
-      if (q.id === "q_hangout_build" && st.hangoutStage < 4) {
+      if (q.id === "q_ch2_hangout" && st.hangoutStage < 4) {
         sub = hangoutObjectiveSub(st);
       }
       const hintLevel = st.idleHintLevel || 0;

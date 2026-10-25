@@ -1,36 +1,29 @@
-# Аудит — дефекты и статус (этап 1, MASTER TZ §3)
+# Реестр дефектов — единая таблица (Инна t99u / t104u)
 
-Единая матрица требований: **`REQUIREMENTS_MATRIX.md`**.  
-Отчёт 25.10 (внешние игроки / вход): `REPORT-2026-10-25_777e.md` (часть B, блокеры).
+**Ответственный за интеграцию:** агент на ветке `cursor/scenario-preview-d81d`.  
+**Базовая линия:** `main` @ `450d6da` (live build `living3d-v22r5-accounts-r1`); preview HEAD — см. PR [#43](https://github.com/garum2008-netizen/punk-me-firebase/pull/43).
 
-| ID | Описание | Статус | Проверка / PR |
-|----|----------|--------|----------------|
-| D-SAVE-01 | После отказа покупки (нехватка монет) сохранение не ломается | в разработке | `buyItem`, `beginEarnCoins`, `stripUndefinedDeep` |
-| D-SAVE-02 | В RTDB не уходит `undefined` | в разработке | `sanitizeStory`, fixtures |
-| D-SAVE-03 | «Сохранено» только после подтверждения записи | не сделано | save ack UI (отчёт B) |
-| D-SAVE-04 | Ошибка записи видна + безопасный retry | частично | `saveMe().catch`, loading boot |
-| D-UI-01 | «Сменить героя» открывает выбор (не переключает EN) | в разработке | `lang-btn[data-lang]` only |
-| D-UI-02 | Управление голосом = речь (не только mute legacy) | в разработке | AudioManager + settings |
-| D-UI-03 | Переключатель языка не перекрывает чужие кнопки | в разработке | `#langCorner`, mobile HUD |
-| D-INPUT-01 | WASD/E по `e.code`, любая раскладка | в разработке | `controls-3d.mjs`, `game.js` |
-| D-INPUT-02 | Ввод в текстовых полях не триггерит игру | в разработке | |
-| D-INPUT-03 | Короткое нажатие W даёт заметный шаг | не сделано | отчёт B |
-| D-MOB-01 | Мобильное меню помещается; чат ≠ «?» | в разработке | site QA |
-| D-MOB-02 | Джойстик / камера / E на touch | в разработке | `touchActive` в controls |
-| D-GAME-01 | Победа дуэли засчитывается в квестах/обучении | работает | onboarding bump |
-| D-ONBOARD-01 | Обучение стартует автоматически для нового профиля | не сделано | отчёт B (preview: intro+onboarding в PR #43) |
-| D-QUEST-01 | Активный квест виден после F5 | не сделано | отчёт B |
-| D-CHAT-01 | Чат без фейковых строк (только реальные /chat) | не сделано | отчёт B; убрать seed/демо |
-| D-I18N-UK | Украинский в переключателе, игре, subscribe | не сделано | MASTER §11 |
-| D-AUTH-01 | Гостевой старт подписан; запрос имени | не сделано | отчёт B |
-| D-AUTH-02 | Конфликт гость→существующий: предупреждение о потере прогресса | не сделано | `account-auth.mjs` |
-| D-RTDB-01 | Presence: свой uid write, чужой deny | работает (rules) | `npm run test:rules` |
-| D-RTDB-02 | publicProfiles: свой write, чужой deny | работает (rules) | `npm run test:rules` |
-| D-RTDB-03 | Live prod rules ≠ repo secure → permission_denied | известно | выкатка после приёмки |
-| D-RTDB-04 | Публичное чтение всей `/players` на live | известно | GET без auth → 200; закрывают rules при релизе |
-| D-RTDB-05 | `premium` / `entitlements` клиентом не пишутся | в разработке | `database.rules.json` (только admin); webhook позже |
-| D-TEST-01 | Тесты/capture не пишут в prod | в разработке | `guard-no-prod-firebase.js`, `prodDevWriteBlocked`, `?dev` off на prod |
-| D-WEBGL-01 | Ошибка WebGL не как «ошибка сохранения» | работает | PR #41 |
-| D-ANALYTICS-01 | Минимальная аналитика + UTM + `createdAt` / `qa` | **только предложение** | отчёт §«Предложение» — ждём решения Инны, не внедрять |
+| ID | Находка | Источник | Ответственный | Воспроизведён | Исправлен (коммит) | Повторно проверен |
+|----|---------|----------|---------------|---------------|-------------------|-------------------|
+| D-SAVE-01 | Покупка без монет → `undefined` в earn → save ломается | аудит live / Инна | интеграция | local: buyItem + RTDB reject | `earn-state.mjs`, snack path, `b370d70+` | `npm run test:save-sanitize`, `test:earn-state` — PASS; браузер — pending |
+| D-SAVE-02 | RTDB payload с `undefined` | аудит | интеграция | да | `stripUndefinedDeep` | unit PASS |
+| D-SAVE-03 | Нет «Сохранено» после commit | отчёт B | интеграция | prod main да | `updateSaveStatusUi`, `#saveStatus` | preview — pending |
+| D-SAVE-04 | Ошибка save не видна | отчёт B | интеграция | да | `.catch` + toast | pending |
+| D-UI-01 | Смена героя / mute → EN | аудит | интеграция | да на main | `lang-btn[data-lang]` only | pending |
+| D-INPUT-01 | WASD/E по раскладке | аудит | интеграция | RU E на main | `e.code` controls + decor | pending |
+| D-MOB-01 | Чат на «?» | аудит | интеграция | mobile CSS | chat `top:48px` | эмуляция — pending |
+| D-MOB-02 | Джойстик | аудит | интеграция | да | `touchActive` controls | телефон — Инна |
+| D-TEST-01 | Тесты в prod RTDB | отчёт / Инна | интеграция | 25.10 dev rows | `guard-no-prod-firebase`, client block | scripts exit 2 |
+| D-RTDB-04 | GET `/players` публично | REST аудит | владелец+rules | да live | rules в repo, не deploy | после приёмки |
+| D-RTDB-05 | `premium` клиентом | отчёт B | интеграция | код | rules validate admin | emulator rules test |
+| D-ONBOARD-01 | Нет авто-обучения | отчёт B | интеграция | main да | preview: intro+6 steps | preview pending |
+| D-QUEST-01 | Квест не после F5 | отчёт B | интеграция | main | `QUEST_TABLE` + engine | pending |
+| D-STORY-01 | Нет 3 концовок | t104u | интеграция | — | scaffold `story-endings.mjs`, UI | сцены PLANNED |
+| D-STORY-02 | Замок не в 3D | MASTER TZ | интеграция | — | — | блокер гл.4 сцен |
+| D-BUILD-01 | Стройка построек WIP | t104u | интеграция | да | `build_wip` toast | да (код) |
+| D-MONO-01 | Terms/Privacy draft | t104u | интеграция | да | v2026-10-25 terms/privacy | pending |
+| D-MONO-02 | Stripe sandbox | t104u | интеграция | — | `MONETIZATION_STRIPE_SANDBOX.md` | live pay OFF |
+| D-I18N-UK | Нет UK | MASTER §11 | — | да | — | не начато |
+| D-VOICE-01 | Модели Piper (irina) | t104u | интеграция | — | `VOICE_MODEL_ACCEPTANCE.md` | samples pending |
 
-_Обновлять при закрытии дефекта._
+_Отчёт PDF ≠ доказательство; строка «Повторно проверен» заполняется только после браузера/устройства._

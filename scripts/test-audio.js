@@ -3,6 +3,8 @@
  * Audio module tests — Chromium + WebKit.
  * Run: PUNK_BASE=http://127.0.0.1:8765 node scripts/test-audio.js
  */
+const { assertNoProductionBase } = require("./lib/guard-no-prod-firebase");
+assertNoProductionBase();
 const { chromium, webkit } = require("playwright");
 const fs = require("fs");
 const path = require("path");

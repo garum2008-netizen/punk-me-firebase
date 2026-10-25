@@ -77,14 +77,13 @@ function bindDuelKeyboard() {
   window.addEventListener("keydown", e => {
     if (!state.duel?.active || e.repeat) return;
     if (e.target?.matches?.("input, textarea, select")) return;
-    const k = e.key;
-    if (k === " " || k === "Enter" || k === "f" || k === "F") {
+    if (e.code === "Space" || e.code === "Enter" || e.code === "KeyF") {
       e.preventDefault();
       window._duelAttack = true;
-    } else if (k === "b" || k === "B") {
+    } else if (e.code === "KeyB") {
       e.preventDefault();
       window._duelBlock = true;
-    } else if (k === "v" || k === "V") {
+    } else if (e.code === "KeyV") {
       e.preventDefault();
       window._duelDodge = true;
     }
@@ -966,7 +965,7 @@ function setDecorMode(on) {
     if (!state.decor.keyHandler) {
       state.decor.keyHandler = e => {
         if (!state.decor.mode || e.target?.matches?.("input, textarea")) return;
-        handleDecorKey(e.key);
+        handleDecorKey(e.code, e.key);
       };
       window.addEventListener("keydown", state.decor.keyHandler);
     }
@@ -1035,10 +1034,10 @@ function decorPointerDown(wx, wz) {
   return false;
 }
 
-function handleDecorKey(key) {
+function handleDecorKey(code, key) {
   if (!state.decor.mode) return;
-  const k = key.toLowerCase();
-  if (k === "r") {
+  const k = (key || "").toLowerCase();
+  if (code === "KeyR" || k === "r") {
     state.decor.rot += Math.PI / 2;
     if (state.decor.ghost) state.decor.ghost.rotation.y = state.decor.rot;
     if (state.decor.selected) {
@@ -1051,13 +1050,14 @@ function handleDecorKey(key) {
   window.StoryEngine?.fireStoryEvent?.("decor_placed");
       }
     }
-  } else if (key === "[" || key === "]") {
+  } else if (code === "BracketLeft" || code === "BracketRight" || key === "[" || key === "]") {
     const ids = FURNITURE_CATALOG.map(f => f.id);
     let i = ids.indexOf(state.decor.pick);
-    i = key === "[" ? (i - 1 + ids.length) % ids.length : (i + 1) % ids.length;
+    const left = code === "BracketLeft" || key === "[";
+    i = left ? (i - 1 + ids.length) % ids.length : (i + 1) % ids.length;
     setDecorPick(ids[i]);
     setDecorMode(true);
-  } else if (k === "c") {
+  } else if (code === "KeyC" || k === "c") {
     state.decor.swatch = cycleSwatch(state.decor.swatch);
     applyPlacementColor(state.decor.ghost, state.decor.swatch);
     if (state.decor.selected) {
@@ -1069,9 +1069,9 @@ function handleDecorKey(key) {
         applyPlacementColor(state.decor.selected, state.decor.swatch);
       }
     }
-  } else if (k === "z") {
+  } else if (code === "KeyZ" || k === "z") {
     undoDecorPlacement();
-  } else if (key === "Delete" || key === "Backspace") {
+  } else if (code === "Delete" || code === "Backspace" || key === "Delete" || key === "Backspace") {
     if (!state.decor.selected) return;
     const idx = state.decor.selected.userData.decorIndex;
     const items = loadDecor().filter((_, j) => j !== idx);

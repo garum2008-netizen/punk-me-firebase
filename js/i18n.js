@@ -184,7 +184,23 @@ const I18N = {
     shop_hat_spike: "Шипастая шляпа",
     daily_title: "Ежедневные", level_up: "Новый уровень!", level_unlock: "Открыт аксессуар в лавке",
     fight_block: "Блок", interact_jukebox: "Джукбокс: трек",
-    job_cemetery_hud: "Ночная смена", job_candles: "свечи", job_ghosts: "призраки"
+    job_cemetery_hud: "Ночная смена", job_candles: "свечи", job_ghosts: "призраки",
+    save_ok: "Сохранено", save_saving: "Сохранение…", save_failed: "Не удалось сохранить",
+    build_wip: "Свободная стройка ещё в работе — используй сюжетные этапы Тусовки.",
+    build_hangout_btn: "Построить этап",
+    ending_choose_title: "Выбор судьбы Колокола",
+    ending_choose_hint: "Сначала прочитай последствия — потом выбери. Отменить нельзя.",
+    ending_lift_curse_title: "Снять проклятие",
+    ending_lift_curse_preview: "Колокол зазвонит снова. Мёртвиновы станут людьми и останутся панками; призраки обретут Склеп.",
+    ending_zombie_style_title: "Зомби — это стиль",
+    ending_zombie_style_preview: "Семья остаётся зомби — замок станет клубом. Потерявшиеся призраки найдут путь через Огонёк и Склеп.",
+    ending_deal_count_title: "Сделка с Графом",
+    ending_deal_count_preview: "Ночной магазин у ворот замка и особые привилегии. Граф обещает не трогать семью и призраков.",
+    audio_youtube_narrator: "Режим рассказчицы (YouTube)",
+    audio_youtube_narrator_hint: "Длинные фразы для записи прохождения; в обычной игре можно выключить.",
+    angelina_hint_nudge: "Подсказка",
+    angelina_hint_direction: "Направление",
+    angelina_hint_exact: "Точное действие"
   },
   en: {
     coins: "Coins", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
@@ -367,7 +383,23 @@ const I18N = {
     shop_hat_spike: "Spiked hat",
     daily_title: "Daily", level_up: "Level up!", level_unlock: "Shop unlock available",
     fight_block: "Block", interact_jukebox: "Jukebox track",
-    job_cemetery_hud: "Night shift", job_candles: "candles", job_ghosts: "ghosts"
+    job_cemetery_hud: "Night shift", job_candles: "candles", job_ghosts: "ghosts",
+    save_ok: "Saved", save_saving: "Saving…", save_failed: "Could not save",
+    build_wip: "Free placement build is still WIP — use story hangout stages.",
+    build_hangout_btn: "Build stage",
+    ending_choose_title: "Fate of the Bell",
+    ending_choose_hint: "Read the consequences first — then choose. This cannot be undone.",
+    ending_lift_curse_title: "Lift the curse",
+    ending_lift_curse_preview: "The Bell rings again. The Mörtvinovs become human and stay punk; ghosts find the Crypt.",
+    ending_zombie_style_title: "Zombie is a style",
+    ending_zombie_style_preview: "The family stays zombie — the castle becomes a club. Lost ghosts are guided by the Ember and the Crypt.",
+    ending_deal_count_title: "Deal with the Count",
+    ending_deal_count_preview: "A night shop at the castle gate and perks. The Count vows to leave the family and ghosts in peace.",
+    audio_youtube_narrator: "Storyteller mode (YouTube)",
+    audio_youtube_narrator_hint: "Longer lines for recording playthroughs; turn off for normal play.",
+    angelina_hint_nudge: "Hint",
+    angelina_hint_direction: "Direction",
+    angelina_hint_exact: "Exact step"
   },
   da: {
     coins: "Mønter", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
@@ -550,7 +582,41 @@ const I18N = {
     shop_hat_spike: "Pigget hat",
     daily_title: "Daglige", level_up: "Nyt level!", level_unlock: "Butiks-unlock",
     fight_block: "Blok", interact_jukebox: "Jukebox-nummer",
-    job_cemetery_hud: "Nattevagt", job_candles: "lys", job_ghosts: "spøgelser"
+    job_cemetery_hud: "Nattevagt", job_candles: "lys", job_ghosts: "spøgelser",
+    save_ok: "Gemt", save_saving: "Gemmer…", save_failed: "Kunne ikke gemme",
+    build_wip: "Fri bygning er stadig WIP — brug historiens hangout-etaper.",
+    build_hangout_btn: "Byg etape",
+    ending_choose_title: "Klokkens skæbne",
+    ending_choose_hint: "Læs konsekvenserne først — vælg derefter. Kan ikke fortrydes.",
+    ending_lift_curse_title: "Løft forbandelsen",
+    ending_lift_curse_preview: "Klokken ringer igen. Mörtvinovs bliver mennesker og forbliver punk; spøgelser får krypten.",
+    ending_zombie_style_title: "Zombie er en stil",
+    ending_zombie_style_preview: "Familien forbliver zombie — slottet bliver klub. Tabte spøgelser guides af Gløden og krypten.",
+    ending_deal_count_title: "Aftale med Greven",
+    ending_deal_count_preview: "Natbutik ved slottsporten og fordele. Greven lover at lade familie og spøgelser være.",
+    audio_youtube_narrator: "Fortæller-tilstand (YouTube)",
+    audio_youtube_narrator_hint: "Længere linjer til optagelse; slå fra i normal spil.",
+    angelina_hint_nudge: "Hint",
+    angelina_hint_direction: "Retning",
+    angelina_hint_exact: "Præcis handling"
+  },
+  uk: {
+    save_ok: "Збережено", save_saving: "Збереження…", save_failed: "Не вдалося зберегти",
+    build_wip: "Вільне будування ще в роботі — використовуй сюжетні етапи Тусовки.",
+    build_hangout_btn: "Побудувати етап",
+    ending_choose_title: "Вибір долі Дзвона",
+    ending_choose_hint: "Спочатку прочитай наслідки — потім обери. Скасувати не можна.",
+    ending_lift_curse_title: "Зняти прокляття",
+    ending_lift_curse_preview: "Дзвін знову задзвонить. Мертвінови стануть людьми й залишаться панками; привиди знайдуть Склеп.",
+    ending_zombie_style_title: "Зомбі — це стиль",
+    ending_zombie_style_preview: "Родина лишається зомбі — замок стане клубом. Загублені привиди знайдуть шлях через Вогник і Склеп.",
+    ending_deal_count_title: "Угода з Графом",
+    ending_deal_count_preview: "Нічний магазин біля замку та особливі переваги. Граф обіцяє не чіпати родину й привидів.",
+    audio_youtube_narrator: "Режим оповідача (YouTube)",
+    audio_youtube_narrator_hint: "Довші репліки для запису проходження; у звичайній грі можна вимкнути.",
+    angelina_hint_nudge: "Підказка",
+    angelina_hint_direction: "Напрямок",
+    angelina_hint_exact: "Точна дія"
   }
 };
 
@@ -621,12 +687,15 @@ let currentLang = "en";
 
 function detectBrowserLang() {
   const l = (navigator.language || "en").slice(0, 2).toLowerCase();
-  if (l === "ru" || l === "da") return l;
+  if (l === "ru" || l === "da" || l === "uk") return l;
   return "en";
 }
 
 function t(key) {
-  return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
+  const loc = I18N[currentLang]?.[key];
+  if (loc) return loc;
+  if (currentLang === "uk") return I18N.ru[key] || I18N.en[key] || key;
+  return I18N.en[key] || key;
 }
 
 function locTitle(id) {

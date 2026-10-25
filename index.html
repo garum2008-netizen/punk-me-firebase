@@ -69,12 +69,25 @@
   </div>
   <div id="langCorner" class="lang-corner" aria-label="Language">
     <button type="button" class="lang-btn" data-lang="ru">RU</button>
+    <button type="button" class="lang-btn" data-lang="uk">UK</button>
     <button type="button" class="lang-btn" data-lang="en">EN</button>
     <button type="button" class="lang-btn" data-lang="da">DA</button>
   </div>
   <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
   <div id="storyBubbles" aria-hidden="true"></div>
   <div id="storyDirection" aria-hidden="true">!</div>
+  <div id="endingChoice" class="ending-choice" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="ending-choice-panel">
+      <h2 data-i18n="ending_choose_title">Выбор судьбы Колокола</h2>
+      <p class="ending-preview" data-i18n="ending_choose_hint">Сначала прочитай последствия — потом выбери.</p>
+      <p class="ending-preview" id="endingPreviewLift" data-i18n="ending_lift_curse_preview"></p>
+      <button type="button" class="btn" data-ending="ending_break_curse" data-i18n="ending_lift_curse_title">Снять проклятие</button>
+      <p class="ending-preview" id="endingPreviewZombie" data-i18n="ending_zombie_style_preview"></p>
+      <button type="button" class="btn secondary" data-ending="ending_zombie_style" data-i18n="ending_zombie_style_title">Зомби — это стиль</button>
+      <p class="ending-preview" id="endingPreviewDeal" data-i18n="ending_deal_count_preview"></p>
+      <button type="button" class="btn secondary" data-ending="ending_count_deal" data-i18n="ending_deal_count_title">Сделка с Графом</button>
+    </div>
+  </div>
   <div id="chapterIntro" class="chapter-intro" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="chapter-intro-panel">
       <div class="chapter-intro-title"></div>
@@ -90,7 +103,7 @@
     <div class="stage-name"></div>
     <div class="need-line"></div>
     <button type="button" class="btn secondary" style="margin-top:6px" onclick="StoryEngine?.whereToGetMaterials?.()">?</button>
-    <button type="button" class="btn" style="margin-top:6px;margin-left:6px" onclick="StoryEngine?.buildHangoutStage?.()">Build</button>
+    <button type="button" class="btn" style="margin-top:6px;margin-left:6px" data-i18n="build_hangout_btn" onclick="StoryEngine?.buildHangoutStage?.()">Построить этап</button>
   </div>
   <div id="storyDialog" role="dialog" aria-modal="true">
     <div class="story-dialog-panel">
@@ -125,6 +138,7 @@
       </div>
       <button type="button" class="lang-btn hud-desktop-only" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
     </div>
+    <div id="saveStatus" class="save-status" aria-live="polite" data-state=""></div>
     <div class="account-hud-wrap hud-account-row">
       <span class="account-hud-chip" id="accountHudChip" data-account-label hidden></span>
       <button type="button" class="btn-account" id="btnAccountOpen" data-account-signed-out data-i18n="auth_sign_in">Войти</button>
@@ -337,6 +351,19 @@
   initAudioManager();
   initAudioSettingsUi();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
+  await import("./js/story/story-endings.mjs?v=story-endings-1");
+  await import("./js/story/quest-catalog.mjs?v=quest-catalog-1").then(m => m.loadQuestCatalog());
+  document.querySelectorAll("#endingChoice [data-ending]").forEach(btn => {
+    btn.addEventListener("click", () => window.StoryEndings?.applyEnding(window.me, btn.dataset.ending, {
+      toast: m => window.toast?.(m),
+      save: () => window.saveMe?.(),
+      t: k => (typeof window.t === "function" ? window.t(k) : k),
+      L: o => {
+        const lang = typeof window.getLanguage === "function" ? window.getLanguage() : "ru";
+        return o[lang] || o.en || o.ru || "";
+      }
+    }));
+  });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
   window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.me = window.me || {};

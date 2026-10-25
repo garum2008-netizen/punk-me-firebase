@@ -33,6 +33,7 @@
                 "da": "Jeg tjener gebyret — 150 mønter."
               },
               "hint": { "ru": "Работа · Банда ▲", "en": "Work · Gang ▲", "da": "Arbejde · Bande ▲" },
+              "requires": ["flag:!initiation_locked"],
               "effects": [{ "type": "quest_start", "id": "q_initiation_pay" }],
               "next": "n3a"
             },
@@ -44,7 +45,7 @@
                 "da": "Jeg udfordrer dig til kædeduel."
               },
               "hint": { "ru": "Дуэль · Банда ▲▲", "en": "Duel · Gang ▲▲", "da": "Duel · Bande ▲▲" },
-              "requires": ["energy>=5"],
+              "requires": ["energy>=5", "flag:!initiation_locked"],
               "effects": [{ "type": "quest_start", "id": "q_initiation_duel" }, { "type": "start_duel", "id": "razor" }],
               "next": "END"
             },
@@ -56,6 +57,7 @@
                 "da": "Jeg tagger bandens tegn i kvarteret."
               },
               "hint": { "ru": "Клякса · Реп. ▲", "en": "Tags · Rep ▲", "da": "Tags · Omdømme ▲" },
+              "requires": ["flag:!initiation_locked"],
               "effects": [{ "type": "quest_start", "id": "q_initiation_graffiti" }],
               "next": "n3c"
             }
@@ -292,6 +294,34 @@
             "en": "Mohawk: Show me a jump — gang's watching!",
             "da": "Mohawk: Vis et hop — banden kigger!"
           },
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_count_confession",
+      "location": "construction",
+      "trigger": { "type": "story_flag", "flag": "concert_ready", "conditions": ["flag:!graph_truth", "flag:!ending_chosen"] },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_count",
+          "text": {
+            "ru": "Граф: Пятьдесят лет назад я ударил по Колоколу — не из злости, а из страха, что ночь никогда не кончится. Музыка была слишком громкой для моего замка… и слишком живой для вечного Хэллоуина.",
+            "en": "Count: Fifty years ago I struck the Bell — not from malice, but fear that the night would never end. The music was too loud for my castle… and too alive for eternal Halloween.",
+            "da": "Greve: For halvtreds år siden slog jeg til klokken — ikke af ondskab, men af frygt for at natten aldrig sluttede."
+          },
+          "next": "n2"
+        },
+        {
+          "id": "n2",
+          "speaker": "npc_count",
+          "text": {
+            "ru": "Три пути открыты. Колокол готов. Выбери, каким будет утро Тыквограда — и помни: назад дороги нет.",
+            "en": "Three paths are open. The Bell is ready. Choose what morning brings to Pumpkin City — there is no going back.",
+            "da": "Tre veje er åbne. Klokken er klar. Vælg, hvad morgenen bringer — der er ingen vej tilbage."
+          },
+          "effects": [{ "type": "flag", "value": "graph_truth" }, { "type": "story_event", "name": "graph_confession_done" }],
           "next": "END"
         }
       ]
