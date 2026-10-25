@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const { chromium, webkit } = require("playwright");
 
-const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
+const { start, stop } = require("./local-static-server");
 const outDir = path.join(__dirname, "../qa/episode1");
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -21,6 +21,7 @@ async function runBrowser(browserType, tag) {
   });
   const page = await context.newPage();
   const log = [];
+  const base = process.env.PUNK_BASE || global.__ep1Base || "http://127.0.0.1:8765";
   await page.goto(`${base}/?solo=1&v=ep1-${tag}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => window.__punkFinishLoadMeFlow, { timeout: 120000 });
   await page.evaluate(() => {
@@ -103,7 +104,13 @@ async function runBrowser(browserType, tag) {
 }
 
 async function main() {
-  const report = { chromium: await runBrowser(chromium, "chromium"), webkit: await runBrowser(webkit, "webkit") };
+  const base = process.env.PUNK_BASE || await start();
+  global.__ep1Base = base;
+  const report = {
+    chromium: await runBrowser(chromium, "chromium"),
+    webkit: await runBrowser(webkit, "webkit")
+  };
+  if (!process.env.PUNK_BASE) stop();
   const flat = [...report.chromium, ...report.webkit];
   const ok = flat.every(([, pass]) => pass !== false);
   fs.writeFileSync(path.join(outDir, "episode1-report.json"), JSON.stringify(report, null, 2));

@@ -1,8 +1,13 @@
-# Audio assets — licenses (branch b)
+# PUNK ME — audio asset licenses
 
-Licensed music, voice, and SFX files live under `assets/audio/`.  
-Each file must list: title, author, license, source URL.
+All files under `assets/audio/` unless noted.
 
-**Episode 1 line IDs** are defined in `docs/game-design/EPISODE1.md`.
+| File(s) | Author | License | Source |
+| --- | --- | --- | --- |
+| `music/music_*.ogg`, `music/music_*.mp3` | PUNK ME / Inna project (generated) | CC0 1.0 | `scripts/generate-audio-assets.mjs` (procedural, in-repo) |
+| `sfx/*.ogg`, `sfx/*.mp3` | PUNK ME / Inna project (generated) | CC0 1.0 | `scripts/generate-audio-assets.mjs` (procedural, in-repo) |
+| `voice/manifest.json` | PUNK ME | — | Line slots; recorded VO per language (see `docs/game-design/EPISODE1.md` line IDs) |
 
-Until assets land, `js/audio-manager.mjs` runs without music files; optional browser TTS is **opt-in** via settings (`audio_tts_fallback`).
+Regenerate procedural assets: `node scripts/generate-audio-assets.mjs`
+
+In-game credits string (when audio settings open): see `AudioManager.getCreditsLine()`.

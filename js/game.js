@@ -371,7 +371,6 @@ function defaultPlayer() {
     quests: { active: "intro", progress: {} },
     onboarding: { step: 0, progress: {}, done: false },
     tutorial: { version: 1, episode1Started: false, replayCount: 0 },
-    settings: { audio: { music: 0.55, voice: 0.85, sfx: 0.7, muted: false, ttsFallback: false } },
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -440,7 +439,6 @@ function migratePlayerFromSave(raw) {
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
   if (v.tutorial != null && typeof v.tutorial !== "object") v.tutorial = { version: 1, episode1Started: false, replayCount: 0 };
-  if (v.settings != null && typeof v.settings !== "object") v.settings = { audio: {} };
   if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
   return v;
 }
@@ -499,7 +497,6 @@ function applyFirebasePlayerSnapshot(snap) {
     me.quests = v.quests && typeof v.quests === "object" ? v.quests : me.quests;
     me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
     me.tutorial = v.tutorial && typeof v.tutorial === "object" ? v.tutorial : me.tutorial;
-    me.settings = v.settings && typeof v.settings === "object" ? v.settings : me.settings;
     me.story = v.story || me.story;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
@@ -723,7 +720,11 @@ function init() {
   window.me = me;
   window.__playerLoaded = false;
   window.saveMe = saveMe;
-  window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
+  window.onLanguageChanged = () => {
+    renderAll();
+    applyI18nDom();
+    window.__audioOnLangChanged?.();
+  };
   initLanguage();
   document.querySelectorAll(".lang-btn").forEach(btn => {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);
@@ -885,6 +886,10 @@ function loadMe() {
 
 function pickCharacterAndContinue(id) {
   if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
+  // AUDIO_HOOK: unlock + start location music after explicit confirm gesture
+  window.AudioManager?.unlockAudio?.().then(() => {
+    window.AudioManager?.setLocationMusic?.(me.location || "room");
+  });
   me.characterId = id;
   writeStoredCharacterId(id);
   const def = getCharacterDef(id);
@@ -896,6 +901,13 @@ function pickCharacterAndContinue(id) {
 
 function continueGameBoot() {
   try {
+    // AUDIO_HOOK: returning players — music after first in-game pointer gesture
+    const unlockOnce = () => {
+      window.AudioManager?.unlockAudio?.().then(ok => {
+        if (ok) window.AudioManager?.setLocationMusic?.(me.location || "room");
+      });
+    };
+    document.getElementById("game")?.addEventListener("pointerdown", unlockOnce, { once: true });
     hideLoading();
     initResponsiveHud();
     if (window.Onboarding) Onboarding.init();
@@ -1042,7 +1054,6 @@ function sanitizePlayer(p) {
     quests,
     onboarding,
     tutorial: p.tutorial && typeof p.tutorial === "object" ? { ...p.tutorial } : undefined,
-    settings: p.settings && typeof p.settings === "object" ? { ...p.settings } : undefined,
     jobCooldowns: p.jobCooldowns,
     lastJob: p.lastJob,
     built: p.built,
@@ -1276,6 +1287,7 @@ function updateOnlineCount() {
 
 function afterLocationChange() {
   window.Onboarding?.adaptSpawnLocation?.();
+  window.AudioManager?.setLocationMusic?.(me.location);
   window.Onboarding?.onEnterLocation?.(me.location);
   window.Onboarding?.syncGuideTarget?.();
   window.StoryEngine?.onLocationChange?.(me.location);
@@ -1511,6 +1523,8 @@ function questBump(key, amt = 1) {
       if (!isOwner && r.coins) me.coins += r.coins;
       if (r.xp) me.xp += r.xp;
       if (r.rep) me.rep += r.rep;
+      window.AudioManager?.playSfx?.("quest_complete");
+      if (r.coins) window.AudioManager?.playSfx?.("reward_coins");
     });
     toast(t("quest_complete") + " " + questTitle(qid));
     const order = ["intro", "chain_duel", "parkour_rep", "build_crypts"];
@@ -1533,6 +1547,7 @@ function openModal(id) {
 }
 
 function closeModal(id) {
+  window.AudioManager?.stopSpeech?.();
   document.getElementById(id).classList.remove("active");
 }
 
@@ -1564,7 +1579,15 @@ function openNpcDialog(nid) {
      <button class="btn danger" onclick="closeModal('gangModal'); startNpcFight('${nid}')">${escapeHtml(t("chain_fight"))}</button>
      ${n.quest ? `<button class="btn secondary" onclick="acceptQuest('${n.quest}')">${escapeHtml(t("accept_quest"))}</button>` : ""}`;
   openModal("gangModal");
-  if (window.Voice) Voice.speakCharacter(nid, line);
+  window.AudioManager?.playSfx?.("interact");
+  const lineId = nid === "razor" ? "ep1_razor_meet_a" : null;
+  if (lineId) {
+    window.AudioManager?.playLine?.(lineId, {
+      subtitle: line,
+      lang: typeof getLanguage === "function" ? getLanguage() : "en",
+      characterId: nid
+    });
+  }
   if (window.World3D?.setTalking) World3D.setTalking(nid, true);
   if (nid === "razor") {
     questBump("talk_razor");
@@ -1585,6 +1608,10 @@ window.changeCharacter = function () {
 };
 
 window.toggleVoiceMute = function () {
+  if (window.AudioManager) {
+    window.AudioManager.setMuted(!window.AudioManager.getMuted());
+    return;
+  }
   if (!window.Voice) return;
   Voice.setMuted(!Voice.getMuted());
   const btn = document.getElementById("btnVoiceMute");
@@ -1596,6 +1623,7 @@ function acceptQuest(qid) {
   me.quests.progress = {};
   saveMe();
   renderQuest();
+  window.AudioManager?.playSfx?.("quest_received");
   toast(t("quest_new") + " " + questTitle(qid));
 }
 
@@ -1623,6 +1651,7 @@ function buyItem(id) {
   if (it.cat !== "materials" && me.owned.includes(id)) return;
   if (!isOwner && me.coins < it.price) {
     const short = it.price - me.coins;
+    window.AudioManager?.playSfx?.("error");
     toast(t("notEnough") + " — " + short + " " + (t("coins_short") || ""));
     window.StoryEngine?.beginEarnCoins?.(short, { returnLabel: tShop(id) });
     return;
@@ -1657,6 +1686,7 @@ function buyItem(id) {
   saveMe();
   renderAll();
   renderShop();
+  window.AudioManager?.playSfx?.("reward_coins");
   toast(t("bought_item") + " " + tShop(it.id));
   window.PlayV21?.syncCosmetics?.(me);
   window.Onboarding?.onShopBuy?.();

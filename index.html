@@ -96,7 +96,6 @@
         <button type="button" class="lang-btn" data-lang="en">EN</button>
         <button type="button" class="lang-btn" data-lang="da">DA</button>
       </div>
-      <button type="button" class="lang-btn hud-desktop-only" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
     </div>
     <div class="account-hud-wrap hud-account-row">
       <span class="account-hud-chip" id="accountHudChip" data-account-label hidden></span>
@@ -272,12 +271,7 @@
     </div>
     <h3 data-i18n="game_menu_journal">Квест</h3>
     <div id="gameMenuJournal" class="game-menu-journal"></div>
-    <h3 data-i18n="game_menu_audio">Звук</h3>
-    <label><span data-i18n="audio_music">Музыка</span> <input type="range" id="audioMusic" min="0" max="100" value="55"></label>
-    <label><span data-i18n="audio_voice">Голос</span> <input type="range" id="audioVoice" min="0" max="100" value="85"></label>
-    <label><span data-i18n="audio_sfx">Эффекты</span> <input type="range" id="audioSfx" min="0" max="100" value="70"></label>
-    <label><input type="checkbox" id="audioMuted"> <span data-i18n="audio_mute_all">Без звука</span></label>
-    <label><input type="checkbox" id="audioTtsFallback"> <span data-i18n="audio_tts_fallback">Синтез речи (временно)</span></label>
+    <button type="button" class="btn secondary" id="gameMenuAudio" data-i18n="audio_settings_btn">Звук</button>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -289,14 +283,12 @@
 </script>
 <script src="js/characters.js?v=living3d-v22r6-master-p1-r1"></script>
 <script src="js/i18n.js?v=living3d-v22r6-master-p1-r1"></script>
-<script src="js/voice.js?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module" src="js/audio-bootstrap.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script src="js/onboarding.js?v=living3d-v22r6-master-p1-r1"></script>
-<script type="module" src="js/reward-grants.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module">
   import { grantRewardOnce } from "./js/reward-grants.mjs?v=living3d-v22r6-master-p1-r1";
   window.grantRewardOnce = (eventId, apply) => grantRewardOnce(window.me, eventId, apply);
 </script>
-<script type="module" src="js/audio-manager.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module" src="js/game-menu.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module" src="js/interaction-hud.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module" src="js/context-hints.mjs?v=living3d-v22r6-master-p1-r1"></script>
@@ -305,9 +297,7 @@
 <script type="module" src="js/char-select.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module" src="js/play-features-v21.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module">
-  import { initAudioManager } from "./js/audio-manager.mjs?v=living3d-v22r6-master-p1-r1";
   import { initGameMenu, initStartFlow, showStartGameOverlay } from "./js/game-menu.mjs?v=living3d-v22r6-master-p1-r1";
-  initAudioManager();
   initGameMenu();
   initStartFlow();
   window.__punkEpisode1StartGate = showStartGameOverlay;

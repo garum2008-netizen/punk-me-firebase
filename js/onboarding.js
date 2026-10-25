@@ -75,6 +75,9 @@ function completeStep() {
   else saveMeQuiet();
   renderOnboardingQuest();
   syncGuideTarget();
+  const next = currentStep();
+  if (next) window.playEpisodeTutorialLine?.(next.id);
+  if (firstTime && r.coins) window.AudioManager?.playSfx?.("reward_coins");
 }
 
 function saveMeQuiet() {
