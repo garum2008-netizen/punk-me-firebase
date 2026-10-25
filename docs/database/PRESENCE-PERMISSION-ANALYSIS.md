@@ -18,10 +18,10 @@
 
 ## Likely causes of `permission_denied` on live
 
-1. **Validation failure** (secure rules): client sent invalid or missing `name` / non-numeric `x`/`y` / bad types → RTDB reports `PERMISSION_DENIED`. Fixed by `buildPresencePayload()` in `js/game.js`.
+1. **Validation failure** (secure rules): client sent invalid or missing `name` / non-numeric `x`/`y` / bad types → RTDB reports `PERMISSION_DENIED`. Mitigated by `buildPresencePayload()` in `js/game.js` (emulator passes full payload).
 2. **No auth token on write**: write before `signInAnonymously` completes → denied. Mitigated by checking `auth.currentUser.uid === uid` before probe/set.
 3. **Wrong uid in path**: not observed in code (always uses session `uid`).
-4. **Deployed rules without `presence` node**: would deny all writes; compare live rules in Firebase console with `database.rules.json` before publishing (GO from Inna).
+4. **Deployed rules mismatch**: site QA (2025-10-25) still logs `permission_denied` for both `/presence/room/{uid}` and `/publicProfiles/{uid}` against production RTDB while using the fix branch static bundle — points to **published rules** (or project) not matching repo `database.rules.json`, not only client bugs. Compare Firebase console with `database.rules.json` / `scripts/rules-deploy-snapshots/` before GO.
 
 ## Rules change for review
 
