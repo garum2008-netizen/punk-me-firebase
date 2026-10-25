@@ -1,4 +1,9 @@
 --!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RigFactory = require(script.Parent.RigFactory)
+local FlyerEngine = require(ReplicatedStorage.Shared.FlyerEngine)
+
 local WorldBuilder = {}
 
 local function makePart(props: {
@@ -16,51 +21,32 @@ local function makePart(props: {
 	p.Color = props.Color
 	p.Anchored = if props.Anchored == nil then true else props.Anchored
 	p.Material = Enum.Material.Concrete
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Parent = props.Parent
 	return p
 end
 
 local function addZone(parent: Instance, name: string, size: Vector3, position: Vector3, color: Color3)
-	local z = makePart({
-		Name = name,
-		Size = size,
-		Position = position,
-		Color = color,
-		Parent = parent,
-	})
+	local z = makePart({ Name = name, Size = size, Position = position, Color = color, Parent = parent })
 	z.Transparency = 0.85
 	z.CanCollide = false
 	z:SetAttribute("ZoneId", name)
 	return z
 end
 
-local function addSpawn(parent: Instance, name: string, position: Vector3)
-	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = name
-	spawn.Size = Vector3.new(6, 1, 6)
-	spawn.Position = position
-	spawn.Anchored = true
-	spawn.Neutral = true
-	spawn.Duration = 0
-	spawn.Parent = parent
-end
-
-local function addNpc(parent: Instance, name: string, position: Vector3, color: Color3, action: string?)
-	local root = makePart({
-		Name = name,
-		Size = Vector3.new(2, 5, 2),
-		Position = position + Vector3.new(0, 2.5, 0),
-		Color = color,
+local function addFlyerSpot(parent: Instance, spotId: string, position: Vector3)
+	local post = makePart({
+		Name = spotId,
+		Size = Vector3.new(2, 4, 0.2),
+		Position = position,
+		Color = Color3.fromRGB(255, 120, 200),
 		Parent = parent,
 	})
-	root:SetAttribute("NpcId", name)
+	post:SetAttribute("FlyerSpotId", spotId)
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = action or "Talk"
-	prompt.ObjectText = name
-	prompt.MaxActivationDistance = 12
-	prompt.Parent = root
+	prompt.ActionText = "Post flyer"
+	prompt.ObjectText = "Flyer spot"
+	prompt.MaxActivationDistance = 10
+	prompt.Parent = post
 end
 
 function WorldBuilder.build(parent: Folder)
@@ -85,9 +71,14 @@ function WorldBuilder.build(parent: Folder)
 		Color = Color3.fromRGB(255, 220, 80),
 		Parent = house,
 	})
-	addSpawn(house, "SpawnHouse", Vector3.new(-5, 3, -5))
-	addNpc(house, "npc_mom", Vector3.new(18, 0, 8), Color3.fromRGB(180, 120, 140), "Talk")
-	addNpc(house, "npc_shnurok", Vector3.new(-18, 0, -8), Color3.fromRGB(140, 100, 60), "Pet")
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Size = Vector3.new(6, 1, 6)
+	spawn.Position = Vector3.new(-5, 3, -5)
+	spawn.Anchored = true
+	spawn.Neutral = true
+	spawn.Parent = house
+	RigFactory.spawnNpc(house, "npc_mom", Vector3.new(18, 0, 8), "Talk")
+	RigFactory.spawnNpc(house, "npc_shnurok", Vector3.new(-18, 0, -8), "Pet")
 
 	local street = Instance.new("Folder")
 	street.Name = "Street"
@@ -100,7 +91,7 @@ function WorldBuilder.build(parent: Folder)
 		Parent = street,
 	})
 	addZone(street, "zone_street", Vector3.new(55, 10, 28), Vector3.new(80, 5, 0), Color3.fromRGB(255, 100, 180))
-	addNpc(street, "npc_razor", Vector3.new(70, 0, 5), Color3.fromRGB(30, 30, 35))
+	RigFactory.spawnNpc(street, "npc_razor", Vector3.new(70, 0, 5), "Talk")
 	makePart({
 		Name = "Shop",
 		Size = Vector3.new(14, 10, 14),
@@ -108,6 +99,36 @@ function WorldBuilder.build(parent: Folder)
 		Color = Color3.fromRGB(90, 40, 120),
 		Parent = street,
 	})
+
+	local city = Instance.new("Folder")
+	city.Name = "City"
+	city.Parent = parent
+	makePart({
+		Name = "CityFloor",
+		Size = Vector3.new(40, 1, 40),
+		Position = Vector3.new(80, 0, -60),
+		Color = Color3.fromRGB(50, 50, 55),
+		Parent = city,
+	})
+
+	local flyers = Instance.new("Folder")
+	flyers.Name = "FlyerSpots"
+	flyers.Parent = parent
+	local spots = {
+		{ "flyer_street_1", Vector3.new(65, 2, 8) },
+		{ "flyer_street_2", Vector3.new(90, 2, 12) },
+		{ "flyer_street_3", Vector3.new(75, 2, -5) },
+		{ "flyer_city_1", Vector3.new(70, 2, -55) },
+		{ "flyer_city_2", Vector3.new(90, 2, -70) },
+		{ "flyer_city_3", Vector3.new(95, 2, -50) },
+		{ "flyer_cemetery_gate", Vector3.new(5, 2, 105) },
+		{ "flyer_shop_wall", Vector3.new(108, 4, -8) },
+	}
+	for _, pair in spots do
+		if table.find(FlyerEngine.SPOT_IDS, pair[1]) then
+			addFlyerSpot(flyers, pair[1], pair[2])
+		end
+	end
 
 	local cemetery = Instance.new("Folder")
 	cemetery.Name = "Cemetery"
@@ -119,8 +140,8 @@ function WorldBuilder.build(parent: Folder)
 		Color = Color3.fromRGB(35, 50, 40),
 		Parent = cemetery,
 	})
-	addNpc(cemetery, "npc_gravedigger", Vector3.new(-5, 0, 125), Color3.fromRGB(60, 55, 45), "Work")
-	addNpc(cemetery, "npc_ghost", Vector3.new(10, 0, 130), Color3.fromRGB(200, 180, 255), "Help")
+	RigFactory.spawnNpc(cemetery, "npc_gravedigger", Vector3.new(-5, 0, 125), "Work")
+	RigFactory.spawnNpc(cemetery, "npc_ghost", Vector3.new(10, 0, 130), "Help")
 	local crypt = makePart({
 		Name = "obj_crypt_site",
 		Size = Vector3.new(12, 2, 12),
@@ -129,7 +150,7 @@ function WorldBuilder.build(parent: Folder)
 		Parent = cemetery,
 	})
 	local cp = Instance.new("ProximityPrompt")
-	cp.ActionText = "Build"
+	cp.ActionText = "Build crypt"
 	cp.ObjectText = "Crypt"
 	cp.MaxActivationDistance = 14
 	cp.Parent = crypt
@@ -137,18 +158,27 @@ function WorldBuilder.build(parent: Folder)
 	local construction = Instance.new("Folder")
 	construction.Name = "Construction"
 	construction.Parent = parent
-	local hangout = makePart({
+	for i, stageName in { "foundation", "frame", "neon", "grand_open" } do
+		local part = makePart({
+			Name = "hangout_" .. stageName,
+			Size = Vector3.new(8, 2, 8),
+			Position = Vector3.new(72 + i * 10, 1, 80),
+			Color = Color3.fromRGB(60 + i * 20, 70, 90),
+			Parent = construction,
+		})
+		part:SetAttribute("HangoutStage", stageName)
+		local hp = Instance.new("ProximityPrompt")
+		hp.ActionText = "Build: " .. stageName
+		hp.MaxActivationDistance = 12
+		hp.Parent = part
+	end
+	makePart({
 		Name = "obj_hangout_site",
-		Size = Vector3.new(20, 2, 20),
+		Size = Vector3.new(20, 1, 20),
 		Position = Vector3.new(80, 0, 80),
-		Color = Color3.fromRGB(70, 70, 90),
+		Color = Color3.fromRGB(40, 40, 50),
 		Parent = construction,
 	})
-	local hp = Instance.new("ProximityPrompt")
-	hp.ActionText = "Build"
-	hp.ObjectText = "Hangout"
-	hp.MaxActivationDistance = 14
-	hp.Parent = hangout
 
 	local duel = Instance.new("Folder")
 	duel.Name = "DuelPit"
@@ -165,36 +195,34 @@ function WorldBuilder.build(parent: Folder)
 	local castle = Instance.new("Folder")
 	castle.Name = "Castle"
 	castle.Parent = parent
-	makePart({
-		Name = "zone_castle_hall",
-		Size = Vector3.new(30, 1, 30),
-		Position = Vector3.new(-80, 0, 80),
-		Color = Color3.fromRGB(60, 40, 80),
-		Parent = castle,
-	})
-	makePart({
+	addZone(castle, "zone_castle_hall", Vector3.new(30, 10, 30), Vector3.new(-80, 5, 80), Color3.fromRGB(80, 50, 100))
+	local tower = makePart({
 		Name = "zone_castle_tower",
-		Size = Vector3.new(10, 20, 10),
-		Position = Vector3.new(-95, 10, 95),
+		Size = Vector3.new(12, 22, 12),
+		Position = Vector3.new(-95, 11, 95),
 		Color = Color3.fromRGB(50, 35, 70),
 		Parent = castle,
 	})
-	addNpc(castle, "npc_count", Vector3.new(-80, 0, 80), Color3.fromRGB(90, 70, 120))
-	addNpc(castle, "npc_zoya", Vector3.new(-65, 0, 70), Color3.fromRGB(200, 140, 80), "Talk")
-
-	local parkour = Instance.new("Folder")
-	parkour.Name = "Parkour"
-	parkour.Parent = parent
-	local px = 160
-	for i = 1, 6 do
-		makePart({
-			Name = "Step" .. i,
-			Size = Vector3.new(6, 2, 6),
-			Position = Vector3.new(px + i * 8, i * 3, 40),
-			Color = Color3.fromRGB(255, 180, 60),
-			Parent = parkour,
+	tower:SetAttribute("ZoneId", "zone_castle_tower")
+	for i = 1, 4 do
+		local candle = makePart({
+			Name = "candle_" .. i,
+			Size = Vector3.new(1, 2, 1),
+			Position = Vector3.new(-92 + i * 2, 3, 92),
+			Color = Color3.fromRGB(255, 200, 80),
+			Parent = castle,
 		})
+		candle:SetAttribute("CandleIndex", i)
 	end
+	RigFactory.spawnNpc(castle, "npc_count", Vector3.new(-80, 0, 80), "Talk")
+	RigFactory.spawnNpc(castle, "npc_zoya", Vector3.new(-65, 0, 70), "Talk")
+	makePart({
+		Name = "zone_zombie_house",
+		Size = Vector3.new(10, 8, 10),
+		Position = Vector3.new(-55, 4, 90),
+		Color = Color3.fromRGB(70, 90, 60),
+		Parent = castle,
+	}):SetAttribute("ZoneId", "zone_zombie_house")
 end
 
 return WorldBuilder

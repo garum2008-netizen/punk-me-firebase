@@ -5,6 +5,10 @@ local Economy = require(ReplicatedStorage.Shared.Economy)
 local QuestEngine = require(ReplicatedStorage.Shared.QuestEngine)
 local ProfileSchema = require(ReplicatedStorage.Shared.ProfileSchema)
 local QuestTable = require(ReplicatedStorage.Config.QuestTable)
+local FlyerEngine = require(ReplicatedStorage.Shared.FlyerEngine)
+local HangoutEngine = require(ReplicatedStorage.Shared.HangoutEngine)
+local TowerPuzzle = require(ReplicatedStorage.Shared.TowerPuzzle)
+local EndingLogic = require(ReplicatedStorage.Shared.EndingLogic)
 
 local StoryHandlers = {}
 
@@ -60,7 +64,7 @@ function StoryHandlers.handleCemeteryJob(profile: ProfileSchema.Profile): boolea
 		if granted then
 			story.grantedRewards[key] = true
 			profile.coins = newCoins
-			return QuestEngine.tryCompleteEvent(story, "ch3_cemetery_shift")
+			return QuestEngine.tryCompleteEvent(story, "ch3_cemetery_shift") ~= false
 		end
 	end
 	return false
@@ -70,41 +74,49 @@ function StoryHandlers.handleDuelWin(profile: ProfileSchema.Profile): boolean
 	local story = profile.story
 	if story.activeQuestId == "q_initiation_duel" then
 		local ok, grant = QuestEngine.tryCompleteEvent(story, "event:duel_razor_win")
-		if ok then
-			if grant then
-				applyGrants(profile, grant)
-			end
-			return true
+		if ok and grant then
+			applyGrants(profile, grant)
 		end
+		return ok
 	end
 	return false
 end
 
-function StoryHandlers.handleFlyersDone(profile: ProfileSchema.Profile): boolean
-	if profile.story.activeQuestId == "q_initiation_graffiti" then
-		local ok, grant = QuestEngine.tryCompleteEvent(profile.story, "event:flyers_done")
-		if ok then
-			if grant then
-				applyGrants(profile, grant)
-			end
-			return true
-		end
+function StoryHandlers.handleFlyerPost(profile: ProfileSchema.Profile, spotId: string): boolean
+	local story = profile.story
+	local posted = FlyerEngine.postSpot(story.flyersPosted, spotId)
+	if not posted then
+		return false
 	end
-	return false
+	if story.activeQuestId == "q_initiation_graffiti" and FlyerEngine.isComplete(story.flyersPosted) then
+		local ok, grant = QuestEngine.tryCompleteEvent(story, "event:flyers_done")
+		if ok and grant then
+			applyGrants(profile, grant)
+		end
+		return ok
+	end
+	return true
 end
 
-function StoryHandlers.handleHangoutStage(profile: ProfileSchema.Profile): boolean
+function StoryHandlers.handleHangoutBuild(profile: ProfileSchema.Profile, stage: string): boolean
 	local story = profile.story
 	if story.activeQuestId ~= QuestTable.CH2 then
 		return false
 	end
-	story.hangoutStage = math.min(4, story.hangoutStage + 1)
-	if story.hangoutStage >= 4 then
-		local ok, grant = QuestEngine.trySpecial(story, "hangout_stage>=4", nil)
+	if stage ~= "foundation" and stage ~= "frame" and stage ~= "neon" and stage ~= "grand_open" then
+		return false
+	end
+	local ok, count = HangoutEngine.complete(story.hangout, stage :: HangoutEngine.StageId)
+	if not ok then
+		return false
+	end
+	story.hangoutStage = count
+	if HangoutEngine.isDone(story.hangout) then
+		local done, grant = QuestEngine.trySpecial(story, "hangout_stage>=4", nil)
 		if grant then
 			applyGrants(profile, grant)
 		end
-		return ok
+		return done
 	end
 	return true
 end
@@ -117,7 +129,7 @@ function StoryHandlers.handleCh2Antibully(profile: ProfileSchema.Profile, choice
 	if choice == "stand" then
 		profile.story.relationships.razor = (profile.story.relationships.razor or 0) + 10
 	else
-		profile.story.relationships.cobalt = (profile.story.relationships.cobalt or 0) - 5
+		profile.story.relationships.razor = (profile.story.relationships.razor or 0) - 5
 	end
 	if profile.story.activeQuestId == "q_ch2_antibully" then
 		QuestEngine.tryCompleteEvent(profile.story, "ch2_antibully_resolved")
@@ -129,7 +141,7 @@ end
 
 function StoryHandlers.handleCh3Ghost(profile: ProfileSchema.Profile): boolean
 	if profile.story.activeQuestId == QuestTable.CH3 and profile.story.activeStepId == "ch3_s_ghost" then
-		return QuestEngine.tryCompleteEvent(profile.story, "ch3_ghost_helped")
+		return QuestEngine.tryCompleteEvent(profile.story, "ch3_ghost_helped") ~= false
 	end
 	return false
 end
@@ -137,51 +149,87 @@ end
 function StoryHandlers.handleCh3Crypt(profile: ProfileSchema.Profile): boolean
 	if profile.story.activeQuestId == QuestTable.CH3 and profile.story.activeStepId == "ch3_s_crypt" then
 		local ok, grant = QuestEngine.tryCompleteEvent(profile.story, "ch3_crypt_built")
-		if ok then
-			if grant then
-				applyGrants(profile, grant)
-			end
-			return true
+		if ok and grant then
+			applyGrants(profile, grant)
 		end
+		return ok
+	end
+	return false
+end
+
+function StoryHandlers.handleCh4Enter(profile: ProfileSchema.Profile): boolean
+	if not profile.story.uniqueItems.bell_rim then
+		return false
+	end
+	if profile.story.activeQuestId == QuestTable.CH4 and profile.story.activeStepId == "ch4_s_enter" then
+		return QuestEngine.tryCompleteEvent(profile.story, "ch4_castle_entered") ~= false
 	end
 	return false
 end
 
 function StoryHandlers.handleBellTongue(profile: ProfileSchema.Profile, branch: string): boolean
+	if profile.story.activeQuestId ~= QuestTable.CH4 or profile.story.activeStepId ~= "ch4_s_tongue" then
+		return false
+	end
 	if branch == "zoya" then
 		if profile.story.uniqueItems.bell_tongue_zombie then
 			return false
 		end
 		if QuestEngine.grantUniqueItem(profile.story, "bell_tongue_zoya") then
-			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained")
+			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained") ~= false
 		end
 	elseif branch == "zombie" then
 		if profile.story.uniqueItems.bell_tongue_zoya then
 			return false
 		end
 		if QuestEngine.grantUniqueItem(profile.story, "bell_tongue_zombie") then
-			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained")
+			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained") ~= false
 		end
 	end
 	return false
 end
 
-function StoryHandlers.handleCh4Stub(profile: ProfileSchema.Profile, stage: string): boolean
-	local story = profile.story
-	if story.activeQuestId ~= QuestTable.CH4 then
+function StoryHandlers.handleTowerPuzzle(
+	profile: ProfileSchema.Profile,
+	candles: { number },
+	notes: { string }
+): boolean
+	if profile.story.activeQuestId ~= QuestTable.CH4 or profile.story.activeStepId ~= "ch4_s_crown" then
 		return false
 	end
-	if stage == "crown" and story.activeStepId == "ch4_s_crown" then
-		QuestEngine.grantUniqueItem(story, "bell_crown")
-		return QuestEngine.tryCompleteEvent(story, "ch4_crown_obtained")
+	if not TowerPuzzle.validate(candles, notes) then
+		return false
 	end
-	if stage == "concert" and story.activeStepId == "ch4_s_concert" then
-		return QuestEngine.tryCompleteEvent(story, "ch4_concert_ready")
+	QuestEngine.grantUniqueItem(profile.story, "bell_crown")
+	return QuestEngine.tryCompleteEvent(profile.story, "ch4_crown_obtained") ~= false
+end
+
+function StoryHandlers.handleConcert(profile: ProfileSchema.Profile, headliner: string): boolean
+	if profile.story.activeQuestId ~= QuestTable.CH4 or profile.story.activeStepId ~= "ch4_s_concert" then
+		return false
 	end
-	return false
+	if headliner ~= "vienna" and headliner ~= "razor" and headliner ~= "count" and headliner ~= "ghost" then
+		return false
+	end
+	profile.story.concertHeadliner = headliner
+	profile.story.flags.concert_ready = true
+	profile.story.relationships.count = (profile.story.relationships.count or 0) + 5
+	return QuestEngine.tryCompleteEvent(profile.story, "ch4_concert_ready") ~= false
+end
+
+function StoryHandlers.handleConfession(profile: ProfileSchema.Profile): boolean
+	if profile.story.activeQuestId ~= QuestTable.CH4 or profile.story.activeStepId ~= "ch4_s_confession" then
+		return false
+	end
+	profile.story.flags.graph_truth = true
+	profile.story.relationships.count = (profile.story.relationships.count or 0) + 8
+	return QuestEngine.tryCompleteEvent(profile.story, "ch4_graph_confession") ~= false
 end
 
 function StoryHandlers.handleEnding(profile: ProfileSchema.Profile, endingId: string): boolean
+	if not EndingLogic.canPick(profile.story, endingId :: EndingLogic.EndingId) then
+		return false
+	end
 	if QuestEngine.pickEnding(profile.story, endingId) then
 		local ending = QuestTable.endings[endingId]
 		if ending then
@@ -206,7 +254,7 @@ function StoryHandlers.handleHouseZone(profile: ProfileSchema.Profile, zoneId: s
 		end
 	end
 	if count >= 2 then
-		return QuestEngine.tryCompleteEvent(story, "ch0_house_tour")
+		return QuestEngine.tryCompleteEvent(story, "ch0_house_tour") ~= false
 	end
 	return false
 end

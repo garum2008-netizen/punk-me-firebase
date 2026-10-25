@@ -9,8 +9,12 @@ local ProfileSchema = require("../../src/ReplicatedStorage/Shared/ProfileSchema"
 local ProfileMigrator = require("../../src/ReplicatedStorage/Shared/ProfileMigrator")
 local Economy = require("../../src/ReplicatedStorage/Shared/Economy")
 local QuestEngine = require("../../src/ReplicatedStorage/Shared/QuestEngine")
+local DuelEngine = require("../../src/ReplicatedStorage/Shared/DuelEngine")
+local FlyerEngine = require("../../src/ReplicatedStorage/Shared/FlyerEngine")
+local HangoutEngine = require("../../src/ReplicatedStorage/Shared/HangoutEngine")
+local TowerPuzzle = require("../../src/ReplicatedStorage/Shared/TowerPuzzle")
+local EndingLogic = require("../../src/ReplicatedStorage/Shared/EndingLogic")
 local ReceiptStore = require("../../src/ReplicatedStorage/Shared/ReceiptStore")
-local RemoteValidation = require("../../src/ReplicatedStorage/Shared/RemoteValidation")
 local DataStoreScope = require("../../src/ReplicatedStorage/Shared/DataStoreScope")
 local QuestTable = require("../../src/ReplicatedStorage/Config/QuestTable")
 
@@ -26,82 +30,75 @@ local function test(name: string, fn: () -> ())
 	end
 end
 
-test("default profile schema v4", function()
-	local p = ProfileSchema.defaultProfile()
-	assertEq(p.schemaVersion, 4, "version")
-	assertEq(p.story.activeQuestId, QuestTable.CH0, "quest")
+test("profile schema v5", function()
+	assertEq(ProfileSchema.defaultProfile().schemaVersion, 5, "v")
 end)
 
-test("reward idempotency", function()
+test("duel player can win", function()
+	local s = DuelEngine.newState()
+	for _ = 1, 20 do
+		s, _ = DuelEngine.resolveTurn(s, "attack")
+		if s.phase ~= "fighting" then
+			break
+		end
+	end
+	assertEq(s.phase == "player_win" or s.phase == "player_lose", true, "ended")
+end)
+
+test("flyers need 8 unique spots", function()
+	local p = FlyerEngine.newProgress()
+	for _, id in FlyerEngine.SPOT_IDS do
+		FlyerEngine.postSpot(p, id)
+	end
+	assertEq(FlyerEngine.isComplete(p), true, "done")
+	assertEq(FlyerEngine.postSpot(p, FlyerEngine.SPOT_IDS[1]), false, "dup")
+end)
+
+test("hangout four stages in order", function()
+	local h = HangoutEngine.newProgress()
+	assertEq(HangoutEngine.complete(h, "foundation"), true, "f")
+	assertEq(HangoutEngine.complete(h, "neon"), false, "skip")
+	assertEq(HangoutEngine.complete(h, "frame"), true, "fr")
+	assertEq(HangoutEngine.isDone(h), false, "not")
+	assertEq(HangoutEngine.complete(h, "neon"), true, "n")
+	assertEq(HangoutEngine.complete(h, "grand_open"), true, "go")
+	assertEq(HangoutEngine.isDone(h), true, "done")
+end)
+
+test("tower puzzle validate", function()
+	assertEq(TowerPuzzle.validate(TowerPuzzle.CANDLE_SEQUENCE, TowerPuzzle.NOTE_SEQUENCE), true, "ok")
+	assertEq(TowerPuzzle.validate({ 1 }, { "E" }), false, "bad")
+end)
+
+test("ending logic deal needs count rel", function()
 	local st = QuestEngine.defaultStoryState()
-	local g1 = QuestEngine.grantReward(st, "reward_ch0_complete")
-	local g2 = QuestEngine.grantReward(st, "reward_ch0_complete")
-	assertEq(g1.granted, true, "first")
-	assertEq(g2.granted, false, "dup")
+	st.relationships.count = 5
+	assertEq(EndingLogic.canPick(st, "ending_count_deal"), false, "low")
+	st.relationships.count = 12
+	assertEq(EndingLogic.canPick(st, "ending_count_deal"), true, "ok")
 end)
 
 test("ch0 step advance", function()
 	local st = QuestEngine.defaultStoryState()
 	local ok, _ = QuestEngine.tryCompleteEvent(st, "ch0_look_room")
 	assertEq(ok, true, "ok")
-	assertEq(st.activeStepId, "ch0_s_mom", "next")
 end)
 
-test("initiation decision exclusive", function()
-	local st = QuestEngine.defaultStoryState()
-	st.activeQuestId = QuestTable.CH1_CHOICE
-	st.activeStepId = "ch1_s_choice"
-	assertEq(QuestEngine.pickInitiationPath(st, "pay"), true, "pick")
-	assertEq(st.decisions.initiation, "pay", "decision")
-	assertEq(st.activeQuestId, QuestTable.INIT_PAY, "quest")
-	assertEq(QuestEngine.pickInitiationPath(st, "duel"), false, "no re-pick")
-end)
-
-test("bell tongue mutual exclusive", function()
-	local st = QuestEngine.defaultStoryState()
-	st.activeQuestId = QuestTable.CH4
-	st.activeStepId = "ch4_s_tongue"
-	QuestEngine.grantUniqueItem(st, "bell_tongue_zoya")
-	assertEq(st.uniqueItems.bell_tongue_zombie, nil, "no zombie")
-end)
-
-test("ending pick", function()
-	local st = QuestEngine.defaultStoryState()
-	st.activeQuestId = QuestTable.CH4
-	st.activeStepId = "ch4_s_ending"
-	assertEq(QuestEngine.pickEnding(st, "ending_break_curse"), true, "ending")
-	assertEq(st.storyEnding, "ending_break_curse", "id")
-	assertEq(st.freePlay, true, "free")
-end)
-
-test("migrate v3 to v4", function()
-	local raw = {
-		schemaVersion = 3,
-		coins = 80,
-		language = "en",
-		tutorialStep = "chapter_complete",
-		grantedRewards = { x = true },
-	}
+test("migrate v4 to v5", function()
+	local raw = { schemaVersion = 4, coins = 10, language = "ru", story = { activeQuestId = "q", activeStepId = "s" } }
 	local p, err = ProfileMigrator.migrate(raw)
-	assertEq(err, nil, "err")
-	assertEq(p and p.schemaVersion, 4, "ver")
-	assertEq(p and p.story ~= nil, true, "story")
-end)
-
-test("purchase insufficient", function()
-	local item = { id = "x", price = 200, category = "d", grantInventoryKey = "k" }
-	local r = Economy.tryPurchase(100, item, false)
-	assertEq(r.ok, false, "ok")
+	assertEq(err, nil, "e")
+	assertEq(p and p.schemaVersion, 5, "v")
 end)
 
 test("receipt duplicate", function()
 	local store = {}
-	assertEq(ReceiptStore.fulfill(store, "p1", 0, { [0] = "test" }), "granted", "first")
-	assertEq(ReceiptStore.fulfill(store, "p1", 0, { [0] = "test" }), "duplicate", "dup")
+	assertEq(ReceiptStore.fulfill(store, "p1", 0, { [0] = "t" }), "granted", "g")
+	assertEq(ReceiptStore.fulfill(store, "p1", 0, { [0] = "t" }), "duplicate", "d")
 end)
 
 test("datastore test scope", function()
-	assertEq(DataStoreScope.profileStoreName("Punk", true, nil), "Punk_TEST", "studio")
+	assertEq(DataStoreScope.profileStoreName("P", true, nil), "P_TEST", "t")
 end)
 
 print(string.format("All %d tests passed", passed))

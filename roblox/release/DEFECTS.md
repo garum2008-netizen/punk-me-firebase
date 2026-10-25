@@ -2,10 +2,13 @@
 
 | ID | Глава | Описание | Серьёзность | Статус |
 |----|-------|----------|-------------|--------|
-| D-001 | docs | OPEN_IN_STUDIO ранее смешивал гл.0 с кладбищем/магазином/дуэлью | P0 | **исправлено** (t105u) |
-| D-002 | 1 | Дуэль — один клик у NPC, не бой | critical | open |
-| D-003 | 1 | Флаеры — нет 8 точек расклейки | critical | open |
-| D-004 | 2 | Тусовка — 4 одинаковых interact | critical | open |
-| D-005 | 4 | Концовки — UI-кнопка без сцены/логики отношений | critical | open |
-| D-006 | all | Нет озвучки (пустые audio id) | major | open |
-| D-007 | all | Studio/DataStore в облаке не проверены агентом | blocker | open |
+| D-001 | docs | OPEN_IN_STUDIO смешивал гл.0 с гл.1 | P0 | **исправлено** |
+| D-002 | 1 | Дуэль: серверный `DuelEngine` + UI attack/block/dodge | — | **логика готова**; Studio NOT RUN |
+| D-003 | 1 | 8 флаеров: `FlyerEngine` + 8 spot в мире | — | **логика готова**; Studio NOT RUN |
+| D-004 | 2 | Тусовка: 4 этапа foundation/frame/neon/grand_open по порядку | — | **логика готова**; Studio NOT RUN |
+| D-005 | 4 | Концовки: `EndingLogic` + сцена-текст; не полный кат-сценарий | major | **частично** |
+| D-006 | all | Озвучка (пустые audio id) | major | open |
+| D-007 | all | Studio/DataStore облако не проверены агентом | blocker | open |
+| D-008 | 4 | Головоломка башни: кнопка с канон-решением (нужен UI свечей/органа) | major | **частично** |
+| D-009 | 0 | R15 NPC через `CreateHumanoidModelFromDescription` | — | **код**; Studio NOT RUN |
+| D-010 | 5 | Нет полноценных кат-сцен/камер/липсинка на всех главах | major | open |

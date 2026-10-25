@@ -6,9 +6,14 @@ local ProfileService = require(script.Parent.ProfileService)
 local WorldBuilder = require(script.Parent.WorldBuilder)
 local MonetizationService = require(script.Parent.MonetizationService)
 local StoryHandlers = require(script.Parent.StoryHandlers)
+local DuelService = require(script.Parent.DuelService)
+local AvatarService = require(script.Parent.AvatarService)
 
 local RemoteValidation = require(ReplicatedStorage.Shared.RemoteValidation)
 local QuestEngine = require(ReplicatedStorage.Shared.QuestEngine)
+local ShopCatalog = require(ReplicatedStorage.Config.ShopCatalog)
+local Economy = require(ReplicatedStorage.Shared.Economy)
+local EndingScenes = require(ReplicatedStorage.Config.EndingScenes)
 local GameServer = {}
 
 local rateBuckets: { [number]: { [string]: RemoteValidation.Bucket } } = {}
@@ -50,7 +55,7 @@ function GameServer.setupRemotes()
 		folder.Name = "Remotes"
 		folder.Parent = ReplicatedStorage
 	end
-	local names = { "ProfileUpdated", "RequestAction", "ActionResult" }
+	local names = { "ProfileUpdated", "RequestAction", "ActionResult", "DuelUpdate" }
 	for _, n in names do
 		if not folder:FindFirstChild(n) then
 			local ev = Instance.new("RemoteEvent")
@@ -60,6 +65,7 @@ function GameServer.setupRemotes()
 	end
 	local request = folder:WaitForChild("RequestAction") :: RemoteEvent
 	local result = folder:WaitForChild("ActionResult") :: RemoteEvent
+	local duelUpdate = folder:WaitForChild("DuelUpdate") :: RemoteEvent
 
 	request.OnServerEvent:Connect(function(player, action: any, payload: any)
 		if not rateOk(player, "RequestAction") then
@@ -108,12 +114,40 @@ function GameServer.setupRemotes()
 			end
 		elseif action == "cemetery_job" then
 			ok = StoryHandlers.handleCemeteryJob(profile)
-		elseif action == "duel_win" then
-			ok = StoryHandlers.handleDuelWin(profile)
-		elseif action == "flyers_done" then
-			ok = StoryHandlers.handleFlyersDone(profile)
-		elseif action == "hangout_stage" then
-			ok = StoryHandlers.handleHangoutStage(profile)
+		elseif action == "duel_start" then
+			if profile.story.activeQuestId == "q_initiation_duel" then
+				local started, state = DuelService.startDuel(player.UserId, "npc_razor")
+				if started and state then
+					duelUpdate:FireClient(player, state)
+					ok = true
+				end
+			end
+		elseif action == "duel_action" then
+			local act = RemoteValidation.validateEnum(payload, { "attack", "block", "dodge" })
+			if act then
+				local success, state, meta = DuelService.action(player.UserId, act)
+				if success and state then
+					duelUpdate:FireClient(player, state, meta)
+					if state.phase == "player_win" then
+						ok = StoryHandlers.handleDuelWin(profile)
+					elseif state.phase == "player_lose" then
+						DuelService.cancel(player.UserId)
+						ok = true
+					else
+						ok = true
+					end
+				end
+			end
+		elseif action == "flyer_post" then
+			local spot = RemoteValidation.validateString(payload, 48)
+			if spot then
+				ok = StoryHandlers.handleFlyerPost(profile, spot)
+			end
+		elseif action == "hangout_build" then
+			local stage = RemoteValidation.validateString(payload, 24)
+			if stage then
+				ok = StoryHandlers.handleHangoutBuild(profile, stage)
+			end
 		elseif action == "ch2_antibully" then
 			local choice = RemoteValidation.validateString(payload, 16)
 			if choice then
@@ -128,10 +162,32 @@ function GameServer.setupRemotes()
 			if branch then
 				ok = StoryHandlers.handleBellTongue(profile, branch)
 			end
-		elseif action == "ch4_stage" then
-			local stage = RemoteValidation.validateString(payload, 16)
-			if stage then
-				ok = StoryHandlers.handleCh4Stub(profile, stage)
+		elseif action == "ch4_enter" then
+			ok = StoryHandlers.handleCh4Enter(profile)
+		elseif action == "tower_puzzle" then
+			if type(payload) == "table" then
+				ok = StoryHandlers.handleTowerPuzzle(profile, payload.candles or {}, payload.notes or {})
+			end
+		elseif action == "concert_prepare" then
+			local headliner = RemoteValidation.validateString(payload, 16)
+			if headliner then
+				ok = StoryHandlers.handleConcert(profile, headliner)
+			end
+		elseif action == "graph_confession" then
+			ok = StoryHandlers.handleConfession(profile)
+		elseif action == "shop_buy" then
+			local itemId = RemoteValidation.validateString(payload, 64)
+			if itemId then
+				local item = ShopCatalog.get(itemId)
+				local owned = item and item.grantInventoryKey and (profile.inventory[item.grantInventoryKey] or 0) > 0
+				local purchase = Economy.tryPurchase(profile.coins, item, owned == true)
+				if purchase.ok then
+					profile.coins = purchase.newBalance
+					if item and item.grantInventoryKey then
+						profile.inventory[item.grantInventoryKey] = 1
+					end
+					ok = true
+				end
 			end
 		elseif action == "pick_ending" then
 			local endingId = RemoteValidation.validateString(payload, 40)
@@ -145,7 +201,15 @@ function GameServer.setupRemotes()
 		if ok then
 			ProfileService.saveSession(session)
 			pushProfile(player)
-			result:FireClient(player, { ok = true })
+			local extra: any = { ok = true }
+			if action == "pick_ending" and profile.story.storyEnding then
+				local lang = profile.language
+				local scene = (EndingScenes :: any)[profile.story.storyEnding]
+				if scene then
+					extra.endingScene = scene[lang] or scene.en
+				end
+			end
+			result:FireClient(player, extra)
 		else
 			result:FireClient(player, { ok = false })
 		end
@@ -158,6 +222,7 @@ function GameServer.onPlayerAdded(player: Player)
 		player:Kick("Save load failed: " .. tostring(err))
 		return
 	end
+	AvatarService.bindPlayer(player)
 	pushProfile(player)
 end
 
@@ -172,6 +237,7 @@ end
 
 function GameServer.start()
 	MonetizationService.bind()
+	AvatarService.start()
 	local worldFolder = workspace:WaitForChild("World") :: Folder
 	WorldBuilder.build(worldFolder)
 	GameServer.setupRemotes()

@@ -1,28 +1,24 @@
 # Матрица тестов (t105u)
 
-Статусы: **PASS** / **FAIL** / **NOT RUN** / **N/A**
+Статусы: **PASS** / **FAIL** / **NOT RUN** / **N/A** · Авто = lune в `tests/lune/tests.luau`
 
-| ID | Тип | Сценарий | Авто | Studio | 2 игрока | Мобильный |
-|----|-----|----------|------|--------|----------|-----------|
-| T0-01 | lune | Миграция профиля v4 | NOT RUN | — | — | — |
-| T0-02 | lune | Идемпотентность `grantedRewards` | NOT RUN | — | — | — |
-| T0-03 | lune | Ветки initiation (один decision) | NOT RUN | — | — | — |
-| T0-04 | lune | Взаимоискл. bell_tongue_* | NOT RUN | — | — | — |
-| S0-01 | Studio | Гл.0: 9 шагов до Рейзора (QUEST_TABLE) | — | NOT RUN | — | — |
-| S0-02 | Studio | Повторный вход, профиль `story` | — | NOT RUN | — | — |
-| S1-01 | Studio | Взнос 150 + pay | — | NOT RUN | — | — |
-| S1-02 | Studio | Настоящая дуэль | — | NOT RUN | — | — |
-| S1-03 | Studio | 8 флаеров | — | NOT RUN | — | — |
-| S2-01 | Studio | Тусовка 4 этапа (разные) | — | NOT RUN | — | — |
-| S2-02 | Studio | Антибуллинг + последствия | — | NOT RUN | — | — |
-| S3-01 | Studio | Кладбище + призрак + склеп + rim | — | NOT RUN | — | — |
-| S4-01 | Studio | Язык (одна ветка) | — | NOT RUN | — | — |
-| S4-02 | Studio | Головоломка башни → crown | — | NOT RUN | — | — |
-| S4-03 | Studio | Концерт + признание Графа | — | NOT RUN | — | — |
-| E-01 | Studio | ending_break_curse (логика, не только кнопка) | — | NOT RUN | — | — |
-| E-02 | Studio | ending_zombie_style | — | NOT RUN | — | — |
-| E-03 | Studio | ending_count_deal | — | NOT RUN | — | — |
-| MP-01 | Studio | 2 игрока, изоляция наград по UserId | — | NOT RUN | NOT RUN | — |
-| ECO-01 | Studio | ProcessReceipt дубликат | — | NOT RUN | — | — |
-
-Обновлять после каждого прогона. Автотест ≠ игровой тест.
+| ID | Тип | Сценарий | Авто | Studio |
+|----|-----|----------|------|--------|
+| T0-01 | lune | Профиль schema v5 | PASS | — |
+| T0-02 | lune | Идемпотентность rewards / receipts | PASS | — |
+| T1-01 | lune | `DuelEngine` бой до победы/поражения | PASS | NOT RUN |
+| T1-02 | lune | `FlyerEngine` 8 spot + дубликат | PASS | NOT RUN |
+| T2-01 | lune | `HangoutEngine` 4 этапа по порядку | PASS | NOT RUN |
+| T4-01 | lune | `TowerPuzzle.validate` | PASS | NOT RUN |
+| T4-02 | lune | `EndingLogic.canPick` | PASS | NOT RUN |
+| T0-03 | lune | Шаги `q_ch0_newbie` | PASS | NOT RUN |
+| S0-01 | Studio | Гл.0: R15 NPC + 9 шагов | — | NOT RUN |
+| S1-01 | Studio | Дуэль initiation | — | NOT RUN |
+| S1-02 | Studio | 8 флаеров | — | NOT RUN |
+| S2-01 | Studio | Тусовка 4 этапа | — | NOT RUN |
+| S3-01 | Studio | Кладбище + призрак + склеп + rim | — | NOT RUN |
+| S4-01 | Studio | Язык Zoya/zombie | — | NOT RUN |
+| S4-02 | Studio | Башня (головоломка UI) | — | NOT RUN |
+| E-01..03 | Studio | Три концовки + сохранение | — | NOT RUN |
+| MP-01 | Studio | 2 игрока, изоляция UserId | — | NOT RUN |
+| ECO-01 | Studio | `shop_buy` + ProcessReceipt | — | NOT RUN |

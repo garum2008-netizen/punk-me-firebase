@@ -3,7 +3,7 @@ local QuestEngine = if script and script.Parent then require(script.Parent.Quest
 
 local ProfileSchema = {}
 
-ProfileSchema.CURRENT_VERSION = 4
+ProfileSchema.CURRENT_VERSION = 5
 
 export type Language = "ru" | "uk" | "en" | "da"
 
@@ -70,6 +70,10 @@ local function sanitizeStory(raw: any): QuestEngine.StoryState
 	base.storyEnding = type(raw.storyEnding) == "string" and raw.storyEnding or nil
 	base.freePlay = raw.freePlay == true
 	base.hangoutStage = type(raw.hangoutStage) == "number" and raw.hangoutStage or 0
+	base.hangout = type(raw.hangout) == "table" and raw.hangout or base.hangout
+	base.flyersPosted = type(raw.flyersPosted) == "table" and raw.flyersPosted or base.flyersPosted
+	base.concertHeadliner = type(raw.concertHeadliner) == "string" and raw.concertHeadliner or nil
+	base.flags = type(raw.flags) == "table" and raw.flags or base.flags
 	base.ch0HouseZones = type(raw.ch0HouseZones) == "table" and raw.ch0HouseZones or base.ch0HouseZones
 	return base
 end

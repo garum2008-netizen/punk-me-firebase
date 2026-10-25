@@ -2,6 +2,9 @@
 local QuestTable = if script and script.Parent
 	then require(script.Parent.Parent.Config.QuestTable)
 	else require("../Config/QuestTable")
+local HangoutEngine = if script and script.Parent
+	then require(script.Parent.HangoutEngine)
+	else require("./HangoutEngine")
 
 local QuestEngine = {}
 
@@ -18,6 +21,15 @@ export type StoryState = {
 	storyEnding: string?,
 	freePlay: boolean,
 	hangoutStage: number,
+	hangout: {
+		foundation: boolean,
+		frame: boolean,
+		neon: boolean,
+		grand_open: boolean,
+	},
+	flyersPosted: { [string]: boolean },
+	concertHeadliner: string?,
+	flags: { [string]: boolean },
 	ch0HouseZones: { [string]: boolean },
 }
 
@@ -40,6 +52,10 @@ function QuestEngine.defaultStoryState(): StoryState
 		storyEnding = nil,
 		freePlay = false,
 		hangoutStage = 0,
+		hangout = { foundation = false, frame = false, neon = false, grand_open = false },
+		flyersPosted = {},
+		concertHeadliner = nil,
+		flags = {},
 		ch0HouseZones = {},
 	}
 end
@@ -169,7 +185,6 @@ function QuestEngine.pickInitiationPath(state: StoryState, path: "pay" | "duel" 
 		then "q_initiation_pay"
 		elseif path == "duel" then "q_initiation_duel"
 		else "q_initiation_graffiti"
-	state.completedQuests[QuestTable.CH1_CHOICE] = true
 	state.activeQuestId = nextId
 	local first = QuestTable.firstStep(nextId)
 	state.activeStepId = if first then first.id else ""
@@ -210,7 +225,7 @@ function QuestEngine.trySpecial(state: StoryState, eventId: string, ctx: { coins
 		return false, nil
 	end
 	if eventId == "hangout_stage>=4" and state.activeQuestId == QuestTable.CH2 then
-		if state.hangoutStage >= 4 then
+		if HangoutEngine.isDone(state.hangout) then
 			return QuestEngine.tryCompleteEvent(state, eventId)
 		end
 		return false, nil

@@ -185,9 +185,7 @@ local function bindPrompt(prompt: ProximityPrompt)
 			elseif st.activeQuestId == "q_initiation_pay" and st.activeStepId == "s2" then
 				requestAction:FireServer("pay_initiation")
 			elseif st.activeQuestId == "q_initiation_duel" then
-				requestAction:FireServer("duel_win")
-			elseif st.activeQuestId == "q_initiation_graffiti" then
-				requestAction:FireServer("flyers_done")
+				requestAction:FireServer("duel_start")
 			end
 		elseif npcId == "npc_gravedigger" then
 			requestAction:FireServer("cemetery_job")
@@ -195,13 +193,23 @@ local function bindPrompt(prompt: ProximityPrompt)
 			requestAction:FireServer("ch3_ghost")
 		elseif npcId == "npc_zoya" then
 			requestAction:FireServer("bell_tongue", "zoya")
-		elseif npcId == "npc_count" and st.activeStepId == "ch4_s_ending" then
-			endingFrame.Visible = true
+		elseif npcId == "npc_count" then
+			if st.activeStepId == "ch4_s_confession" then
+				requestAction:FireServer("graph_confession")
+			elseif st.activeStepId == "ch4_s_ending" then
+				endingFrame.Visible = true
+			end
+		end
+		local flyerId = parent and parent:GetAttribute("FlyerSpotId")
+		if flyerId then
+			requestAction:FireServer("flyer_post", flyerId)
+		end
+		local hangoutStage = parent and parent:GetAttribute("HangoutStage")
+		if hangoutStage then
+			requestAction:FireServer("hangout_build", hangoutStage)
 		end
 		local on = parent and parent.Name
-		if on == "obj_hangout_site" then
-			requestAction:FireServer("hangout_stage")
-		elseif on == "obj_crypt_site" then
+		if on == "obj_crypt_site" then
 			requestAction:FireServer("ch3_crypt")
 		end
 	end)
@@ -234,10 +242,56 @@ addChoice("Взнос 150", "initiation_choice", "pay")
 addChoice("Дуэль", "initiation_choice", "duel")
 addChoice("Флаеры", "initiation_choice", "graffiti")
 
+local bullyFrame = Instance.new("Frame")
+bullyFrame.Size = UDim2.new(0, 280, 0, 90)
+bullyFrame.Position = UDim2.new(0.5, -140, 0.65, 0)
+bullyFrame.BackgroundColor3 = Color3.fromRGB(30, 20, 40)
+bullyFrame.Visible = false
+bullyFrame.Parent = screen
+local standBtn = Instance.new("TextButton")
+standBtn.Size = UDim2.new(0.45, 0, 0, 32)
+standBtn.Position = UDim2.new(0.05, 0, 0.5, 0)
+standBtn.Text = "Заступиться"
+standBtn.Parent = bullyFrame
+standBtn.MouseButton1Click:Connect(function()
+	requestAction:FireServer("ch2_antibully", "stand")
+	bullyFrame.Visible = false
+end)
+local joinBtn = Instance.new("TextButton")
+joinBtn.Size = UDim2.new(0.45, 0, 0, 32)
+joinBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
+joinBtn.Text = "Поддержать насмешки"
+joinBtn.Parent = bullyFrame
+joinBtn.MouseButton1Click:Connect(function()
+	requestAction:FireServer("ch2_antibully", "join")
+	bullyFrame.Visible = false
+end)
+
+local concertFrame = Instance.new("Frame")
+concertFrame.Size = UDim2.new(0, 300, 0, 120)
+concertFrame.Position = UDim2.new(0.5, -150, 0.55, 0)
+concertFrame.BackgroundColor3 = Color3.fromRGB(25, 15, 35)
+concertFrame.Visible = false
+concertFrame.Parent = screen
+for i, head in { "vienna", "razor", "count", "ghost" } do
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0.45, 0, 0, 28)
+	b.Position = UDim2.new((i - 1) % 2 * 0.5, 8, 0, 8 + math.floor((i - 1) / 2) * 34)
+	b.Text = head
+	b.Parent = concertFrame
+	b.MouseButton1Click:Connect(function()
+		requestAction:FireServer("concert_prepare", head)
+		concertFrame.Visible = false
+	end)
+end
+
 profileUpdated.OnClientEvent:Connect(function(p)
-	if p.story and p.story.activeStepId == "ch4_s_ending" then
-		endingFrame.Visible = true
+	if not p or not p.story then
+		return
 	end
+	endingFrame.Visible = p.story.activeStepId == "ch4_s_ending"
+	bullyFrame.Visible = p.story.activeQuestId == "q_ch2_antibully"
+	concertFrame.Visible = p.story.activeStepId == "ch4_s_concert"
 end)
 
 RunService.Heartbeat:Connect(function()
@@ -257,6 +311,12 @@ RunService.Heartbeat:Connect(function()
 	end
 	if st.activeStepId == "ch0_s_street" and hrp.Position.X > 55 then
 		requestAction:FireServer("quest_event", "ch0_enter_street")
+	end
+	if st.activeQuestId == "q_ch4_castle" and st.activeStepId == "ch4_s_enter" and hrp.Position.X < -50 then
+		requestAction:FireServer("ch4_enter")
+	end
+	if st.activeStepId == "ch4_s_tongue" and hrp.Position.X > -60 and hrp.Position.X < -50 and hrp.Position.Z > 85 then
+		requestAction:FireServer("bell_tongue", "zombie")
 	end
 	for _, inst in workspace:GetDescendants() do
 		if inst:IsA("BasePart") and inst:GetAttribute("ZoneId") then
