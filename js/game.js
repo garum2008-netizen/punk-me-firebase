@@ -426,6 +426,13 @@ function migratePlayerFromSave(raw) {
     if (inferred) v.characterId = inferred;
   }
   if (typeof v.characterId === "string" && !v.characterId.trim()) delete v.characterId;
+  if (v.story?.earn != null && typeof v.story.earn === "object") {
+    Object.keys(v.story.earn).forEach(k => {
+      if (v.story.earn[k] === undefined) delete v.story.earn[k];
+    });
+  } else if (v.story && v.story.earn === undefined) {
+    /* keep null */
+  }
   if (v.story && typeof v.story === "object") {
     if (v.story.quest != null && typeof v.story.quest !== "object") {
       v.story.quest = { activeId: null, step: 0, completed: {} };
@@ -990,6 +997,15 @@ function saveMe() {
   pushPresence();
 }
 
+function sanitizeStory(st) {
+  if (!st || typeof st !== "object") return st;
+  try {
+    return JSON.parse(JSON.stringify(st));
+  } catch (e) {
+    return st;
+  }
+}
+
 function sanitizePlayer(p) {
   return {
     name: p.name,
@@ -1014,7 +1030,7 @@ function sanitizePlayer(p) {
     dog: dogPos,
     lang: getLanguage(),
     characterId: p.characterId || null,
-    story: p.story,
+    story: sanitizeStory(p.story),
     authority: p.authority ?? p.story?.authority,
     gang_rank: p.gang_rank ?? p.story?.gang_rank,
     energy: p.energy,
@@ -1513,6 +1529,10 @@ function renderGangList() {
 function openNpcDialog(nid) {
   if (window.StoryEngine?.tryStoryNpc?.(nid)) {
     closeModal("gangModal");
+    if (nid === "razor") {
+      questBump("talk_razor");
+      window.Onboarding?.onTalkRazor?.();
+    }
     return;
   }
   const n = NPCS[nid];
