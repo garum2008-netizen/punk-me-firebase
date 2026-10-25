@@ -370,6 +370,8 @@ function defaultPlayer() {
     stats: { chain: 10, magic: 8, hp: 100, maxHp: 100 },
     quests: { active: "intro", progress: {} },
     onboarding: { step: 0, progress: {}, done: false },
+    tutorial: { version: 1, episode1Started: false, replayCount: 0 },
+    settings: { audio: { music: 0.55, voice: 0.85, sfx: 0.7, muted: false, ttsFallback: false } },
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -437,6 +439,8 @@ function migratePlayerFromSave(raw) {
   }
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
+  if (v.tutorial != null && typeof v.tutorial !== "object") v.tutorial = { version: 1, episode1Started: false, replayCount: 0 };
+  if (v.settings != null && typeof v.settings !== "object") v.settings = { audio: {} };
   if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
   return v;
 }
@@ -494,6 +498,8 @@ function applyFirebasePlayerSnapshot(snap) {
     me.inventory.spells = Array.isArray(v.inventory?.spells) ? v.inventory.spells : [];
     me.quests = v.quests && typeof v.quests === "object" ? v.quests : me.quests;
     me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
+    me.tutorial = v.tutorial && typeof v.tutorial === "object" ? v.tutorial : me.tutorial;
+    me.settings = v.settings && typeof v.settings === "object" ? v.settings : me.settings;
     me.story = v.story || me.story;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
@@ -787,6 +793,11 @@ function init() {
           goLocation(portal.to);
           return;
         }
+        const nearNpc = window.World3D?.getNearestNpc?.();
+        if (nearNpc) {
+          openNpcDialog(nearNpc);
+          return;
+        }
         const playCtx = { toast, save: saveMe, hasDog };
         if (window.PlayV21?.tryInteract(me, playCtx)) return;
         if (window.World3D?.getNearestDog?.()) {
@@ -794,8 +805,6 @@ function init() {
           return;
         }
         if (window.StoryEngine?.tryBeaconInteract?.()) return;
-        const nid = window.World3D?.getNearestNpc?.();
-        if (nid) openNpcDialog(nid);
       },
       onHints: h => window.updateContextHints?.(h),
       onPortal: (to) => {
@@ -913,6 +922,7 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    window.__punkEpisode1StartGate?.(() => {});
   } catch (err) {
     console.error("continueGameBoot", err);
     showLoadingFailure(t("loading_boot_error"), err.message || String(err));
@@ -1029,6 +1039,8 @@ function sanitizePlayer(p) {
     stats: p.stats,
     quests,
     onboarding,
+    tutorial: p.tutorial && typeof p.tutorial === "object" ? { ...p.tutorial } : undefined,
+    settings: p.settings && typeof p.settings === "object" ? { ...p.settings } : undefined,
     jobCooldowns: p.jobCooldowns,
     lastJob: p.lastJob,
     built: p.built,

@@ -1029,6 +1029,7 @@ export function dismissAllStoryUi() {
   document.getElementById("storyDirection")?.classList.remove("visible");
   const sub = document.getElementById("voiceSubtitle");
   if (sub) sub.textContent = "";
+  window.AudioManager?.stopLine?.();
 }
 
 export function canOpenStoryModal() {

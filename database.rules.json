@@ -98,6 +98,12 @@
         "onboarding": {
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
         },
+        "tutorial": {
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
+        "settings": {
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
         "linkedAuth": {
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
         }

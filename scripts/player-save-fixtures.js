@@ -77,6 +77,10 @@ function buildPlayerSaveFixtures() {
   push("fx-onboarding-legacy", {
     onboarding: { step: 3, progress: { moved: 1 }, done: false }
   });
+  push("fx-tutorial-settings", {
+    tutorial: { version: 1, episode1Started: true, replayCount: 0 },
+    settings: { audio: { music: 0.5, voice: 0.8, sfx: 0.6, muted: false, ttsFallback: false } }
+  });
   push("fx-linked-auth", {
     linkedAuth: { email: "player@example.com", provider: "google.com" }
   });

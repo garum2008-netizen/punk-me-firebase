@@ -193,6 +193,22 @@ function initOnboarding() {
   syncGuideTarget();
 }
 
+function replayTutorial() {
+  if (!window.me) return;
+  window.me.onboarding = { step: 0, progress: {}, done: false };
+  window.me.tutorial = {
+    ...(window.me.tutorial || {}),
+    version: 1,
+    replayCount: (window.me.tutorial?.replayCount || 0) + 1
+  };
+  window.me._onboardOrigin = null;
+  lastOnboardActivity = Date.now();
+  saveMeQuiet();
+  renderOnboardingQuest();
+  syncGuideTarget();
+  window.StoryEngine?.dismissAllStoryUi?.();
+}
+
 window.Onboarding = {
   init: initOnboarding,
   adaptSpawnLocation,
@@ -205,5 +221,6 @@ window.Onboarding = {
   onWinFight,
   onShopBuy,
   getGuideTarget,
+  replay: replayTutorial,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

@@ -1268,7 +1268,7 @@ function getNearestNpcId() {
   const pl = actors.get("player");
   if (!pl) return null;
   let best = null;
-  let bestD = 2.4;
+  let bestD = 3.55;
   actors.forEach((a, id) => {
     if (!id.startsWith("npc_")) return;
     const d = Math.hypot(pl.wx - a.wx, pl.wz - a.wz);

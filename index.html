@@ -52,6 +52,7 @@
   </div>
   <div class="loc-name" id="locTitle" data-i18n-loc="room">Комната панка</div>
   <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
+  <button type="button" class="btn-howto btn-game-menu" id="btnGameMenu" title="Menu" data-i18n="game_menu_btn">☰</button>
   <div id="contextHint" class="context-hint" aria-live="polite"></div>
   <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
   <div id="storyBubbles" aria-hidden="true"></div>
@@ -254,6 +255,31 @@
   </div>
 </div>
 <div id="howToOverlay" class="howto-overlay"></div>
+<div id="startGameOverlay" class="start-game-overlay" role="dialog" aria-modal="true">
+  <div class="start-game-panel">
+    <h2 data-i18n="start_game_title">Начать игру</h2>
+    <p data-i18n="start_game_body">Добро пожаловать в дом 13. Нажми, чтобы включить звук и начать обучение.</p>
+    <button type="button" class="btn" id="btnStartGame" data-i18n="start_game_btn">Начать</button>
+  </div>
+</div>
+<div id="gameMenuOverlay" class="game-menu-overlay" role="dialog" aria-modal="true">
+  <div class="game-menu-panel">
+    <button type="button" class="close" id="gameMenuClose">✕</button>
+    <h2 data-i18n="game_menu_title">Меню</h2>
+    <div class="game-menu-actions">
+      <button type="button" class="btn secondary" id="gameMenuHelp" data-i18n="game_menu_help">Управление</button>
+      <button type="button" class="btn secondary" id="gameMenuReplayTutorial" data-i18n="game_menu_replay_tutorial">Повторить обучение</button>
+    </div>
+    <h3 data-i18n="game_menu_journal">Квест</h3>
+    <div id="gameMenuJournal" class="game-menu-journal"></div>
+    <h3 data-i18n="game_menu_audio">Звук</h3>
+    <label><span data-i18n="audio_music">Музыка</span> <input type="range" id="audioMusic" min="0" max="100" value="55"></label>
+    <label><span data-i18n="audio_voice">Голос</span> <input type="range" id="audioVoice" min="0" max="100" value="85"></label>
+    <label><span data-i18n="audio_sfx">Эффекты</span> <input type="range" id="audioSfx" min="0" max="100" value="70"></label>
+    <label><input type="checkbox" id="audioMuted"> <span data-i18n="audio_mute_all">Без звука</span></label>
+    <label><input type="checkbox" id="audioTtsFallback"> <span data-i18n="audio_tts_fallback">Синтез речи (временно)</span></label>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -270,6 +296,8 @@
   import { grantRewardOnce } from "./js/reward-grants.mjs?v=living3d-v22r6-master-p1-r1";
   window.grantRewardOnce = (eventId, apply) => grantRewardOnce(window.me, eventId, apply);
 </script>
+<script type="module" src="js/audio-manager.mjs?v=living3d-v22r6-master-p1-r1"></script>
+<script type="module" src="js/game-menu.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module" src="js/interaction-hud.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module" src="js/context-hints.mjs?v=living3d-v22r6-master-p1-r1"></script>
 <script type="module" src="js/how-to-play.mjs?v=living3d-v22r6-master-p1-r1"></script>
@@ -281,6 +309,12 @@
 <script type="module">
   import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r6-master-p1-r1";
   import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r6-master-p1-r1";
+  import { initAudioManager } from "./js/audio-manager.mjs?v=living3d-v22r6-master-p1-r1";
+  import { initGameMenu, initStartFlow, showStartGameOverlay } from "./js/game-menu.mjs?v=living3d-v22r6-master-p1-r1";
+  initAudioManager();
+  initGameMenu();
+  initStartFlow();
+  window.__punkEpisode1StartGate = showStartGameOverlay;
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });

@@ -67,6 +67,7 @@ export function initPlayV21(ctx) {
         return true;
       }
       if (loc === "street") {
+        if (window.Onboarding?.isActive?.()) return false;
         const cap = window.StoryEngine?.getArcadeDailyCap?.() ?? 100;
         const day = todayKey();
         if (!me._arcadeDay || me._arcadeDay.day !== day) me._arcadeDay = { day, coins: 0 };

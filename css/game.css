@@ -428,6 +428,20 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   background: rgba(4,0,10,0.82); padding: 16px;
 }
 .howto-overlay.active { display: flex; }
+.start-game-overlay, .game-menu-overlay {
+  position: fixed; inset: 0; z-index: 190; display: none;
+  align-items: center; justify-content: center;
+  background: rgba(4,0,10,0.88); padding: 16px;
+}
+.start-game-overlay.active, .game-menu-overlay.active { display: flex; }
+.start-game-panel, .game-menu-panel {
+  max-width: min(480px, 96vw); background: #140a24; border: 2px solid #0ff;
+  border-radius: 16px; padding: 18px;
+}
+.btn-game-menu { right: 48px; }
+.game-menu-journal { font-size: 13px; margin: 8px 0 14px; max-height: 28vh; overflow: auto; }
+.game-menu-panel label { display: block; margin: 8px 0; font-size: 13px; }
+.game-menu-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .howto-panel {
   max-width: min(520px, 96vw); background: #140a24; border: 2px solid #ff00ff;
   border-radius: 16px; padding: 16px;
