@@ -141,6 +141,15 @@ function onEnterLocation(loc) {
 function onTalkRazor() { bump("talk_razor", 1); }
 function onVisitCemetery() { if (window.me?.location === "cemetery") bump("visit_cemetery", 1); }
 function onWinFight() { bump("win_fight", 1); }
+
+/** True after win_fight step is done (progress cleared on advance). */
+function hasPassedWinFight() {
+  const ob = window.me?.onboarding;
+  if (!ob || ob.done) return !!ob?.done;
+  const idx = Math.min(ob.step ?? 0, ONBOARDING_STEPS.length - 1);
+  const winIdx = ONBOARDING_STEPS.findIndex(s => s.key === "win_fight");
+  return idx > winIdx;
+}
 function onShopBuy() { bump("shop_buy", 1); }
 
 function adaptSpawnLocation() {
@@ -177,5 +186,6 @@ window.Onboarding = {
   onWinFight,
   onShopBuy,
   getGuideTarget,
+  hasPassedWinFight,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

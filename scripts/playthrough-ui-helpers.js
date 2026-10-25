@@ -59,11 +59,10 @@ async function dismissHowToOverlay(page) {
       el.innerHTML = "";
     }
   });
-  await page.locator("#howToOverlay .howto-close, .howto-close").click({ timeout: 1500 }).catch(() => {});
-  await page.waitForFunction(
-    () => !document.getElementById("howToOverlay")?.classList.contains("active"),
-    { timeout: 3000 }
-  ).catch(() => {});
+  await page.locator("#howToOverlay .howto-close, .howto-close, #howToOverlay button").first().click({ timeout: 2000 }).catch(() => {});
+  await page
+    .waitForFunction(() => !document.getElementById("howToOverlay")?.classList.contains("active"), { timeout: 3000 })
+    .catch(() => {});
 }
 
 async function pickCobaltUi(page) {
@@ -182,6 +181,7 @@ async function winMohawkTrialDuel(page, maxMs = 45000) {
     if (await page.locator("#duel3dHud:not(.hidden), #fightOverlay.active").isVisible()) seenFight = true;
     if (await page.locator("#duel3dHud:not(.hidden)").isVisible()) {
       await page.locator("#duel3dHud button.btn.danger").click({ timeout: 500, force: true }).catch(() => {});
+      await page.keyboard.press("f").catch(() => {});
     }
     if (await page.locator("#fightOverlay.active").isVisible()) {
       await page.locator("#fightOverlay .btn.danger").first().click({ timeout: 500, force: true }).catch(() => {});
@@ -211,6 +211,7 @@ async function winFightUi(page, maxMs = 35000) {
   while (Date.now() - t0 < maxMs) {
     if (await page.locator("#duel3dHud:not(.hidden)").isVisible()) {
       await page.locator("#duel3dHud button.btn.danger").click({ timeout: 500, force: true }).catch(() => {});
+      await page.keyboard.press("f").catch(() => {});
     }
     if (await page.locator("#fightOverlay.active").isVisible()) {
       await page.locator("#fightOverlay .btn.danger").first().click({ timeout: 500, force: true }).catch(() => {});
@@ -221,7 +222,9 @@ async function winFightUi(page, maxMs = 35000) {
         .catch(() => {});
     }
     const state = await page.evaluate(() => ({
-      win: (window.me?.onboarding?.progress?.win_fight || 0) >= 1,
+      win:
+        (window.me?.onboarding?.progress?.win_fight || 0) >= 1 ||
+        !!window.Onboarding?.hasPassedWinFight?.(),
       overlay: document.getElementById("fightOverlay")?.classList.contains("active"),
       duel: !document.getElementById("duel3dHud")?.classList.contains("hidden")
     }));
@@ -229,7 +232,10 @@ async function winFightUi(page, maxMs = 35000) {
     await sleep(120);
   }
   await page.locator('#fightOverlay button[onclick="closeFight()"]').click({ timeout: 2000 }).catch(() => {});
-  return page.evaluate(() => (window.me?.onboarding?.progress?.win_fight || 0) >= 1);
+  return page.evaluate(
+    () =>
+      (window.me?.onboarding?.progress?.win_fight || 0) >= 1 || !!window.Onboarding?.hasPassedWinFight?.()
+  );
 }
 
 async function buyCheapestShop(page) {
@@ -627,6 +633,7 @@ async function finishInitiationUi(page) {
 module.exports = {
   sleep,
   bootSolo,
+  dismissHowToOverlay,
   pickCobaltUi,
   dismissHowToOverlay,
   skipChapterIntro,

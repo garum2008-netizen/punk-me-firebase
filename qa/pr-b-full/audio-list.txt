@@ -1,0 +1,2 @@
+file '/workspace/assets/audio/music/music_home.mp3'
+file '/workspace/assets/audio/music/music_street.mp3'

@@ -143,13 +143,17 @@ async function runFullEpisode1Ui(page, opts = {}) {
   await page.locator("#btnFight").click({ timeout: 20000, force: true });
   mark?.("tutorial_duel", "Chain fight UI");
   await H.winFightUi(page, 55000);
-  const winProg = await page.evaluate(() => window.me?.onboarding?.progress?.win_fight || 0);
-  const won = winProg >= 1;
+  const duelSnap = await page.evaluate(() => ({
+    prog: window.me?.onboarding?.progress?.win_fight || 0,
+    passed: !!window.Onboarding?.hasPassedWinFight?.(),
+    step: window.me?.onboarding?.step
+  }));
+  const won = duelSnap.prog >= 1 || duelSnap.passed;
   mark?.(
     "tutorial_duel_result",
     won
-      ? `onboarding progress win_fight=${winProg} (Onboarding.onWinFight from endFight)`
-      : `win_fight progress=${winProg} — fight UI did not finish in time`
+      ? `win_fight ok step=${duelSnap.step} prog=${duelSnap.prog}`
+      : `win_fight failed step=${duelSnap.step} prog=${duelSnap.prog}`
   );
   await ensureGameplayActive(page);
   if (readMs) await recordBeat(page, 2000);
