@@ -35,17 +35,17 @@ firebase --version
 Нужна для `firebase database:rules:get` и (после GO) `firebase deploy --only database`.
 
 ```bash
-firebase login
-# откроется OAuth в браузере Cloud Shell — войти аккаунтом владельца проекта
+npx firebase login --no-localhost
+# Cloud Shell: скопировать ссылку из терминала в браузер, войти аккаунтом владельца проекта
 
-firebase projects:list | grep punk-me-40605
+npx firebase projects:list | grep punk-me-40605
 export FIREBASE_PROJECT=punk-me-40605
 ```
 
 Проверка read-only (без записи в RTDB):
 
 ```bash
-firebase database:rules:get --project punk-me-40605 | head -c 200
+npx firebase database:rules:get --project punk-me-40605 | head -c 200
 ```
 
 ## 4. ADC для Admin SDK (`list-test-artifacts`, owner scripts)
@@ -66,9 +66,10 @@ node scripts/list-test-artifacts.mjs --auth-stats
 ## 5. Owner read-only сессия (экспорт live rules)
 
 ```bash
-chmod +x scripts/owner-readonly-check.sh
-./scripts/owner-readonly-check.sh
+npm run owner:readonly-check
 ```
+
+(внутри вызывается `npx firebase database:rules:get` — глобальный `firebase` не нужен)
 
 Артефакты: `docs/release/prod-readonly-snapshots/rtdb-rules-prod-<timestamp>.json` — **не коммитить** в публичный репозиторий.
 
@@ -102,7 +103,7 @@ npm run test:rules
 
 ```bash
 # НЕ ЗАПУСКАТЬ без GO
-firebase deploy --only database --project punk-me-40605 \
+npx firebase deploy --only database --project punk-me-40605 \
   --config firebase.json \
   # подставить согласованный файл rules через временную подмену database.rules.json
 # или: скопировать rtdb-rules-hotfix-from-live.json → database.rules.json только на время deploy
