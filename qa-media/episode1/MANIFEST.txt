@@ -1,0 +1,5 @@
+path: qa-media/episode1/episode1-youtube-1080p.mp4
+duration_sec: 1161.76
+resolution: 1920x1080
+bytes: 95335869
+sha256: 537982b2bd7cff5d017fbd6cf2424a18494bede8881aabe44b0dc9da5b6d5f51
