@@ -15,7 +15,31 @@ local QuestEngine = require(ReplicatedStorage.Shared.QuestEngine)
 local ShopCatalog = require(ReplicatedStorage.Config.ShopCatalog)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local EndingScenes = require(ReplicatedStorage.Config.EndingScenes)
+local ActionGuards = require(ReplicatedStorage.Shared.ActionGuards)
+local SceneTriggers = require(ReplicatedStorage.Shared.SceneTriggers)
 local GameServer = {}
+
+local GUARDED_ACTIONS: { [string]: boolean } = {
+	duel_start = true,
+	duel_action = true,
+	shop_buy = true,
+	flyer_post = true,
+	tower_puzzle = true,
+	graph_confession = true,
+	pick_ending = true,
+	cemetery_job = true,
+	ch3_ghost = true,
+	ch3_crypt = true,
+	bell_tongue = true,
+	hangout_build = true,
+}
+
+local RATE_LIMITS: { [string]: { number } } = {
+	pick_ending = { 3, 2 },
+	shop_buy = { 2, 6 },
+	flyer_post = { 1, 20 },
+	duel_action = { 0.8, 24 },
+}
 
 local rateBuckets: { [number]: { [string]: RemoteValidation.Bucket } } = {}
 
@@ -34,32 +58,31 @@ local function getBucket(userId: number, action: string): RemoteValidation.Bucke
 end
 
 local function rateOk(player: Player, action: string): boolean
-	return RemoteValidation.checkRate(getBucket(player.UserId, action), os.clock(), 2, 12)
+	local limits = RATE_LIMITS[action]
+	local window = if limits then limits[1] else 2
+	local max = if limits then limits[2] else 12
+	return RemoteValidation.checkRate(getBucket(player.UserId, action), os.clock(), window, max)
 end
 
-local function playerInZone(player: Player, zoneId: string): boolean
+local function playerPosition(player: Player): ActionGuards.Vec3?
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not hrp then
+		return nil
+	end
+	local p = hrp.Position
+	return { x = p.X, y = p.Y, z = p.Z }
+end
+
+local function positionGuard(player: Player, action: string, payload: any): boolean
+	if not GUARDED_ACTIONS[action] then
+		return true
+	end
+	local pos = playerPosition(player)
+	if not pos then
 		return false
 	end
-	local world = workspace:FindFirstChild("World")
-	if not world then
-		return false
-	end
-	for _, inst in world:GetDescendants() do
-		if inst:IsA("BasePart") and inst:GetAttribute("ZoneId") == zoneId then
-			local rel = hrp.Position - inst.Position
-			if
-				math.abs(rel.X) <= inst.Size.X / 2
-				and math.abs(rel.Y) <= inst.Size.Y / 2
-				and math.abs(rel.Z) <= inst.Size.Z / 2
-			then
-				return true
-			end
-		end
-	end
-	return false
+	return ActionGuards.validate({ position = pos, action = action, payload = payload })
 end
 
 local NPC_TALK_EVENTS: { [string]: string } = {
@@ -100,10 +123,15 @@ function GameServer.setupRemotes()
 	local duelUpdate = folder:WaitForChild("DuelUpdate") :: RemoteEvent
 
 	request.OnServerEvent:Connect(function(player, action: any, payload: any)
-		if not rateOk(player, "RequestAction") then
+		local sceneOverride: string? = nil
+		if type(action) ~= "string" then
 			return
 		end
-		if type(action) ~= "string" then
+		if not rateOk(player, action) then
+			return
+		end
+		if not positionGuard(player, action, payload) then
+			result:FireClient(player, { ok = false, reason = "guard" })
 			return
 		end
 		local session = ProfileService.getSession(player.UserId)
@@ -147,7 +175,7 @@ function GameServer.setupRemotes()
 		elseif action == "cemetery_job" then
 			ok = StoryHandlers.handleCemeteryJob(profile)
 		elseif action == "duel_start" then
-			if profile.story.activeQuestId == "q_initiation_duel" and playerInZone(player, "zone_duel") then
+			if profile.story.activeQuestId == "q_initiation_duel" then
 				local started, state = DuelService.startDuel(player.UserId, "npc_razor")
 				if started and state then
 					duelUpdate:FireClient(player, state)
@@ -162,6 +190,7 @@ function GameServer.setupRemotes()
 					duelUpdate:FireClient(player, state, meta)
 					if state.phase == "player_win" then
 						ok = StoryHandlers.handleDuelWin(profile)
+						sceneOverride = SceneTriggers.onDuelWin()
 					elseif state.phase == "player_lose" then
 						DuelService.cancel(player.UserId)
 						ok = true
@@ -221,7 +250,7 @@ function GameServer.setupRemotes()
 			ok = StoryHandlers.handleConfession(profile)
 		elseif action == "shop_buy" then
 			local itemId = RemoteValidation.validateString(payload, 64)
-			if itemId and playerInZone(player, "zone_shop") then
+			if itemId then
 				local item = ShopCatalog.get(itemId)
 				local owned = item and item.grantInventoryKey and (profile.inventory[item.grantInventoryKey] or 0) > 0
 				local purchase = Economy.tryPurchase(profile.coins, item, owned == true)
@@ -251,7 +280,11 @@ function GameServer.setupRemotes()
 			end
 			ProfileService.saveSession(session)
 			pushProfile(player)
-			local extra: any = { ok = true }
+			local extra: any = { ok = true, language = profile.language }
+			local sceneId = sceneOverride or SceneTriggers.afterAction(action, payload, profile)
+			if sceneId then
+				extra.playSceneId = sceneId
+			end
 			if action == "pick_ending" and profile.story.storyEnding then
 				local lang = profile.language
 				local scene = (EndingScenes :: any)[profile.story.storyEnding]

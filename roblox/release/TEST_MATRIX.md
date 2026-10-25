@@ -24,5 +24,8 @@
 | S4-01 | Studio | Язык Zoya/zombie | — | NOT RUN |
 | S4-02 | Studio | Башня (головоломка UI) | — | NOT RUN |
 | E-01..03 | Studio | Три концовки + сохранение | — | NOT RUN |
-| MP-01 | Studio | 2 игрока, изоляция UserId | — | NOT RUN |
+| MP-01 | lune | `SessionRegistry` два UserId | PASS | NOT RUN |
+| MP-02 | Studio | 2 игрока в Studio | — | NOT RUN |
+| SEC-01 | lune | `ActionGuards` зона/дистанция | PASS | NOT RUN |
+| MOB-01 | Studio | Тач-кнопки дуэль/мини-игры | — | NOT RUN |
 | ECO-01 | Studio | `shop_buy` + ProcessReceipt | — | NOT RUN |

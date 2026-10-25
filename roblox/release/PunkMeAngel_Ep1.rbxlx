@@ -131,6 +131,28 @@ return {
       </Item>
       <Item class="ModuleScript" referent="7">
         <Properties>
+          <string name="Name">MusicCatalog</string>
+          <string name="Source"><![CDATA[--!strict
+--[[
+	Music slots for staged scenes. Empty rbxassetid until owner uploads tracks.
+]]
+return {
+	ch0_home = "",
+	ch1_duel = "",
+	ch1_flyers = "",
+	ch2_hangout = "",
+	ch3_cemetery = "",
+	ch4_castle = "",
+	ch4_confession = "",
+	ending_break_curse = "",
+	ending_zombie_style = "",
+	ending_count_deal = "",
+}
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="8">
+        <Properties>
           <string name="Name">NpcVisuals</string>
           <string name="Source"><![CDATA[--!strict
 export type Visual = {
@@ -155,7 +177,7 @@ return {
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="8">
+      <Item class="ModuleScript" referent="9">
         <Properties>
           <string name="Name">QuestTable</string>
           <string name="Source"><![CDATA[--!strict
@@ -621,7 +643,172 @@ return QuestTable
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="9">
+      <Item class="ModuleScript" referent="10">
+        <Properties>
+          <string name="Name">SceneCatalog</string>
+          <string name="Source"><![CDATA[--!strict
+export type DialogueLine = {
+	speaker: string,
+	ru: string,
+	en: string,
+}
+
+export type SceneDef = {
+	id: string,
+	durationSec: number,
+	musicSlot: string?,
+	cameraFrom: { x: number, y: number, z: number },
+	cameraTo: { x: number, y: number, z: number },
+	lookAt: { x: number, y: number, z: number },
+	npcIds: { string },
+	dialogue: { DialogueLine },
+}
+
+local SceneCatalog: { [string]: SceneDef } = {
+	scene_ch0_razor = {
+		id = "scene_ch0_razor",
+		durationSec = 10,
+		musicSlot = "ch0_home",
+		cameraFrom = { x = 60, y = 8, z = 12 },
+		cameraTo = { x = 72, y = 6, z = 8 },
+		lookAt = { x = 70, y = 4, z = 5 },
+		npcIds = { "npc_razor" },
+		dialogue = {
+			{
+				speaker = "Razor",
+				ru = "Ты на улице. Запомни: здесь платят уважением.",
+				en = "You're on the street. Remember: respect is the currency.",
+			},
+			{
+				speaker = "Angelina",
+				ru = "Он ждёт — поговори, когда будешь готова.",
+				en = "He's waiting — talk when you're ready.",
+			},
+		},
+	},
+	scene_ch1_duel_win = {
+		id = "scene_ch1_duel_win",
+		durationSec = 8,
+		musicSlot = "ch1_duel",
+		cameraFrom = { x = 115, y = 10, z = 125 },
+		cameraTo = { x = 120, y = 7, z = 118 },
+		lookAt = { x = 120, y = 3, z = 120 },
+		npcIds = { "npc_razor" },
+		dialogue = {
+			{
+				speaker = "Razor",
+				ru = "Неплохо. Добро пожаловать в ржавчину.",
+				en = "Not bad. Welcome to the rust.",
+			},
+		},
+	},
+	scene_ch2_antibully = {
+		id = "scene_ch2_antibully",
+		durationSec = 9,
+		musicSlot = "ch2_hangout",
+		cameraFrom = { x = 75, y = 8, z = 88 },
+		cameraTo = { x = 80, y = 6, z = 82 },
+		lookAt = { x = 70, y = 4, z = 5 },
+		npcIds = { "npc_razor" },
+		dialogue = {
+			{
+				speaker = "Razor",
+				ru = "Город смотрит. Что ты выбрала — запомнят все.",
+				en = "The city is watching. What you chose — everyone will remember.",
+			},
+		},
+	},
+	scene_ch4_confession = {
+		id = "scene_ch4_confession",
+		durationSec = 12,
+		musicSlot = "ch4_confession",
+		cameraFrom = { x = -90, y = 12, z = 88 },
+		cameraTo = { x = -82, y = 8, z = 82 },
+		lookAt = { x = -80, y = 4, z = 80 },
+		npcIds = { "npc_count" },
+		dialogue = {
+			{
+				speaker = "Count",
+				ru = "Правда о Колоколе — не проклятие, а договор.",
+				en = "The truth of the Bell is not a curse, but a bargain.",
+			},
+			{
+				speaker = "Count",
+				ru = "Выбор концовки — твой. Я лишь свидетель.",
+				en = "The ending is yours. I am only a witness.",
+			},
+		},
+	},
+	scene_ending_break_curse = {
+		id = "scene_ending_break_curse",
+		durationSec = 14,
+		musicSlot = "ending_break_curse",
+		cameraFrom = { x = -100, y = 20, z = 100 },
+		cameraTo = { x = -85, y = 14, z = 90 },
+		lookAt = { x = -80, y = 30, z = 80 },
+		npcIds = { "npc_count", "npc_razor" },
+		dialogue = {
+			{
+				speaker = "Bell",
+				ru = "Колокол звенит — мёртвины снова люди.",
+				en = "The Bell rings — Mortwins are human again.",
+			},
+			{
+				speaker = "Vienna",
+				ru = "Вена поёт. Призраки идут в Склеп.",
+				en = "Vienna sings. Ghosts find the Crypt.",
+			},
+		},
+	},
+	scene_ending_zombie_style = {
+		id = "scene_ending_zombie_style",
+		durationSec = 12,
+		musicSlot = "ending_zombie_style",
+		cameraFrom = { x = -60, y = 10, z = 95 },
+		cameraTo = { x = -55, y = 8, z = 90 },
+		lookAt = { x = -55, y = 6, z = 90 },
+		npcIds = {},
+		dialogue = {
+			{
+				speaker = "City",
+				ru = "Зомби — стиль. Замок — клуб до рассвета.",
+				en = "Zombie is style. The castle is a club till dawn.",
+			},
+		},
+	},
+	scene_ending_count_deal = {
+		id = "scene_ending_count_deal",
+		durationSec = 13,
+		musicSlot = "ending_count_deal",
+		cameraFrom = { x = -75, y = 9, z = 75 },
+		cameraTo = { x = -80, y = 7, z = 80 },
+		lookAt = { x = -80, y = 4, z = 80 },
+		npcIds = { "npc_count" },
+		dialogue = {
+			{
+				speaker = "Count",
+				ru = "Сделка заключена. Ночной магазин открыт.",
+				en = "The deal is sealed. The night shop opens.",
+			},
+			{
+				speaker = "Angelina",
+				ru = "Семья в безопасности — пока держим слово.",
+				en = "Family is safe — as long as we keep our word.",
+			},
+		},
+	},
+}
+
+return {
+	get = function(id: string): SceneDef?
+		return SceneCatalog[id]
+	end,
+	all = SceneCatalog,
+}
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="11">
         <Properties>
           <string name="Name">ShopCatalog</string>
           <string name="Source"><![CDATA[--!strict
@@ -661,7 +848,7 @@ return {
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="10">
+      <Item class="ModuleScript" referent="12">
         <Properties>
           <string name="Name">VoiceManifest</string>
           <string name="Source"><![CDATA[--!strict
@@ -692,16 +879,155 @@ return {
         </Properties>
       </Item>
     </Item>
-    <Item class="Folder" referent="11">
+    <Item class="Folder" referent="13">
       <Properties>
         <string name="Name">Remotes</string>
       </Properties>
     </Item>
-    <Item class="Folder" referent="12">
+    <Item class="Folder" referent="14">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
-      <Item class="ModuleScript" referent="13">
+      <Item class="ModuleScript" referent="15">
+        <Properties>
+          <string name="Name">ActionGuards</string>
+          <string name="Source"><![CDATA[--!strict
+local FlyerEngine = if script and script.Parent then require(script.Parent.FlyerEngine) else require("./FlyerEngine")
+
+export type Vec3 = { x: number, y: number, z: number }
+export type BoxZone = {
+	center: Vec3,
+	size: Vec3,
+}
+
+local ActionGuards = {}
+
+function ActionGuards.positionInBox(pos: Vec3, zone: BoxZone): boolean
+	local rel = {
+		x = pos.x - zone.center.x,
+		y = pos.y - zone.center.y,
+		z = pos.z - zone.center.z,
+	}
+	return math.abs(rel.x) <= zone.size.x / 2
+		and math.abs(rel.y) <= zone.size.y / 2
+		and math.abs(rel.z) <= zone.size.z / 2
+end
+
+function ActionGuards.distance(a: Vec3, b: Vec3): number
+	local dx = a.x - b.x
+	local dy = a.y - b.y
+	local dz = a.z - b.z
+	return math.sqrt(dx * dx + dy * dy + dz * dz)
+end
+
+function ActionGuards.nearPoint(pos: Vec3, target: Vec3, maxDist: number): boolean
+	return ActionGuards.distance(pos, target) <= maxDist
+end
+
+-- Approximate world anchors (match WorldBuilder layout)
+ActionGuards.ZONES = {
+	zone_duel = { center = { x = 120, y = 0, z = 120 }, size = { x = 24, y = 4, z = 24 } },
+	zone_shop = { center = { x = 100, y = 5, z = -10 }, size = { x = 14, y = 10, z = 14 } },
+	zone_castle_tower = { center = { x = -95, y = 11, z = 95 }, size = { x = 12, y = 22, z = 12 } },
+	zone_castle_hall = { center = { x = -80, y = 5, z = 80 }, size = { x = 30, y = 10, z = 30 } },
+}
+
+ActionGuards.FLYER_SPOTS = {
+	flyer_street_1 = { x = 65, y = 2, z = 8 },
+	flyer_street_2 = { x = 90, y = 2, z = 12 },
+	flyer_street_3 = { x = 75, y = 2, z = -5 },
+	flyer_city_1 = { x = 70, y = 2, z = -55 },
+	flyer_city_2 = { x = 90, y = 2, z = -70 },
+	flyer_city_3 = { x = 95, y = 2, z = -50 },
+	flyer_cemetery_gate = { x = 5, y = 2, z = 105 },
+	flyer_shop_wall = { x = 108, y = 4, z = -8 },
+}
+
+ActionGuards.NPC_ANCHORS = {
+	npc_razor = { x = 70, y = 3, z = 5 },
+	npc_gravedigger = { x = -5, y = 3, z = 125 },
+	npc_ghost = { x = 10, y = 3, z = 130 },
+	npc_count = { x = -80, y = 3, z = 80 },
+	npc_zoya = { x = -65, y = 3, z = 70 },
+}
+
+export type GuardContext = {
+	position: Vec3,
+	action: string,
+	payload: any,
+}
+
+function ActionGuards.flyerSpotAllowed(spotId: string): boolean
+	for _, id in FlyerEngine.SPOT_IDS do
+		if id == spotId then
+			return true
+		end
+	end
+	return false
+end
+
+function ActionGuards.validate(ctx: GuardContext): boolean
+	local action = ctx.action
+	local pos = ctx.position
+
+	if action == "duel_start" then
+		local z = ActionGuards.ZONES.zone_duel
+		return z ~= nil and ActionGuards.positionInBox(pos, z)
+	end
+	if action == "shop_buy" then
+		local z = ActionGuards.ZONES.zone_shop
+		return z ~= nil and ActionGuards.positionInBox(pos, z)
+	end
+	if action == "flyer_post" then
+		local spot = if type(ctx.payload) == "string" then ctx.payload else nil
+		if not spot or not ActionGuards.flyerSpotAllowed(spot) then
+			return false
+		end
+		local anchor = ActionGuards.FLYER_SPOTS[spot]
+		return anchor ~= nil and ActionGuards.nearPoint(pos, anchor, 18)
+	end
+	if action == "tower_puzzle" then
+		local z = ActionGuards.ZONES.zone_castle_tower
+		return z ~= nil and ActionGuards.positionInBox(pos, z)
+	end
+	if action == "graph_confession" or action == "pick_ending" then
+		local z = ActionGuards.ZONES.zone_castle_hall
+		return z ~= nil and ActionGuards.positionInBox(pos, z)
+	end
+	if action == "cemetery_job" then
+		local g = ActionGuards.NPC_ANCHORS.npc_gravedigger
+		return g ~= nil and ActionGuards.nearPoint(pos, g, 20)
+	end
+	if action == "ch3_ghost" then
+		local g = ActionGuards.NPC_ANCHORS.npc_ghost
+		return g ~= nil and ActionGuards.nearPoint(pos, g, 18)
+	end
+	if action == "bell_tongue" then
+		local branch = if type(ctx.payload) == "string" then ctx.payload else ""
+		if branch == "zoya" then
+			local z = ActionGuards.NPC_ANCHORS.npc_zoya
+			return z ~= nil and ActionGuards.nearPoint(pos, z, 16)
+		end
+		return ActionGuards.nearPoint(pos, { x = -55, y = 4, z = 90 }, 14)
+	end
+	if action == "duel_action" then
+		local z = ActionGuards.ZONES.zone_duel
+		return z ~= nil and ActionGuards.positionInBox(pos, z)
+	end
+	if action == "hangout_build" then
+		return ActionGuards.nearPoint(pos, { x = 80, y = 2, z = 80 }, 45)
+	end
+	if action == "ch3_crypt" then
+		return ActionGuards.nearPoint(pos, { x = -15, y = 2, z = 140 }, 16)
+	end
+	return true
+end
+
+return ActionGuards
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="16">
         <Properties>
           <string name="Name">AngelinaLines</string>
           <string name="Source"><![CDATA[--!strict
@@ -773,7 +1099,30 @@ return AngelinaLines
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="14">
+      <Item class="ModuleScript" referent="17">
+        <Properties>
+          <string name="Name">ClientTouch</string>
+          <string name="Source"><![CDATA[--!strict
+local UserInputService = game:GetService("UserInputService")
+
+local ClientTouch = {}
+
+function ClientTouch.isTouch(): boolean
+	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+end
+
+function ClientTouch.stylePrimaryButton(button: TextButton)
+	if ClientTouch.isTouch() or UserInputService.TouchEnabled then
+		button.Size = UDim2.new(0, math.max(button.Size.X.Offset, 112), 0, math.max(button.Size.Y.Offset, 48))
+		button.TextSize = 18
+	end
+end
+
+return ClientTouch
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="18">
         <Properties>
           <string name="Name">CryptBuildEngine</string>
           <string name="Source"><![CDATA[--!strict
@@ -817,7 +1166,7 @@ return CryptBuildEngine
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="15">
+      <Item class="ModuleScript" referent="19">
         <Properties>
           <string name="Name">DataStoreScope</string>
           <string name="Source"><![CDATA[--!strict
@@ -838,7 +1187,7 @@ return DataStoreScope
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="16">
+      <Item class="ModuleScript" referent="20">
         <Properties>
           <string name="Name">DuelEngine</string>
           <string name="Source"><![CDATA[--!strict
@@ -918,7 +1267,7 @@ return DuelEngine
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="17">
+      <Item class="ModuleScript" referent="21">
         <Properties>
           <string name="Name">Economy</string>
           <string name="Source"><![CDATA[--!strict
@@ -983,7 +1332,7 @@ return Economy
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="18">
+      <Item class="ModuleScript" referent="22">
         <Properties>
           <string name="Name">EndingLogic</string>
           <string name="Source"><![CDATA[--!strict
@@ -1028,7 +1377,7 @@ return EndingLogic
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="19">
+      <Item class="ModuleScript" referent="23">
         <Properties>
           <string name="Name">FlyerEngine</string>
           <string name="Source"><![CDATA[--!strict
@@ -1085,7 +1434,7 @@ return FlyerEngine
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="20">
+      <Item class="ModuleScript" referent="24">
         <Properties>
           <string name="Name">GhostRiddleEngine</string>
           <string name="Source"><![CDATA[--!strict
@@ -1119,7 +1468,7 @@ return GhostRiddleEngine
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="21">
+      <Item class="ModuleScript" referent="25">
         <Properties>
           <string name="Name">HangoutEngine</string>
           <string name="Source"><![CDATA[--!strict
@@ -1187,7 +1536,7 @@ return HangoutEngine
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="22">
+      <Item class="ModuleScript" referent="26">
         <Properties>
           <string name="Name">HangoutMinigame</string>
           <string name="Source"><![CDATA[--!strict
@@ -1220,7 +1569,7 @@ return HangoutMinigame
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="23">
+      <Item class="ModuleScript" referent="27">
         <Properties>
           <string name="Name">Localization</string>
           <string name="Source"><![CDATA[--!strict
@@ -1360,7 +1709,54 @@ return Localization
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="24">
+      <Item class="ModuleScript" referent="28">
+        <Properties>
+          <string name="Name">NpcAnim</string>
+          <string name="Source"><![CDATA[--!strict
+local AnimationCatalog = if script and script.Parent
+	then require(script.Parent.Parent.Config.AnimationCatalog)
+	else require("../Config/AnimationCatalog")
+
+local NpcAnim = {}
+
+local function getAnimator(model: Model): Animator?
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		return nil
+	end
+	local animator = hum:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = hum
+	end
+	return animator
+end
+
+function NpcAnim.playTrack(model: Model, assetId: string): AnimationTrack?
+	local animator = getAnimator(model)
+	if not animator or assetId == "" then
+		return nil
+	end
+	local anim = Instance.new("Animation")
+	anim.AnimationId = assetId
+	local track = animator:LoadAnimation(anim)
+	track:Play()
+	return track
+end
+
+function NpcAnim.playIdle(model: Model)
+	NpcAnim.playTrack(model, AnimationCatalog.idle)
+end
+
+function NpcAnim.playTalk(model: Model)
+	NpcAnim.playTrack(model, AnimationCatalog.talk)
+end
+
+return NpcAnim
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="29">
         <Properties>
           <string name="Name">ProfileMigrator</string>
           <string name="Source"><![CDATA[--!strict
@@ -1436,7 +1832,7 @@ return ProfileMigrator
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="25">
+      <Item class="ModuleScript" referent="30">
         <Properties>
           <string name="Name">ProfileSchema</string>
           <string name="Source"><![CDATA[--!strict
@@ -1598,7 +1994,7 @@ return ProfileSchema
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="26">
+      <Item class="ModuleScript" referent="31">
         <Properties>
           <string name="Name">QuestEngine</string>
           <string name="Source"><![CDATA[--!strict
@@ -1844,7 +2240,7 @@ return QuestEngine
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="27">
+      <Item class="ModuleScript" referent="32">
         <Properties>
           <string name="Name">ReceiptStore</string>
           <string name="Source"><![CDATA[--!strict
@@ -1882,7 +2278,7 @@ return ReceiptStore
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="28">
+      <Item class="ModuleScript" referent="33">
         <Properties>
           <string name="Name">RemoteValidation</string>
           <string name="Source"><![CDATA[--!strict
@@ -1942,7 +2338,90 @@ return RemoteValidation
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="29">
+      <Item class="ModuleScript" referent="34">
+        <Properties>
+          <string name="Name">SceneTriggers</string>
+          <string name="Source"><![CDATA[--!strict
+local SceneTriggers = {}
+
+local ENDING_SCENE: { [string]: string } = {
+	ending_break_curse = "scene_ending_break_curse",
+	ending_zombie_style = "scene_ending_zombie_style",
+	ending_count_deal = "scene_ending_count_deal",
+}
+
+function SceneTriggers.afterAction(
+	action: string,
+	payload: any,
+	profile: { language: string, story: { storyEnding: string?, activeStepId: string } }
+): string?
+	if action == "pick_ending" and profile.story.storyEnding then
+		return ENDING_SCENE[profile.story.storyEnding]
+	end
+	if action == "quest_event" and payload == "ch0_razor_talk" then
+		return "scene_ch0_razor"
+	end
+	if action == "ch2_antibully" then
+		return "scene_ch2_antibully"
+	end
+	if action == "graph_confession" then
+		return "scene_ch4_confession"
+	end
+	if action == "duel_action" and type(payload) == "string" then
+		-- duel win handled separately when state ends
+		return nil
+	end
+	return nil
+end
+
+function SceneTriggers.onDuelWin(): string
+	return "scene_ch1_duel_win"
+end
+
+return SceneTriggers
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="35">
+        <Properties>
+          <string name="Name">SessionRegistry</string>
+          <string name="Source"><![CDATA[--!strict
+local SessionRegistry = {}
+
+export type Entry<T> = {
+	userId: number,
+	data: T,
+}
+
+local store: { [number]: any } = {}
+
+function SessionRegistry.startSession<T>(userId: number, data: T): Entry<T>
+	local entry: Entry<T> = { userId = userId, data = data }
+	store[userId] = entry
+	return entry
+end
+
+function SessionRegistry.getSession<T>(userId: number): Entry<T>?
+	return store[userId]
+end
+
+function SessionRegistry.endSession(userId: number)
+	store[userId] = nil
+end
+
+function SessionRegistry.sessionCount(): number
+	local n = 0
+	for _ in store do
+		n += 1
+	end
+	return n
+end
+
+return SessionRegistry
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="36">
         <Properties>
           <string name="Name">TowerPuzzle</string>
           <string name="Source"><![CDATA[--!strict
@@ -1978,7 +2457,7 @@ return TowerPuzzle
       </Item>
     </Item>
   </Item>
-  <Item class="Script" referent="30">
+  <Item class="Script" referent="37">
     <Properties>
       <string name="Name">ServerScriptService</string>
       <token name="RunContext">0</token>
@@ -1987,7 +2466,7 @@ local GameServer = require(script.GameServer)
 GameServer.start()
 ]]></string>
     </Properties>
-    <Item class="ModuleScript" referent="31">
+    <Item class="ModuleScript" referent="38">
       <Properties>
         <string name="Name">AvatarService</string>
         <string name="Source"><![CDATA[--!strict
@@ -2050,7 +2529,7 @@ return AvatarService
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="32">
+    <Item class="ModuleScript" referent="39">
       <Properties>
         <string name="Name">DuelService</string>
         <string name="Source"><![CDATA[--!strict
@@ -2108,7 +2587,7 @@ return DuelService
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="33">
+    <Item class="ModuleScript" referent="40">
       <Properties>
         <string name="Name">GameServer</string>
         <string name="Source"><![CDATA[--!strict
@@ -2128,7 +2607,31 @@ local QuestEngine = require(ReplicatedStorage.Shared.QuestEngine)
 local ShopCatalog = require(ReplicatedStorage.Config.ShopCatalog)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local EndingScenes = require(ReplicatedStorage.Config.EndingScenes)
+local ActionGuards = require(ReplicatedStorage.Shared.ActionGuards)
+local SceneTriggers = require(ReplicatedStorage.Shared.SceneTriggers)
 local GameServer = {}
+
+local GUARDED_ACTIONS: { [string]: boolean } = {
+	duel_start = true,
+	duel_action = true,
+	shop_buy = true,
+	flyer_post = true,
+	tower_puzzle = true,
+	graph_confession = true,
+	pick_ending = true,
+	cemetery_job = true,
+	ch3_ghost = true,
+	ch3_crypt = true,
+	bell_tongue = true,
+	hangout_build = true,
+}
+
+local RATE_LIMITS: { [string]: { number } } = {
+	pick_ending = { 3, 2 },
+	shop_buy = { 2, 6 },
+	flyer_post = { 1, 20 },
+	duel_action = { 0.8, 24 },
+}
 
 local rateBuckets: { [number]: { [string]: RemoteValidation.Bucket } } = {}
 
@@ -2147,32 +2650,31 @@ local function getBucket(userId: number, action: string): RemoteValidation.Bucke
 end
 
 local function rateOk(player: Player, action: string): boolean
-	return RemoteValidation.checkRate(getBucket(player.UserId, action), os.clock(), 2, 12)
+	local limits = RATE_LIMITS[action]
+	local window = if limits then limits[1] else 2
+	local max = if limits then limits[2] else 12
+	return RemoteValidation.checkRate(getBucket(player.UserId, action), os.clock(), window, max)
 end
 
-local function playerInZone(player: Player, zoneId: string): boolean
+local function playerPosition(player: Player): ActionGuards.Vec3?
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not hrp then
+		return nil
+	end
+	local p = hrp.Position
+	return { x = p.X, y = p.Y, z = p.Z }
+end
+
+local function positionGuard(player: Player, action: string, payload: any): boolean
+	if not GUARDED_ACTIONS[action] then
+		return true
+	end
+	local pos = playerPosition(player)
+	if not pos then
 		return false
 	end
-	local world = workspace:FindFirstChild("World")
-	if not world then
-		return false
-	end
-	for _, inst in world:GetDescendants() do
-		if inst:IsA("BasePart") and inst:GetAttribute("ZoneId") == zoneId then
-			local rel = hrp.Position - inst.Position
-			if
-				math.abs(rel.X) <= inst.Size.X / 2
-				and math.abs(rel.Y) <= inst.Size.Y / 2
-				and math.abs(rel.Z) <= inst.Size.Z / 2
-			then
-				return true
-			end
-		end
-	end
-	return false
+	return ActionGuards.validate({ position = pos, action = action, payload = payload })
 end
 
 local NPC_TALK_EVENTS: { [string]: string } = {
@@ -2213,10 +2715,15 @@ function GameServer.setupRemotes()
 	local duelUpdate = folder:WaitForChild("DuelUpdate") :: RemoteEvent
 
 	request.OnServerEvent:Connect(function(player, action: any, payload: any)
-		if not rateOk(player, "RequestAction") then
+		local sceneOverride: string? = nil
+		if type(action) ~= "string" then
 			return
 		end
-		if type(action) ~= "string" then
+		if not rateOk(player, action) then
+			return
+		end
+		if not positionGuard(player, action, payload) then
+			result:FireClient(player, { ok = false, reason = "guard" })
 			return
 		end
 		local session = ProfileService.getSession(player.UserId)
@@ -2260,7 +2767,7 @@ function GameServer.setupRemotes()
 		elseif action == "cemetery_job" then
 			ok = StoryHandlers.handleCemeteryJob(profile)
 		elseif action == "duel_start" then
-			if profile.story.activeQuestId == "q_initiation_duel" and playerInZone(player, "zone_duel") then
+			if profile.story.activeQuestId == "q_initiation_duel" then
 				local started, state = DuelService.startDuel(player.UserId, "npc_razor")
 				if started and state then
 					duelUpdate:FireClient(player, state)
@@ -2275,6 +2782,7 @@ function GameServer.setupRemotes()
 					duelUpdate:FireClient(player, state, meta)
 					if state.phase == "player_win" then
 						ok = StoryHandlers.handleDuelWin(profile)
+						sceneOverride = SceneTriggers.onDuelWin()
 					elseif state.phase == "player_lose" then
 						DuelService.cancel(player.UserId)
 						ok = true
@@ -2334,7 +2842,7 @@ function GameServer.setupRemotes()
 			ok = StoryHandlers.handleConfession(profile)
 		elseif action == "shop_buy" then
 			local itemId = RemoteValidation.validateString(payload, 64)
-			if itemId and playerInZone(player, "zone_shop") then
+			if itemId then
 				local item = ShopCatalog.get(itemId)
 				local owned = item and item.grantInventoryKey and (profile.inventory[item.grantInventoryKey] or 0) > 0
 				local purchase = Economy.tryPurchase(profile.coins, item, owned == true)
@@ -2364,7 +2872,11 @@ function GameServer.setupRemotes()
 			end
 			ProfileService.saveSession(session)
 			pushProfile(player)
-			local extra: any = { ok = true }
+			local extra: any = { ok = true, language = profile.language }
+			local sceneId = sceneOverride or SceneTriggers.afterAction(action, payload, profile)
+			if sceneId then
+				extra.playSceneId = sceneId
+			end
 			if action == "pick_ending" and profile.story.storyEnding then
 				local lang = profile.language
 				local scene = (EndingScenes :: any)[profile.story.storyEnding]
@@ -2415,7 +2927,7 @@ return GameServer
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="34">
+    <Item class="ModuleScript" referent="41">
       <Properties>
         <string name="Name">MonetizationService</string>
         <string name="Source"><![CDATA[--!strict
@@ -2474,52 +2986,21 @@ return MonetizationService
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="35">
+    <Item class="ModuleScript" referent="42">
       <Properties>
         <string name="Name">NpcAnimator</string>
         <string name="Source"><![CDATA[--!strict
-local AnimationCatalog = require(game.ReplicatedStorage.Config.AnimationCatalog)
+local NpcAnim = require(game.ReplicatedStorage.Shared.NpcAnim)
 
-local NpcAnimator = {}
-
-local function getAnimator(model: Model): Animator?
-	local hum = model:FindFirstChildOfClass("Humanoid")
-	if not hum then
-		return nil
-	end
-	local animator = hum:FindFirstChildOfClass("Animator")
-	if not animator then
-		animator = Instance.new("Animator")
-		animator.Parent = hum
-	end
-	return animator
-end
-
-function NpcAnimator.playTrack(model: Model, assetId: string): AnimationTrack?
-	local animator = getAnimator(model)
-	if not animator then
-		return nil
-	end
-	local anim = Instance.new("Animation")
-	anim.AnimationId = assetId
-	local track = animator:LoadAnimation(anim)
-	track:Play()
-	return track
-end
-
-function NpcAnimator.playIdle(model: Model)
-	NpcAnimator.playTrack(model, AnimationCatalog.idle)
-end
-
-function NpcAnimator.playTalk(model: Model)
-	NpcAnimator.playTrack(model, AnimationCatalog.talk)
-end
-
-return NpcAnimator
+return {
+	playTrack = NpcAnim.playTrack,
+	playIdle = NpcAnim.playIdle,
+	playTalk = NpcAnim.playTalk,
+}
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="36">
+    <Item class="ModuleScript" referent="43">
       <Properties>
         <string name="Name">NpcInteractService</string>
         <string name="Source"><![CDATA[--!strict
@@ -2547,7 +3028,7 @@ return NpcInteractService
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="37">
+    <Item class="ModuleScript" referent="44">
       <Properties>
         <string name="Name">ProfileService</string>
         <string name="Source"><![CDATA[--!strict
@@ -2571,7 +3052,7 @@ local STORE_BASE = "PunkMeAngel_Profile_v1"
 local MAX_RETRIES = 5
 local RETRY_PAUSE = 1
 
-local activeSessions: { [number]: Session } = {}
+local SessionRegistry = require(game.ReplicatedStorage.Shared.SessionRegistry)
 
 local function getStore(): GlobalDataStore
 	local name = DataStoreScope.profileStoreName(STORE_BASE, RunService:IsStudio(), nil)
@@ -2616,8 +3097,9 @@ function ProfileService.load(userId: number): (ProfileSchema.Profile?, string?)
 end
 
 function ProfileService.startSession(userId: number): (Session?, string?)
-	if activeSessions[userId] then
-		return activeSessions[userId], nil
+	local existing = SessionRegistry.getSession(userId)
+	if existing and existing.data then
+		return existing.data :: Session, nil
 	end
 	local profile, err = ProfileService.load(userId)
 	if not profile then
@@ -2628,7 +3110,7 @@ function ProfileService.startSession(userId: number): (Session?, string?)
 		locked = true,
 		userId = userId,
 	}
-	activeSessions[userId] = session
+	SessionRegistry.startSession(userId, session)
 	return session, nil
 end
 
@@ -2652,18 +3134,22 @@ function ProfileService.saveSession(session: Session): (boolean, string?)
 end
 
 function ProfileService.endSession(userId: number)
-	activeSessions[userId] = nil
+	SessionRegistry.endSession(userId)
 end
 
 function ProfileService.getSession(userId: number): Session?
-	return activeSessions[userId]
+	local entry = SessionRegistry.getSession(userId)
+	if entry and entry.data then
+		return entry.data :: Session
+	end
+	return nil
 end
 
 return ProfileService
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="38">
+    <Item class="ModuleScript" referent="45">
       <Properties>
         <string name="Name">RigFactory</string>
         <string name="Source"><![CDATA[--!strict
@@ -2726,7 +3212,7 @@ return RigFactory
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="39">
+    <Item class="ModuleScript" referent="46">
       <Properties>
         <string name="Name">StoryHandlers</string>
         <string name="Source"><![CDATA[--!strict
@@ -2995,7 +3481,6 @@ function StoryHandlers.handleEnding(profile: ProfileSchema.Profile, endingId: st
 			local g = QuestEngine.grantReward(profile.story, ending.grantKey)
 			applyGrants(profile, g)
 		end
-		profile.story.freePlay = true
 		local world = workspace:FindFirstChild("World")
 		if world and world:IsA("Folder") then
 			WorldState.applyEnding(world, endingId)
@@ -3027,7 +3512,7 @@ return StoryHandlers
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="40">
+    <Item class="ModuleScript" referent="47">
       <Properties>
         <string name="Name">WorldBuilder</string>
         <string name="Source"><![CDATA[--!strict
@@ -3280,7 +3765,7 @@ return WorldBuilder
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="41">
+    <Item class="ModuleScript" referent="48">
       <Properties>
         <string name="Name">WorldState</string>
         <string name="Source"><![CDATA[--!strict
@@ -3312,31 +3797,31 @@ return WorldState
       </Properties>
     </Item>
   </Item>
-  <Item class="ServerStorage" referent="42">
+  <Item class="ServerStorage" referent="49">
     <Properties>
       <string name="Name">ServerStorage</string>
     </Properties>
   </Item>
-  <Item class="SoundService" referent="43">
+  <Item class="SoundService" referent="50">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterGui" referent="44">
+  <Item class="StarterGui" referent="51">
     <Properties>
       <string name="Name">StarterGui</string>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="45">
+  <Item class="StarterPlayer" referent="52">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="46">
+    <Item class="StarterPlayerScripts" referent="53">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="47">
+      <Item class="LocalScript" referent="54">
         <Properties>
           <string name="Name">ClientBootstrap</string>
           <string name="Source"><![CDATA[--!strict
@@ -3752,7 +4237,7 @@ end)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="LocalScript" referent="48">
+      <Item class="LocalScript" referent="55">
         <Properties>
           <string name="Name">ClientMechanics</string>
           <string name="Source"><![CDATA[--!strict
@@ -3765,6 +4250,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local requestAction = remotes:WaitForChild("RequestAction") :: RemoteEvent
 local duelUpdate = remotes:WaitForChild("DuelUpdate") :: RemoteEvent
 local actionResult = remotes:WaitForChild("ActionResult") :: RemoteEvent
+local ClientTouch = require(ReplicatedStorage.Shared.ClientTouch)
 
 local duelGui = Instance.new("ScreenGui")
 duelGui.Name = "DuelUI"
@@ -3783,9 +4269,15 @@ duelStatus.Parent = duelGui
 local function duelBtn(text: string, action: string, y: number)
 	local b = Instance.new("TextButton")
 	b.Size = UDim2.new(0, 100, 0, 36)
-	b.Position = UDim2.new(0.5, -160 + y * 110, 0.5, 0)
+	if ClientTouch.isTouch() then
+		b.Size = UDim2.new(0.28, 0, 0, 52)
+		b.Position = UDim2.new(0.04 + y * 0.32, 0, 0.72, 0)
+	else
+		b.Position = UDim2.new(0.5, -160 + y * 110, 0.5, 0)
+	end
 	b.Text = text
 	b.Parent = duelGui
+	ClientTouch.stylePrimaryButton(b)
 	b.MouseButton1Click:Connect(function()
 		requestAction:FireServer("duel_action", action)
 	end)
@@ -3915,6 +4407,13 @@ submitTower.Size = UDim2.new(0, 120, 0, 32)
 submitTower.Position = UDim2.new(0, 100, 0, 132)
 submitTower.Text = "Проверить"
 submitTower.Parent = towerFrame
+ClientTouch.stylePrimaryButton(submitTower)
+ClientTouch.stylePrimaryButton(resetTower)
+for _, child in towerFrame:GetChildren() do
+	if child:IsA("TextButton") then
+		ClientTouch.stylePrimaryButton(child)
+	end
+end
 submitTower.MouseButton1Click:Connect(function()
 	requestAction:FireServer("tower_puzzle", { candles = candleOrder, notes = noteOrder })
 end)
@@ -3925,6 +4424,7 @@ towerOpen.Position = UDim2.new(1, -210, 0.5, 0)
 towerOpen.Text = "Башня: головоломка"
 towerOpen.Visible = false
 towerOpen.Parent = towerGui
+ClientTouch.stylePrimaryButton(towerOpen)
 towerOpen.MouseButton1Click:Connect(function()
 	towerFrame.Visible = not towerFrame.Visible
 end)
@@ -3941,7 +4441,7 @@ end)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="LocalScript" referent="49">
+      <Item class="LocalScript" referent="56">
         <Properties>
           <string name="Name">ClientMinigames</string>
           <string name="Source"><![CDATA[--!strict
@@ -3950,6 +4450,7 @@ local Players = game:GetService("Players")
 
 local CryptBuildEngine = require(ReplicatedStorage.Shared.CryptBuildEngine)
 local GhostRiddleEngine = require(ReplicatedStorage.Shared.GhostRiddleEngine)
+local ClientTouch = require(ReplicatedStorage.Shared.ClientTouch)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -3985,6 +4486,7 @@ hangSubmit.Size = UDim2.new(0, 120, 0, 32)
 hangSubmit.Position = UDim2.new(0.5, -60, 0, 96)
 hangSubmit.Text = "Готово"
 hangSubmit.Parent = hangoutGui
+ClientTouch.stylePrimaryButton(hangSubmit)
 
 local pendingHangoutStage: string? = nil
 
@@ -4033,6 +4535,7 @@ ghostSubmit.Size = UDim2.new(0, 100, 0, 30)
 ghostSubmit.Position = UDim2.new(0.35, 0, 0, 118)
 ghostSubmit.Text = "Ответ"
 ghostSubmit.Parent = ghostGui
+ClientTouch.stylePrimaryButton(ghostSubmit)
 
 local RIDDLE_TEXT = {
 	"Что звенит над Веной и зовёт мёртвинов?",
@@ -4078,6 +4581,7 @@ cryptSubmit.Size = UDim2.new(0, 100, 0, 30)
 cryptSubmit.Position = UDim2.new(0.35, 0, 0, 102)
 cryptSubmit.Text = "Строить"
 cryptSubmit.Parent = cryptGui
+ClientTouch.stylePrimaryButton(cryptSubmit)
 
 local CRYPT_HINTS = {
 	"Фаза 1: крепления (4stakes)",
@@ -4141,15 +4645,153 @@ end)
 ]]></string>
         </Properties>
       </Item>
+      <Item class="LocalScript" referent="57">
+        <Properties>
+          <string name="Name">SceneDirector</string>
+          <string name="Source"><![CDATA[--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
+
+local SceneCatalog = require(ReplicatedStorage.Config.SceneCatalog)
+local MusicCatalog = require(ReplicatedStorage.Config.MusicCatalog)
+local NpcAnim = require(ReplicatedStorage.Shared.NpcAnim)
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local actionResult = remotes:WaitForChild("ActionResult") :: RemoteEvent
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SceneDirector"
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 50
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local dialogue = Instance.new("TextLabel")
+dialogue.Size = UDim2.new(0.85, 0, 0, 100)
+dialogue.Position = UDim2.new(0.075, 0, 0.78, 0)
+dialogue.BackgroundColor3 = Color3.fromRGB(8, 6, 14)
+dialogue.BackgroundTransparency = 0.15
+dialogue.TextColor3 = Color3.fromRGB(255, 240, 255)
+dialogue.TextWrapped = true
+dialogue.TextSize = 18
+dialogue.Visible = false
+dialogue.Parent = gui
+
+local playing = false
+
+local function vec3(t: { x: number, y: number, z: number }): Vector3
+	return Vector3.new(t.x, t.y, t.z)
+end
+
+local function findNpc(npcId: string): Model?
+	local world = workspace:FindFirstChild("World")
+	if not world then
+		return nil
+	end
+	for _, desc in world:GetDescendants() do
+		if desc:IsA("Model") and desc:GetAttribute("NpcId") == npcId then
+			return desc
+		end
+	end
+	return nil
+end
+
+local function playMusic(slot: string?)
+	if not slot then
+		return
+	end
+	local id = (MusicCatalog :: any)[slot]
+	if type(id) ~= "string" or id == "" then
+		return
+	end
+	local s = Instance.new("Sound")
+	s.SoundId = "rbxassetid://" .. id
+	s.Volume = 0.6
+	s.Parent = SoundService
+	s:Play()
+	game:GetService("Debris"):AddItem(s, 30)
+end
+
+local function playScene(sceneId: string, lang: string)
+	if playing then
+		return
+	end
+	local def = SceneCatalog.get(sceneId)
+	if not def or not camera then
+		return
+	end
+	playing = true
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	local oldWalk = hum and hum.WalkSpeed or 16
+	if hum then
+		hum.WalkSpeed = 0
+	end
+
+	playMusic(def.musicSlot)
+	for _, npcId in def.npcIds do
+		local m = findNpc(npcId)
+		if m then
+			NpcAnim.playTalk(m)
+		end
+	end
+
+	local from = CFrame.new(vec3(def.cameraFrom), vec3(def.lookAt))
+	local to = CFrame.new(vec3(def.cameraTo), vec3(def.lookAt))
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.CFrame = from
+	local tween =
+		TweenService:Create(camera, TweenInfo.new(def.durationSec * 0.35, Enum.EasingStyle.Sine), { CFrame = to })
+	tween:Play()
+
+	dialogue.Visible = true
+	for _, line in def.dialogue do
+		local text = if lang == "ru" then line.ru else line.en
+		dialogue.Text = line.speaker .. ": " .. text
+		task.wait(math.max(2.5, def.durationSec / #def.dialogue))
+	end
+	dialogue.Visible = false
+
+	task.wait(0.5)
+	camera.CameraType = Enum.CameraType.Custom
+	if hum then
+		hum.WalkSpeed = oldWalk
+	end
+	for _, npcId in def.npcIds do
+		local m = findNpc(npcId)
+		if m then
+			NpcAnim.playIdle(m)
+		end
+	end
+	playing = false
+end
+
+actionResult.OnClientEvent:Connect(function(res)
+	if res and res.ok and res.playSceneId then
+		local lang = if type(res.language) == "string" then res.language else "ru"
+		task.spawn(playScene, res.playSceneId :: string, lang)
+	end
+end)
+
+remotes:WaitForChild("ProfileUpdated").OnClientEvent:Connect(function(profile)
+	if profile and profile.language then
+		player:SetAttribute("Language", profile.language)
+	end
+end)
+]]></string>
+        </Properties>
+      </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="50">
+  <Item class="Workspace" referent="58">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>
       <bool name="StreamingEnabled">true</bool>
     </Properties>
-    <Item class="Folder" referent="51">
+    <Item class="Folder" referent="59">
       <Properties>
         <string name="Name">World</string>
       </Properties>

@@ -8,6 +8,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local requestAction = remotes:WaitForChild("RequestAction") :: RemoteEvent
 local duelUpdate = remotes:WaitForChild("DuelUpdate") :: RemoteEvent
 local actionResult = remotes:WaitForChild("ActionResult") :: RemoteEvent
+local ClientTouch = require(ReplicatedStorage.Shared.ClientTouch)
 
 local duelGui = Instance.new("ScreenGui")
 duelGui.Name = "DuelUI"
@@ -26,9 +27,15 @@ duelStatus.Parent = duelGui
 local function duelBtn(text: string, action: string, y: number)
 	local b = Instance.new("TextButton")
 	b.Size = UDim2.new(0, 100, 0, 36)
-	b.Position = UDim2.new(0.5, -160 + y * 110, 0.5, 0)
+	if ClientTouch.isTouch() then
+		b.Size = UDim2.new(0.28, 0, 0, 52)
+		b.Position = UDim2.new(0.04 + y * 0.32, 0, 0.72, 0)
+	else
+		b.Position = UDim2.new(0.5, -160 + y * 110, 0.5, 0)
+	end
 	b.Text = text
 	b.Parent = duelGui
+	ClientTouch.stylePrimaryButton(b)
 	b.MouseButton1Click:Connect(function()
 		requestAction:FireServer("duel_action", action)
 	end)
@@ -158,6 +165,13 @@ submitTower.Size = UDim2.new(0, 120, 0, 32)
 submitTower.Position = UDim2.new(0, 100, 0, 132)
 submitTower.Text = "Проверить"
 submitTower.Parent = towerFrame
+ClientTouch.stylePrimaryButton(submitTower)
+ClientTouch.stylePrimaryButton(resetTower)
+for _, child in towerFrame:GetChildren() do
+	if child:IsA("TextButton") then
+		ClientTouch.stylePrimaryButton(child)
+	end
+end
 submitTower.MouseButton1Click:Connect(function()
 	requestAction:FireServer("tower_puzzle", { candles = candleOrder, notes = noteOrder })
 end)
@@ -168,6 +182,7 @@ towerOpen.Position = UDim2.new(1, -210, 0.5, 0)
 towerOpen.Text = "Башня: головоломка"
 towerOpen.Visible = false
 towerOpen.Parent = towerGui
+ClientTouch.stylePrimaryButton(towerOpen)
 towerOpen.MouseButton1Click:Connect(function()
 	towerFrame.Visible = not towerFrame.Visible
 end)

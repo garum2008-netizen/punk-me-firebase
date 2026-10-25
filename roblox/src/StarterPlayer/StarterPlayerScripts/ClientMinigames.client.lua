@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 
 local CryptBuildEngine = require(ReplicatedStorage.Shared.CryptBuildEngine)
 local GhostRiddleEngine = require(ReplicatedStorage.Shared.GhostRiddleEngine)
+local ClientTouch = require(ReplicatedStorage.Shared.ClientTouch)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -39,6 +40,7 @@ hangSubmit.Size = UDim2.new(0, 120, 0, 32)
 hangSubmit.Position = UDim2.new(0.5, -60, 0, 96)
 hangSubmit.Text = "Готово"
 hangSubmit.Parent = hangoutGui
+ClientTouch.stylePrimaryButton(hangSubmit)
 
 local pendingHangoutStage: string? = nil
 
@@ -87,6 +89,7 @@ ghostSubmit.Size = UDim2.new(0, 100, 0, 30)
 ghostSubmit.Position = UDim2.new(0.35, 0, 0, 118)
 ghostSubmit.Text = "Ответ"
 ghostSubmit.Parent = ghostGui
+ClientTouch.stylePrimaryButton(ghostSubmit)
 
 local RIDDLE_TEXT = {
 	"Что звенит над Веной и зовёт мёртвинов?",
@@ -132,6 +135,7 @@ cryptSubmit.Size = UDim2.new(0, 100, 0, 30)
 cryptSubmit.Position = UDim2.new(0.35, 0, 0, 102)
 cryptSubmit.Text = "Строить"
 cryptSubmit.Parent = cryptGui
+ClientTouch.stylePrimaryButton(cryptSubmit)
 
 local CRYPT_HINTS = {
 	"Фаза 1: крепления (4stakes)",

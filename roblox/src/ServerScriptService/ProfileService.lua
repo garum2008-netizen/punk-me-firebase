@@ -19,7 +19,7 @@ local STORE_BASE = "PunkMeAngel_Profile_v1"
 local MAX_RETRIES = 5
 local RETRY_PAUSE = 1
 
-local activeSessions: { [number]: Session } = {}
+local SessionRegistry = require(game.ReplicatedStorage.Shared.SessionRegistry)
 
 local function getStore(): GlobalDataStore
 	local name = DataStoreScope.profileStoreName(STORE_BASE, RunService:IsStudio(), nil)
@@ -64,8 +64,9 @@ function ProfileService.load(userId: number): (ProfileSchema.Profile?, string?)
 end
 
 function ProfileService.startSession(userId: number): (Session?, string?)
-	if activeSessions[userId] then
-		return activeSessions[userId], nil
+	local existing = SessionRegistry.getSession(userId)
+	if existing and existing.data then
+		return existing.data :: Session, nil
 	end
 	local profile, err = ProfileService.load(userId)
 	if not profile then
@@ -76,7 +77,7 @@ function ProfileService.startSession(userId: number): (Session?, string?)
 		locked = true,
 		userId = userId,
 	}
-	activeSessions[userId] = session
+	SessionRegistry.startSession(userId, session)
 	return session, nil
 end
 
@@ -100,11 +101,15 @@ function ProfileService.saveSession(session: Session): (boolean, string?)
 end
 
 function ProfileService.endSession(userId: number)
-	activeSessions[userId] = nil
+	SessionRegistry.endSession(userId)
 end
 
 function ProfileService.getSession(userId: number): Session?
-	return activeSessions[userId]
+	local entry = SessionRegistry.getSession(userId)
+	if entry and entry.data then
+		return entry.data :: Session
+	end
+	return nil
 end
 
 return ProfileService

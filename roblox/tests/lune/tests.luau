@@ -17,6 +17,8 @@ local EndingLogic = require("../../src/ReplicatedStorage/Shared/EndingLogic")
 local HangoutMinigame = require("../../src/ReplicatedStorage/Shared/HangoutMinigame")
 local GhostRiddleEngine = require("../../src/ReplicatedStorage/Shared/GhostRiddleEngine")
 local CryptBuildEngine = require("../../src/ReplicatedStorage/Shared/CryptBuildEngine")
+local ActionGuards = require("../../src/ReplicatedStorage/Shared/ActionGuards")
+local SessionRegistry = require("../../src/ReplicatedStorage/Shared/SessionRegistry")
 local ReceiptStore = require("../../src/ReplicatedStorage/Shared/ReceiptStore")
 local DataStoreScope = require("../../src/ReplicatedStorage/Shared/DataStoreScope")
 local QuestTable = require("../../src/ReplicatedStorage/Config/QuestTable")
@@ -128,6 +130,41 @@ test("crypt build phases", function()
 	phase += 1
 	assertEq(CryptBuildEngine.validate("seal", "bellrim", phase), true, "p3")
 	assertEq(CryptBuildEngine.isComplete(3), true, "done")
+end)
+
+test("action guards flyer distance", function()
+	local spot = ActionGuards.FLYER_SPOTS.flyer_street_1
+	assertEq(
+		ActionGuards.validate({
+			position = { x = spot.x + 2, y = spot.y, z = spot.z },
+			action = "flyer_post",
+			payload = "flyer_street_1",
+		}),
+		true,
+		"near"
+	)
+	assertEq(
+		ActionGuards.validate({
+			position = { x = 0, y = 0, z = 0 },
+			action = "flyer_post",
+			payload = "flyer_street_1",
+		}),
+		false,
+		"far"
+	)
+end)
+
+test("session registry two players", function()
+	local s1 = { coins = 10 }
+	local s2 = { coins = 20 }
+	SessionRegistry.startSession(101, s1)
+	SessionRegistry.startSession(202, s2)
+	s1.coins = 999
+	local e2 = SessionRegistry.getSession(202)
+	assertEq(e2 and e2.data and e2.data.coins, 20, "isolated")
+	assertEq(SessionRegistry.sessionCount(), 2, "count")
+	SessionRegistry.endSession(101)
+	SessionRegistry.endSession(202)
 end)
 
 test("shop purchase funds", function()
