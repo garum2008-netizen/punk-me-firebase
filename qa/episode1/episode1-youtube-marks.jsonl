@@ -1,0 +1,16 @@
+{"sec":0,"label":"boot","extra":"solo new player"}
+{"sec":32.931,"label":"char_select","extra":"Cobalt"}
+{"sec":32.932,"label":"start_overlay","extra":"Episode 1 intro lines"}
+{"sec":40.449,"label":"start_game","extra":"audio unlock gesture"}
+{"sec":91.122,"label":"tutorial_move","extra":"WASD / joystick — room"}
+{"sec":164.121,"label":"tutorial_street","extra":"map nav → street"}
+{"sec":214.091,"label":"razor_talk","extra":"gang UI → Razor dialog"}
+{"sec":291.801,"label":"quest_journal","extra":"pause menu journal"}
+{"sec":353.966,"label":"tutorial_cemetery","extra":"cemetery visit"}
+{"sec":408.787,"label":"tutorial_duel","extra":"Chain fight UI"}
+{"sec":471.775,"label":"tutorial_duel_result","extra":"win_fight progress=0 — fight UI did not finish in time"}
+{"sec":531.55,"label":"shop_open","extra":"shop modal — prices on grid"}
+{"sec":559.161,"label":"shop_buy","extra":"first item purchased"}
+{"sec":572.614,"label":"onboarding_reward","extra":"onboarding.done + grantRewardOnce"}
+{"sec":657.653,"label":"propiska_intro","extra":"q_initiation_pay accepted"}
+{"sec":698.057,"label":"reload_continue","extra":"onboarding.done=true quest=q_initiation_pay coins 269 (was 269)"}

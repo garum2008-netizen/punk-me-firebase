@@ -186,10 +186,7 @@ async function winFightUi(page, maxMs = 35000) {
     await sleep(120);
   }
   await page.locator('#fightOverlay button[onclick="closeFight()"]').click({ timeout: 2000 }).catch(() => {});
-  const final = await page.evaluate(
-    () => (window.me?.onboarding?.progress?.win_fight || 0) >= 1 || !!window.me?.onboarding?.done
-  );
-  return final;
+  return page.evaluate(() => (window.me?.onboarding?.progress?.win_fight || 0) >= 1);
 }
 
 async function buyCheapestShop(page) {

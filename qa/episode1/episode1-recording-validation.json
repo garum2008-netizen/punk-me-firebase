@@ -1,0 +1,91 @@
+{
+  "videoPath": "/opt/cursor/artifacts/episode1-youtube-full.webm",
+  "durationSec": 739.72,
+  "lastMarkSec": 698.057,
+  "frameCount": 16,
+  "contactSheet": "qa/episode1/contact-sheet.png",
+  "frames": [
+    {
+      "label": "boot",
+      "sec": 0,
+      "path": "qa/episode1/frames/0000s_boot.png"
+    },
+    {
+      "label": "char_select",
+      "sec": 32.931,
+      "path": "qa/episode1/frames/0032s_char_select.png"
+    },
+    {
+      "label": "start_overlay",
+      "sec": 32.932,
+      "path": "qa/episode1/frames/0032s_start_overlay.png"
+    },
+    {
+      "label": "start_game",
+      "sec": 40.449,
+      "path": "qa/episode1/frames/0040s_start_game.png"
+    },
+    {
+      "label": "tutorial_move",
+      "sec": 91.122,
+      "path": "qa/episode1/frames/0091s_tutorial_move.png"
+    },
+    {
+      "label": "tutorial_street",
+      "sec": 164.121,
+      "path": "qa/episode1/frames/0164s_tutorial_street.png"
+    },
+    {
+      "label": "razor_talk",
+      "sec": 214.091,
+      "path": "qa/episode1/frames/0214s_razor_talk.png"
+    },
+    {
+      "label": "quest_journal",
+      "sec": 291.801,
+      "path": "qa/episode1/frames/0291s_quest_journal.png"
+    },
+    {
+      "label": "tutorial_cemetery",
+      "sec": 353.966,
+      "path": "qa/episode1/frames/0353s_tutorial_cemetery.png"
+    },
+    {
+      "label": "tutorial_duel",
+      "sec": 408.787,
+      "path": "qa/episode1/frames/0408s_tutorial_duel.png"
+    },
+    {
+      "label": "tutorial_duel_result",
+      "sec": 471.775,
+      "path": "qa/episode1/frames/0471s_tutorial_duel_result.png"
+    },
+    {
+      "label": "shop_open",
+      "sec": 531.55,
+      "path": "qa/episode1/frames/0531s_shop_open.png"
+    },
+    {
+      "label": "shop_buy",
+      "sec": 559.161,
+      "path": "qa/episode1/frames/0559s_shop_buy.png"
+    },
+    {
+      "label": "onboarding_reward",
+      "sec": 572.614,
+      "path": "qa/episode1/frames/0572s_onboarding_reward.png"
+    },
+    {
+      "label": "propiska_intro",
+      "sec": 657.653,
+      "path": "qa/episode1/frames/0657s_propiska_intro.png"
+    },
+    {
+      "label": "reload_continue",
+      "sec": 698.057,
+      "path": "qa/episode1/frames/0698s_reload_continue.png"
+    }
+  ],
+  "ok": true,
+  "errors": []
+}
