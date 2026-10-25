@@ -35,8 +35,15 @@ async function flow01CemeteryJob(page, mark) {
   const before = await readEconomy(page);
   mark?.("goal_on_screen", "доска работ — задание «копать»");
   page.on("dialog", d => d.accept().catch(() => {}));
-  await page.locator("#btnJob, button[onclick=\"openJobPanel()\"]").first().click({ force: true });
-  await page.waitForSelector("#jobModal.active", { timeout: 15000 });
+  await page.evaluate(() => {
+    document.getElementById("chapterIntro")?.classList.remove("active");
+    document.querySelectorAll(".modal.active").forEach(m => {
+      if (m.id !== "storyDialog") m.classList.remove("active");
+    });
+    window.openJobPanel?.();
+  });
+  await page.locator("#btnJob, button[onclick=\"openJobPanel()\"]").first().click({ force: true }).catch(() => {});
+  await page.waitForSelector("#jobModal.active", { timeout: 25000 });
   const btn = page.locator("#jobModal.active #jobActions button[onclick*=\"'dig'\"]").first();
   if (!(await btn.count())) {
     return { blocked: true, reason: "dig job missing", before, after: before };

@@ -21,6 +21,7 @@
     "finalize:pr-b": "node scripts/finalize-pr-b-capture.js",
     "check:pr-b-duel": "node scripts/check-pr-b-duel-mark.js",
     "record:content": "node scripts/record-content-clips.js",
+    "record:angelina-long": "node scripts/record-angelina-long.js",
     "refinalize:content": "node scripts/refinalize-content-clips.js",
     "proof:idle": "node scripts/proof-idle-stability.js"
   },

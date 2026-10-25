@@ -202,6 +202,7 @@ module.exports = {
   runFullPrBPlaythrough,
   ensureGameplayActive,
   recordRoomBuildShowcase,
+  recordConstructionShowcase,
   recordCryptShowcase,
   purchaseCityPlotUi,
   runCemeteryMiniJob
