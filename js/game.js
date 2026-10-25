@@ -461,8 +461,17 @@ function restoreLoadingMarkup() {
   if (typeof applyI18nDom === "function") applyI18nDom();
 }
 
-function showLoadingFailure(message, detail) {
+function showLoadingFailure(message, detail, opts = {}) {
   clearLoadMeTimeout();
+  const kind =
+    opts.kind ||
+    (typeof window.__punkClassifyBootError === "function"
+      ? window.__punkClassifyBootError(detail || message, opts.code)
+      : "save");
+  if (typeof window.__punkShowBootFailure === "function") {
+    window.__punkShowBootFailure(kind, detail || message || "", opts);
+    return;
+  }
   const el = document.getElementById("loading");
   if (!el) return;
   el.style.display = "flex";
@@ -472,10 +481,6 @@ function showLoadingFailure(message, detail) {
     <div class="loading-actions">
       <button type="button" class="btn" id="loadingRetryBtn">${escapeHtml(t("loading_retry"))}</button>
       <button type="button" class="btn secondary" id="loadingFreshBtn">${escapeHtml(t("loading_fresh"))}</button>
-    </div>
-    <div class="legal-footer legal-footer-start">
-      <span class="age-badge-inline" data-i18n="age_13">13+</span>
-      <a href="subscribe.html" data-i18n="footer_subscribe">${escapeHtml(t("footer_subscribe"))}</a>
     </div>`;
   document.getElementById("loadingRetryBtn")?.addEventListener("click", () => {
     restoreLoadingMarkup();
@@ -543,7 +548,7 @@ function startFreshPlayerKeepAccount() {
   restoreLoadingMarkup();
   loadMeTimeoutId = setTimeout(() => {
     if (gen !== loadMeGeneration) return;
-    showLoadingFailure(t("loading_timeout"));
+    showLoadingFailure(t("boot_title_timeout"), "", { kind: "timeout" });
   }, LOAD_ME_TIMEOUT_MS);
   db.ref("players/" + uid)
     .once("value")
@@ -570,7 +575,7 @@ function startFreshPlayerKeepAccount() {
         finishLoadMeFlow();
       } catch (err) {
         console.error("startFreshPlayerKeepAccount", err);
-        showLoadingFailure(t("loading_boot_error"), err.message || String(err));
+        showLoadingFailure(t("boot_title_save"), err.message || String(err), { kind: "save" });
       }
     })
     .catch(err => {
@@ -706,6 +711,11 @@ function syncStage3D() {
 }
 
 function init() {
+  const webglProbe = typeof window.__punkProbeWebGL === "function" ? window.__punkProbeWebGL() : { ok: true };
+  if (!webglProbe.ok) {
+    showLoadingFailure(t("boot_title_webgl"), webglProbe.reason || "webgl", { kind: "webgl", code: "webgl" });
+    return;
+  }
   me = defaultPlayer();
   window.me = me;
   window.__playerLoaded = false;
@@ -725,7 +735,7 @@ function init() {
     window.dispatchEvent(new Event("punkme-firebase-ready"));
   } catch (bootErr) {
     console.error("Firebase init failed", bootErr);
-    showLoadingFailure(t("loading_boot_error"), bootErr.message || String(bootErr));
+    showLoadingFailure(t("boot_title_auth"), bootErr.message || String(bootErr), { kind: "auth" });
     return;
   }
   auth.onAuthStateChanged(async u => {
@@ -743,12 +753,12 @@ function init() {
         if (new URLSearchParams(location.search).get("loadtest") !== "timeout") loadMe();
       } catch (e) {
         console.error("loadMe", e);
-        showLoadingFailure(t("loading_boot_error"), e.message || String(e));
+        showLoadingFailure(t("boot_title_save"), e.message || String(e), { kind: "save" });
       }
     } else {
       auth.signInAnonymously().catch(e => {
         console.error("signInAnonymously", e);
-        showLoadingFailure(t("login_error"), e.message || String(e));
+        showLoadingFailure(t("boot_title_auth"), e.message || String(e), { kind: "auth" });
       });
     }
   });
@@ -824,7 +834,7 @@ function init() {
 
 function loadMe() {
   if (!uid || !db) {
-    showLoadingFailure(t("loading_boot_error"), "no session");
+    showLoadingFailure(t("boot_title_auth"), "no session", { kind: "auth" });
     return;
   }
   window.__playerLoaded = false;
@@ -836,7 +846,7 @@ function loadMe() {
       : LOAD_ME_TIMEOUT_MS;
   loadMeTimeoutId = setTimeout(() => {
     if (gen !== loadMeGeneration) return;
-    showLoadingFailure(t("loading_timeout"));
+    showLoadingFailure(t("boot_title_timeout"), "", { kind: "timeout" });
   }, timeoutMs);
   db.ref("players/" + uid)
     .once("value")
@@ -848,14 +858,18 @@ function loadMe() {
         finishLoadMeFlow();
       } catch (err) {
         console.error("loadMe apply", err);
-        showLoadingFailure(t("loading_boot_error"), err.message || String(err));
+        showLoadingFailure(t("boot_title_save"), err.message || String(err), { kind: "save" });
       }
     })
     .catch(err => {
       if (gen !== loadMeGeneration) return;
       clearLoadMeTimeout();
       console.error("loadMe firebase", err);
-      showLoadingFailure(t("login_error"), err.message || String(err));
+      const kind =
+        typeof window.__punkClassifyBootError === "function"
+          ? window.__punkClassifyBootError(err.message || String(err), err.code)
+          : "network";
+      showLoadingFailure(t(`boot_title_${kind}`), err.message || String(err), { kind, code: err.code });
     });
 }
 
@@ -895,7 +909,11 @@ function continueGameBoot() {
     window.__punkUpdateAccountUi?.(auth?.currentUser);
   } catch (err) {
     console.error("continueGameBoot", err);
-    showLoadingFailure(t("loading_boot_error"), err.message || String(err));
+    const kind =
+      typeof window.__punkClassifyBootError === "function"
+        ? window.__punkClassifyBootError(err.message, "webgl")
+        : "unknown";
+    showLoadingFailure(t(`boot_title_${kind}`), err.message || String(err), { kind });
   }
 }
 
@@ -916,6 +934,7 @@ window.__punkApplyFirebaseSnapshot = applyFirebasePlayerSnapshot;
 window.__punkFinishLoadMeFlow = finishLoadMeFlow;
 window.__punkLoadMe = loadMe;
 window.__punkRestoreLoadingMarkup = restoreLoadingMarkup;
+window.__punkStartFreshPlayerKeepAccount = startFreshPlayerKeepAccount;
 window.pickCharacterAndContinue = pickCharacterAndContinue;
 window.__showLoadingFailure = showLoadingFailure;
 
@@ -1013,15 +1032,25 @@ function sanitizePlayer(p) {
   };
 }
 
+function buildPresencePayload() {
+  const name = String(me.name || "Player").trim().slice(0, 64) || "Player";
+  const x = Number.isFinite(me.x) ? me.x : 50;
+  const y = Number.isFinite(me.y) ? me.y : 55;
+  const level = Number.isFinite(me.level) ? Math.max(0, Math.min(9999, me.level)) : 1;
+  const avatar = me.avatar ? String(me.avatar).slice(0, 512) : "";
+  const characterId = String(me.characterId || "vienna").slice(0, 32);
+  const anim = String(me._animState || "idle").slice(0, 32);
+  const payload = { name, x, y, level, characterId, anim, ts: Date.now() };
+  if (avatar) payload.avatar = avatar;
+  return payload;
+}
+
 function initMultiplayer() {
   if (!uid) return;
-  const probe = db.ref("presence/" + me.location + "/" + uid);
-  const probePayload = {
-    name: me.name || "Player",
-    x: me.x ?? 50,
-    y: me.y ?? 55,
-    ts: Date.now()
-  };
+  if (!auth?.currentUser || auth.currentUser.uid !== uid) return;
+  const loc = me.location || "room";
+  const probe = db.ref("presence/" + loc + "/" + uid);
+  const probePayload = { ...buildPresencePayload(), ts: Date.now() };
   probe.set(probePayload).then(() => {
     presenceOk = true;
     probe.remove().catch(() => {});
@@ -1037,19 +1066,14 @@ function pushPresence() {
   if (!uid) return;
   if (!window.__playerLoaded) return;
   if (!presenceOk) return;
-  const loc = me.location;
-  const data = {
-    name: me.name,
-    x: me.x,
-    y: me.y,
-    avatar: me.avatar,
-    level: me.level,
-    characterId: me.characterId || "vienna",
-    anim: me._animState || "idle",
-    ts: Date.now()
-  };
+  if (!auth?.currentUser || auth.currentUser.uid !== uid) return;
+  const loc = me.location || "room";
+  const data = buildPresencePayload();
   const ref = db.ref("presence/" + loc + "/" + uid);
-  ref.set(data).catch(() => disablePresence("write"));
+  ref.set(data).catch(err => {
+    if (err?.code) console.warn("presence set:", err.code);
+    disablePresence("write");
+  });
   if (presenceRef && presenceRef.key !== loc) {
     presenceRef.child(uid).remove().catch(() => {});
   }

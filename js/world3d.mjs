@@ -1429,12 +1429,20 @@ function init(h) {
   if (!canvas) return Promise.resolve(false);
   mobileQuality =
     window.matchMedia("(max-width: 900px)").matches || (canvas?.clientWidth ?? 999) < 520;
-  renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: !mobileQuality,
-    powerPreference: "high-performance",
-    preserveDrawingBuffer: true
-  });
+  try {
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: !mobileQuality,
+      powerPreference: "high-performance",
+      preserveDrawingBuffer: true
+    });
+  } catch (e) {
+    const msg = e?.message || String(e);
+    throw new Error(/webgl/i.test(msg) ? msg : `Error creating WebGL context: ${msg}`);
+  }
+  if (!renderer.getContext()) {
+    throw new Error("Error creating WebGL context");
+  }
   renderer.setPixelRatio(mobileQuality ? 1 : Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = !mobileQuality;
   scene = new THREE.Scene();
