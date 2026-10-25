@@ -895,6 +895,23 @@ html.episode-capture .btn-account { display: none !important; }
   height: 100%; width: 0%; background: linear-gradient(90deg, #ff8800, #ff00ff); border-radius: 4px;
   transition: width 0.35s ease;
 }
+.story-scene {
+  display: none; position: fixed; inset: 0; z-index: 115; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.9); padding: 16px;
+}
+.story-scene.active { display: flex; }
+.story-scene-panel {
+  max-width: min(520px, 96vw); padding: 20px 22px; border-radius: 16px;
+  background: linear-gradient(155deg, #120820, #0a0612); border: 2px solid #ff00ff;
+}
+.angelina-context {
+  position: fixed; top: 42px; right: 8px; z-index: 26; font-size: 10px; opacity: 0;
+  max-width: 200px; text-align: right; pointer-events: none; color: #aaddff;
+}
+.angelina-context.visible { opacity: 0.75; }
+.story-scene-title { font-size: 18px; color: #0ff; font-weight: 800; margin-bottom: 6px; }
+.story-scene-speaker { font-size: 13px; color: #ff8800; margin-bottom: 8px; }
+.story-scene-body { font-size: 15px; line-height: 1.55; margin-bottom: 14px; min-height: 4em; }
 .ending-choice {
   display: none; position: fixed; inset: 0; z-index: 120; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.88); padding: 16px;

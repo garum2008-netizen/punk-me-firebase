@@ -59,6 +59,7 @@ function completeStep() {
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
     window.me.onboarding.done = true;
     toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");
+    window.StoryEngine?.recordChapterCheckpoint?.(window.me, 0, { beat: "onboarding_done" });
     window.ChapterIntro?.showChapterWrap?.(0);
     window.StoryEngine?.onOnboardingComplete?.();
   }

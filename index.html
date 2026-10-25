@@ -61,6 +61,7 @@
   <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
   <button type="button" class="btn-howto btn-game-menu" id="btnGameMenu" title="Menu" data-i18n="game_menu_btn">☰</button>
   <div id="contextHint" class="context-hint" aria-live="polite"></div>
+  <div id="angelinaContext" class="angelina-context" aria-live="polite"></div>
   <div id="storyGoalBar" class="story-goal-bar" aria-live="polite">
     <div class="story-goal-chapter"></div>
     <div class="story-goal-main"></div>
@@ -86,6 +87,14 @@
       <button type="button" class="btn secondary" data-ending="ending_zombie_style" data-i18n="ending_zombie_style_title">Зомби — это стиль</button>
       <p class="ending-preview" id="endingPreviewDeal" data-i18n="ending_deal_count_preview"></p>
       <button type="button" class="btn secondary" data-ending="ending_count_deal" data-i18n="ending_deal_count_title">Сделка с Графом</button>
+    </div>
+  </div>
+  <div id="storyScene" class="story-scene" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="story-scene-panel">
+      <div class="story-scene-title"></div>
+      <div class="story-scene-speaker"></div>
+      <div class="story-scene-body"></div>
+      <button type="button" class="btn story-scene-next" data-i18n="intro_next">Дальше</button>
     </div>
   </div>
   <div id="chapterIntro" class="chapter-intro" aria-hidden="true" role="dialog" aria-modal="true">
@@ -351,7 +360,10 @@
   initAudioManager();
   initAudioSettingsUi();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
-  await import("./js/story/story-endings.mjs?v=story-endings-1");
+  await import("./js/story/story-endings.mjs?v=story-endings-2");
+  await import("./js/story/story-scenes.mjs?v=story-scenes-1");
+  await import("./js/story/story-checkpoints.mjs?v=story-checkpoints-1");
+  await import("./js/story/angelina-guide.mjs?v=angelina-1");
   await import("./js/story/quest-catalog.mjs?v=quest-catalog-1").then(m => m.loadQuestCatalog());
   document.querySelectorAll("#endingChoice [data-ending]").forEach(btn => {
     btn.addEventListener("click", () => window.StoryEndings?.applyEnding(window.me, btn.dataset.ending, {

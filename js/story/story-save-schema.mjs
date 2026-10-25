@@ -47,6 +47,8 @@ export function ensureStoryProgressSave(player) {
   if (!s.decisions || typeof s.decisions !== "object") s.decisions = {};
   if (!s.rel || typeof s.rel !== "object") s.rel = { gang_rust: 0, zombie: 0, count: 0 };
   if (!s.unique || typeof s.unique !== "object") s.unique = {};
+  if (!s.checkpoints || typeof s.checkpoints !== "object") s.checkpoints = {};
+  if (s.mainlineChapter == null) s.mainlineChapter = s.chapter ?? 0;
   if (!s.flags || typeof s.flags !== "object") s.flags = {};
   if (s.ending != null && typeof s.ending !== "string") delete s.ending;
   migrateQuestAndEndingIds(s);

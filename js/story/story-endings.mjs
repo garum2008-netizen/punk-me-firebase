@@ -51,10 +51,8 @@ export function applyEnding(player, endingId, hooks) {
     if (canonical === "ending_zombie_style") st.flags.castle_club = true;
     if (canonical === "ending_count_deal") st.flags.night_shop = true;
   });
-  hooks?.save?.();
-  const title = typeof hooks?.t === "function" ? hooks.t(def.titleKey) : def.id;
-  hooks?.toast?.(hooks.L?.({ ru: "Финал: ", en: "Ending: ", da: "Afslutning: " }) + title);
   document.getElementById("endingChoice")?.classList.remove("active");
+  window.StoryScenes?.playEndingScene?.(def.id, player, hooks);
   return true;
 }
 

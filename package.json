@@ -11,6 +11,7 @@
     "test:accounts": "node scripts/test-accounts-auth.js",
     "test:save-sanitize": "node scripts/test-save-sanitize.js",
     "test:earn-state": "node scripts/test-earn-state.mjs",
+    "test:story-preview": "node scripts/test-story-preview-smoke.js",
     "test:rules": "node scripts/run-rules-emulator.js",
     "list:test-artifacts": "node scripts/list-test-artifacts.mjs",
     "generate:voice-audit-samples": "node scripts/generate-voice-audit-samples.mjs",

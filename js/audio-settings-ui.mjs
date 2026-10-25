@@ -36,6 +36,8 @@ function syncSliders(am) {
   if (tv) tv.checked = am.getTemporaryVoice();
   const narr = document.getElementById("audioNarrator");
   if (narr) narr.checked = am.getNarratorEnabled();
+  const yt = document.getElementById("audioYoutubeNarrator");
+  if (yt) yt.checked = am.getYoutubeNarratorMode();
   updateHudMute(am);
 }
 
@@ -68,6 +70,11 @@ function buildPanel() {
       <input type="checkbox" id="audioNarrator" checked>
       <span data-i18n="audio_narrator">Narrator</span>
     </label>
+    <label class="audio-toggle-row">
+      <input type="checkbox" id="audioYoutubeNarrator">
+      <span data-i18n="audio_youtube_narrator">Storyteller mode (YouTube)</span>
+    </label>
+    <p class="audio-hint" data-i18n="audio_youtube_narrator_hint"></p>
     <label class="audio-toggle-row">
       <input type="checkbox" id="audioTemporaryVoice">
       <span data-i18n="audio_temp_voice">Temporary computer voice</span>
@@ -145,6 +152,9 @@ export function initAudioSettingsUi() {
     am.setNarratorEnabled(!!e.target.checked);
     if (!e.target.checked) am.stopSpeech();
     else window.Narrator?.refresh?.();
+  });
+  document.getElementById("audioYoutubeNarrator")?.addEventListener("change", e => {
+    am.setYoutubeNarratorMode(!!e.target.checked);
   });
   if (!document.getElementById("btnRepeatOnboarding")) {
     const rep = document.createElement("button");

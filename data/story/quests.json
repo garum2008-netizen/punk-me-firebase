@@ -580,6 +580,32 @@
       "rewards": [{ "type": "rep", "value": 6 }]
     },
     {
+      "id": "q_ch3_cemetery_night",
+      "chapter": 3,
+      "type": "main",
+      "title": {
+        "ru": "Ночь на кладбище",
+        "en": "Cemetery night",
+        "da": "Kirkegårdsnat"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Ночная смена у Смотрителя",
+            "en": "Night shift with the Keeper",
+            "da": "Nattevagt med Vogteren"
+          },
+          "beacon": "npc_gravedigger",
+          "complete_on": "event:job_cemetery_done",
+          "hint_nudge": { "ru": "Работа → кладбище → ночная смена", "en": "Jobs → cemetery → night shift", "da": "Job → kirkegård" },
+          "hint_60s": { "ru": "На кладбище нажми «Работа» и выбери ночную смену", "en": "On the cemetery, open Jobs and pick night shift", "da": "Vælg nattevagt" },
+          "hint_exact": { "ru": "Кнопка «Работа» внизу → «Ночная смена на кладбище»", "en": "Bottom bar Jobs → Cemetery night shift", "da": "Job-knap → nattevagt" }
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 80 }]
+    },
+    {
       "id": "q_ch4_castle",
       "chapter": 4,
       "type": "main",
@@ -592,21 +618,41 @@
         {
           "id": "s1",
           "objective": {
-            "ru": "Выслушай Графа и узнай правду о Колоколе",
-            "en": "Hear the Count and learn the truth about the Bell",
-            "da": "Hør Greven og lær sandheden om klokken"
+            "ru": "Иди на Стройку — двор замка у Тусовки",
+            "en": "Go to Construction — castle yard at the hangout",
+            "da": "Gå til byggepladsen — slotsgård ved hænget"
+          },
+          "beacon": "obj_hangout_site",
+          "complete_on": "flag:concert_ready",
+          "hint_nudge": {
+            "ru": "С Ободом — к Тусовке, Граф соберёт части.",
+            "en": "With the rim — head to the hangout; the Count gathers the pieces.",
+            "da": "Med randen — til hænget."
+          },
+          "hint_60s": {
+            "ru": "Телепорт: Город → Стройка",
+            "en": "Travel: City → Construction",
+            "da": "By → byggeplads"
+          },
+          "hint_exact": {
+            "ru": "Карта → Стройка (construction)",
+            "en": "Map → Construction site",
+            "da": "Kort → byggeplads"
+          }
+        },
+        {
+          "id": "s2",
+          "objective": {
+            "ru": "Выслушай признание Графа",
+            "en": "Hear the Count's confession",
+            "da": "Hør grevens tilståelse"
           },
           "beacon": "obj_hangout_site",
           "complete_on": "event:graph_confession_done",
-          "hint_nudge": {
-            "ru": "Граф ждёт у Тусовки — поговори, когда концерт готов.",
-            "en": "The Count waits at the hangout — talk when the concert is ready.",
-            "da": "Greven venter ved hænget — tal når koncerten er klar."
-          },
-          "hint_60s": {
-            "ru": "Флаг concert_ready: открой журнал или дождись сцены подготовки.",
-            "en": "Need concert_ready — finish concert prep or use story debug on preview.",
-            "da": "Kræver concert_ready — fuldfør koncertforberedelse."
+          "hint_exact": {
+            "ru": "После сцены подготовки откроется диалог Графа",
+            "en": "After the prep scene, the Count's dialogue opens",
+            "da": "Efter forberedelsesscenen åbnes dialogen"
           }
         }
       ],

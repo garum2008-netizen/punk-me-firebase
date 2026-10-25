@@ -5,6 +5,7 @@
 import * as Authority from "./authority.mjs";
 import { buildEarnState, resolveReturnBeacon, resolveReturnLabel } from "./earn-state.mjs";
 import { ensureStoryProgressSave, grantRewardOnce } from "./story-save-schema.mjs";
+import { recordChapterCheckpoint } from "./story-checkpoints.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -297,6 +298,7 @@ function evalCondition(cond) {
   }
   if (cond.startsWith("energy>=")) return (p.energy ?? st.energy) >= parseInt(cond.split(">=")[1], 10);
   if (cond.startsWith("coins>=")) return p.coins >= parseInt(cond.split(">=")[1], 10);
+  if (cond.startsWith("unique:")) return !!st.unique?.[cond.slice(7)];
   return true;
 }
 
@@ -388,6 +390,7 @@ function onJoinedGang() {
     startQuest("q_ch2_hangout");
   }
   hooks.toast?.(L({ ru: "Нашивка «Ржавые Цепи» получена!", en: "Rusty Chains patch earned!", da: "Rusty Chains-mærke!" }));
+  window.StoryScenes?.playInitiationCeremony?.(p, hooks);
   renderObjectivePanel();
 }
 
@@ -425,6 +428,16 @@ function completeQuest(qid) {
     st.quest.step = 0;
   }
   hooks.toast?.(L({ ru: "Задание выполнено", en: "Quest complete", da: "Opgave fuldført" }) + ": " + L(q.title));
+  if (qid === "q_ch2_hangout" && !st.flags.hangout_open_scene_played) {
+    st.flags.hangout_open_scene_played = true;
+    window.StoryScenes?.playHangoutOpeningScene?.(p, hooks);
+  }
+  if (qid === "q_ch3_cemetery_night") {
+    window.ChapterIntro?.showChapterWrap?.(3);
+  }
+  if (qid === "q_ch2_hangout" && !st.quest.completed.q_ch3_cemetery_night && !st.quest.activeId) {
+    startQuest("q_ch3_cemetery_night");
+  }
   pickNextObjective();
 }
 
@@ -521,6 +534,8 @@ function checkStepComplete() {
     done = (st.materials[mat] || 0) >= parseInt(op, 10);
   } else if (co.startsWith("hangout_stage>=")) done = st.hangoutStage >= parseInt(co.split(">=")[1], 10);
   else if (co.startsWith("event:")) done = !!st.events[co.slice(6)];
+  else if (co.startsWith("flag:")) done = !!st.flags[co.slice(5)];
+  else if (co.startsWith("unique:")) done = !!st.unique?.[co.slice(7)];
   if (!done) return;
   if (st.quest.step + 1 < q.steps.length) {
     st.quest.step += 1;
@@ -583,6 +598,14 @@ export function fireStoryEvent(name) {
   Authority.onAuthStoryEvent(name);
   if (name === "duel_razor_win" && st.quest.activeId === "q_initiation_duel" && !st.flags.joined_gang) {
     applyEffects([{ type: "flag", value: "joined_gang" }]);
+  }
+  if (name === "hangout_complete" && !st.quest.completed.q_ch2_hangout && st.quest.activeId === "q_ch2_hangout") {
+    checkStepComplete();
+  }
+  if (name === "job_cemetery_done" && st.quest.activeId === "q_ch3_cemetery_night" && !st.events.ch3_bell_ready) {
+    window.StoryScenes?.playCemeteryBellScene?.(me(), hooks);
+    st.events.ch3_bell_ready = true;
+    completeQuest("q_ch3_cemetery_night");
   }
   if (name === "graph_confession_done") {
     completeQuest("q_ch4_castle");
@@ -766,10 +789,13 @@ export function renderObjectivePanel() {
         sub = hangoutObjectiveSub(st);
       }
       const hintLevel = st.idleHintLevel || 0;
-      if (hintLevel > 0 && step.hint_60s) {
-        sub = L(step.hint_60s);
-        if (hintLevel >= 3) sub += " · " + L({ ru: "Показать путь", en: "Show path", da: "Vis vej" });
+      const yt = window.AudioManager?.getYoutubeNarratorMode?.() || false;
+      const angelina = window.AngelinaGuide?.pickAngelinaHint?.(step, hintLevel, yt);
+      if (angelina) sub = angelina;
+      else if (hintLevel >= 3) {
+        sub = (sub ? sub + " · " : "") + L({ ru: "Показать путь", en: "Show path", da: "Vis vej" });
       }
+      window.AngelinaGuide?.refreshAngelinaContextBanner?.();
     } else if (st.hangoutStage < 4 && st.flags.joined_gang) {
       title = L(data.hangout?.title || {});
       const stage = data.hangout?.stages?.[st.hangoutStage];
@@ -1168,9 +1194,27 @@ function payInitiationFee() {
   hooks.save?.();
 }
 
+export function openDialogueById(dlgId) {
+  const d = data.dialogues.find(x => x.id === dlgId);
+  if (!d) return false;
+  openDialogueTree(d);
+  return true;
+}
+
 export function onLocationChange(loc) {
   dismissAllStoryUi();
   const p = me();
+  const st = ensureStoryState(p);
+  if (
+    loc === "construction" &&
+    st.quest.activeId === "q_ch4_castle" &&
+    st.unique?.bell_rim &&
+    !st.flags.concert_ready &&
+    !st.flags.castle_prep_scene
+  ) {
+    st.flags.castle_prep_scene = true;
+    window.StoryScenes?.playCastlePrepScene?.(p, hooks);
+  }
   p._storyJustEntered = loc;
   setTimeout(() => {
     if (me()) me()._storyJustEntered = null;
@@ -1271,6 +1315,8 @@ const api = {
   ensureStoryState,
   syncUnifiedMaterials,
   onOnboardingComplete,
+  recordChapterCheckpoint,
+  openDialogueById,
   dismissAllStoryUi,
   applyDialogueCamera,
   clearDialogueCamera,

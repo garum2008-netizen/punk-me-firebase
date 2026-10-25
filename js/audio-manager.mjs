@@ -13,7 +13,8 @@ const DEFAULTS = {
   sfx: 0.8,
   muted: false,
   temporaryVoice: false,
-  narratorEnabled: true
+  narratorEnabled: true,
+  youtubeNarratorMode: false
 };
 
 const MUSIC_BUCKETS = new Set([
@@ -135,6 +136,7 @@ export function createAudioManager() {
     if (typeof partial.muted === "boolean") settings.muted = partial.muted;
     if (typeof partial.temporaryVoice === "boolean") settings.temporaryVoice = partial.temporaryVoice;
     if (typeof partial.narratorEnabled === "boolean") settings.narratorEnabled = partial.narratorEnabled;
+    if (typeof partial.youtubeNarratorMode === "boolean") settings.youtubeNarratorMode = partial.youtubeNarratorMode;
     syncGains();
     if (persist) saveStorage();
     syncPlayerSettingsBlob();
@@ -147,7 +149,8 @@ export function createAudioManager() {
       sfx: settings.sfx,
       muted: settings.muted,
       temporaryVoice: settings.temporaryVoice,
-      narratorEnabled: settings.narratorEnabled
+      narratorEnabled: settings.narratorEnabled,
+      youtubeNarratorMode: settings.youtubeNarratorMode
     };
   }
 
@@ -543,6 +546,16 @@ export function createAudioManager() {
     return settings.narratorEnabled !== false;
   }
 
+  function setYoutubeNarratorMode(on) {
+    settings.youtubeNarratorMode = !!on;
+    saveStorage();
+    syncPlayerSettingsBlob();
+  }
+
+  function getYoutubeNarratorMode() {
+    return settings.youtubeNarratorMode === true;
+  }
+
   function importFromPlayerSave(audio) {
     applySettings(audio, true);
   }
@@ -633,6 +646,8 @@ export function createAudioManager() {
     getTemporaryVoice,
     setNarratorEnabled,
     getNarratorEnabled,
+    setYoutubeNarratorMode,
+    getYoutubeNarratorMode,
     exportSettings,
     importFromPlayerSave,
     getVoiceAvailability,

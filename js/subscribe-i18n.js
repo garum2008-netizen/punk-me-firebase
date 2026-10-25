@@ -63,8 +63,8 @@ const SUB_I18N = {
     subscribe_soon: "Kommer snart — kan ikke betales endnu",
     seller_title: "Sælger",
     seller_body: "ContractBot / Inna Kragh · support@contractbot.dk (pris og vilkår)",
-    links_terms: "Brugsvilkår (udkast)",
-    links_privacy: "Privatlivspolitik (udkast)",
+    links_terms: "Brugsvilkår",
+    links_privacy: "Privatlivspolitik",
     not_gated: "Spillet kan spilles uden betaling nu — denne side beskriver kun den kommende model.",
     account_link: "Log ind på konto"
   }
