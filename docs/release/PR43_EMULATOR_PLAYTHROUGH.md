@@ -1,31 +1,20 @@
 # PR #43 — честный прогон на эмуляторе (без `?dev=1`)
 
-**Дата:** 2026-10-25  
-**URL:** `http://127.0.0.1:3456/?solo=1&firebaseEmulator=1` (без `dev=1` / `qa=1`)  
-**Скрипт:** `FIREBASE_EMULATOR=1 PUNK_BASE=http://127.0.0.1:3456 node scripts/honest-emulator-scenario-run.js`  
-**Артефакты (не в git):** `/opt/cursor/artifacts/scenario-ch01/honest-*.png`, `honest-run-log.json`
+**URL:** `http://127.0.0.1:3456/?solo=1&firebaseEmulator=1`  
+**Runner:** `FIREBASE_EMULATOR=1 PUNK_BASE=http://127.0.0.1:3456 node scripts/honest-emulator-scenario-run.js`  
+**Артефакты:** `/opt/cursor/artifacts/scenario-ch01/honest-*.png` (не в git)
 
-## Гл.0–1 (частично)
+## Исправление D-ONBOARD-02
 
-| Чекпоинт | Файл | Состояние |
-|----------|------|-----------|
-| Выбор персонажа | `honest-00-char-select.png` | OK, anon + emulator |
-| Старт в комнате | `honest-01-room-boot.png` | OK |
-| Онбординг move (step 0→1) | `honest-02-walk-r4-step1.png` | OK после ходьбы WASD |
-| Улица | `honest-03-street.png` | OK, `location=street` |
-| Конец цикла ch0 | `honest-04-ch0-end.png` | **step 2** (`talk_razor`), onboarding не завершён |
+`dlg_razor_initiation` требует `onboarding:done`, но `tryStoryNpc` раньше открывал его на шаге `talk_razor` → `Onboarding.onTalkRazor` не срабатывал как ожидалось.  
+**Фикс:** `checkRequires(d.trigger?.conditions)` при выборе диалога в `story-engine.mjs`.
 
-**Не дойдено в этом прогоне:** разговор с Razor, дуэль, лавка, `onboarding.done`, активный `story.quest` для гл.2.
+## Цепочка раннера
 
-## Тусовка / гл.3–4 / финалы
+1. Онбординг: move → street → Razor (gang) → cemetery → duel → shop → `done`
+2. Инициация (`finishInitiationUi`) → `joined_gang`
+3. Hangout stages 1–4 (`buildAllHangoutStages`)
+4. Authority path (гл.3–4 UI)
+5. `graph_confession_done` → выбор финала → скрин
 
-Попытка `buildAllHangoutStages` без открытого сюжетного квеста → **timeout** на `navGo('construction')` (`honest-99-error.png`).  
-Ожидаемо: сначала завершить онбординг + цепочку гл.1–2, затем hangout stages 1–4.
-
-## Следующие шаги (PR #43)
-
-1. Доработать `honest-emulator-scenario-run.js`: `openGangNpc('razor')`, `winFightUi`, shop, дождаться `onboarding.done`.
-2. Старт `q_ch2_*` / construction только после `StoryEngine` gate.
-3. Повторить hangout 4 этапа + authority path + финалы; скрины в тот же каталог артефактов.
-
-**Prod:** не трогали. **Merge/publish:** нет.
+Лог: `honest-run-log.json` в каталоге артефактов.

@@ -17,6 +17,7 @@
 | D-RTDB-04 | GET `/players` публично | REST аудит | владелец+rules | да live | rules в repo, не deploy | после приёмки |
 | D-RTDB-05 | `premium` клиентом | отчёт B | интеграция | код | rules validate admin | emulator rules test |
 | D-ONBOARD-01 | Нет авто-обучения | отчёт B | интеграция | main да | preview: intro+6 steps | preview pending |
+| D-ONBOARD-02 | `talk_razor` (step 2): диалог инициации без `onboarding:done` → онбординг не сдвигается | честный эмулятор PR #43 | интеграция | да эмулятор | `tryStoryNpc` учитывает `trigger.conditions` | `honest-emulator-scenario-run` — pending |
 | D-QUEST-01 | Квест не после F5 | отчёт B | интеграция | main | `QUEST_TABLE` + engine | pending |
 | D-STORY-01 | Нет 3 концовок | t104u | интеграция | preview код | `story-endings.mjs` + `story-scenes.mjs` + UI | браузер честное прохождение — pending |
 | D-STORY-02 | Замок не в 3D | MASTER TZ | интеграция | WIP `castle` локация | — | частично: двор 3D, орган, концерт; **не** приёмка |
