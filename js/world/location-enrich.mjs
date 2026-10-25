@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { addOriginalBandPoster } from "./original-punk-props.mjs";
 
 function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
   list.push({
@@ -497,7 +498,7 @@ export function addCemeteryDressing(root, helpers) {
   addPumpkin(root, -5, 4, colliders);
   addPumpkin(root, 4, 5, colliders);
   addPumpkin(root, -8, -3, colliders);
-  addPoster(texLoader, root, "imagine_images/RgdDh.jpg", 4, 2.5, -6, 1.6, -8.6);
+  addOriginalBandPoster(root, -6, 1.6, -8.6, 0, 2);
   const moon = new THREE.Mesh(
     new THREE.SphereGeometry(0.45, 16, 16),
     new THREE.MeshStandardMaterial({ color: 0xffffdd, emissive: 0xffffaa, emissiveIntensity: 1.4 })
@@ -1023,7 +1024,7 @@ export function addToiletDressing(root, helpers) {
     graff.rotation.y = Math.PI;
     root.add(graff);
   });
-  addPoster(texLoader, root, "imagine_images/ocVdL.jpg", 2.2, 1.6, 4.85, 1.5, 0.2, -Math.PI / 2);
+  addOriginalBandPoster(root, 4.85, 1.5, 0.2, -Math.PI / 2, 1);
   const spooky = neonSign("SPOOKY WC", 0xff66cc);
   spooky.position.set(0, 2.35, -3.75);
   root.add(spooky);

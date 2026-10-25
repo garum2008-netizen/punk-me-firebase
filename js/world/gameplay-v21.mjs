@@ -1,5 +1,17 @@
 import * as THREE from "three";
 import { buildFurnitureMesh, FURNITURE_CATALOG } from "./room-furniture-catalog.mjs";
+import {
+  zoneForLocation,
+  getPlacementList,
+  setPlacementList,
+  undoPlacement,
+  decorLimit,
+  snapCoord,
+  cycleSwatch,
+  migrateBuildSave,
+  purchaseCityPlot as buyCityPlot
+} from "../build/build-layer.mjs";
+import { refreshCityPlots } from "./city-plots.mjs";
 
 const DECOR_KEY = "punkme_room_decor_v21";
 let ctxGet = null;
@@ -7,7 +19,7 @@ let state = {
   cemetery: null,
   duel: null,
   fetch: null,
-  decor: { mode: false, ghost: null, group: null, pick: "sofa", rot: 0, selected: null, keyHandler: null },
+  decor: { mode: false, ghost: null, group: null, pick: "sofa", rot: 0, selected: null, keyHandler: null, swatch: 0xff3399, zoneLoc: null },
   jukeboxTrack: 0,
   bgmCtx: null
 };
@@ -29,17 +41,60 @@ function setHud(html) {
   if (el) el.innerHTML = html;
 }
 
+function decorLoc() {
+  return ctxGet?.()?.currentLoc;
+}
+
 function loadDecor() {
-  try { return JSON.parse(localStorage.getItem(DECOR_KEY) || "[]"); } catch { return []; }
+  const me = window.me;
+  const loc = decorLoc();
+  if (me && loc) {
+    migrateBuildSave(me);
+    return getPlacementList(me, loc);
+  }
+  try {
+    return JSON.parse(localStorage.getItem(DECOR_KEY) || "[]");
+  } catch {
+    return [];
+  }
 }
 
 function saveDecor(items) {
+  const me = window.me;
+  const loc = decorLoc();
+  if (me && loc && zoneForLocation(loc)) {
+    setPlacementList(me, loc, items, { recordUndo: true });
+    window.saveMe?.();
+    return;
+  }
   localStorage.setItem(DECOR_KEY, JSON.stringify(items));
+}
+
+let duelKeysBound = false;
+function bindDuelKeyboard() {
+  if (duelKeysBound) return;
+  duelKeysBound = true;
+  window.addEventListener("keydown", e => {
+    if (!state.duel?.active || e.repeat) return;
+    if (e.target?.matches?.("input, textarea, select")) return;
+    const k = e.key;
+    if (k === " " || k === "Enter" || k === "f" || k === "F") {
+      e.preventDefault();
+      window._duelAttack = true;
+    } else if (k === "b" || k === "B") {
+      e.preventDefault();
+      window._duelBlock = true;
+    } else if (k === "v" || k === "V") {
+      e.preventDefault();
+      window._duelDodge = true;
+    }
+  });
 }
 
 export function bindGameplayToWorld3D(api, getCtx) {
   ctxGet = getCtx;
-  api.startCemeteryJobMini = () => startCemeteryJob();
+  bindDuelKeyboard();
+  api.startCemeteryJobMini = () => startCemeteryJob("night");
   api.startDuel3D = (nid, opts) => startDuel3D(nid || "razor", opts);
   api.prepareDuelCapturePose = (nid) => prepareDuelCapturePose(nid || "razor");
   api.setDecorGhostScreenCenter = () => setDecorGhostScreenCenter();
@@ -78,6 +133,9 @@ export function bindGameplayToWorld3D(api, getCtx) {
   api.isGameplayActivityActive = isGameplayActivityActive;
   api.decorPointerDown = (wx, wz) => decorPointerDown(wx, wz);
   api.handleDecorKey = key => handleDecorKey(key);
+  api.undoDecor = () => undoDecorPlacement();
+  api.purchaseCityPlot = plotId => purchaseCityPlot(plotId);
+  api.startCemeteryJobVariant = kind => startCemeteryJob(kind);
   api.cycleJukebox = () => cycleJukebox();
   api.snapHeroForShop = bare => snapHeroCosmetics(!!bare);
 }
@@ -108,12 +166,26 @@ export function isDuelActive() {
 
 export function onGameplayLocationBuilt(locId, root, bounds) {
   state.decor.group = null;
-  if (locId !== "room" || !root) return;
+  state.decor.zoneLoc = locId;
+  if (!root) return;
+  if (locId === "city") refreshCityPlots(root, window.me);
+  if (!zoneForLocation(locId)) return;
   const g = new THREE.Group();
   g.name = "roomDecorPlaced";
   root.add(g);
   state.decor.group = g;
   loadDecor().forEach((item, i) => spawnDecorMesh(g, item, i));
+}
+
+function applyPlacementColor(mesh, color) {
+  if (!color || !mesh) return;
+  mesh.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (m.color) m.color.set(color);
+    });
+  });
 }
 
 function spawnDecorMesh(parent, item, idx) {
@@ -122,6 +194,7 @@ function spawnDecorMesh(parent, item, idx) {
   g.rotation.y = item.rot || 0;
   g.userData.decorIndex = idx;
   g.userData.decorType = item.type;
+  applyPlacementColor(g, item.color);
   parent.add(g);
   return g;
 }
@@ -157,14 +230,38 @@ export function tickGameplayV21(dt, ctx) {
   updateDuelHpBars(ctx);
 }
 
-function startCemeteryJob() {
+function purchaseCityPlot(plotId) {
+  const me = window.me;
+  if (!me) return { ok: false };
+  const res = buyCityPlot(me, plotId);
+  if (res.ok) {
+    const ctx = ctxGet?.();
+    if (ctx?.locationRoot && ctx.currentLoc === "city") refreshCityPlots(ctx.locationRoot, me);
+    window.saveMe?.();
+  }
+  return res;
+}
+
+function undoDecorPlacement() {
+  const me = window.me;
+  const loc = decorLoc();
+  if (!me || !loc) return false;
+  if (!undoPlacement(me, loc)) return false;
+  refreshDecorMeshes();
+  window.saveMe?.();
+  return true;
+}
+
+function startCemeteryJob(kind = "night") {
   const ctx = ctxGet?.();
   if (!ctx?.locationRoot || ctx.currentLoc !== "cemetery") return false;
   const root = new THREE.Group();
   root.name = "cemeteryJob";
   ctx.locationRoot.add(root);
+  const jobKind = kind === "paths" || kind === "lamps" || kind === "night" ? kind : "night";
   const candles = [];
-  for (let i = 0; i < 6; i++) {
+  const candleCount = jobKind === "lamps" ? 8 : 6;
+  for (let i = 0; i < candleCount; i++) {
     const c = box(0.08, 0.25, 0.08, 0x442211);
     const flame = box(0.06, 0.08, 0.06, 0xffaa22, 0xff6600);
     flame.position.y = 0.2;
@@ -185,17 +282,37 @@ function startCemeteryJob() {
     root.add(ghost);
     ghosts.push({ mesh: ghost, caught: false, t: i });
   }
+  const pathTiles = [];
+  if (jobKind === "paths") {
+    for (let i = 0; i < 10; i++) {
+      const tile = box(0.9, 0.04, 0.9, 0x3a4038);
+      tile.position.set(-4 + (i % 5) * 2, 0.02, -2 + Math.floor(i / 5) * 2.5);
+      tile.userData.pathTile = true;
+      tile.userData.cleaned = false;
+      root.add(tile);
+      pathTiles.push(tile);
+    }
+  }
   state.cemetery = {
     active: true,
     root,
+    kind: jobKind,
     candles,
-    ghosts,
-    end: performance.now() + 28000,
+    ghosts: jobKind === "night" ? ghosts : [],
+    pathTiles,
+    pathsDone: 0,
+    end: performance.now() + (jobKind === "paths" ? 32000 : 28000),
     lit: 0,
     caught: 0,
     nextLight: performance.now() + 1200
   };
-  setHud(`<b>${t("job_cemetery_hud")}</b><div class="gp-bar"><span id="gpCemeteryBar" style="width:0%"></span></div><div id="gpCemeteryTimer">28s</div>`);
+  const label =
+    jobKind === "paths"
+      ? t("job_cemetery_paths") || "Clean paths"
+      : jobKind === "lamps"
+        ? t("job_cemetery_lamps") || "Light lamps"
+        : t("job_cemetery_hud");
+  setHud(`<b>${label}</b><div class="gp-bar"><span id="gpCemeteryBar" style="width:0%"></span></div><div id="gpCemeteryTimer">28s</div>`);
   return true;
 }
 
@@ -205,7 +322,23 @@ function tickCemetery(dt, ctx) {
   const now = performance.now();
   const left = Math.max(0, Math.ceil((job.end - now) / 1000));
   const timer = document.getElementById("gpCemeteryTimer");
-  if (timer) timer.textContent = `${left}s · ${t("job_candles")} ${job.lit}/6 · ${t("job_ghosts")} ${job.caught}/3`;
+  if (job.kind === "paths") {
+    if (timer) timer.textContent = `${left}s · paths ${job.pathsDone || 0}/${job.pathTiles?.length || 10}`;
+    const pl = ctx.actors?.get("player");
+    if (pl && job.pathTiles) {
+      job.pathTiles.forEach(tile => {
+        if (tile.userData.cleaned) return;
+        const d = Math.hypot(pl.wx - tile.position.x, pl.wz - tile.position.z);
+        if (d < 1.1) {
+          tile.userData.cleaned = true;
+          tile.material.color.set(0x6a7068);
+          job.pathsDone = (job.pathsDone || 0) + 1;
+        }
+      });
+    }
+  } else if (timer) {
+    timer.textContent = `${left}s · ${t("job_candles")} ${job.lit}/${job.candles.length} · ${t("job_ghosts")} ${job.caught}/${job.ghosts.length || 0}`;
+  }
   if (now >= job.nextLight && job.lit < job.candles.length) {
     const c = job.candles[job.lit];
     c.lit = true;
@@ -231,10 +364,23 @@ function tickCemetery(dt, ctx) {
   if (pl && window._lastInteract && consumeInteractNearGhosts(pl, job)) {
     job.caught++;
   }
-  const prog = ((job.lit / 6) + (job.caught / 3)) / 2;
+  let prog = 0;
+  let success = false;
+  if (job.kind === "paths") {
+    const need = job.pathTiles?.length || 10;
+    prog = (job.pathsDone || 0) / need;
+    success = (job.pathsDone || 0) >= need;
+  } else if (job.kind === "lamps") {
+    prog = job.lit / job.candles.length;
+    success = job.lit >= job.candles.length;
+  } else {
+    const gNeed = job.ghosts.length || 1;
+    prog = ((job.lit / job.candles.length) + (job.caught / gNeed)) / 2;
+    success = job.lit >= job.candles.length && job.caught >= gNeed;
+  }
   const bar = document.getElementById("gpCemeteryBar");
   if (bar) bar.style.width = `${prog * 100}%`;
-  if (now >= job.end || (job.lit >= 6 && job.caught >= 3)) endCemeteryJob(job.lit >= 6);
+  if (now >= job.end || success) endCemeteryJob(success);
 }
 
 function consumeInteractNearGhosts(pl, job) {
@@ -397,7 +543,7 @@ function startDuel3D(nid, opts = {}) {
   const training = !!opts.training;
   const firstTo = opts.firstTo || (training ? 3 : 0);
   const onboardDuel = window.Onboarding?.getCurrentStep?.()?.key === "win_fight";
-  const tutorialHp = onboardDuel ? 32 : 100;
+  const tutorialHp = onboardDuel ? 28 : 100;
   state.duel = {
     active: true,
     nid,
@@ -452,8 +598,9 @@ function stopDuel3D(win) {
       : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
     setTimeout(() => res.classList.add("hidden"), 3200);
   }
-  if (win && d?.onboardDuel) window.Onboarding?.onWinFight?.();
-  window._duel3dEnd?.(win);
+  const endCb = window._duel3dEnd;
+  window._duel3dEnd = null;
+  endCb?.(win);
 }
 
 function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
@@ -615,7 +762,7 @@ function tickDuel(dt, ctx) {
     }
   });
   if (window._duelAttack && d.cd <= 0) {
-    const dmg = d.onboardDuel ? 16 + Math.floor(Math.random() * 6) : 12 + Math.floor(Math.random() * 8);
+    const dmg = d.onboardDuel ? 18 + Math.floor(Math.random() * 5) : 12 + Math.floor(Math.random() * 8);
     if (d.training) d.plHits += 1;
     else d.npcHp -= dmg;
     d.plLunge = 0.32;
@@ -652,7 +799,7 @@ function tickDuel(dt, ctx) {
     pl.group.rotation.x *= 0.85;
   }
   if (d.npcCd <= 0 && d.npcHp > 0) {
-    d.npcCd = 1.15;
+    d.npcCd = d.onboardDuel ? 1.65 : 1.15;
     d.npcLunge = 0.28;
     if (d.dodgeT <= 0 && d.plBlock <= 0) {
       let dmg = 8 + Math.floor(Math.random() * 6);
@@ -781,7 +928,7 @@ function setDecorPick(id) {
 
 function setDecorGhostAt(wx, wz) {
   const ctx = ctxGet?.();
-  if (!ctx?.locationRoot || ctx.currentLoc !== "room") return false;
+  if (!ctx?.locationRoot || !zoneForLocation(ctx.currentLoc)) return false;
   if (!state.decor.ghost) rebuildDecorGhost(ctx);
   if (!state.decor.ghost) return false;
   state.decor.ghost.position.set(wx, 0, wz);
@@ -793,7 +940,7 @@ function setDecorGhostAt(wx, wz) {
 function setDecorGhostScreenCenter() {
   const ctx = ctxGet?.();
   const canvas = document.getElementById("stage3d");
-  if (!canvas || !ctx?.camera || !ctx.locationRoot || ctx.currentLoc !== "room") return false;
+  if (!canvas || !ctx?.camera || !ctx.locationRoot || !zoneForLocation(ctx.currentLoc)) return false;
   const rc = new THREE.Raycaster();
   rc.setFromCamera(new THREE.Vector2(0, -0.08), ctx.camera);
   const hits = rc.intersectObject(ctx.locationRoot, true);
@@ -813,7 +960,7 @@ function setDecorGhostScreenCenter() {
 function setDecorMode(on) {
   state.decor.mode = on;
   const ctx = ctxGet?.();
-  if (!ctx?.locationRoot || ctx.currentLoc !== "room") return;
+  if (!ctx?.locationRoot || !zoneForLocation(ctx.currentLoc)) return;
   if (on) {
     if (!state.decor.ghost) rebuildDecorGhost(ctx);
     if (!state.decor.keyHandler) {
@@ -824,7 +971,7 @@ function setDecorMode(on) {
       window.addEventListener("keydown", state.decor.keyHandler);
     }
     const label = FURNITURE_CATALOG.find(f => f.id === state.decor.pick)?.label || state.decor.pick;
-    setHud(`<b>${t("decor_mode_on")}</b> · ${label} · R rotate · [ ] catalog · Del remove`);
+    setHud(`<b>${t("decor_mode_on")}</b> · ${label} · R rotate · C color · Z undo · [ ] catalog · Del remove`);
   } else {
     if (state.decor.ghost) {
       state.decor.ghost.removeFromParent();
@@ -910,6 +1057,20 @@ function handleDecorKey(key) {
     i = key === "[" ? (i - 1 + ids.length) % ids.length : (i + 1) % ids.length;
     setDecorPick(ids[i]);
     setDecorMode(true);
+  } else if (k === "c") {
+    state.decor.swatch = cycleSwatch(state.decor.swatch);
+    applyPlacementColor(state.decor.ghost, state.decor.swatch);
+    if (state.decor.selected) {
+      const idx = state.decor.selected.userData.decorIndex;
+      const items = loadDecor();
+      if (items[idx]) {
+        items[idx].color = state.decor.swatch;
+        saveDecor(items);
+        applyPlacementColor(state.decor.selected, state.decor.swatch);
+      }
+    }
+  } else if (k === "z") {
+    undoDecorPlacement();
   } else if (key === "Delete" || key === "Backspace") {
     if (!state.decor.selected) return;
     const idx = state.decor.selected.userData.decorIndex;
@@ -924,14 +1085,16 @@ function handleDecorKey(key) {
 
 function placeDecorAt(wx, wz, type) {
   const items = loadDecor();
-  if (items.length >= 12) return false;
+  const limit = decorLimit(decorLoc()) || 12;
+  if (items.length >= limit) return false;
   const snap = 0.5;
   const pick = type || state.decor.pick;
   const item = {
     type: pick,
-    x: Math.round(wx / snap) * snap,
-    z: Math.round(wz / snap) * snap,
-    rot: state.decor.rot
+    x: snapCoord(wx, snap),
+    z: snapCoord(wz, snap),
+    rot: state.decor.rot,
+    color: state.decor.swatch
   };
   items.push(item);
   saveDecor(items);

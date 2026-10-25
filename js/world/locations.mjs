@@ -27,6 +27,7 @@ import {
 } from "./location-enrich.mjs";
 import { addV21Clutter } from "./location-clutter-v21.mjs";
 import { addShowcaseProps } from "./location-showcase-props.mjs";
+import { addOriginalBandPoster } from "./original-punk-props.mjs";
 import { buildHangoutVisual } from "./construction-hangout.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
@@ -615,7 +616,7 @@ export function buildLocationScene(locId, texLoader) {
     root.add(floor);
     addRoomShell(root, 20, 18, 4, wallMat, colliders);
     addCityDressing(root, { wall, neonSign, addNeonTube, colliders, pushCollider });
-    addPoster(texLoader, root, "imagine_images/77Mdp.jpg", 8, 4, 0, 3, -8.9);
+    addOriginalBandPoster(root, 0, 3, -8.9, 0, 0);
     addAmpStack(root, -5, 2, colliders);
     addAmpStack(root, 5, -1, colliders);
     const trash = wall(0.6, 0.9, 0.6, new THREE.MeshStandardMaterial({ color: 0x333344 }));
@@ -658,7 +659,7 @@ export function buildLocationScene(locId, texLoader) {
     floor = tiledFloor(16, 22, theme.ground, false);
     root.add(floor);
     addParkourDressing(root, { wall, neonSign, colliders, pushCollider });
-    addPoster(texLoader, root, "imagine_images/tvSdj.jpg", 6, 3, 0, 3.5, -10.5);
+    addOriginalBandPoster(root, 0, 3.5, -10.5, 0, 3);
     addLights(root, [
       { type: "point", color: 0x88ccff, intensity: 4.5, x: 0, y: 4.5, z: -2 },
       { type: "point", color: 0xff66ff, intensity: 3.2, x: -4, y: 3, z: 2 },

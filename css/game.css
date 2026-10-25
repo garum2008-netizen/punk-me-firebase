@@ -457,6 +457,21 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   background: linear-gradient(135deg, #ff00ff, #7c3aed); color: #fff;
   pointer-events: auto;
 }
+html.episode-capture .hud-version,
+html.episode-capture #gameVersion,
+html.episode-capture .account-hud-wrap,
+html.episode-capture .hud-account-row,
+html.episode-capture .account-auth-bar,
+html.episode-capture .credits-3d,
+html.episode-capture .lang-switch,
+html.episode-capture #langSwitch,
+html.episode-capture .hud-actions,
+html.episode-capture #btnAudioMute,
+html.episode-capture #btnAudioSettings,
+html.episode-capture #btnAccountOpen,
+html.episode-capture #btnAccountOpenChar,
+html.episode-capture #btnAccountOpenLoading,
+html.episode-capture .btn-account { display: none !important; }
 .hud-quests-wrap { display: flex; flex-direction: column; gap: 4px; }
 .hud-quests-toggle {
   display: none;
