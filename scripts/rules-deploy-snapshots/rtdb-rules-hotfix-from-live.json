@@ -1,0 +1,29 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "players": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": false,
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
+        ".write": "auth != null && auth.uid === $uid",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
+        },
+        "coins": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999999"
+        },
+        "premium": {
+          ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
+        },
+        "entitlements": {
+          ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
+        },
+        "qa": {
+          ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
+        }
+      }
+    }
+  }
+}

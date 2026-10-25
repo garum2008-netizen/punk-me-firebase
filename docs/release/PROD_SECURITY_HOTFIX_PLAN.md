@@ -47,10 +47,12 @@ chmod +x scripts/owner-readonly-check.sh
 
 Рекомендуемый порядок после экспорта:
 
-1. Diff: `rtdb-rules-prod-*.json` ↔ `database.rules.json` (PR #45).
-2. Собрать **минимальный** патч (закрыть публичный `/players`, `premium`/`entitlements`/`qa` только admin, **сохранить** prod-поведение presence/chat, если нужно).
-3. Прогнать `npm run test:rules` на итоговом JSON в эмуляторе.
-4. Только затем `firebase deploy --only database` с **согласованным** файлом.
+1. **`npm run build:hotfix-rules -- --input=docs/release/prod-readonly-snapshots/rtdb-rules-prod-*.json`** — патч только `/players` + `premium`/`entitlements`/`qa`; presence/chat/publicProfiles/buildings **не трогает** (остаются как в live).
+2. Просмотреть stdout **diff (live → hotfix)** и файл `scripts/rules-deploy-snapshots/rtdb-rules-hotfix-from-live.json`.
+3. **`npm run build:hotfix-rules -- --input=... --test`** (или `--model-audit --test` без live export) — эмулятор на итоговых rules.
+4. Только затем `firebase deploy --only database` с **hotfix-from-live** (после GO), **не** с корневым `database.rules.json` из git.
+
+Пошаговые команды Cloud Shell: [`TESTING_CLOUD_SHELL.md`](./TESTING_CLOUD_SHELL.md).
 
 ## Цели hotfix (PR #45)
 

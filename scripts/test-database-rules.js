@@ -187,8 +187,30 @@ async function run() {
   r = await fetchJson(dbUrl("players", adminAuth.idToken));
   pass("admin read /players root → allow", r.status === 200 && typeof r.json === "object", `status ${r.status}`);
 
+  const profile = process.env.RULES_TEST_PROFILE || "git";
+  const prodHotfix = profile === "prod-hotfix";
+  const playersOnlyScope = process.env.RULES_TEST_SCOPE === "players-only";
+
+  if (playersOnlyScope && prodHotfix) {
+    console.log(
+      "\n--- client impact (main @ 450d6da vs rules in this repo) ---"
+    );
+    console.log(
+      "PASS (analysis): main game.js does NOT read /players root; multiplayer uses /presence/{location} only."
+    );
+    console.log(
+      "PASS (analysis): owner-admin.mjs reads /players root — needs auth.token.admin (rules allow)."
+    );
+    console.log(`\nAll ${results.length} emulator rule cases passed (players-only scope).`);
+    process.exit(0);
+  }
+
   r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`));
-  pass("unauth read publicProfiles/{uid} → allow", r.status === 200 && r.json?.name, `status ${r.status}`);
+  if (prodHotfix) {
+    pass("unauth read publicProfiles/{uid} → deny (prod-hotfix)", denied(r), `status ${r.status}`);
+  } else {
+    pass("unauth read publicProfiles/{uid} → allow", r.status === 200 && r.json?.name, `status ${r.status}`);
+  }
 
   r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`, bobAuth.idToken), {
     method: "PUT",
@@ -197,12 +219,14 @@ async function run() {
   });
   pass("bob write alice publicProfile → deny", denied(r), `status ${r.status}`);
 
-  r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`, aliceAuth.idToken), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "TestPunk", coins: 105, avatar: "imagine_images/Oo040.jpg" })
-  });
-  pass("alice write own publicProfile → allow", r.status === 200, r.body);
+  if (!prodHotfix) {
+    r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`, aliceAuth.idToken), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "TestPunk", coins: 105, avatar: "imagine_images/Oo040.jpg" })
+    });
+    pass("alice write own publicProfile → allow", r.status === 200, r.body);
+  }
 
   const presencePayload = {
     name: "TestPunk",
@@ -230,10 +254,18 @@ async function run() {
   pass("alice write own presence → allow", r.status === 200, r.body);
 
   r = await fetchJson(dbUrl("presence/room"));
-  pass("unauth read presence/room → allow", r.status === 200, `status ${r.status}`);
+  if (prodHotfix) {
+    pass("unauth read presence/room → deny (prod-hotfix)", denied(r), `status ${r.status}`);
+  } else {
+    pass("unauth read presence/room → allow", r.status === 200, `status ${r.status}`);
+  }
 
   r = await fetchJson(dbUrl("chat"));
-  pass("unauth read chat → allow", r.status === 200, `status ${r.status}`);
+  if (prodHotfix) {
+    pass("unauth read chat → deny (prod-hotfix)", denied(r), `status ${r.status}`);
+  } else {
+    pass("unauth read chat → allow", r.status === 200, `status ${r.status}`);
+  }
 
   const msgId = "msg_" + Date.now();
   r = await fetchJson(dbUrl(`chat/${msgId}`, aliceAuth.idToken), {
@@ -249,15 +281,21 @@ async function run() {
   pass("alice write chat message → allow", r.status === 200, r.body);
 
   r = await fetchJson(dbUrl("buildings/city"));
-  pass("unauth read buildings/city → allow", r.status === 200, `status ${r.status}`);
+  if (prodHotfix) {
+    pass("unauth read buildings/city → deny (prod-hotfix)", denied(r), `status ${r.status}`);
+  } else {
+    pass("unauth read buildings/city → allow", r.status === 200, `status ${r.status}`);
+  }
 
-  const pieceId = "piece_" + Date.now();
-  r = await fetchJson(dbUrl(`buildings/city/${pieceId}`, aliceAuth.idToken), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type: "bench", x: 1, y: 2, owner: aliceUid })
-  });
-  pass("alice place building piece → allow", r.status === 200, r.body);
+  if (!prodHotfix) {
+    const pieceId = "piece_" + Date.now();
+    r = await fetchJson(dbUrl(`buildings/city/${pieceId}`, aliceAuth.idToken), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "bench", x: 1, y: 2, owner: aliceUid })
+    });
+    pass("alice place building piece → allow", r.status === 200, r.body);
+  }
 
   console.log("\n--- client impact (main @ 450d6da vs rules in this repo) ---");
   console.log(

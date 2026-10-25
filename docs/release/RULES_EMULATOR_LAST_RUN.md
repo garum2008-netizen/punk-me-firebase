@@ -83,3 +83,20 @@ save-fixtures: all PASS
 save-gameplay: PASS {"snapshot":{"uid":"LMZU6g6tA9SozTRjsknwHTjuHwpV","pet":"pet_dog","coins":4740,"location":"street","shack":1,"lastJob":1792965706390,"dbPet":"pet_dog","dbLocation":"street","dbShack":1},"after":{"pet":"pet_dog","location":"street","shack":1,"coins":4760}}
 run-rules-emulator: all tests PASS
 ```
+
+## build:hotfix-rules — prod audit model (`--model-audit --test`)
+
+Command: `npm run build:hotfix-rules -- --model-audit --test`  
+Branch: `cursor/prod-security-hotfix-d81d` (2026-10-25).
+
+- Baseline: unauth `/players` allow; presence/chat/publicProfiles/buildings deny.
+- Hotfix: unauth `/players` deny; premium PUT deny; 11× `test-database-rules` (players-only).
+- Output: `scripts/rules-deploy-snapshots/rtdb-rules-hotfix-from-live.json`.
+
+```
+PASS: [audit/baseline] unauth read /players root → allow (prod leak)
+PASS: [audit/hotfix] unauth read /players root → deny (hotfix)
+…
+All 11 emulator rule cases passed (players-only scope).
+build-hotfix-rules: --test complete (no prod deploy).
+```

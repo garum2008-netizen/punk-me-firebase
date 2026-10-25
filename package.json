@@ -13,6 +13,7 @@
     "test:save-sanitize": "node scripts/test-save-sanitize.js",
     "list:test-artifacts": "node scripts/list-test-artifacts.mjs",
     "owner:readonly-check": "bash scripts/owner-readonly-check.sh",
+    "build:hotfix-rules": "node scripts/build-hotfix-rules.mjs",
     "test:deploy-order": "node scripts/test-deploy-order-phase.js a1 && sleep 20 && node scripts/test-deploy-order-phase.js a2 && sleep 20 && node scripts/test-deploy-order-phase.js b",
     "test:emulator": "node scripts/run-emulator-integration.js"
   },
