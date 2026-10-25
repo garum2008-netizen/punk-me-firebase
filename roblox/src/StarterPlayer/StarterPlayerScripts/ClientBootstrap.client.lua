@@ -195,7 +195,7 @@ local function bindPrompt(prompt: ProximityPrompt)
 			requestAction:FireServer("ch3_ghost")
 		elseif npcId == "npc_zoya" then
 			requestAction:FireServer("bell_tongue", "zoya")
-		elseif npcId == "npc_count" and st.activeStepId == "ch4_s_finale" then
+		elseif npcId == "npc_count" and st.activeStepId == "ch4_s_ending" then
 			endingFrame.Visible = true
 		end
 		local on = parent and parent.Name
@@ -235,7 +235,7 @@ addChoice("Дуэль", "initiation_choice", "duel")
 addChoice("Флаеры", "initiation_choice", "graffiti")
 
 profileUpdated.OnClientEvent:Connect(function(p)
-	if p.story and p.story.activeStepId == "ch4_s_finale" then
+	if p.story and p.story.activeStepId == "ch4_s_ending" then
 		endingFrame.Visible = true
 	end
 end)

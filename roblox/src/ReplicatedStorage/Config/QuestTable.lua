@@ -269,7 +269,7 @@ QuestTable.quests = {
 		steps = {
 			{
 				id = "s1",
-				completeEvent = "ch2_antibully_choice",
+				completeEvent = "ch2_antibully_resolved",
 				objective = {
 					ru = "Новичок в городе: заступись или нет",
 					uk = "Новачок: заступись чи ні",
@@ -330,6 +330,17 @@ QuestTable.quests = {
 		nextQuestId = nil,
 		steps = {
 			{
+				id = "ch4_s_enter",
+				completeEvent = "ch4_castle_entered",
+				objective = {
+					ru = "Войди в замок с Ободом Колокола",
+					uk = "Увійди в замок з Ободом",
+					en = "Enter the castle with the bell rim",
+					da = "Gå ind i slottet med klokkekanten",
+				},
+				beacon = "zone_castle_hall",
+			},
+			{
 				id = "ch4_s_tongue",
 				completeEvent = "ch4_tongue_obtained",
 				objective = {
@@ -363,7 +374,18 @@ QuestTable.quests = {
 				beacon = "zone_castle_hall",
 			},
 			{
-				id = "ch4_s_finale",
+				id = "ch4_s_confession",
+				completeEvent = "ch4_graph_confession",
+				objective = {
+					ru = "Узнай правду у Графа",
+					uk = "Дізнайся правду в Графа",
+					en = "Learn the truth from the Count",
+					da = "Lær sandheden af greven",
+				},
+				beacon = "npc_count",
+			},
+			{
+				id = "ch4_s_ending",
 				completeEvent = "ch4_pick_ending",
 				objective = {
 					ru = "Выбери судьбу Колокола и Тыквограда",

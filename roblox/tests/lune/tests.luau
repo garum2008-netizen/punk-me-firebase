@@ -68,7 +68,7 @@ end)
 test("ending pick", function()
 	local st = QuestEngine.defaultStoryState()
 	st.activeQuestId = QuestTable.CH4
-	st.activeStepId = "ch4_s_finale"
+	st.activeStepId = "ch4_s_ending"
 	assertEq(QuestEngine.pickEnding(st, "ending_break_curse"), true, "ending")
 	assertEq(st.storyEnding, "ending_break_curse", "id")
 	assertEq(st.freePlay, true, "free")

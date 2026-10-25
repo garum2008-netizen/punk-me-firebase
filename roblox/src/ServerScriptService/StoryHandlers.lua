@@ -120,7 +120,7 @@ function StoryHandlers.handleCh2Antibully(profile: ProfileSchema.Profile, choice
 		profile.story.relationships.cobalt = (profile.story.relationships.cobalt or 0) - 5
 	end
 	if profile.story.activeQuestId == "q_ch2_antibully" then
-		QuestEngine.tryCompleteEvent(profile.story, "ch2_antibully_choice")
+		QuestEngine.tryCompleteEvent(profile.story, "ch2_antibully_resolved")
 		local g = QuestEngine.grantReward(profile.story, "reward_ch2_choice")
 		applyGrants(profile, g)
 	end

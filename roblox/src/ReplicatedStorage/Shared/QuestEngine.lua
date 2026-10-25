@@ -185,7 +185,7 @@ function QuestEngine.grantUniqueItem(state: StoryState, itemId: string): boolean
 end
 
 function QuestEngine.pickEnding(state: StoryState, endingId: string): boolean
-	if state.activeQuestId ~= "q_ch4_castle" or state.activeStepId ~= "ch4_s_finale" then
+	if state.activeQuestId ~= "q_ch4_castle" or state.activeStepId ~= "ch4_s_ending" then
 		return false
 	end
 	local ending = QuestTable.endings[endingId]

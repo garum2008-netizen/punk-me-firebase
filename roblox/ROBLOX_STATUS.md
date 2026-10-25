@@ -1,6 +1,6 @@
 # Матрица готовности — Roblox-ТЗ §14 + t104u (Колокол, 3 концовки)
 
-Обновлено: 2026-10-25 · ветка `cursor/roblox-ep1-d99c` · PR #44 (draft).
+Обновлено: 2026-10-25 · ветка `cursor/roblox-ep1-d99c` · PR #44 (**Draft**, **не RELEASE READY**, t105u P0).
 
 Легенда: **Код** — в репозитории и автотестах; **Studio** — не проверялось; **Заглушка** — каркас без полноценного геймплея; **Нет** — отсутствует.
 
@@ -28,10 +28,12 @@
 | Гл.4 Замок, части Колокола, концерт | **Заглушка** — Zoya→язык; crown/concert — `ch4_stage`; без головоломки |
 | 3 концовки | **Код (логика)** — `ending_break_curse`, `ending_zombie_style`, `ending_count_deal`; **сцены/UI минимальные**, Studio не проверялось |
 
-## Единая таблица заданий
+## Единая таблица заданий (t105u P0)
 
-- Канон id: `docs/release/QUEST_TABLE.md` (добавлено в этой ветке; синхронизировать с веб-агентом).
-- Реализация: `roblox/src/ReplicatedStorage/Config/QuestTable.lua` + `QuestEngine.lua`.
+- **Канон:** `docs/release/QUEST_TABLE.md` (= веб `cursor/scenario-preview-d81d` @ `bb5083d`, секция «Синхронизация id»).
+- **Roblox:** `roblox/src/ReplicatedStorage/Config/QuestTable.lua` + `QuestEngine.lua`.
+- **Studio-чеклист:** `roblox/docs/OPEN_IN_STUDIO.md` — гл.0 только 9 шагов до Рейзора; гл.1+ отдельно.
+- **P0 задание:** `roblox/docs/TASK-INNA-2026-10-25-ROBLOX-P0.md`.
 
 ## Не проверено в Studio
 
