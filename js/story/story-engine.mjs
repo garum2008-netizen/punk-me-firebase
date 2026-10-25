@@ -56,6 +56,19 @@ function me() {
   return window.me;
 }
 
+export function syncUnifiedMaterials(p) {
+  const inv = p?.inventory?.materials;
+  if (!inv || typeof inv !== "object") return;
+  const st = p.story || {};
+  if (!st.materials) return;
+  for (const [k, v] of Object.entries(inv)) {
+    const n = Number(v) || 0;
+    if (n <= 0) continue;
+    st.materials[k] = (st.materials[k] || 0) + n;
+    inv[k] = 0;
+  }
+}
+
 export function ensureStoryState(p) {
   if (!p.story) {
     p.story = {
@@ -94,10 +107,20 @@ export function ensureStoryState(p) {
   const q = p.story.quest;
   if (q.activeId === undefined) q.activeId = null;
   if (q.step == null) q.step = 0;
-  if (!q.completed || typeof q.completed !== "object") q.completed = {};
+  if (!q.completed || typeof q.completed !== "object" || Array.isArray(q.completed)) {
+    q.completed = {};
+  } else if (q.completed.__ === 1 && Object.keys(q.completed).length === 1) {
+    q.completed = {};
+  } else if (q.completed.__ != null) {
+    delete q.completed.__;
+  }
   if (!p.story.materials || typeof p.story.materials !== "object") {
     p.story.materials = { board: 0, brick: 0, nails: 0, chain: 0, spray: 0, neon_tube: 0, scrap: 0 };
   }
+  if (!p.story.rewardsGranted || typeof p.story.rewardsGranted !== "object") {
+    p.story.rewardsGranted = {};
+  }
+  syncUnifiedMaterials(p);
   if (!p.story.rel || typeof p.story.rel !== "object") p.story.rel = { gang_rust: 0, zombie: 0 };
   if (!p.story.auth || typeof p.story.auth !== "object") {
     p.story.auth = { stage: 1, s1Done: false, tasks: {}, trials: {}, ch2Done: false };
@@ -339,11 +362,23 @@ function applyEffects(effects) {
 
 function onJoinedGang() {
   const st = ensureStoryState(me());
+  const p = me();
   st.chapter = Math.max(st.chapter, 2);
+  st.gang_rank = st.gang_rank === "newbie" ? "gang_member" : st.gang_rank;
+  p.gang_rank = st.gang_rank;
+  ["q_initiation_pay", "q_initiation_duel", "q_initiation_graffiti"].forEach(id => {
+    st.quest.completed[id] = true;
+  });
+  if (["q_initiation_pay", "q_initiation_duel", "q_initiation_graffiti"].includes(st.quest.activeId)) {
+    st.quest.activeId = null;
+    st.quest.step = 0;
+  }
+  st.earn = null;
   if (!st.quest.completed.q_hangout_build && !st.quest.activeId) {
     startQuest("q_hangout_build");
   }
   hooks.toast?.(L({ ru: "Нашивка «Ржавые Цепи» получена!", en: "Rusty Chains patch earned!", da: "Rusty Chains-mærke!" }));
+  renderObjectivePanel();
 }
 
 export function startQuest(qid) {
@@ -530,7 +565,7 @@ export function fireStoryEvent(name) {
   const st = ensureStoryState(me());
   st.events[name] = true;
   Authority.onAuthStoryEvent(name);
-  if (name === "duel_razor_win" && st.quest.activeId === "q_initiation_duel") {
+  if (name === "duel_razor_win" && st.quest.activeId === "q_initiation_duel" && !st.flags.joined_gang) {
     applyEffects([{ type: "flag", value: "joined_gang" }]);
   }
   checkStepComplete();
@@ -626,6 +661,37 @@ export function tryStoryPurchase(cost, ctx) {
   return false;
 }
 
+export function getArcadeDailyCap() {
+  return data.balance?.arcadeDailyCap ?? 100;
+}
+
+export function onEconomyChanged() {
+  checkStepComplete();
+  onEarnProgress();
+  renderObjectivePanel();
+}
+
+export function storyQuestCompletedForSave(completed) {
+  const c = { ...(completed || {}) };
+  if (Object.keys(c).length === 0) c.__ = 1;
+  return c;
+}
+
+export function tryBeaconInteract() {
+  const p = me();
+  const st = ensureStoryState(p);
+  const id = st.beacon;
+  if (p.location === "parkour" && (id === "obj_parkour_finish" || getActiveStep()?.beacon === "obj_parkour_finish")) {
+    window.runParkour?.();
+    return true;
+  }
+  if (p.location === "roof" && st.auth?.stage === 3 && !st.auth.trials?.roof_parkour && id === "obj_roof_parkour") {
+    window.runParkour?.();
+    return true;
+  }
+  return false;
+}
+
 export function renderObjectivePanel() {
   const box = document.getElementById("questBox");
   if (!box || !window.me?.onboarding?.done) return false;
@@ -670,6 +736,9 @@ export function renderObjectivePanel() {
     if (q && step) {
       title = L(q.title);
       objective = L(step.objective);
+      if (q.id === "q_hangout_build" && st.hangoutStage < 4) {
+        sub = hangoutObjectiveSub(st);
+      }
       const hintLevel = st.idleHintLevel || 0;
       if (hintLevel > 0 && step.hint_60s) {
         sub = L(step.hint_60s);
@@ -759,12 +828,101 @@ export function buildHangoutStage() {
   hooks.save?.();
 }
 
+const STORY_MAT_SHOP = ["brick", "board", "nails", "chain", "spray", "neon_tube"];
+
+export function purchaseStoryMaterial(materialId, qty = 1) {
+  const p = me();
+  const st = ensureStoryState(p);
+  const prices = data.balance?.materialPrices || {};
+  const unit = prices[materialId];
+  if (unit == null) return false;
+  const cost = unit * qty;
+  if (!tryStoryPurchase(cost, { returnBeacon: "npc_bolt", returnLabel: L({ ru: "Дядя Болт", en: "Uncle Bolt", da: "Onkel Bolt" }) })) {
+    return false;
+  }
+  if (!window.isOwner) p.coins -= cost;
+  st.materials[materialId] = (st.materials[materialId] || 0) + qty;
+  hooks.toast?.(
+    L({
+      ru: `Куплено: ${materialId} ×${qty} (−${cost} монет)`,
+      en: `Bought: ${materialId} ×${qty} (−${cost} coins)`,
+      da: `Købt: ${materialId} ×${qty} (−${cost} mønter)`
+    })
+  );
+  onEconomyChanged();
+  hooks.save?.();
+  return true;
+}
+
+export function openBoltMaterialShop() {
+  const dlg = document.getElementById("storyDialog");
+  if (!dlg) return;
+  const st = ensureStoryState(me());
+  const prices = data.balance?.materialPrices || {};
+  dlg.classList.add("active");
+  dlg.querySelector(".story-dialog-title").textContent = L({
+    ru: "Скобяная лавка — Дядя Болт",
+    en: "Hardware stall — Uncle Bolt",
+    da: "Hardwarebod — Onkel Bolt"
+  });
+  const body = dlg.querySelector(".story-dialog-body");
+  const stage = data.hangout?.stages?.[st.hangoutStage];
+  const need = stage?.need || {};
+  body.innerHTML =
+    `<p class="story-line">${escapeHtml(L(stage?.hint || { ru: "Материалы для Тусовки", en: "Hangout materials", da: "Hæng-materialer" }))}</p>` +
+    STORY_MAT_SHOP.map(id => {
+      const have = st.materials[id] || 0;
+      const needN = need[id] || 0;
+      const price = prices[id] ?? "?";
+      return `<button type="button" class="btn story-choice" data-mat="${id}">
+        <span class="choice-text">${escapeHtml(id)} — ${price} 🪙</span>
+        <small class="choice-hint">${escapeHtml(L({ ru: `Есть: ${have}${needN ? ` / нужно ${needN}` : ""}`, en: `Have: ${have}${needN ? ` / need ${needN}` : ""}`, da: `Har: ${have}` }))}</small>
+      </button>`;
+    }).join("");
+  body.querySelectorAll("[data-mat]").forEach(btn => {
+    btn.onclick = () => {
+      purchaseStoryMaterial(btn.dataset.mat, 1);
+      openBoltMaterialShop();
+    };
+  });
+  applyDialogueCamera("bolt");
+}
+
+function hangoutObjectiveSub(st) {
+  const stage = data.hangout?.stages?.[st.hangoutStage];
+  if (!stage) return "";
+  const need = stage.need || {};
+  const parts = Object.entries(need).map(([k, n]) => `${k} ${st.materials[k] || 0}/${n}`);
+  return L(stage.name) + ` (${st.hangoutStage + 1}/4) · ` + parts.join(", ");
+}
+
+export function getHangoutStageNeed(stageIndex) {
+  const stage = data.hangout?.stages?.[stageIndex];
+  return stage?.need ? { ...stage.need } : {};
+}
+
 export function whereToGetMaterials() {
   const st = ensureStoryState(me());
   const stage = data.hangout?.stages?.[st.hangoutStage];
   if (stage?.beacon) setBeacon(stage.beacon);
   syncBeacon();
-  hooks.toast?.(L(stage?.hint || {}));
+  const missing = [];
+  const need = stage?.need || {};
+  for (const [k, n] of Object.entries(need)) {
+    const short = n - (st.materials[k] || 0);
+    if (short > 0) missing.push(`${k} ×${short}`);
+  }
+  if (missing.length) {
+    hooks.toast?.(
+      L({
+        ru: `Не хватает: ${missing.join(", ")}. Город — Дядя Болт (Скобяная лавка) или смена «Подсобник» на Стройке`,
+        en: `Short: ${missing.join(", ")}. City — Uncle Bolt (hardware stall) or Site helper shift`,
+        da: `Mangler: ${missing.join(", ")}. By — Onkel Bolt eller byggehjælper`
+      })
+    );
+  } else hooks.toast?.(L(stage?.hint || {}));
+  if (me().location !== "city") setBeacon("npc_bolt");
+  else openBoltMaterialShop();
 }
 
 function tryCallouts() {
@@ -828,6 +986,14 @@ function showDialogueNode(dlg, node) {
   el.classList.add("active");
   const speaker = (node.speaker || "npc").replace("npc_", "");
   applyDialogueCamera(speakerToNpcId(node.speaker) || speaker);
+  const st = ensureStoryState(me());
+  const metKey = `met_${speaker}`;
+  if (!st.flags[metKey] && speaker && speaker !== "player") {
+    st.flags[metKey] = true;
+    const introKey = `npc_intro_${speaker}`;
+    const introLine = typeof window.t === "function" ? window.t(introKey) : "";
+    if (introLine && introLine !== introKey) hooks.toast?.(introLine);
+  }
   el.querySelector(".story-dialog-title").textContent =
     typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker;
   const body = el.querySelector(".story-dialog-body");
@@ -885,6 +1051,7 @@ function closeDialogue() {
 
 export function dismissAllStoryUi() {
   closeDialogue();
+  clearDialogueCamera();
   document.getElementById("storyDialog")?.classList.remove("active");
   const body = document.getElementById("storyDialog")?.querySelector(".story-dialog-body");
   if (body && !activeDlg) body.innerHTML = "";
@@ -892,6 +1059,7 @@ export function dismissAllStoryUi() {
   document.getElementById("storyDirection")?.classList.remove("visible");
   const sub = document.getElementById("voiceSubtitle");
   if (sub) sub.textContent = "";
+  window.AudioManager?.stopSpeech?.();
 }
 
 export function canOpenStoryModal() {
@@ -910,12 +1078,42 @@ export function showNpcProximityCallout(npcId, text) {
   speakStoryLine(npcId, text);
 }
 
+function showRankNpcChatter(npcId) {
+  const lines = Authority.getNpcLinesForRank(npcId, me());
+  if (!lines?.length) return false;
+  const line = lines[Math.floor(Math.random() * lines.length)];
+  const dlg = document.getElementById("storyDialog");
+  if (!dlg) return false;
+  dlg.classList.add("active");
+  dlg.querySelector(".story-dialog-title").textContent =
+    typeof window.tNpcName === "function" ? window.tNpcName(npcId) : npcId;
+  dlg.querySelector(".story-dialog-body").innerHTML =
+    `<p class="story-line">${escapeHtml(line)}</p>
+     <button type="button" class="btn" id="storyRankDlgClose">${L({ ru: "Ок", en: "OK", da: "OK" })}</button>`;
+  dlg.querySelector("#storyRankDlgClose").onclick = () => dlg.classList.remove("active");
+  return true;
+}
+
 export function tryStoryNpc(npcId) {
   if (Authority.tryAuthorityNpc(npcId)) return true;
+  const st = story();
+  if (npcId === "bolt" && st.flags.joined_gang) {
+    openBoltMaterialShop();
+    return true;
+  }
+  if (npcId === "foreman" && st.flags.joined_gang) {
+    startQuest("q_construction_sign");
+    hooks.toast?.(L({ ru: "Список прораба: собери кирпичи для вывески", en: "Foreman's list: gather bricks for the sign", da: "Formandens liste" }));
+    return true;
+  }
+  if (npcId === "razor" && st.flags.joined_gang) {
+    return showRankNpcChatter("razor");
+  }
   if (!STORY_NPC_IDS.has(npcId)) return false;
   const loc = me().location;
   const dlg = data.dialogues.find(d => {
     if (d.location !== loc) return false;
+    if (st.flags.joined_gang && d.id === "dlg_razor_initiation") return false;
     return d.nodes?.some(n => (n.speaker || "").includes(npcId));
   });
   if (dlg) {
@@ -940,6 +1138,8 @@ function payInitiationFee() {
   fireStoryEvent("pay_initiation_fee");
   applyEffects([{ type: "flag", value: "joined_gang" }]);
   hooks.toast?.(L({ ru: "Взнос принят!", en: "Fee paid!", da: "Gebyr betalt!" }));
+  onEconomyChanged();
+  hooks.save?.();
 }
 
 export function onLocationChange(loc) {
@@ -1030,12 +1230,20 @@ const api = {
   beginEarnCoins,
   tryStoryPurchase,
   buildHangoutStage,
+  updateConstructionHud,
   whereToGetMaterials,
+  purchaseStoryMaterial,
+  openBoltMaterialShop,
+  tryBeaconInteract,
+  getArcadeDailyCap,
+  onEconomyChanged,
+  storyQuestCompletedForSave,
   setBeacon,
   syncBeacon,
   resolveGuideTarget,
   startQuest,
   ensureStoryState,
+  syncUnifiedMaterials,
   onOnboardingComplete,
   dismissAllStoryUi,
   applyDialogueCamera,
@@ -1045,7 +1253,8 @@ const api = {
   applyEffect,
   Authority,
   getJobs: () => data.jobs,
-  getBalance: () => data.balance
+  getBalance: () => data.balance,
+  getHangoutStageNeed
 };
 
 export default api;

@@ -1,5 +1,7 @@
 /** v21 playable systems: interactables, jobs, daily quests, room decor, dog fetch. */
 
+import { zoneForLocation, migrateBuildSave } from "./build/build-layer.mjs";
+
 const DECOR_KEY = "punkme_room_decor_v21";
 const DAILY_KEY = "punkme_daily_v21";
 
@@ -29,12 +31,18 @@ function applyJobShift(me, hooks, opts) {
   }
   hooks.save();
   window.StoryEngine?.fireStoryEvent?.("job_shift_done");
+  window.StoryEngine?.onEconomyChanged?.();
 }
 
 export function initPlayV21(ctx) {
   const api = {
     tryInteract(me, hooks) {
       const loc = me.location;
+      const nearNpc = window.World3D?.getNearestNpc?.();
+      if (nearNpc && window.openNpcDialog) {
+        window.openNpcDialog(nearNpc);
+        return true;
+      }
       if (loc === "room") {
         const nearSofa = me.x < 55 && me.y > 45;
         if (nearSofa) {
@@ -61,9 +69,19 @@ export function initPlayV21(ctx) {
         return true;
       }
       if (loc === "street") {
-        hooks.toast(t("interact_arcade"));
-        me.coins += 12;
+        if (window.Onboarding?.isActive?.()) return false;
+        const cap = window.StoryEngine?.getArcadeDailyCap?.() ?? 100;
+        const day = todayKey();
+        if (!me._arcadeDay || me._arcadeDay.day !== day) me._arcadeDay = { day, coins: 0 };
+        if (me._arcadeDay.coins >= cap) {
+          hooks.toast(t("interact_arcade_cap") || t("interact_arcade"));
+          return true;
+        }
+        const pay = Math.min(12, cap - me._arcadeDay.coins);
+        if (!window.isOwner) me.coins += pay;
+        me._arcadeDay.coins += pay;
         me.xp += 5;
+        hooks.toast(t("interact_arcade") + (pay < 12 ? ` (+${pay})` : ""));
         hooks.save();
         return true;
       }
@@ -73,11 +91,12 @@ export function initPlayV21(ctx) {
       }
       return false;
     },
-    startCemeteryJob(me, hooks) {
+    startCemeteryJob(me, hooks, jobKind = "night") {
       if (me.location !== "cemetery") {
         hooks.toast(t("job_go_cemetery"));
         return;
       }
+      window._cemeteryJobKind = jobKind;
       window._cemeteryJobDone = success => {
         const pay = 25 + (success ? 55 : 15);
         me.coins += pay;
@@ -86,7 +105,7 @@ export function initPlayV21(ctx) {
         hooks.toast(t("job_cemetery_done") + " +" + pay);
         window.StoryEngine?.fireStoryEvent?.("job_cemetery_done");
       };
-      if (window.World3D?.startCemeteryJobMini?.()) {
+      if (window.World3D?.startCemeteryJobVariant?.(jobKind) || window.World3D?.startCemeteryJobMini?.()) {
         hooks.toast(t("job_cemetery_start"));
         return;
       }
@@ -171,8 +190,9 @@ export function initPlayV21(ctx) {
       localStorage.setItem(DECOR_KEY, JSON.stringify(items));
     },
     toggleDecorMode(me, hooks) {
-      if (me.location !== "room") {
-        hooks.toast(t("decor_room_only"));
+      migrateBuildSave(me);
+      if (!zoneForLocation(me.location)) {
+        hooks.toast(t("decor_zone_only") || t("decor_room_only"));
         return;
       }
       me._decorMode = !me._decorMode;

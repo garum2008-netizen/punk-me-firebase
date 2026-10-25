@@ -39,6 +39,6 @@ Regenerate: `node scripts/build-voice-lines.mjs` then `node scripts/generate-voi
 | RU alt | `ru_RU-ruslan-medium` | MIT | piper-voices |
 | DA (all) | `da_DK-talesyntese-medium` | MIT | piper-voices |
 
-**Note:** Danish `talesyntese` is synthetic and can sound robotic compared to EN/RU; samples live in `qa/voice-narrator/samples/` when generated.
+**Note:** Danish `talesyntese` is synthetic and can sound robotic compared to EN/RU.
 
 Browser **speechSynthesis** is optional dev fallback (`audio_temp_voice` in settings) — off by default.

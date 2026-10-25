@@ -502,6 +502,21 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   background: linear-gradient(135deg, #ff00ff, #7c3aed); color: #fff;
   pointer-events: auto;
 }
+html.episode-capture .hud-version,
+html.episode-capture #gameVersion,
+html.episode-capture .account-hud-wrap,
+html.episode-capture .hud-account-row,
+html.episode-capture .account-auth-bar,
+html.episode-capture .credits-3d,
+html.episode-capture .lang-switch,
+html.episode-capture #langSwitch,
+html.episode-capture .hud-actions,
+html.episode-capture #btnAudioMute,
+html.episode-capture #btnAudioSettings,
+html.episode-capture #btnAccountOpen,
+html.episode-capture #btnAccountOpenChar,
+html.episode-capture #btnAccountOpenLoading,
+html.episode-capture .btn-account { display: none !important; }
 .hud-quests-wrap { display: flex; flex-direction: column; gap: 4px; }
 .hud-quests-toggle {
   display: none;
@@ -823,6 +838,42 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   align-items: center; justify-content: center; font-size: 22px; font-weight: 800; z-index: 27;
 }
 #storyDirection.visible { display: flex; }
+.story-goal-bar {
+  position: absolute; left: 50%; top: 52px; transform: translateX(-50%); z-index: 26;
+  display: none; max-width: min(520px, 92vw); padding: 8px 14px; border-radius: 14px;
+  background: rgba(12, 6, 24, 0.92); border: 2px solid rgba(255, 0, 255, 0.45);
+  text-align: center; pointer-events: none;
+}
+.story-goal-bar.visible { display: block; }
+.story-goal-chapter { font-size: 11px; opacity: 0.85; color: #0ff; }
+.story-goal-main { font-size: 15px; font-weight: 800; color: #ff6ec7; margin-top: 2px; }
+.story-goal-hint { font-size: 12px; opacity: 0.9; margin-top: 4px; }
+.story-goal-progress { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+.chapter-intro {
+  position: fixed; inset: 0; z-index: 120; display: none; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+}
+.chapter-intro.active { display: flex; }
+.chapter-intro-panel {
+  max-width: min(520px, 94vw); padding: 20px 22px; border-radius: 18px;
+  background: linear-gradient(145deg, #1a0a30, #0d0618); border: 2px solid #0ff;
+}
+.chapter-intro-title { font-size: 22px; font-weight: 800; color: #ff00ff; margin-bottom: 10px; }
+.chapter-intro-body { font-size: 15px; line-height: 1.5; opacity: 0.95; min-height: 4.5em; }
+.chapter-intro-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+.chapter-intro-progress { margin-right: auto; font-size: 12px; opacity: 0.7; }
+.map-brand-banner {
+  grid-column: 1 / -1; text-align: center; padding: 10px 8px 14px;
+  border-bottom: 1px solid rgba(255, 0, 255, 0.35); margin-bottom: 6px;
+}
+.map-brand-logo { font-size: 26px; font-weight: 900; color: #ff00ff; letter-spacing: 0.06em; }
+.map-brand-tag { display: block; font-size: 12px; opacity: 0.85; margin-top: 4px; }
+.map-thumb-wrap { position: relative; overflow: hidden; border-radius: 10px; }
+.map-thumb-wrap::after {
+  content: "PUNK ME"; position: absolute; left: 8px; bottom: 8px; font-size: 11px; font-weight: 800;
+  color: #ff00ff; text-shadow: 0 0 8px #000; pointer-events: none;
+}
+.map-card img { width: 100%; display: block; object-fit: cover; max-height: 120px; filter: saturate(1.05); }
 #storyConstructionHud {
   position: absolute; left: 12px; bottom: calc(var(--dock-h, 168px) + 8px); z-index: 28;
   display: none; max-width: 320px; padding: 10px 12px; border-radius: 10px;

@@ -428,6 +428,13 @@ function migratePlayerFromSave(raw) {
     if (inferred) v.characterId = inferred;
   }
   if (typeof v.characterId === "string" && !v.characterId.trim()) delete v.characterId;
+  if (v.story?.earn != null && typeof v.story.earn === "object") {
+    Object.keys(v.story.earn).forEach(k => {
+      if (v.story.earn[k] === undefined) delete v.story.earn[k];
+    });
+  } else if (v.story && v.story.earn === undefined) {
+    /* keep null */
+  }
   if (v.story && typeof v.story === "object") {
     if (v.story.quest != null && typeof v.story.quest !== "object") {
       v.story.quest = { activeId: null, step: 0, completed: {} };
@@ -445,6 +452,9 @@ function migratePlayerFromSave(raw) {
   if (v.settings && v.settings.audio != null && typeof v.settings.audio !== "object") {
     v.settings.audio = {};
   }
+  try {
+    window.__migrateBuildSave?.(v);
+  } catch (e) {}
   return v;
 }
 
@@ -910,6 +920,24 @@ function pickCharacterAndContinue(id) {
 
 function continueGameBoot() {
   try {
+    const boot = () => continueGameBootInner();
+    if (window.__punkShowStartGameOverlay) {
+      window.__punkShowStartGameOverlay(boot);
+      return;
+    }
+    continueGameBootInner();
+  } catch (err) {
+    console.error("continueGameBoot", err);
+    const kind =
+      typeof window.__punkClassifyBootError === "function"
+        ? window.__punkClassifyBootError(err.message, "webgl")
+        : "unknown";
+    showLoadingFailure(t(`boot_title_${kind}`), err.message || String(err), { kind });
+  }
+}
+
+function continueGameBootInner() {
+  try {
     hideLoading();
     initResponsiveHud();
     if (window.Onboarding) Onboarding.init();
@@ -931,9 +959,16 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    window.StoryGoalHud?.init?.();
     window.AudioManager?.unlockAudio?.().then(ok => {
       if (ok) window.AudioManager?.setLocationMusic?.(me.location || "room");
-      window.Narrator?.refresh?.();
+      if (window.ChapterIntro?.shouldShowChapterIntro?.()) {
+        window.ChapterIntro.playChapterIntro({
+          onDone: () => window.Narrator?.refresh?.()
+        });
+      } else {
+        window.Narrator?.refresh?.();
+      }
     });
     window.StoryGoalHud?.refresh?.();
   } catch (err) {
@@ -977,9 +1012,13 @@ function applyHashRoute() {
 function renderMapModal() {
   const grid = document.getElementById("mapGrid");
   if (!grid) return;
-  grid.innerHTML = Object.values(LOCATIONS).map(loc => `
-    <div class="card">
-      <img src="${loc.bg}" alt="">
+  const brand = `<div class="map-brand-banner" aria-label="PUNK ME">
+    <span class="map-brand-logo">PUNK ME</span>
+    <span class="map-brand-tag">${escapeHtml(t("map_brand_tag"))}</span>
+  </div>`;
+  grid.innerHTML = brand + Object.values(LOCATIONS).map(loc => `
+    <div class="card map-card">
+      <div class="map-thumb-wrap"><img src="${loc.bg}" alt=""></div>
       <div><b>${escapeHtml(locTitle(loc.id))}</b></div>
       <button class="btn" style="margin-top:6px;width:100%" ${me.location === loc.id ? "disabled" : ""}
         onclick="goLocation('${loc.id}'); closeModal('mapModal');">
@@ -1026,6 +1065,15 @@ function saveMe() {
   pushPresence();
 }
 
+function sanitizeStory(st) {
+  if (!st || typeof st !== "object") return st;
+  try {
+    return JSON.parse(JSON.stringify(st));
+  } catch (e) {
+    return st;
+  }
+}
+
 function sanitizePlayer(p) {
   return {
     name: p.name,
@@ -1050,7 +1098,7 @@ function sanitizePlayer(p) {
     dog: dogPos,
     lang: getLanguage(),
     characterId: p.characterId || null,
-    story: p.story,
+    story: sanitizeStory(p.story),
     authority: p.authority ?? p.story?.authority,
     gang_rank: p.gang_rank ?? p.story?.gang_rank,
     energy: p.energy,
@@ -1299,6 +1347,12 @@ function afterLocationChange() {
 
 function goLocation(id, fromHash) {
   if (!LOCATIONS[id]) return;
+  if (window.StorySpine && !window.StorySpine.isLocationUnlocked(id)) {
+    toast(window.StorySpine.blockReason(id) || (typeof t === "function" ? t("spine_loc_locked") : id));
+    return;
+  }
+  const portalHint = window.StorySpine?.explainPortal?.(id);
+  if (portalHint) toast(portalHint);
   if (!fromHash && location.hash !== "#" + id) {
     history.replaceState(null, "", "#" + id);
   }
@@ -1322,6 +1376,8 @@ function goLocation(id, fromHash) {
     setTimeout(() => runJobAction(act), 350);
   }
   afterLocationChange();
+  window.AudioManager?.setLocationMusic?.(id);
+  window.StoryGoalHud?.refresh?.();
 }
 
 function onRoomClick(e) {
@@ -1556,6 +1612,10 @@ function renderGangList() {
 function openNpcDialog(nid) {
   if (window.StoryEngine?.tryStoryNpc?.(nid)) {
     closeModal("gangModal");
+    if (nid === "razor") {
+      questBump("talk_razor");
+      window.Onboarding?.onTalkRazor?.();
+    }
     return;
   }
   const n = NPCS[nid];
@@ -1717,7 +1777,15 @@ function doJob(action) {
 
 function runJobAction(action) {
   if (action === "cemetery_night") {
-    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe });
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe }, "night");
+    return;
+  }
+  if (action === "dig") {
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe }, "paths");
+    return;
+  }
+  if (action === "cobwebs") {
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe }, "lamps");
     return;
   }
   if (action === "pizza_delivery") {
@@ -1737,7 +1805,7 @@ function runJobAction(action) {
     runParkourJob();
     return;
   }
-  const cemeteryActions = ["dig", "cobwebs", "clean", "water"];
+  const cemeteryActions = ["clean", "water"];
   if (!cemeteryActions.includes(action)) return;
   if (me.location !== "cemetery") {
     pendingJobAction = action;
@@ -1921,6 +1989,7 @@ function npcTurn() {
 
 function endFight(win) {
   document.getElementById("fightOverlay").classList.remove("active");
+  document.getElementById("duel3dHud")?.classList.add("hidden");
   const shieldLeft = fight ? fight.shield : 0;
   if (win) {
     const reward = 70 + Math.floor(Math.random() * 40);
@@ -1937,6 +2006,7 @@ function endFight(win) {
     me.stats.hp = me.stats.maxHp;
   }
   fight = null;
+  window._duel3dEnd = null;
   if (shieldLeft) me.stats._shield = shieldLeft;
   saveMe();
   renderAll();

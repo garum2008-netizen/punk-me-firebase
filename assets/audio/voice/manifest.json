@@ -225,6 +225,26 @@
       "ru": "voice/ru/narr_onboard_shop_buy_touch.ogg",
       "en": "voice/en/narr_onboard_shop_buy_touch.ogg",
       "da": "voice/da/narr_onboard_shop_buy_touch.ogg"
+    },
+    "intro_slide1": {
+      "ru": "voice/ru/intro_slide1.ogg",
+      "en": "voice/en/intro_slide1.ogg",
+      "da": "voice/da/intro_slide1.ogg"
+    },
+    "intro_slide2": {
+      "ru": "voice/ru/intro_slide2.ogg",
+      "en": "voice/en/intro_slide2.ogg",
+      "da": "voice/da/intro_slide2.ogg"
+    },
+    "intro_slide3": {
+      "ru": "voice/ru/intro_slide3.ogg",
+      "en": "voice/en/intro_slide3.ogg",
+      "da": "voice/da/intro_slide3.ogg"
+    },
+    "intro_slide4": {
+      "ru": "voice/ru/intro_slide4.ogg",
+      "en": "voice/en/intro_slide4.ogg",
+      "da": "voice/da/intro_slide4.ogg"
     }
   }
 }

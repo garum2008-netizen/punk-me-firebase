@@ -20,7 +20,7 @@ export function getInputState() {
   const left = state.a || state.arrowleft;
   const right = state.d || state.arrowright;
   state.moveX = (right ? 1 : 0) - (left ? 1 : 0);
-  state.moveZ = (up ? 1 : 0) - (down ? 1 : 0);
+  state.moveZ = (down ? 1 : 0) - (up ? 1 : 0);
   state.run = state.shift;
   return state;
 }
@@ -48,8 +48,15 @@ export function initControls3D(canvas, onOrbitDelta) {
   canvas.addEventListener("pointercancel", onPtrUp);
 }
 
+function gameplayInputBlocked() {
+  if (document.body?.dataset?.gamePaused === "1") return true;
+  if (document.querySelector(".modal.active, #startGameOverlay.active")) return true;
+  return false;
+}
+
 function onKeyDown(e) {
   if (e.target?.matches?.("input, textarea, select")) return;
+  if (gameplayInputBlocked()) return;
   const k = e.key.toLowerCase();
   if (k === "w" || k === "a" || k === "s" || k === "d") state[k] = true;
   if (e.key === "ArrowUp") state.arrowup = true;
@@ -58,7 +65,7 @@ function onKeyDown(e) {
   if (e.key === "ArrowRight") state.arrowright = true;
   if (e.key === "Shift") state.shift = true;
   if (e.key === " ") { state.jump = true; e.preventDefault(); }
-  if (k === "e") state.interact = true;
+  if (e.code === "KeyE") state.interact = true;
 }
 
 function onKeyUp(e) {

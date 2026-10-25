@@ -145,6 +145,42 @@ function speakerToCharacter(speaker) {
 
 const lines = [];
 
+const INTRO_SLIDES = ["intro_slide1", "intro_slide2", "intro_slide3", "intro_slide4"];
+const INTRO_I18N = {
+  intro_slide1: {
+    ru: "Ты — новенький в доме №13. Здесь живёт банда «Ржавые Цепи»: Вена, Рейзор, Кобальт, Ирокез, Призрак и пёс Шнурок.",
+    en: "You're the new kid at house 13. The Rusty Chains live here: Vienna, Razor, Cobalt, Mohawk, Ghost, and dog Schnurok.",
+    da: "Du er ny i hus nr. 13. Rusty Chains bor her: Vienna, Razor, Cobalt, Mohawk, Ghost og hunden Schnurok."
+  },
+  intro_slide2: {
+    ru: "Цель: пройти обучение, доказать, что ты свой. Следи за подсказкой сверху — маяк и стрелка ведут к следующему шагу.",
+    en: "Goal: finish training and prove you're crew. Watch the top hint — beacon and arrow show the next step.",
+    da: "Mål: fuldfør træning og vis at du hører til. Se hintet øverst — fyrtårn og pil viser næste skridt."
+  },
+  intro_slide3: {
+    ru: "Говори с NPC, бери задания, зарабатывай монеты. Каждый выбор влияет на авторитет и отношение банды.",
+    en: "Talk to NPCs, take quests, earn coins. Choices affect your authority and how the gang sees you.",
+    da: "Tal med NPC'er, tag opgaver, tjen mønter. Valg påvirker autoritet og bandens syn på dig."
+  },
+  intro_slide4: {
+    ru: "Готов? Вперёд на улицу — Рейзор уже смотрит.",
+    en: "Ready? Hit the street — Razor is already watching.",
+    da: "Klar? Ud på gaden — Razor kigger allerede."
+  }
+};
+
+for (const key of INTRO_SLIDES) {
+  const block = INTRO_I18N[key];
+  lines.push({
+    id: key,
+    characterId: "narrator",
+    role: "narrator",
+    ru: block.ru,
+    en: block.en,
+    da: block.da
+  });
+}
+
 for (const dlg of dialogues) {
   for (const node of dlg.nodes || []) {
     if (!node.text || !node.speaker) continue;
