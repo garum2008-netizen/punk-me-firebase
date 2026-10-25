@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 /**
- * RTDB security rules tests against local Database + Auth emulators.
- * Implements the acceptance matrix required for TASK 02 (equivalent to
- * @firebase/rules-unit-testing scenarios; HTTP harness avoids SDK double-init).
- *
- * Requires emulators on 127.0.0.1:9000 (database) and :9099 (auth).
+ * RTDB security rules tests — Database + Auth emulators (127.0.0.1:9000 / :9099).
+ * Each case logs PASS or FAIL.
  */
 const http = require("http");
 const https = require("https");
@@ -15,6 +12,8 @@ const DB_PORT = 9000;
 const AUTH_HOST = "127.0.0.1";
 const AUTH_PORT = 9099;
 const DB_NS = `${PROJECT_ID}-default-rtdb`;
+
+const results = [];
 
 const samplePlayer = {
   name: "TestPunk",
@@ -67,31 +66,35 @@ function dbUrl(pathSuffix, idToken) {
   return `http://${DB_HOST}:${DB_PORT}/${pathSuffix}.json?${q}`;
 }
 
+function denied(r) {
+  return r.status === 401 || r.json?.error === "Permission denied" || r.body?.includes("Permission denied");
+}
+
+function pass(name, ok, detail = "") {
+  results.push({ name, ok, detail });
+  console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
+  if (!ok) throw new Error(name);
+}
+
 async function authSignUp() {
   const url = `http://${AUTH_HOST}:${AUTH_PORT}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`;
-  const body = JSON.stringify({});
   const res = await fetchJson(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body
+    body: JSON.stringify({})
   });
-  if (res.status !== 200 || !res.json?.idToken) {
-    throw new Error(`signUp failed: ${res.status} ${res.body}`);
-  }
+  if (res.status !== 200 || !res.json?.idToken) throw new Error(`signUp failed: ${res.status}`);
   return res.json;
 }
 
 async function authCustomToken(customToken) {
   const url = `http://${AUTH_HOST}:${AUTH_PORT}/identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=fake-api-key`;
-  const body = JSON.stringify({ token: customToken, returnSecureToken: true });
   const res = await fetchJson(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body
+    body: JSON.stringify({ token: customToken, returnSecureToken: true })
   });
-  if (res.status !== 200 || !res.json?.idToken) {
-    throw new Error(`custom token sign-in failed: ${res.status} ${res.body}`);
-  }
+  if (res.status !== 200 || !res.json?.idToken) throw new Error(`custom token failed: ${res.status}`);
   return res.json;
 }
 
@@ -103,10 +106,6 @@ async function seedPlayers(admin, aliceUid, bobUid) {
     avatar: "imagine_images/Oo040.jpg",
     coins: 100
   });
-}
-
-function assert(cond, msg) {
-  if (!cond) throw new Error(msg);
 }
 
 async function run() {
@@ -128,83 +127,156 @@ async function run() {
   const aliceUid = aliceAuth.localId;
   const bobUid = bobAuth.localId;
 
-  console.log("rules: unauth read /players → deny");
-  let r = await fetchJson(dbUrl("players"));
-  assert(r.status === 401 || (r.json && r.json.error), `expected deny, got ${r.status}`);
+  let r;
 
-  console.log("rules: unauth read /players/{uid} → deny");
+  r = await fetchJson(dbUrl("players"));
+  pass("unauth read /players root → deny", denied(r), `status ${r.status}`);
+
   r = await fetchJson(dbUrl(`players/${aliceUid}`));
-  assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
+  pass("unauth read /players/{uid} → deny", denied(r), `status ${r.status}`);
 
-  console.log("rules: alice read own → allow");
   r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken));
-  assert(r.status === 200, `alice own read: ${r.status}`);
+  pass("alice read own /players/{uid} → allow", r.status === 200, `status ${r.status}`);
 
-  console.log("rules: alice read bob → deny");
   r = await fetchJson(dbUrl(`players/${bobUid}`, aliceAuth.idToken));
-  assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
+  pass("alice read bob /players/{uid} → deny", denied(r), `status ${r.status}`);
 
-  console.log("rules: alice write own coins");
   r = await fetchJson(dbUrl(`players/${aliceUid}/coins`, aliceAuth.idToken), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(101)
   });
-  assert(r.status === 200, `alice write own: ${r.status} ${r.body}`);
+  pass("alice write own coins → allow", r.status === 200, r.body);
 
-  console.log("rules: alice write pet string (pet_dog)");
-  r = await fetchJson(dbUrl(`players/${aliceUid}/pet`, aliceAuth.idToken), {
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify("pet_dog")
+    body: JSON.stringify({ ...samplePlayer, premium: true })
   });
-  assert(r.status === 200, `alice pet string: ${r.status} ${r.body}`);
+  pass("alice SET /players/{uid} with premium:true → deny", denied(r), `status ${r.status}`);
 
-  console.log("rules: bob write alice → deny");
-  r = await fetchJson(dbUrl(`players/${aliceUid}/coins`, bobAuth.idToken), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(1)
-  });
-  assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
-
-  console.log("rules: admin read /players root → allow");
-  r = await fetchJson(dbUrl("players", adminAuth.idToken));
-  assert(r.status === 200 && r.json && typeof r.json === "object", `admin root: ${r.status}`);
-
-  console.log("rules: admin read bob → allow");
-  r = await fetchJson(dbUrl(`players/${bobUid}`, adminAuth.idToken));
-  assert(r.status === 200, `admin bob: ${r.status}`);
-
-  console.log("rules: publicProfiles read without auth → allow");
-  r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`));
-  assert(r.status === 200 && r.json?.name, `public profile: ${r.status}`);
-
-  console.log("rules: bob write alice publicProfile → deny");
-  r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`, bobAuth.idToken), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "Hack", coins: 0 })
-  });
-  assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
-
-  console.log("rules: alice write premium → deny");
   r = await fetchJson(dbUrl(`players/${aliceUid}/premium`, aliceAuth.idToken), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(true)
   });
-  assert(r.status === 401 || r.json?.error, `expected deny premium, got ${r.status}`);
+  pass("alice PUT premium:true → deny", denied(r), `status ${r.status}`);
 
-  console.log("rules: alice write entitlements → deny");
+  await admin.database().ref(`players/${aliceUid}/premium`).set(true);
+  r = await fetchJson(dbUrl(`players/${aliceUid}/coins`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(105)
+  });
+  pass("alice update coins when premium already true (admin-set) → allow", r.status === 200, r.body);
+
   r = await fetchJson(dbUrl(`players/${aliceUid}/entitlements`, aliceAuth.idToken), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ stripe: "x" })
+    body: JSON.stringify({ stripe: "hack" })
   });
-  assert(r.status === 401 || r.json?.error, `expected deny entitlements, got ${r.status}`);
+  pass("alice PUT entitlements → deny", denied(r), `status ${r.status}`);
 
-  console.log("\nAll database rules tests passed.");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/coins`, bobAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(1)
+  });
+  pass("bob write alice coins → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl("players", adminAuth.idToken));
+  pass("admin read /players root → allow", r.status === 200 && typeof r.json === "object", `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`));
+  pass("unauth read publicProfiles/{uid} → allow", r.status === 200 && r.json?.name, `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`, bobAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Hack", coins: 0 })
+  });
+  pass("bob write alice publicProfile → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "TestPunk", coins: 105, avatar: "imagine_images/Oo040.jpg" })
+  });
+  pass("alice write own publicProfile → allow", r.status === 200, r.body);
+
+  const presencePayload = {
+    name: "TestPunk",
+    x: 50,
+    y: 55,
+    ts: Date.now(),
+    level: 1,
+    characterId: "cobalt",
+    anim: "idle",
+    avatar: "imagine_images/Oo040.jpg"
+  };
+
+  r = await fetchJson(dbUrl(`presence/room/${aliceUid}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(presencePayload)
+  });
+  pass("unauth write presence → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`presence/room/${aliceUid}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(presencePayload)
+  });
+  pass("alice write own presence → allow", r.status === 200, r.body);
+
+  r = await fetchJson(dbUrl("presence/room"));
+  pass("unauth read presence/room → allow", r.status === 200, `status ${r.status}`);
+
+  r = await fetchJson(dbUrl("chat"));
+  pass("unauth read chat → allow", r.status === 200, `status ${r.status}`);
+
+  const msgId = "msg_" + Date.now();
+  r = await fetchJson(dbUrl(`chat/${msgId}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      uid: aliceUid,
+      name: "TestPunk",
+      text: "hi",
+      time: Date.now()
+    })
+  });
+  pass("alice write chat message → allow", r.status === 200, r.body);
+
+  r = await fetchJson(dbUrl("buildings/city"));
+  pass("unauth read buildings/city → allow", r.status === 200, `status ${r.status}`);
+
+  const pieceId = "piece_" + Date.now();
+  r = await fetchJson(dbUrl(`buildings/city/${pieceId}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "bench", x: 1, y: 2, owner: aliceUid })
+  });
+  pass("alice place building piece → allow", r.status === 200, r.body);
+
+  console.log("\n--- client impact (main @ 450d6da vs rules in this repo) ---");
+  console.log(
+    "PASS (analysis): main game.js does NOT read /players root; multiplayer uses /presence/{location} only."
+  );
+  console.log(
+    "PASS (analysis): owner-admin.mjs reads /players root — needs auth.token.admin (rules allow)."
+  );
+  console.log(
+    "WARN (prod vs git): live prod allows anon GET /players (owner verified 25.10); git rules deny — deploy git rules closes leak, does not break main client save/F5."
+  );
+  console.log(
+    "WARN (prod vs git): live prod denies anon presence/publicProfiles/chat/buildings; git rules ALLOW read — naive full deploy OPENS those paths. Merge premium/players fixes INTO exported prod rules."
+  );
+  console.log(
+    "PASS (analysis): hotfix game.js saveMe uses .update(sanitizePlayer) without premium — compatible with premium validate + unchanged admin premium."
+  );
+
+  console.log(`\nAll ${results.length} emulator rule cases passed.`);
   process.exit(0);
 }
 

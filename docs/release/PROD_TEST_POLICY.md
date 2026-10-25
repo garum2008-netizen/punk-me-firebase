@@ -2,7 +2,7 @@
 
 ## Клиент (браузер)
 
-- `?dev=1` / `localStorage.punkme_dev` **не дают 9999 монет** на production-хосте (`halloween.punk.*`, Firebase Hosting).
+- `?dev=1` / `localStorage.punkme_dev` **не дают 9999 монет** на production-хосте (GitHub Pages с `main`, e.g. `halloween.punk.*`).
 - `saveMe()` **не вызывается**, если на production включены флаги `dev` / `qa` / `punkme_dev` / `punkme_qa`.
 - Эмулятор: `?firebaseEmulator=1` на localhost.
 

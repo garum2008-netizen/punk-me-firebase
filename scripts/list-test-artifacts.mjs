@@ -4,8 +4,9 @@
  * Does NOT write or delete anything.
  *
  *   export GOOGLE_APPLICATION_CREDENTIALS=...  # same as set-admin-claim.mjs
- *   node scripts/list-test-artifacts.mjs --email punktest+1792953969532@contractbot.dk
- *   node scripts/list-test-artifacts.mjs --anon-window 2026-10-25T18:00:00Z/2026-10-25T20:00:00Z
+ *   node scripts/list-test-artifacts.mjs --email=<qa-account@your-domain>
+ *   node scripts/list-test-artifacts.mjs --anon-window=2026-10-25T18:00:00Z/2026-10-25T20:00:00Z
+ *   node scripts/list-test-artifacts.mjs --auth-stats
  *
  * Emulator self-test: FIREBASE_AUTH_EMULATOR_HOST + FIREBASE_DATABASE_EMULATOR_HOST set.
  */
@@ -22,7 +23,26 @@ function parseArgs() {
   const args = process.argv.slice(2);
   const email = (args.find(a => a.startsWith("--email=")) || "").split("=")[1];
   const anonWindow = (args.find(a => a.startsWith("--anon-window=")) || "").split("=")[1];
-  return { email, anonWindow };
+  const authStats = args.includes("--auth-stats");
+  return { email, anonWindow, authStats };
+}
+
+async function authStats(admin) {
+  let total = 0;
+  let anon = 0;
+  let withEmail = 0;
+  let pageToken;
+  do {
+    const res = await admin.auth().listUsers(1000, pageToken);
+    for (const u of res.users) {
+      total += 1;
+      const isAnon = !u.providerData?.length || u.providerData.every(p => p.providerId === "anonymous");
+      if (isAnon) anon += 1;
+      if (u.email) withEmail += 1;
+    }
+    pageToken = res.pageToken;
+  } while (pageToken);
+  return { total, anon, withEmail, providersNote: "no uid/email emitted in --auth-stats mode" };
 }
 
 function useEmulator() {
@@ -123,9 +143,15 @@ async function countPlayersTouchedInWindow(db, fromIso, toIso) {
 }
 
 async function main() {
-  const { email, anonWindow } = parseArgs();
+  const { email, anonWindow, authStats: wantAuthStats } = parseArgs();
   const admin = await initAdmin();
   const db = admin.database();
+
+  if (wantAuthStats) {
+    console.log(JSON.stringify({ at: new Date().toISOString(), projectId: PROJECT_ID, auth: await authStats(admin) }, null, 2));
+    return;
+  }
+
   const report = {
     at: new Date().toISOString(),
     projectId: PROJECT_ID,
@@ -172,7 +198,7 @@ async function main() {
   }
 
   if (!email && !anonWindow) {
-    report.hint = "Pass --email=... or --anon-window=ISO/ISO";
+    report.hint = "Pass --email=... or --anon-window=FROM/TO or --auth-stats";
   }
 
   console.log(JSON.stringify(report, null, 2));

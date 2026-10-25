@@ -1,95 +1,104 @@
 # Production security hotfix — план (независим от релиза сюжета)
 
-**Ветка:** `cursor/prod-security-hotfix-d81d` (от `main` @ `450d6da`, **не** из PR #43).  
-**Статус:** черновик PR — **не публиковать** rules/hosting без отдельного GO владельца.
+**Ветка:** `cursor/prod-security-hotfix-d81d` (от `main` @ `450d6da`, **не** PR #43).  
+**Draft PR:** [#45](https://github.com/garum2008-netizen/punk-me-firebase/pull/45)  
+**Статус:** **не публиковать** без GO владельца.
 
-## Цели
+## Клиент: GitHub Pages, не Firebase Hosting
+
+Публичный сайт собирается из **`main` → GitHub Pages** (корень репозитория).  
+`firebase.json` → `hosting` **не используется** для прод-сайта; блок `hosting.ignore` на Pages **не влияет**.
+
+| Действие | Правильно |
+|----------|-----------|
+| Выкатить client hotfix (`js/game.js`) | Merge PR #45 (или cherry-pick) в **`main`** → дождаться Pages build |
+| Откатить client | **`git revert`** merge-коммита на `main` **или** тег/ветка backup на `450d6da` + reset Pages source |
+| ~~`firebase deploy --only hosting`~~ | **Не применимо** к текущему прод-сайту |
+
+### Что станет доступно на Pages из PR #45
+
+В репозитории лежат `docs/release/*`, `scripts/*` — при Pages из корня они **теоретически скачиваемы по URL**, если путь угадать. В #45 **нет** секретов, service-account, полных UID.  
+В `list-test-artifacts.mjs` убраны примеры с реальными email; отчёты владельца (`prod-readonly-snapshots/`) **не коммитить**.
+
+## RTDB rules: prod ≠ git `main`
+
+**Факт (владелец, 25.10 ~22:24 UTC):** анонимный REST **читает** `/players`; `/presence`, `/publicProfiles`, `/chat`, `/buildings` — **permission denied**.
+
+Файл `database.rules.json` в git (и `scripts/rules-deploy-snapshots/main-450d6da-pre-hotfix.json`) описывает **желаемую** модель, **не** текущий prod.  
+**Полный** `firebase deploy --only database` с git-файлом изменит не только `premium`, но и, например, **откроет** чтение `presence`/`chat`/`publicProfiles`/`buildings`, если в prod они закрыты.
+
+### Шаг 0 (обязательно, владелец, read-only)
+
+Одна сессия Cloud Shell (ADC, без записи в RTDB):
+
+```bash
+chmod +x scripts/owner-readonly-check.sh
+./scripts/owner-readonly-check.sh
+```
+
+Скрипт выполняет:
+
+1. **Экспорт live rules** → `docs/release/prod-readonly-snapshots/rtdb-rules-prod-<timestamp>.json`  
+   (команда внутри: `firebase database:rules:get --project punk-me-40605`)
+2. **`npm run list:test-artifacts`** с окном по умолчанию `2026-10-24T00:00:00Z/2026-10-26T00:00:00Z`
+3. **`node scripts/list-test-artifacts.mjs --auth-stats`** (только счётчики пользователей)
+
+**Откат rules после hotfix** = redeploy файла из шага 0, **не** `main-450d6da-pre-hotfix.json`.
+
+Рекомендуемый порядок после экспорта:
+
+1. Diff: `rtdb-rules-prod-*.json` ↔ `database.rules.json` (PR #45).
+2. Собрать **минимальный** патч (закрыть публичный `/players`, `premium`/`entitlements`/`qa` только admin, **сохранить** prod-поведение presence/chat, если нужно).
+3. Прогнать `npm run test:rules` на итоговом JSON в эмуляторе.
+4. Только затем `firebase deploy --only database` с **согласованным** файлом.
+
+## Цели hotfix (PR #45)
 
 | # | Защита | Где |
 |---|--------|-----|
-| 1 | `?dev=1` / `localStorage.punkme_dev` / `?qa=1` **не дают 9999 монет** на prod-хосте | `js/game.js` `devCoinsEnabled` + `isProductionFirebaseClient` |
-| 2 | Запись в RTDB с prod при dev/qa флагах **блокируется** | `prodDevWriteBlocked()` → `saveMe()` no-op |
-| 3 | `undefined` не уходит в `players/{uid}.update` | `stripUndefinedDeep` + `npm run test:save-sanitize` |
-| 4 | Клиент **не может** выставить `premium` / `entitlements` / `qa` | `database.rules.json` |
-| 5 | Список `players` — только **admin**; игрок читает **только свой** `players/{uid}` | уже на `main` @ `450d6da`; зафиксировано в эмулятор-тестах |
-| 6 | `publicProfiles`, `presence`, `chat`, `buildings` — без поломки текущей игры | тесты эмулятора + ручная smoke на preview |
-| 7 | Playwright/capture **не бьют prod** | `scripts/lib/guard-no-prod-firebase.js` + `require-local-capture.js` |
+| 1 | `?dev=1` / `punkme_dev` / `?qa=1` не дают читы на prod-хосте | `js/game.js` |
+| 2 | `saveMe()` no-op на prod при dev/qa | `prodDevWriteBlocked()` |
+| 3 | `undefined` не в RTDB update | `stripUndefinedDeep` + `npm run test:save-sanitize` |
+| 4 | Клиент не выставляет `premium` / `entitlements` / `qa` (в т.ч. **SET** всего `players/{uid}`) | `database.rules.json` |
+| 5 | Сохранение владельца с уже выставленным admin `premium:true` | validate: unchanged value allowed |
+| 6 | Capture не бьёт prod | `scripts/lib/guard-no-prod-firebase.js`, `require-local-capture.js` |
 
-## Снимок правил (репозиторий)
+Скрипты: `npm run list:test-artifacts` (файл `scripts/list-test-artifacts.mjs`).
 
-| Файл | Содержание |
-|------|------------|
-| `scripts/rules-deploy-snapshots/main-450d6da-pre-hotfix.json` | **Точная копия** `database.rules.json` с `main` @ `450d6da` (до hotfix) |
-| `database.rules.json` (в hotfix PR) | Добавлены только `premium`, `entitlements`, `qa` под admin |
-
-**Важно:** фактические правила в Firebase Console может отличаться от git. Сравнение **prod ↔ git** выполняет владелец (Console export или `firebase database:rules:get` с ADC).
-
-## Тесты (только эмулятор)
+## Тесты (эмулятор)
 
 ```bash
 npm ci
 npm run test:save-sanitize
-npm run test:rules    # Auth + Database emulators, test-database-rules.js + fixtures
+npm run test:rules
 ```
 
-Матрица `test-database-rules.js` (hotfix):
+Лог последнего прогона: `docs/release/RULES_EMULATOR_LAST_RUN.md` (обновляется при CI/агенте).
 
-- unauth → deny read `players`, deny write `players/{uid}`
-- alice → read/write own `coins`, deny bob's node
-- admin → read `/players` root
-- `publicProfiles` — read all, write only own uid
-- **premium / entitlements** — client write **deny**
-- (на `main` без расширенного набора) presence/chat/buildings — см. полный набор в PR #43; для hotfix достаточно не менять существующие правила кроме premium\*
+### Влияние на клиент `main` @ `450d6da`
 
-**Старый клиент `main` @ `450d6da`:** после публикации **только rules** (без принудительного деплоя нового `game.js`) игра продолжит работать; новые поля premium по-прежнему недоступны клиенту. Деплой `game.js` с hotfix желателен для блокировки dev-записей.
+| Путь RTDB | Использование в `game.js` | Если применить git rules как есть |
+|-----------|---------------------------|-----------------------------------|
+| `/players` root | **Нет** (только `players/{uid}`) | Закрытие публичного чтения **не ломает** гостевой старт/save/F5 |
+| `/presence/{loc}` | Да, список в локации | Prod сейчас deny anon — git **открывает** read → нужен merge с prod export |
+| `/publicProfiles` | `saveMe` set own | Prod deny — git allow write own |
+| `owner-admin.mjs` `/players` | Только owner UI | Нужен `auth.token.admin` |
 
-## Публикация (после GO владельца)
+Новый клиент #45: тот же контракт + блок dev-записи на prod.
 
-1. Merge draft PR `cursor/prod-security-hotfix-d81d` → `main`.
-2. **Rules first** (рекомендуется):
-   ```bash
-   firebase deploy --only database --project punk-me-40605
-   ```
-3. **Hosting** (client guards + hosting.ignore для qa):
-   ```bash
-   firebase deploy --only hosting --project punk-me-40605
-   ```
-4. Smoke: открыть live **без** `?dev=1`, убедиться что сохранение работает; с `?dev=1` на prod — в консоли предупреждение, RTDB не меняется.
+## Публикация (после GO)
 
-## Откат одной командой
+1. Merge #45 → `main` (client → Pages).
+2. Rules: deploy **патча от prod export**, не слепой git file (см. шаг 0).
+3. Smoke: prod без `?dev=1` — save OK; с `?dev=1` — запись заблокирована (после деплоя client).
 
-Вернуть rules к снимку до hotfix:
+## Откат
 
-```bash
-firebase deploy --only database --project punk-me-40605 \
-  --config firebase.json \
-  # положить main-450d6da-pre-hotfix.json как database.rules.json или:
-  cp scripts/rules-deploy-snapshots/main-450d6da-pre-hotfix.json database.rules.json && \
-  firebase deploy --only database --project punk-me-40605
-```
-
-Откат hosting: redeploy предыдущего release в Firebase Console → Hosting → Rollback.
-
-## Расследование тестовых записей в prod RTDB
-
-### Установленные источники (по признакам)
-
-| Признак | Вероятный источник | Статус |
-|---------|-------------------|--------|
-| `coins: 9999`, полный прогресс, даты 24–25.10.2026 | Браузер `?dev=1` + `saveMe` на live до client-guard | Закрывается hotfix `game.js` |
-| Playwright `capture-*.js` с `PUNK_BASE` на halloween | CI/агент до `require-local-capture` | Закрывается guard в скриптах |
-| `punktest+*@contractbot.dk` | Осознанные QA-аккаунты | Инвентаризация владельцем |
-
-### Источник **не установлен** (нужны логи RTDB)
-
-| Наблюдение | Почему неясно | Как закроет владелец |
-|------------|---------------|----------------------|
-| Анонимные `players/*` с аномальными монетами **без** 9999 и **без** dev-меток | Нет audit log по uid в репо | **Одна команда (read-only):** Cloud Shell + ADC → `npm run list:test-artifacts -- --anon-window=2026-10-24T00:00:00Z/2026-10-26T00:00:00Z` — список uid (хеш/префикс), coins, `lastSeen`, без выгрузки PII в PR |
-| Записи `presence/*` от «probe» | Не привязаны к скрипту в git | Тот же `list:test-artifacts` + сопоставление `ts` с deploy/capture логами |
-| `publicProfiles` с несоответствием `players` | Мог быть частичный save / старый клиент | Выборочная сверка через admin SDK (владелец) |
-
-Скрипт: `scripts/list-test-artifacts.mjs` — **только чтение**, без delete.
+| Слой | Откат |
+|------|--------|
+| Client (Pages) | `git revert` merge на `main` или восстановить `main` с тега `backup-450d6da` |
+| RTDB rules | `firebase deploy --only database` с `rtdb-rules-prod-<timestamp>.json` из шага 0 |
 
 ## Связь с PR #43
 
-PR #43 (сюжет) **не мержить** для security. Этот пакет — минимальный diff от `main`. После GO можно выкатить hotfix раньше релиза гл.0–4.
+Сюжет и QA-артефакты — только PR #43 (Draft). Security — только #45.

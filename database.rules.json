@@ -66,13 +66,13 @@
           ".validate": "newData.isBoolean()"
         },
         "premium": {
-          ".validate": "!newData.exists() || auth.token.admin === true"
+          ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
         },
         "entitlements": {
-          ".validate": "!newData.exists() || auth.token.admin === true"
+          ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
         },
         "qa": {
-          ".validate": "!newData.exists() || auth.token.admin === true"
+          ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
         },
         "pet": {
           ".validate": "!newData.exists() || newData.val() == null || (newData.isString() && newData.val().length <= 32)"
