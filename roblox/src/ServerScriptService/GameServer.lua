@@ -5,12 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ProfileService = require(script.Parent.ProfileService)
 local WorldBuilder = require(script.Parent.WorldBuilder)
 local MonetizationService = require(script.Parent.MonetizationService)
+local StoryHandlers = require(script.Parent.StoryHandlers)
 
-local Economy = require(ReplicatedStorage.Shared.Economy)
-local QuestEpisode1 = require(ReplicatedStorage.Shared.QuestEpisode1)
 local RemoteValidation = require(ReplicatedStorage.Shared.RemoteValidation)
-local ShopCatalog = require(ReplicatedStorage.Config.ShopCatalog)
-
+local QuestEngine = require(ReplicatedStorage.Shared.QuestEngine)
 local GameServer = {}
 
 local rateBuckets: { [number]: { [string]: RemoteValidation.Bucket } } = {}
@@ -30,7 +28,7 @@ local function getBucket(userId: number, action: string): RemoteValidation.Bucke
 end
 
 local function rateOk(player: Player, action: string): boolean
-	return RemoteValidation.checkRate(getBucket(player.UserId, action), os.clock(), 2, 8)
+	return RemoteValidation.checkRate(getBucket(player.UserId, action), os.clock(), 2, 12)
 end
 
 local function pushProfile(player: Player)
@@ -75,89 +73,82 @@ function GameServer.setupRemotes()
 			return
 		end
 		local profile = session.profile
+		local ok = false
 
-		if action == "set_avatar" then
-			local preset = RemoteValidation.validateString(payload, 32)
-			if preset == nil then
-				return
-			end
-			profile.avatarPreset = preset
-			local advanced, ok = QuestEpisode1.advanceIfValid(profile.tutorialStep, "choose_avatar")
-			if ok then
-				profile.tutorialStep = advanced
-			end
-		elseif action == "set_language" then
+		if action == "set_language" then
 			local lang = RemoteValidation.validateEnum(payload, { "ru", "uk", "en", "da" })
 			if lang then
 				profile.language = lang
+				ok = true
 			end
-		elseif action == "tutorial_complete" then
-			local step = RemoteValidation.validateString(payload, 40)
-			if step == nil then
-				return
-			end
-			local advanced, ok = QuestEpisode1.advanceIfValid(profile.tutorialStep, step :: QuestEpisode1.StepId)
-			if ok then
-				profile.tutorialStep = advanced
-			end
-		elseif action == "cemetery_job_complete" then
-			if profile.tutorialStep ~= "cemetery_job" then
-				return
-			end
-			local grantKey = "job_cemetery_ep1_" .. tostring(player.UserId)
-			local newCoins, granted, _ = Economy.payJobReward(profile.coins, 65, grantKey, profile.grantedRewards)
-			if granted then
-				profile.grantedRewards[grantKey] = true
-				profile.coins = newCoins
-				profile.tutorialStep = QuestEpisode1.nextStep(profile.tutorialStep) or profile.tutorialStep
-			end
-		elseif action == "shop_purchase" then
-			if profile.tutorialStep ~= "shop_purchase" then
-				return
-			end
-			local itemId = RemoteValidation.validateString(payload, 64)
-			if itemId == nil then
-				return
-			end
-			local item = ShopCatalog.get(itemId)
-			local owned = item and item.grantInventoryKey and (profile.inventory[item.grantInventoryKey] or 0) > 0
-			local purchase = Economy.tryPurchase(profile.coins, item, owned == true)
-			if purchase.ok then
-				profile.coins = purchase.newBalance
-				if item and item.grantInventoryKey then
-					profile.inventory[item.grantInventoryKey] = 1
+		elseif action == "set_avatar" then
+			local preset = RemoteValidation.validateString(payload, 32)
+			if preset then
+				profile.avatarPreset = preset
+				if QuestEngine.stepExpectsEvent(profile.story, "ch0_avatar_chosen") then
+					ok = StoryHandlers.handleEvent(profile, "ch0_avatar_chosen")
+				else
+					ok = true
 				end
-				profile.tutorialStep = QuestEpisode1.nextStep(profile.tutorialStep) or profile.tutorialStep
-			else
-				result:FireClient(player, { ok = false, reason = purchase.reason })
-				return
 			end
+		elseif action == "quest_event" then
+			local eventId = RemoteValidation.validateString(payload, 64)
+			if eventId then
+				ok = StoryHandlers.handleEvent(profile, eventId)
+			end
+		elseif action == "house_zone" then
+			local zone = RemoteValidation.validateString(payload, 32)
+			if zone then
+				ok = StoryHandlers.handleHouseZone(profile, zone)
+			end
+		elseif action == "initiation_choice" then
+			local path = RemoteValidation.validateString(payload, 16)
+			if path then
+				ok = StoryHandlers.handleInitiationChoice(profile, path)
+			end
+		elseif action == "cemetery_job" then
+			ok = StoryHandlers.handleCemeteryJob(profile)
 		elseif action == "duel_win" then
-			if profile.tutorialStep ~= "duel_razor" then
-				return
+			ok = StoryHandlers.handleDuelWin(profile)
+		elseif action == "flyers_done" then
+			ok = StoryHandlers.handleFlyersDone(profile)
+		elseif action == "hangout_stage" then
+			ok = StoryHandlers.handleHangoutStage(profile)
+		elseif action == "ch2_antibully" then
+			local choice = RemoteValidation.validateString(payload, 16)
+			if choice then
+				ok = StoryHandlers.handleCh2Antibully(profile, choice)
 			end
-			local grantKey = "duel_training_ep1"
-			if not profile.grantedRewards[grantKey] then
-				profile.grantedRewards[grantKey] = true
-				profile.xp, profile.level = Economy.applyXp(profile.xp + 40, profile.level)
-				profile.tutorialStep = QuestEpisode1.nextStep(profile.tutorialStep) or profile.tutorialStep
+		elseif action == "ch3_ghost" then
+			ok = StoryHandlers.handleCh3Ghost(profile)
+		elseif action == "ch3_crypt" then
+			ok = StoryHandlers.handleCh3Crypt(profile)
+		elseif action == "bell_tongue" then
+			local branch = RemoteValidation.validateString(payload, 16)
+			if branch then
+				ok = StoryHandlers.handleBellTongue(profile, branch)
 			end
-		elseif action == "decorate_room" then
-			if profile.tutorialStep ~= "decorate_room" then
-				return
+		elseif action == "ch4_stage" then
+			local stage = RemoteValidation.validateString(payload, 16)
+			if stage then
+				ok = StoryHandlers.handleCh4Stub(profile, stage)
 			end
-			if (profile.inventory["decor_neon_poster"] or 0) < 1 then
-				return
+		elseif action == "pick_ending" then
+			local endingId = RemoteValidation.validateString(payload, 40)
+			if endingId then
+				ok = StoryHandlers.handleEnding(profile, endingId)
 			end
-			profile.roomDecor["decor_neon_poster"] = true
-			profile.tutorialStep = "chapter_complete"
-			profile.chapter = 0
-			profile.chapterComplete = true
+		elseif action == "pay_initiation" then
+			ok = StoryHandlers.handleEvent(profile, "event:pay_initiation_fee")
 		end
 
-		ProfileService.saveSession(session)
-		pushProfile(player)
-		result:FireClient(player, { ok = true })
+		if ok then
+			ProfileService.saveSession(session)
+			pushProfile(player)
+			result:FireClient(player, { ok = true })
+		else
+			result:FireClient(player, { ok = false })
+		end
 	end)
 end
 
@@ -166,10 +157,6 @@ function GameServer.onPlayerAdded(player: Player)
 	if not session then
 		player:Kick("Save load failed: " .. tostring(err))
 		return
-	end
-	if session.profile.tutorialStep == "welcome" then
-		session.profile.tutorialStep = "choose_avatar"
-		ProfileService.saveSession(session)
 	end
 	pushProfile(player)
 end

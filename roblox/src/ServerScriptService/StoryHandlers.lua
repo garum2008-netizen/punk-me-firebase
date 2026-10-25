@@ -1,0 +1,214 @@
+--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Economy = require(ReplicatedStorage.Shared.Economy)
+local QuestEngine = require(ReplicatedStorage.Shared.QuestEngine)
+local ProfileSchema = require(ReplicatedStorage.Shared.ProfileSchema)
+local QuestTable = require(ReplicatedStorage.Config.QuestTable)
+
+local StoryHandlers = {}
+
+local function applyGrants(profile: ProfileSchema.Profile, grant: QuestEngine.GrantResult)
+	if grant.granted then
+		profile.coins += grant.coinsDelta
+		if grant.xpDelta > 0 then
+			profile.xp, profile.level = Economy.applyXp(profile.xp + grant.xpDelta, profile.level)
+		end
+	end
+end
+
+function StoryHandlers.handleEvent(profile: ProfileSchema.Profile, eventId: string): boolean
+	local story = profile.story
+	if eventId == "event:pay_initiation_fee" then
+		if profile.coins < 150 then
+			return false
+		end
+		profile.coins -= 150
+	end
+	local ok, grant = QuestEngine.trySpecial(story, eventId, { coins = profile.coins })
+	if not ok then
+		return false
+	end
+	if grant then
+		applyGrants(profile, grant)
+	end
+	return true
+end
+
+function StoryHandlers.handleInitiationChoice(profile: ProfileSchema.Profile, path: string): boolean
+	if path ~= "pay" and path ~= "duel" and path ~= "graffiti" then
+		return false
+	end
+	return QuestEngine.pickInitiationPath(profile.story, path :: "pay" | "duel" | "graffiti")
+end
+
+function StoryHandlers.handleCemeteryJob(profile: ProfileSchema.Profile): boolean
+	local story = profile.story
+	if story.activeQuestId == "q_initiation_pay" and story.activeStepId == "s1" then
+		local key = "job_cemetery_ch1"
+		local newCoins, granted, _ = Economy.payJobReward(profile.coins, 65, key, story.grantedRewards)
+		if granted then
+			story.grantedRewards[key] = true
+			profile.coins = newCoins
+			QuestEngine.trySpecial(story, "coins>=150", { coins = profile.coins })
+			return true
+		end
+	end
+	if story.activeQuestId == QuestTable.CH3 and story.activeStepId == "ch3_s_job" then
+		local key = "job_ch3_cemetery"
+		local newCoins, granted, _ = Economy.payJobReward(profile.coins, 70, key, story.grantedRewards)
+		if granted then
+			story.grantedRewards[key] = true
+			profile.coins = newCoins
+			return QuestEngine.tryCompleteEvent(story, "ch3_cemetery_shift")
+		end
+	end
+	return false
+end
+
+function StoryHandlers.handleDuelWin(profile: ProfileSchema.Profile): boolean
+	local story = profile.story
+	if story.activeQuestId == "q_initiation_duel" then
+		local ok, grant = QuestEngine.tryCompleteEvent(story, "event:duel_razor_win")
+		if ok then
+			if grant then
+				applyGrants(profile, grant)
+			end
+			return true
+		end
+	end
+	return false
+end
+
+function StoryHandlers.handleFlyersDone(profile: ProfileSchema.Profile): boolean
+	if profile.story.activeQuestId == "q_initiation_graffiti" then
+		local ok, grant = QuestEngine.tryCompleteEvent(profile.story, "event:flyers_done")
+		if ok then
+			if grant then
+				applyGrants(profile, grant)
+			end
+			return true
+		end
+	end
+	return false
+end
+
+function StoryHandlers.handleHangoutStage(profile: ProfileSchema.Profile): boolean
+	local story = profile.story
+	if story.activeQuestId ~= QuestTable.CH2 then
+		return false
+	end
+	story.hangoutStage = math.min(4, story.hangoutStage + 1)
+	if story.hangoutStage >= 4 then
+		local ok, grant = QuestEngine.trySpecial(story, "hangout_stage>=4", nil)
+		if grant then
+			applyGrants(profile, grant)
+		end
+		return ok
+	end
+	return true
+end
+
+function StoryHandlers.handleCh2Antibully(profile: ProfileSchema.Profile, choice: string): boolean
+	if choice ~= "stand" and choice ~= "join" then
+		return false
+	end
+	QuestEngine.setDecision(profile.story, "ch2_bully", choice)
+	if choice == "stand" then
+		profile.story.relationships.razor = (profile.story.relationships.razor or 0) + 10
+	else
+		profile.story.relationships.cobalt = (profile.story.relationships.cobalt or 0) - 5
+	end
+	if profile.story.activeQuestId == "q_ch2_antibully" then
+		QuestEngine.tryCompleteEvent(profile.story, "ch2_antibully_choice")
+		local g = QuestEngine.grantReward(profile.story, "reward_ch2_choice")
+		applyGrants(profile, g)
+	end
+	return true
+end
+
+function StoryHandlers.handleCh3Ghost(profile: ProfileSchema.Profile): boolean
+	if profile.story.activeQuestId == QuestTable.CH3 and profile.story.activeStepId == "ch3_s_ghost" then
+		return QuestEngine.tryCompleteEvent(profile.story, "ch3_ghost_helped")
+	end
+	return false
+end
+
+function StoryHandlers.handleCh3Crypt(profile: ProfileSchema.Profile): boolean
+	if profile.story.activeQuestId == QuestTable.CH3 and profile.story.activeStepId == "ch3_s_crypt" then
+		local ok, grant = QuestEngine.tryCompleteEvent(profile.story, "ch3_crypt_built")
+		if ok then
+			if grant then
+				applyGrants(profile, grant)
+			end
+			return true
+		end
+	end
+	return false
+end
+
+function StoryHandlers.handleBellTongue(profile: ProfileSchema.Profile, branch: string): boolean
+	if branch == "zoya" then
+		if profile.story.uniqueItems.bell_tongue_zombie then
+			return false
+		end
+		if QuestEngine.grantUniqueItem(profile.story, "bell_tongue_zoya") then
+			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained")
+		end
+	elseif branch == "zombie" then
+		if profile.story.uniqueItems.bell_tongue_zoya then
+			return false
+		end
+		if QuestEngine.grantUniqueItem(profile.story, "bell_tongue_zombie") then
+			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained")
+		end
+	end
+	return false
+end
+
+function StoryHandlers.handleCh4Stub(profile: ProfileSchema.Profile, stage: string): boolean
+	local story = profile.story
+	if story.activeQuestId ~= QuestTable.CH4 then
+		return false
+	end
+	if stage == "crown" and story.activeStepId == "ch4_s_crown" then
+		QuestEngine.grantUniqueItem(story, "bell_crown")
+		return QuestEngine.tryCompleteEvent(story, "ch4_crown_obtained")
+	end
+	if stage == "concert" and story.activeStepId == "ch4_s_concert" then
+		return QuestEngine.tryCompleteEvent(story, "ch4_concert_ready")
+	end
+	return false
+end
+
+function StoryHandlers.handleEnding(profile: ProfileSchema.Profile, endingId: string): boolean
+	if QuestEngine.pickEnding(profile.story, endingId) then
+		local ending = QuestTable.endings[endingId]
+		if ending then
+			local g = QuestEngine.grantReward(profile.story, ending.grantKey)
+			applyGrants(profile, g)
+		end
+		return true
+	end
+	return false
+end
+
+function StoryHandlers.handleHouseZone(profile: ProfileSchema.Profile, zoneId: string): boolean
+	local story = profile.story
+	if story.activeStepId ~= "ch0_s_house" then
+		return false
+	end
+	story.ch0HouseZones[zoneId] = true
+	local count = 0
+	for _, v in story.ch0HouseZones do
+		if v then
+			count += 1
+		end
+	end
+	if count >= 2 then
+		return QuestEngine.tryCompleteEvent(story, "ch0_house_tour")
+	end
+	return false
+end
+
+return StoryHandlers

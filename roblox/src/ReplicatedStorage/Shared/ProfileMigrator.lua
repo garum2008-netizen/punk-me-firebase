@@ -6,24 +6,27 @@ local ProfileSchema = if script and script.Parent
 local ProfileMigrator = {}
 
 local function migrateV1ToV2(profile: ProfileSchema.Profile): ProfileSchema.Profile
-	if profile.questFlags == nil then
-		profile.questFlags = {}
-	end
-	if profile.grantedRewards == nil then
-		profile.grantedRewards = {}
-	end
 	profile.schemaVersion = 2
 	return profile
 end
 
-local function migrateV2ToV3(profile: ProfileSchema.Profile): ProfileSchema.Profile
+local function migrateV2ToV3(profile: any): any
 	if profile.roomDecor == nil then
 		profile.roomDecor = {}
 	end
-	if profile.settings == nil then
-		profile.settings = ProfileSchema.defaultProfile().settings
-	end
 	profile.schemaVersion = 3
+	return profile
+end
+
+local function migrateV3ToV4(profile: ProfileSchema.Profile): ProfileSchema.Profile
+	if profile.story == nil then
+		local raw = profile :: any
+		local migrated, _ = ProfileSchema.sanitize(raw)
+		if migrated then
+			return migrated
+		end
+	end
+	profile.schemaVersion = 4
 	return profile
 end
 
@@ -36,7 +39,9 @@ function ProfileMigrator.migrate(raw: any): (ProfileSchema.Profile?, string?)
 		if profile.schemaVersion < 2 then
 			profile = migrateV1ToV2(profile)
 		elseif profile.schemaVersion < 3 then
-			profile = migrateV2ToV3(profile)
+			profile = migrateV2ToV3(profile :: any) :: ProfileSchema.Profile
+		elseif profile.schemaVersion < 4 then
+			profile = migrateV3ToV4(profile)
 		else
 			break
 		end

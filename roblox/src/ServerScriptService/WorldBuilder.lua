@@ -22,6 +22,20 @@ local function makePart(props: {
 	return p
 end
 
+local function addZone(parent: Instance, name: string, size: Vector3, position: Vector3, color: Color3)
+	local z = makePart({
+		Name = name,
+		Size = size,
+		Position = position,
+		Color = color,
+		Parent = parent,
+	})
+	z.Transparency = 0.85
+	z.CanCollide = false
+	z:SetAttribute("ZoneId", name)
+	return z
+end
+
 local function addSpawn(parent: Instance, name: string, position: Vector3)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = name
@@ -33,29 +47,7 @@ local function addSpawn(parent: Instance, name: string, position: Vector3)
 	spawn.Parent = parent
 end
 
-local function addZoneLabel(parent: Instance, text: string, position: Vector3)
-	local anchor = makePart({
-		Name = "Zone_" .. text,
-		Size = Vector3.new(4, 1, 4),
-		Position = position + Vector3.new(0, 8, 0),
-		Color = Color3.fromRGB(255, 120, 200),
-		Parent = parent,
-	})
-	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.fromOffset(200, 50)
-	bb.AlwaysOnTop = true
-	bb.Parent = anchor
-	local tl = Instance.new("TextLabel")
-	tl.Size = UDim2.fromScale(1, 1)
-	tl.BackgroundTransparency = 1
-	tl.TextColor3 = Color3.new(1, 1, 1)
-	tl.TextScaled = true
-	tl.Font = Enum.Font.GothamBold
-	tl.Text = text
-	tl.Parent = bb
-end
-
-local function addNpc(parent: Instance, name: string, position: Vector3, color: Color3)
+local function addNpc(parent: Instance, name: string, position: Vector3, color: Color3, action: string?)
 	local root = makePart({
 		Name = name,
 		Size = Vector3.new(2, 5, 2),
@@ -65,7 +57,7 @@ local function addNpc(parent: Instance, name: string, position: Vector3, color: 
 	})
 	root:SetAttribute("NpcId", name)
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Talk"
+	prompt.ActionText = action or "Talk"
 	prompt.ObjectText = name
 	prompt.MaxActivationDistance = 12
 	prompt.Parent = root
@@ -84,20 +76,18 @@ function WorldBuilder.build(parent: Folder)
 		Color = Color3.fromRGB(55, 50, 60),
 		Parent = house,
 	})
-	local room = makePart({
-		Name = "RoomFloor",
-		Size = Vector3.new(16, 1, 16),
-		Position = Vector3.new(-12, 0.5, -12),
-		Color = Color3.fromRGB(70, 65, 80),
+	addZone(house, "zone_room", Vector3.new(18, 8, 18), Vector3.new(-12, 4, -12), Color3.fromRGB(120, 80, 200))
+	addZone(house, "zone_hall", Vector3.new(20, 8, 20), Vector3.new(8, 4, 0), Color3.fromRGB(80, 120, 200))
+	makePart({
+		Name = "marker_move",
+		Size = Vector3.new(4, 1, 4),
+		Position = Vector3.new(15, 1, 0),
+		Color = Color3.fromRGB(255, 220, 80),
 		Parent = house,
 	})
-	local roomPrompt = Instance.new("ProximityPrompt")
-	roomPrompt.ActionText = "Decorate"
-	roomPrompt.ObjectText = "Your room"
-	roomPrompt.MaxActivationDistance = 12
-	roomPrompt.Parent = room
-	addSpawn(house, "SpawnHouse", Vector3.new(0, 3, 0))
-	addZoneLabel(house, "House 13", Vector3.new(0, 0, 0))
+	addSpawn(house, "SpawnHouse", Vector3.new(-5, 3, -5))
+	addNpc(house, "npc_mom", Vector3.new(18, 0, 8), Color3.fromRGB(180, 120, 140), "Talk")
+	addNpc(house, "npc_shnurok", Vector3.new(-18, 0, -8), Color3.fromRGB(140, 100, 60), "Pet")
 
 	local street = Instance.new("Folder")
 	street.Name = "Street"
@@ -109,20 +99,15 @@ function WorldBuilder.build(parent: Folder)
 		Color = Color3.fromRGB(45, 45, 50),
 		Parent = street,
 	})
-	local shop = makePart({
+	addZone(street, "zone_street", Vector3.new(55, 10, 28), Vector3.new(80, 5, 0), Color3.fromRGB(255, 100, 180))
+	addNpc(street, "npc_razor", Vector3.new(70, 0, 5), Color3.fromRGB(30, 30, 35))
+	makePart({
 		Name = "Shop",
 		Size = Vector3.new(14, 10, 14),
 		Position = Vector3.new(100, 5, -10),
 		Color = Color3.fromRGB(90, 40, 120),
 		Parent = street,
 	})
-	local shopPrompt = Instance.new("ProximityPrompt")
-	shopPrompt.ActionText = "Shop"
-	shopPrompt.ObjectText = "Neon Store"
-	shopPrompt.MaxActivationDistance = 14
-	shopPrompt.Parent = shop
-	addNpc(street, "npc_razor", Vector3.new(70, 0, 5), Color3.fromRGB(30, 30, 35))
-	addZoneLabel(street, "Gang Street", Vector3.new(80, 0, 0))
 
 	local cemetery = Instance.new("Folder")
 	cemetery.Name = "Cemetery"
@@ -134,20 +119,68 @@ function WorldBuilder.build(parent: Folder)
 		Color = Color3.fromRGB(35, 50, 40),
 		Parent = cemetery,
 	})
-	addNpc(cemetery, "npc_gravedigger", Vector3.new(-5, 0, 125), Color3.fromRGB(60, 55, 45))
-	addZoneLabel(cemetery, "Cemetery", Vector3.new(0, 0, 120))
+	addNpc(cemetery, "npc_gravedigger", Vector3.new(-5, 0, 125), Color3.fromRGB(60, 55, 45), "Work")
+	addNpc(cemetery, "npc_ghost", Vector3.new(10, 0, 130), Color3.fromRGB(200, 180, 255), "Help")
+	local crypt = makePart({
+		Name = "obj_crypt_site",
+		Size = Vector3.new(12, 2, 12),
+		Position = Vector3.new(-15, 1, 140),
+		Color = Color3.fromRGB(50, 45, 55),
+		Parent = cemetery,
+	})
+	local cp = Instance.new("ProximityPrompt")
+	cp.ActionText = "Build"
+	cp.ObjectText = "Crypt"
+	cp.MaxActivationDistance = 14
+	cp.Parent = crypt
+
+	local construction = Instance.new("Folder")
+	construction.Name = "Construction"
+	construction.Parent = parent
+	local hangout = makePart({
+		Name = "obj_hangout_site",
+		Size = Vector3.new(20, 2, 20),
+		Position = Vector3.new(80, 0, 80),
+		Color = Color3.fromRGB(70, 70, 90),
+		Parent = construction,
+	})
+	local hp = Instance.new("ProximityPrompt")
+	hp.ActionText = "Build"
+	hp.ObjectText = "Hangout"
+	hp.MaxActivationDistance = 14
+	hp.Parent = hangout
 
 	local duel = Instance.new("Folder")
 	duel.Name = "DuelPit"
 	duel.Parent = parent
-	makePart({
-		Name = "Arena",
+	local arena = makePart({
+		Name = "zone_duel",
 		Size = Vector3.new(24, 1, 24),
 		Position = Vector3.new(120, 0, 120),
 		Color = Color3.fromRGB(80, 30, 30),
 		Parent = duel,
 	})
-	addZoneLabel(duel, "Duel Pit", Vector3.new(120, 0, 120))
+	arena:SetAttribute("ZoneId", "zone_duel")
+
+	local castle = Instance.new("Folder")
+	castle.Name = "Castle"
+	castle.Parent = parent
+	makePart({
+		Name = "zone_castle_hall",
+		Size = Vector3.new(30, 1, 30),
+		Position = Vector3.new(-80, 0, 80),
+		Color = Color3.fromRGB(60, 40, 80),
+		Parent = castle,
+	})
+	makePart({
+		Name = "zone_castle_tower",
+		Size = Vector3.new(10, 20, 10),
+		Position = Vector3.new(-95, 10, 95),
+		Color = Color3.fromRGB(50, 35, 70),
+		Parent = castle,
+	})
+	addNpc(castle, "npc_count", Vector3.new(-80, 0, 80), Color3.fromRGB(90, 70, 120))
+	addNpc(castle, "npc_zoya", Vector3.new(-65, 0, 70), Color3.fromRGB(200, 140, 80), "Talk")
 
 	local parkour = Instance.new("Folder")
 	parkour.Name = "Parkour"
@@ -162,15 +195,6 @@ function WorldBuilder.build(parent: Folder)
 			Parent = parkour,
 		})
 	end
-	local finish = makePart({
-		Name = "ParkourFinish",
-		Size = Vector3.new(8, 1, 8),
-		Position = Vector3.new(px + 56, 19, 40),
-		Color = Color3.fromRGB(80, 255, 120),
-		Parent = parkour,
-	})
-	finish:SetAttribute("Checkpoint", "finish")
-	addZoneLabel(parkour, "Parkour", Vector3.new(px, 0, 40))
 end
 
 return WorldBuilder

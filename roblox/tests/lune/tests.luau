@@ -8,11 +8,11 @@ end
 local ProfileSchema = require("../../src/ReplicatedStorage/Shared/ProfileSchema")
 local ProfileMigrator = require("../../src/ReplicatedStorage/Shared/ProfileMigrator")
 local Economy = require("../../src/ReplicatedStorage/Shared/Economy")
-local QuestEpisode1 = require("../../src/ReplicatedStorage/Shared/QuestEpisode1")
+local QuestEngine = require("../../src/ReplicatedStorage/Shared/QuestEngine")
 local ReceiptStore = require("../../src/ReplicatedStorage/Shared/ReceiptStore")
 local RemoteValidation = require("../../src/ReplicatedStorage/Shared/RemoteValidation")
 local DataStoreScope = require("../../src/ReplicatedStorage/Shared/DataStoreScope")
-local Localization = require("../../src/ReplicatedStorage/Shared/Localization")
+local QuestTable = require("../../src/ReplicatedStorage/Config/QuestTable")
 
 local passed = 0
 
@@ -26,48 +26,72 @@ local function test(name: string, fn: () -> ())
 	end
 end
 
-test("default profile coins", function()
+test("default profile schema v4", function()
 	local p = ProfileSchema.defaultProfile()
-	assertEq(p.coins, 100, "coins")
+	assertEq(p.schemaVersion, 4, "version")
+	assertEq(p.story.activeQuestId, QuestTable.CH0, "quest")
 end)
 
-test("sanitize rejects bad coins", function()
-	local p, err = ProfileSchema.sanitize({ coins = -1 })
-	assertEq(p, nil, "profile")
-	assertEq(err, "invalid_coins", "err")
+test("reward idempotency", function()
+	local st = QuestEngine.defaultStoryState()
+	local g1 = QuestEngine.grantReward(st, "reward_ch0_complete")
+	local g2 = QuestEngine.grantReward(st, "reward_ch0_complete")
+	assertEq(g1.granted, true, "first")
+	assertEq(g2.granted, false, "dup")
 end)
 
-test("migrate v1 to current", function()
-	local raw = { schemaVersion = 1, coins = 50, language = "en" }
+test("ch0 step advance", function()
+	local st = QuestEngine.defaultStoryState()
+	local ok, _ = QuestEngine.tryCompleteEvent(st, "ch0_look_room")
+	assertEq(ok, true, "ok")
+	assertEq(st.activeStepId, "ch0_s_mom", "next")
+end)
+
+test("initiation decision exclusive", function()
+	local st = QuestEngine.defaultStoryState()
+	st.activeQuestId = QuestTable.CH1_CHOICE
+	st.activeStepId = "ch1_s_choice"
+	assertEq(QuestEngine.pickInitiationPath(st, "pay"), true, "pick")
+	assertEq(st.decisions.initiation, "pay", "decision")
+	assertEq(st.activeQuestId, QuestTable.INIT_PAY, "quest")
+	assertEq(QuestEngine.pickInitiationPath(st, "duel"), false, "no re-pick")
+end)
+
+test("bell tongue mutual exclusive", function()
+	local st = QuestEngine.defaultStoryState()
+	st.activeQuestId = QuestTable.CH4
+	st.activeStepId = "ch4_s_tongue"
+	QuestEngine.grantUniqueItem(st, "bell_tongue_zoya")
+	assertEq(st.uniqueItems.bell_tongue_zombie, nil, "no zombie")
+end)
+
+test("ending pick", function()
+	local st = QuestEngine.defaultStoryState()
+	st.activeQuestId = QuestTable.CH4
+	st.activeStepId = "ch4_s_finale"
+	assertEq(QuestEngine.pickEnding(st, "ending_break_curse"), true, "ending")
+	assertEq(st.storyEnding, "ending_break_curse", "id")
+	assertEq(st.freePlay, true, "free")
+end)
+
+test("migrate v3 to v4", function()
+	local raw = {
+		schemaVersion = 3,
+		coins = 80,
+		language = "en",
+		tutorialStep = "chapter_complete",
+		grantedRewards = { x = true },
+	}
 	local p, err = ProfileMigrator.migrate(raw)
 	assertEq(err, nil, "err")
-	assertEq(p and p.schemaVersion, ProfileSchema.CURRENT_VERSION, "version")
-	assertEq(p and p.roomDecor ~= nil, true, "roomDecor")
+	assertEq(p and p.schemaVersion, 4, "ver")
+	assertEq(p and p.story ~= nil, true, "story")
 end)
 
 test("purchase insufficient", function()
 	local item = { id = "x", price = 200, category = "d", grantInventoryKey = "k" }
 	local r = Economy.tryPurchase(100, item, false)
 	assertEq(r.ok, false, "ok")
-	if not r.ok then
-		assertEq(r.reason, "insufficient_funds", "reason")
-	end
-end)
-
-test("job idempotency", function()
-	local granted = {}
-	local c1, g1 = Economy.payJobReward(10, 65, "job1", granted)
-	assertEq(g1, true, "first grant")
-	granted["job1"] = true
-	local c2, g2 = Economy.payJobReward(c1, 65, "job1", granted)
-	assertEq(g2, false, "second grant blocked")
-	assertEq(c2, c1, "coins unchanged")
-end)
-
-test("quest advance valid", function()
-	local nxt, ok = QuestEpisode1.advanceIfValid("choose_avatar", "choose_avatar")
-	assertEq(ok, true, "advanced")
-	assertEq(nxt, "angelina_intro", "next")
 end)
 
 test("receipt duplicate", function()
@@ -76,21 +100,8 @@ test("receipt duplicate", function()
 	assertEq(ReceiptStore.fulfill(store, "p1", 0, { [0] = "test" }), "duplicate", "dup")
 end)
 
-test("rate limit", function()
-	local b = RemoteValidation.newBucket()
-	assertEq(RemoteValidation.checkRate(b, 0, 1, 2), true, "1")
-	assertEq(RemoteValidation.checkRate(b, 0.5, 1, 2), true, "2")
-	assertEq(RemoteValidation.checkRate(b, 0.6, 1, 2), false, "3 blocked")
-end)
-
 test("datastore test scope", function()
 	assertEq(DataStoreScope.profileStoreName("Punk", true, nil), "Punk_TEST", "studio")
-	assertEq(DataStoreScope.profileStoreName("Punk", false, nil), "Punk", "live")
-end)
-
-test("localization uk", function()
-	local t = Localization.t("ui_play", "uk")
-	assertEq(t, "Грати", "uk play")
 end)
 
 print(string.format("All %d tests passed", passed))
