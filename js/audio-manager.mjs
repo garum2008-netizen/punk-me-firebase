@@ -95,6 +95,7 @@ export function createAudioManager() {
   let musicActive = "a";
   let currentMusicKey = null;
   let ducking = false;
+  let captureDest = null;
 
   const buffers = new Map();
   const speechQueue = [];
@@ -542,6 +543,16 @@ export function createAudioManager() {
     return "Music & SFX: PUNK ME (procedural, CC0). Voice lines: cast recordings (pending).";
   }
 
+  /** QA / episode capture: parallel tap of master bus for MediaRecorder in-page. */
+  function installCaptureTap() {
+    if (!ensureGraph()) return null;
+    if (!captureDest) {
+      captureDest = ctx.createMediaStreamDestination();
+      masterGain.node.connect(captureDest);
+    }
+    return captureDest.stream;
+  }
+
   loadStorage();
   if (typeof window !== "undefined" && window.speechSynthesis) {
     window.speechSynthesis.getVoices();
@@ -568,6 +579,7 @@ export function createAudioManager() {
     removeEventListener,
     getDuckFactor,
     getCreditsLine,
+    installCaptureTap,
     /** @internal tests */
     _test: { getCtx: () => ctx, isDucking: () => ducking }
   };
