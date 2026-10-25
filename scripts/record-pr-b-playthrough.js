@@ -170,8 +170,16 @@ async function main() {
   if (!webms.length) throw new Error("no webm recorded");
   const webm = path.join(outDir, webms.sort().pop());
   const mp4 = path.join(outDir, "punk-me-pr-b-1080p.mp4");
+  const mp4Silent = path.join(outDir, "punk-me-pr-b-1080p-silent.mp4");
   execSync(
-    `ffmpeg -y -i "${webm}" -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p -c:a aac -b:a 192k "${mp4}"`,
+    `ffmpeg -y -i "${webm}" -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p -an "${mp4Silent}"`,
+    { stdio: "inherit" }
+  );
+  const vDur = probeDuration(mp4Silent);
+  const bgmSrc = path.join(__dirname, "../assets/audio/music/music_street.mp3");
+  if (!fs.existsSync(bgmSrc)) throw new Error("missing music_street.mp3 for mux");
+  execSync(
+    `ffmpeg -y -i "${mp4Silent}" -stream_loop -1 -i "${bgmSrc}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -t ${vDur.toFixed(2)} "${mp4}"`,
     { stdio: "inherit" }
   );
   const contact = path.join(outDir, "contact-sheet.jpg");
