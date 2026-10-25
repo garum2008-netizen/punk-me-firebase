@@ -1,0 +1,8 @@
+
+> test:duel-onboarding
+> node scripts/test-duel-onboarding-e2e.js
+
+{
+  "pass": true,
+  "errors": []
+}

@@ -1,0 +1,5 @@
+DURATION_SEC=1771.001000
+DURATION_SEC=1866.080000
+## contact sheet 6×6 (36 frames) → /workspace/qa/pr-b-full/contact-sheet-6x6.jpg
+
+**FAIL**: freeze 179.6s at 618.2–797.8s (>8s); freeze 45.4s at 797.8–843.2s (>8s); freeze 14.3s at 849.4–863.7s (>8s); freeze 26.6s at 867.8–894.4s (>8s); freeze 27.3s at 897.8–925.1s (>8s)

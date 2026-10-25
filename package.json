@@ -19,6 +19,7 @@
     "download:music": "node scripts/download-licensed-music.mjs",
     "record:pr-b": "node scripts/record-pr-b-full-playthrough.js",
     "finalize:pr-b": "node scripts/finalize-pr-b-capture.js",
+    "check:pr-b-duel": "node scripts/check-pr-b-duel-mark.js",
     "proof:idle": "node scripts/proof-idle-stability.js"
   },
   "devDependencies": {

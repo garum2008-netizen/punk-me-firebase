@@ -160,6 +160,7 @@ async function main() {
   } catch (e) {}
   const base = process.env.PUNK_BASE || await start();
   const rawAudioPath = path.join(outDir, "pr-b-audio-raw.webm");
+  audioIngest.stop();
   const audioPort = await audioIngest.start(rawAudioPath);
   const videoDir = path.join(outDir, "capture-raw");
   fs.mkdirSync(videoDir, { recursive: true });
@@ -215,10 +216,9 @@ async function main() {
 
   await Flow.runFullPrBPlaythrough(page, { mark, recordPacing: true });
 
-  const reload = await Ep1.reloadAndContinue(page);
-  mark("reload_continue", `quest=${reload.after.quest} coins=${reload.after.coins}`);
+  mark("reload_skip", "reload omitted — keep runtime 15–22 min");
   await H.dismissHowToOverlay(page);
-  await H.sleep(4000);
+  await H.walkDesktop(page, 500);
 
   await page.evaluate(() => window.__ep1StopAudioCapture());
   await H.sleep(3000);

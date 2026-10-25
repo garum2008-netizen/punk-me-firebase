@@ -82,6 +82,13 @@ async function focusStage(page) {
   await page.locator("#stage3d").click({ position: { x: 200, y: 200 } }).catch(() => {});
 }
 
+async function pulseCamera(page) {
+  await focusStage(page);
+  await page.keyboard.press("ArrowRight").catch(() => {});
+  await sleep(50);
+  await page.keyboard.press("ArrowLeft").catch(() => {});
+}
+
 async function walkDesktop(page, ms = 2200) {
   await focusStage(page);
   await page.keyboard.down("w");
@@ -640,6 +647,7 @@ module.exports = {
   unlockGameAudio,
   snap,
   focusStage,
+  pulseCamera,
   walkDesktop,
   walkMobile,
   navGo,
