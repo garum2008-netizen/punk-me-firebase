@@ -152,6 +152,20 @@ async function run() {
   });
   assert(r.status === 200, `alice write own: ${r.status} ${r.body}`);
 
+  console.log("rules: guest (anon) write own settings + dialogueHeard");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/settings`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ audio: { music: 0.5, speech: 0.8 } })
+  });
+  assert(r.status === 200, `guest settings: ${r.status} ${r.body}`);
+  r = await fetchJson(dbUrl(`players/${aliceUid}/dialogueHeard`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ npc_razor_0: true })
+  });
+  assert(r.status === 200, `guest dialogueHeard: ${r.status} ${r.body}`);
+
   console.log("rules: alice write pet string (pet_dog)");
   r = await fetchJson(dbUrl(`players/${aliceUid}/pet`, aliceAuth.idToken), {
     method: "PUT",

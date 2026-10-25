@@ -48,6 +48,7 @@ function bump(key, amt = 1) {
 function completeStep() {
   const st = currentStep();
   if (!st) return;
+  window.Narrator?.reset?.();
   const r = st.reward || {};
   if (!window.isOwner && r.coins) window.me.coins += r.coins;
   if (r.xp) window.me.xp += r.xp;
@@ -63,6 +64,8 @@ function completeStep() {
   else saveMeQuiet();
   renderOnboardingQuest();
   syncGuideTarget();
+  window.Narrator?.refresh?.();
+  window.StoryGoalHud?.refresh?.();
 }
 
 function saveMeQuiet() {
@@ -159,9 +162,23 @@ function initOnboarding() {
   }
   renderOnboardingQuest();
   syncGuideTarget();
+  window.Narrator?.refresh?.();
+  window.StoryGoalHud?.refresh?.();
+}
+
+function resetOnboarding() {
+  if (!window.me) return;
+  window.me.onboarding = { step: 0, progress: {}, done: false };
+  window.Narrator?.reset?.();
+  renderOnboardingQuest();
+  syncGuideTarget();
+  if (window.saveMe) saveMe();
+  window.Narrator?.refresh?.();
+  window.StoryGoalHud?.refresh?.();
 }
 
 window.Onboarding = {
+  STEPS: ONBOARDING_STEPS,
   init: initOnboarding,
   adaptSpawnLocation,
   render: renderOnboardingQuest,
@@ -173,5 +190,7 @@ window.Onboarding = {
   onWinFight,
   onShopBuy,
   getGuideTarget,
+  getCurrentStep: currentStep,
+  reset: resetOnboarding,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

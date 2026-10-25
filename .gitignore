@@ -5,3 +5,5 @@ qa-out/
 database-debug.log
 firebase-debug.log
 .worktrees/
+tools/piper/
+tools/piper-models/

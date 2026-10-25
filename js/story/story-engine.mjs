@@ -197,6 +197,25 @@ function setSubtitle(text, speaker) {
   if (el) el.textContent = speaker ? `${speaker}: ${text}` : text;
 }
 
+function speakStoryLine(speaker, text, lineId) {
+  if (!text) return;
+  const npcId = (speaker || "").replace(/^npc_/, "") || speaker;
+  const cid = npcId.startsWith("npc_") ? npcId.replace("npc_", "") : npcId;
+  if (window.SpeechBridge?.play) {
+    window.SpeechBridge.play({
+      lineId,
+      text,
+      characterId: cid,
+      subtitle: speaker
+        ? `${typeof window.tNpcName === "function" ? window.tNpcName(cid) : speaker}: ${text}`
+        : text
+    });
+  } else if (window.Voice) {
+    Voice.speakCharacter(cid, text);
+  }
+  if (window.World3D?.setTalking) World3D.setTalking(cid, true);
+}
+
 function showBubble(npcId, text) {
   const layer = document.getElementById("storyBubbles");
   if (!layer) return;
@@ -785,6 +804,7 @@ function triggerCalloutDialogue(d) {
   playSfx(d.callout?.sound || "sfx_whistle");
   showBubble(speaker, text);
   setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker);
+  speakStoryLine(speaker, text, `dlg_${d.id}_${node.id}`);
   const ind = document.getElementById("storyDirection");
   if (ind) {
     ind.textContent = d.callout?.icon || "!";
@@ -813,6 +833,7 @@ function showDialogueNode(dlg, node) {
   const body = el.querySelector(".story-dialog-body");
   const text = L(node.text);
   setSubtitle(text);
+  speakStoryLine(speaker, text, `dlg_${dlg.id}_${node.id}`);
   playSfx("sfx_chain");
   if (node.choices?.length) {
     body.innerHTML = node.choices
@@ -858,6 +879,7 @@ function closeDialogue() {
   document.getElementById("storyDialog")?.classList.remove("active");
   clearDialogueCamera();
   setSubtitle("");
+  window.AudioManager?.stopSpeech?.();
   hideDirection();
 }
 
@@ -885,6 +907,7 @@ export function showNpcProximityCallout(npcId, text) {
   if (!canOpenStoryModal()) return;
   showBubble(npcId, text);
   setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(npcId) : npcId);
+  speakStoryLine(npcId, text);
 }
 
 export function tryStoryNpc(npcId) {

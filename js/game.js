@@ -370,6 +370,8 @@ function defaultPlayer() {
     stats: { chain: 10, magic: 8, hp: 100, maxHp: 100 },
     quests: { active: "intro", progress: {} },
     onboarding: { step: 0, progress: {}, done: false },
+    dialogueHeard: {},
+    settings: { audio: {} },
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -438,6 +440,11 @@ function migratePlayerFromSave(raw) {
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
   if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
+  if (v.dialogueHeard != null && typeof v.dialogueHeard !== "object") v.dialogueHeard = {};
+  if (v.settings != null && typeof v.settings !== "object") v.settings = { audio: {} };
+  if (v.settings && v.settings.audio != null && typeof v.settings.audio !== "object") {
+    v.settings.audio = {};
+  }
   return v;
 }
 
@@ -491,7 +498,11 @@ function showLoadingFailure(message, detail, opts = {}) {
 
 function applyFirebasePlayerSnapshot(snap) {
   if (snap.exists()) {
-    const v = migratePlayerFromSave(snap.val());
+    let v = migratePlayerFromSave(snap.val());
+    if (window.__punkGuestMergeSnapshot && typeof window.__punkMergePlayerSaves === "function") {
+      v = window.__punkMergePlayerSaves(window.__punkGuestMergeSnapshot, v);
+      window.__punkGuestMergeSnapshot = null;
+    }
     me = { ...defaultPlayer(), ...v };
     if (devCoinsEnabled()) me.coins = 9999;
     me.inventory = { materials: {}, spells: [], ...(v.inventory || {}) };
@@ -504,6 +515,10 @@ function applyFirebasePlayerSnapshot(snap) {
     me.mood = v.mood ?? me.mood ?? 100;
     me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
     if (v.lang) initLanguage(v.lang);
+    if (v.settings?.audio) window.AudioManager?.importFromPlayerSave?.(v.settings.audio);
+    if (typeof v.settings?.audio?.narratorEnabled === "boolean") {
+      window.AudioManager?.setNarratorEnabled?.(v.settings.audio.narratorEnabled);
+    }
   } else {
     me = me || defaultPlayer();
   }
@@ -720,12 +735,21 @@ function init() {
   window.me = me;
   window.__playerLoaded = false;
   window.saveMe = saveMe;
-  window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
+  window.onLanguageChanged = () => {
+    renderAll();
+    applyI18nDom();
+    window.__audioOnLangChanged?.();
+    window.Narrator?.reset?.();
+    window.Narrator?.refresh?.();
+    window.StoryGoalHud?.refresh?.();
+  };
   initLanguage();
-  document.querySelectorAll(".lang-btn").forEach(btn => {
+  const bindLang = btn => {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);
     btn.classList.toggle("active", btn.dataset.lang === getLanguage());
-  });
+  };
+  document.querySelectorAll(".lang-btn").forEach(bindLang);
+  document.querySelectorAll("#langCorner .lang-btn").forEach(bindLang);
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
@@ -907,6 +931,11 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    window.AudioManager?.unlockAudio?.().then(ok => {
+      if (ok) window.AudioManager?.setLocationMusic?.(me.location || "room");
+      window.Narrator?.refresh?.();
+    });
+    window.StoryGoalHud?.refresh?.();
   } catch (err) {
     console.error("continueGameBoot", err);
     const kind =
@@ -1028,7 +1057,10 @@ function sanitizePlayer(p) {
     mood: p.mood,
     owner: isOwner,
     lastSeen: p.lastSeen,
-    linkedAuth: p.linkedAuth || null
+    linkedAuth: p.linkedAuth || null,
+    onboarding: p.onboarding,
+    dialogueHeard: p.dialogueHeard || {},
+    settings: p.settings || { audio: window.AudioManager?.exportSettings?.() || {} }
   };
 }
 
@@ -1251,6 +1283,7 @@ function updateOnlineCount() {
 }
 
 function afterLocationChange() {
+  window.AudioManager?.setLocationMusic?.(me.location);
   window.Onboarding?.onEnterLocation?.(me.location);
   window.Onboarding?.syncGuideTarget?.();
   window.StoryEngine?.onLocationChange?.(me.location);

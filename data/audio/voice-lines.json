@@ -1,0 +1,378 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-25T21:20:01.629Z",
+  "lines": [
+    {
+      "id": "dlg_dlg_razor_initiation_n1",
+      "characterId": "razor",
+      "role": "character",
+      "ru": "Эй, новенький! Да, ты, с причёской. Иди сюда.",
+      "en": "Hey, new kid! Yeah, you, with the hair. Come here.",
+      "da": "Hey, nye! Ja, dig med håret. Kom her."
+    },
+    {
+      "id": "dlg_dlg_razor_initiation_n2",
+      "characterId": "razor",
+      "role": "character",
+      "ru": "«Ржавые Цепи» не берут кого попало. Докажи, что ты свой.",
+      "en": "The Rusty Chains don't take just anyone. Prove you're one of us.",
+      "da": "Rustne Kæder tager ikke hvem som helst. Bevis, at du er en af os."
+    },
+    {
+      "id": "dlg_dlg_razor_initiation_n3a",
+      "characterId": "razor",
+      "role": "character",
+      "ru": "Работяга, значит. Тони в Городе вечно ищет курьеров.",
+      "en": "A hard worker, huh. Tony in the City always needs couriers.",
+      "da": "En slider, hva'. Tony i Byen mangler altid bude."
+    },
+    {
+      "id": "dlg_dlg_razor_initiation_n3c",
+      "characterId": "razor",
+      "role": "character",
+      "ru": "Художник? Только не на моей стене.",
+      "en": "An artist? Just not on my wall.",
+      "da": "Kunstner? Bare ikke på min mur."
+    },
+    {
+      "id": "dlg_dlg_zoya_enter_n1",
+      "characterId": "vienna",
+      "role": "character",
+      "ru": "Эй, панчонок! Пирог стынет, а бабушка скучает!",
+      "en": "Hey, punk! The pie is getting cold and grandma misses you!",
+      "da": "Hey, punk! Tærte'n køler, og bedstemor savner dig!"
+    },
+    {
+      "id": "dlg_dlg_plukh_enter_n1",
+      "characterId": "cobalt",
+      "role": "character",
+      "ru": "Пс-с! Только не смывай! Я тут живу… временно…",
+      "en": "Psst! Don't flush! I live here… temporarily…",
+      "da": "Psst! Ikke skyl! Jeg bor her… midlertidigt…"
+    },
+    {
+      "id": "dlg_dlg_plukh_enter_n2",
+      "characterId": "cobalt",
+      "role": "character",
+      "ru": "Я не помню, откуда я… Может, ты поможешь?",
+      "en": "I don't remember where I'm from… Can you help?",
+      "da": "Jeg kan ikke huske, hvor jeg er fra… Kan du hjælpe?"
+    },
+    {
+      "id": "dlg_dlg_foreman_enter_n1",
+      "characterId": "foreman",
+      "role": "character",
+      "ru": "Каску надень! Ой, нет каски… Ты от Рейзора?",
+      "en": "Helmet on! Oh, no helmet… You from Razor?",
+      "da": "Hjelm på! Åh, ingen hjelm… Er du fra Razor?"
+    },
+    {
+      "id": "dlg_dlg_room_enter_n1",
+      "characterId": "mom",
+      "role": "character",
+      "ru": "Мама: Не забудь поесть перед улицей!",
+      "en": "Mom: Eat something before you hit the street!",
+      "da": "Mor: Spis noget før du går på gaden!"
+    },
+    {
+      "id": "dlg_dlg_elevator_enter_n1",
+      "characterId": "agata",
+      "role": "character",
+      "ru": "Агата: Тише в лифте — соседи спят.",
+      "en": "Agatha: Quiet in the elevator — neighbors sleep.",
+      "da": "Agatha: Stille i elevatoren — naboerne sover."
+    },
+    {
+      "id": "dlg_dlg_roof_enter_n1",
+      "characterId": "cobalt",
+      "role": "character",
+      "ru": "Кобальт: Ветер сильный — держись за перила.",
+      "en": "Cobalt: Wind's brutal — hold the rail.",
+      "da": "Cobalt: Vinden er vild — hold gelænderet."
+    },
+    {
+      "id": "dlg_dlg_street_enter_n1",
+      "characterId": "razor",
+      "role": "character",
+      "ru": "Рейзор: Эй, панк! Банда смотрит.",
+      "en": "Razor: Hey punk! The gang's watching.",
+      "da": "Razor: Hey punk! Banden kigger."
+    },
+    {
+      "id": "dlg_dlg_city_enter_n1",
+      "characterId": "mohawk",
+      "role": "character",
+      "ru": "Тони: Пицца не ждёт — бери заказ!",
+      "en": "Tony: Pizza won't wait — grab an order!",
+      "da": "Tony: Pizzaen venter ikke — tag en ordre!"
+    },
+    {
+      "id": "dlg_dlg_cemetery_enter_n1",
+      "characterId": "gravedigger",
+      "role": "character",
+      "ru": "Сторож: Тихо… или призраки проснутся.",
+      "en": "Watchman: Quiet… or the ghosts wake up.",
+      "da": "Vogter: Stille… eller spøgelserne vågner."
+    },
+    {
+      "id": "dlg_dlg_parkour_enter_n1",
+      "characterId": "mohawk",
+      "role": "character",
+      "ru": "Ирокез: Покажи прыжок — банда смотрит!",
+      "en": "Mohawk: Show me a jump — gang's watching!",
+      "da": "Mohawk: Vis et hop — banden kigger!"
+    },
+    {
+      "id": "npc_razor_0",
+      "characterId": "razor",
+      "role": "character",
+      "ru": "Цепи — наш гимн.",
+      "en": "Chains are our anthem.",
+      "da": "Kæder er vores hymne."
+    },
+    {
+      "id": "npc_razor_1",
+      "characterId": "razor",
+      "role": "character",
+      "ru": "Ночь принадлежит банде.",
+      "en": "The night belongs to the gang.",
+      "da": "Natten tilhører banden."
+    },
+    {
+      "id": "npc_razor_2",
+      "characterId": "razor",
+      "role": "character",
+      "ru": "Выполни квест.",
+      "en": "Finish the quest.",
+      "da": "Fuldfør opgaven."
+    },
+    {
+      "id": "npc_mohawk_0",
+      "characterId": "mohawk",
+      "role": "character",
+      "ru": "Магия жжёт по-настоящему.",
+      "en": "Magic really burns.",
+      "da": "Magien brænder ægte."
+    },
+    {
+      "id": "npc_mohawk_1",
+      "characterId": "mohawk",
+      "role": "character",
+      "ru": "Купи свиток в лавке.",
+      "en": "Buy a scroll at the shop.",
+      "da": "Køb en rune i butikken."
+    },
+    {
+      "id": "npc_mohawk_2",
+      "characterId": "mohawk",
+      "role": "character",
+      "ru": "Паркур качает репутацию.",
+      "en": "Parkour builds rep.",
+      "da": "Parkour giver respekt."
+    },
+    {
+      "id": "npc_vienna_0",
+      "characterId": "vienna",
+      "role": "character",
+      "ru": "Кладбище платит честно.",
+      "en": "The cemetery pays fair.",
+      "da": "Kirkegården betaler fair."
+    },
+    {
+      "id": "npc_vienna_1",
+      "characterId": "vienna",
+      "role": "character",
+      "ru": "NOT DEAD YET — про нас.",
+      "en": "NOT DEAD YET — that's us.",
+      "da": "NOT DEAD YET — det er os."
+    },
+    {
+      "id": "npc_vienna_2",
+      "characterId": "vienna",
+      "role": "character",
+      "ru": "Построй три склепа.",
+      "en": "Build three crypts.",
+      "da": "Byg tre krypta."
+    },
+    {
+      "id": "npc_ghost_0",
+      "characterId": "ghost",
+      "role": "character",
+      "ru": "Бас дышит с нами.",
+      "en": "The bass breathes with us.",
+      "da": "Bassen ånder med os."
+    },
+    {
+      "id": "npc_ghost_1",
+      "characterId": "ghost",
+      "role": "character",
+      "ru": "Полиция мелькает — не стой долго.",
+      "en": "Cops flash by — don't linger.",
+      "da": "Politiet blinker — bliv ikke."
+    },
+    {
+      "id": "npc_ghost_2",
+      "characterId": "ghost",
+      "role": "character",
+      "ru": "Коты знают короткие пути.",
+      "en": "Cats know shortcuts.",
+      "da": "Katte kender genveje."
+    },
+    {
+      "id": "npc_gravedigger_0",
+      "characterId": "gravedigger",
+      "role": "character",
+      "ru": "Копай и чисти — получишь монеты.",
+      "en": "Dig and clean — get paid.",
+      "da": "Grav og rens — få betaling."
+    },
+    {
+      "id": "npc_gravedigger_1",
+      "characterId": "gravedigger",
+      "role": "character",
+      "ru": "Не ломай памятники.",
+      "en": "Don't break headstones.",
+      "da": "Bryd ikke gravsten."
+    },
+    {
+      "id": "npc_gravedigger_2",
+      "characterId": "gravedigger",
+      "role": "character",
+      "ru": "Держи куртку — холодно.",
+      "en": "Keep your jacket — it's cold.",
+      "da": "Hold jakken — det er koldt."
+    },
+    {
+      "id": "npc_zoya_0",
+      "characterId": "zoya",
+      "role": "character",
+      "ru": "Пирог стынет — не заставляй бабушку ждать!",
+      "en": "The pie is getting cold — don't keep grandma waiting!",
+      "da": "Tærte'n køler — lad ikke bedstemor vente!"
+    },
+    {
+      "id": "npc_plukh_0",
+      "characterId": "plukh",
+      "role": "character",
+      "ru": "Пс-с! Только не смывай!",
+      "en": "Psst! Don't flush!",
+      "da": "Psst! Ikke skyl!"
+    },
+    {
+      "id": "npc_tony_0",
+      "characterId": "tony",
+      "role": "character",
+      "ru": "Пицца сама себя не довезёт!",
+      "en": "Pizza won't deliver itself!",
+      "da": "Pizzaen leverer ikke sig selv!"
+    },
+    {
+      "id": "narr_onboard_move_desktop",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "desktop",
+      "ru": "Шаг 1: Осмотрись. Пройдись по комнате (WASD или джойстик). Клавиши WASD или стрелки.",
+      "en": "Step 1: Look around. Walk around your room (WASD or joystick). Use WASD or arrow keys.",
+      "da": "Trin 1: Kig rundt. Gå rundt i værelset (WASD eller joystick). Brug WASD eller piletaster."
+    },
+    {
+      "id": "narr_onboard_move_touch",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "touch",
+      "ru": "Шаг 1: Осмотрись. Пройдись по комнате (WASD или джойстик). Джойстик слева внизу.",
+      "en": "Step 1: Look around. Walk around your room (WASD or joystick). Use the joystick at bottom left.",
+      "da": "Trin 1: Kig rundt. Gå rundt i værelset (WASD eller joystick). Brug joysticket nederst til venstre."
+    },
+    {
+      "id": "narr_onboard_go_street_desktop",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "desktop",
+      "ru": "Шаг 2: Улица. Из дома войди в портал «Улица». Подойди к порталу и нажми E.",
+      "en": "Step 2: Street. From home, use the Street portal. Walk to the portal and press E.",
+      "da": "Trin 2: Gade. Fra hjem, brug Gade-portalen. Gå til portalen og tryk E."
+    },
+    {
+      "id": "narr_onboard_go_street_touch",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "touch",
+      "ru": "Шаг 2: Улица. Из дома войди в портал «Улица». Подойди к порталу и нажми кнопку E.",
+      "en": "Step 2: Street. From home, use the Street portal. Walk to the portal and tap E.",
+      "da": "Trin 2: Gade. Fra hjem, brug Gade-portalen. Gå til portalen og tryk E-knappen."
+    },
+    {
+      "id": "narr_onboard_talk_razor_desktop",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "desktop",
+      "ru": "Шаг 3: Рейзор. На улице найди Рейзора и нажми E. Подойди к NPC и нажми E.",
+      "en": "Step 3: Razor. On the street, find Razor and press E. Walk to the NPC and press E.",
+      "da": "Trin 3: Razor. På gaden, find Razor og tryk E. Gå til NPC og tryk E."
+    },
+    {
+      "id": "narr_onboard_talk_razor_touch",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "touch",
+      "ru": "Шаг 3: Рейзор. На улице найди Рейзора и нажми E. Подойди к NPC и нажми E.",
+      "en": "Step 3: Razor. On the street, find Razor and press E. Walk to the NPC and tap E.",
+      "da": "Trin 3: Razor. På gaden, find Razor og tryk E. Gå til NPC og tryk E."
+    },
+    {
+      "id": "narr_onboard_visit_cemetery_desktop",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "desktop",
+      "ru": "Шаг 4: Кладбище. С улицы зайди на кладбище. Иди к порталу кладбища и нажми E.",
+      "en": "Step 4: Cemetery. From the street, enter the cemetery. Go to the cemetery portal and press E.",
+      "da": "Trin 4: Kirkegård. Fra gaden, gå til kirkegården. Gå til kirkegårdsportalen og tryk E."
+    },
+    {
+      "id": "narr_onboard_visit_cemetery_touch",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "touch",
+      "ru": "Шаг 4: Кладбище. С улицы зайди на кладбище. Иди к порталу и нажми E.",
+      "en": "Step 4: Cemetery. From the street, enter the cemetery. Go to the portal and tap E.",
+      "da": "Trin 4: Kirkegård. Fra gaden, gå til kirkegården. Gå til portalen og tryk E."
+    },
+    {
+      "id": "narr_onboard_win_fight_desktop",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "desktop",
+      "ru": "Шаг 5: Дуэль. Победи в цепной драке с NPC. Открой банду и начни дуэль цепями.",
+      "en": "Step 5: Duel. Win a chain duel against an NPC. Open Gang and start a chain duel.",
+      "da": "Trin 5: Duel. Vind en kæde-duel mod en NPC. Åbn Bande og start en kædeduel."
+    },
+    {
+      "id": "narr_onboard_win_fight_touch",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "touch",
+      "ru": "Шаг 5: Дуэль. Победи в цепной драке с NPC. Кнопка Gang, затем дуэль.",
+      "en": "Step 5: Duel. Win a chain duel against an NPC. Tap Gang, then start a duel.",
+      "da": "Trin 5: Duel. Vind en kæde-duel mod en NPC. Tryk Bande, start duel."
+    },
+    {
+      "id": "narr_onboard_shop_buy_desktop",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "desktop",
+      "ru": "Шаг 6: Лавка. Купи что-нибудь в лавке (кнопка Shop). Кнопка Shop внизу экрана.",
+      "en": "Step 6: Shop. Buy something in the Shop. Press Shop on the bottom bar.",
+      "da": "Trin 6: Butik. Køb noget i butikken (Shop). Tryk Shop i bunden."
+    },
+    {
+      "id": "narr_onboard_shop_buy_touch",
+      "characterId": "narrator",
+      "role": "narrator",
+      "variant": "touch",
+      "ru": "Шаг 6: Лавка. Купи что-нибудь в лавке (кнопка Shop). Кнопка Shop в доке внизу.",
+      "en": "Step 6: Shop. Buy something in the Shop. Tap Shop on the bottom dock.",
+      "da": "Trin 6: Butik. Køb noget i butikken (Shop). Tryk Shop i docken."
+    }
+  ]
+}

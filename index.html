@@ -53,6 +53,17 @@
   <div class="loc-name" id="locTitle" data-i18n-loc="room">Комната панка</div>
   <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
   <div id="contextHint" class="context-hint" aria-live="polite"></div>
+  <div id="storyGoalBar" class="story-goal-bar" aria-live="polite">
+    <div class="story-goal-chapter"></div>
+    <div class="story-goal-main"></div>
+    <div class="story-goal-hint"></div>
+    <div class="story-goal-progress"></div>
+  </div>
+  <div id="langCorner" class="lang-corner" aria-label="Language">
+    <button type="button" class="lang-btn" data-lang="ru">RU</button>
+    <button type="button" class="lang-btn" data-lang="en">EN</button>
+    <button type="button" class="lang-btn" data-lang="da">DA</button>
+  </div>
   <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
   <div id="storyBubbles" aria-hidden="true"></div>
   <div id="storyDirection" aria-hidden="true">!</div>
@@ -261,7 +272,9 @@
 <script src="js/characters.js?v=living3d-v22r5-accounts-r1"></script>
 <script src="js/i18n.js?v=living3d-v22r5-accounts-r1"></script>
 <script src="js/loading-screen.js?v=living3d-v22r5-accounts-r1"></script>
-<script src="js/voice.js?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/audio-bootstrap.mjs?v=voice-narrator-1"></script>
+<script src="js/voice.js?v=voice-narrator-1"></script>
+<script type="module" src="js/player-save-merge.mjs?v=voice-narrator-1"></script>
 <script src="js/onboarding.js?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/context-hints.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/how-to-play.mjs?v=living3d-v22r5-accounts-r1"></script>
@@ -269,7 +282,7 @@
 <script type="module" src="js/char-select.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script src="js/life.js?v=living3d-v22r5-accounts-r1"></script>
-<script src="js/game.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/game.js?v=voice-narrator-1"></script>
 <script type="module">
   import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1";
   import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r5-accounts-r1";
