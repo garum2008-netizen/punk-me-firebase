@@ -472,6 +472,9 @@ html.episode-capture #btnAccountOpen,
 html.episode-capture #btnAccountOpenChar,
 html.episode-capture #btnAccountOpenLoading,
 html.episode-capture .btn-account { display: none !important; }
+html.episode-capture body { background: #140a24; }
+html.episode-capture #howToOverlay.active { display: none !important; pointer-events: none !important; }
+html.episode-capture .howto-overlay.active { display: none !important; }
 .hud-quests-wrap { display: flex; flex-direction: column; gap: 4px; }
 .hud-quests-toggle {
   display: none;

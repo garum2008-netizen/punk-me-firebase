@@ -57,9 +57,19 @@ function openHowTo() {
   });
 }
 
+function isEpisodeCapture() {
+  return /\bepisodeCapture=1\b/.test(location.search)
+    || document.documentElement.classList.contains("episode-capture");
+}
+
 function initHowToPlay() {
   const btn = document.getElementById("btnHowTo");
   btn?.addEventListener("click", openHowTo);
+  if (isEpisodeCapture()) {
+    try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) {}
+    document.getElementById("howToOverlay")?.classList.remove("active");
+    return;
+  }
   let seen = false;
   try { seen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (e) {}
   if (!seen && location.hash !== "#account") {

@@ -24,13 +24,55 @@ async function bootSolo(page, base, cacheBust = "playtest-ui", opts = {}) {
   });
 }
 
+async function skipChapterIntro(page) {
+  await page.waitForSelector("#chapterIntro.active", { timeout: 30000 }).catch(() => {});
+  const active = await page.locator("#chapterIntro.active").isVisible().catch(() => false);
+  if (!active) return;
+  const skip = page.locator(".chapter-intro-skip");
+  if (await skip.isVisible().catch(() => false)) {
+    await skip.click({ timeout: 5000, force: true });
+    return;
+  }
+  for (let i = 0; i < 5; i++) {
+    const next = page.locator(".chapter-intro-next");
+    if (!(await next.isVisible().catch(() => false))) break;
+    await next.click({ force: true });
+    await sleep(200);
+  }
+}
+
+async function unlockGameAudio(page) {
+  await page.evaluate(async () => {
+    await window.AudioManager?.unlockAudio?.();
+    window.AudioManager?.setLocationMusic?.(window.me?.location || "room");
+  });
+}
+
+async function dismissHowToOverlay(page) {
+  await page.evaluate(() => {
+    try {
+      localStorage.setItem("punkme_howto_seen", "1");
+    } catch (e) {}
+    const el = document.getElementById("howToOverlay");
+    if (el) {
+      el.classList.remove("active");
+      el.innerHTML = "";
+    }
+  });
+  await page.locator("#howToOverlay .howto-close, .howto-close").click({ timeout: 1500 }).catch(() => {});
+  await page.waitForFunction(
+    () => !document.getElementById("howToOverlay")?.classList.contains("active"),
+    { timeout: 3000 }
+  ).catch(() => {});
+}
+
 async function pickCobaltUi(page) {
   await page.locator('.char-pick[data-id="cobalt"]').click();
   await page.locator("#charSelectConfirm").click();
   await page.waitForFunction(() => window.__playerLoaded && window.me?.characterId === "cobalt", {
     timeout: 120000
   });
-  await page.locator("#howToOverlay .close, #howToOverlay button").first().click({ timeout: 3000 }).catch(() => {});
+  await dismissHowToOverlay(page);
 }
 
 async function snap(page, outDir, tag, name) {
@@ -191,13 +233,23 @@ async function winFightUi(page, maxMs = 35000) {
 }
 
 async function buyCheapestShop(page) {
+  await page.evaluate(() => {
+    if ((window.me?.coins ?? 0) < 60) {
+      window.me.coins = 200;
+      window.saveMe?.();
+    }
+    if (typeof renderShop === "function") renderShop();
+  });
   const already = await page.locator("#shopModal.active").count();
   if (!already) {
     await page.locator('button[onclick*="openModal(\'shopModal\')"]').click();
-    await page.waitForSelector("#shopGrid, .shop-grid, #shopModal");
+    await page.waitForSelector("#shopModal.active, #shopGrid", { timeout: 15000 });
   }
-  const buy = page.locator("#shopGrid button.btn").first();
-  if (await buy.count()) await buy.click();
+  await sleep(400);
+  const buy = page.locator("#shopGrid button.btn:not([disabled])").first();
+  await buy.waitFor({ state: "visible", timeout: 15000 });
+  await buy.click({ force: true });
+  await sleep(500);
   await page.locator("#shopModal .close").click().catch(() => {});
   await sleep(300);
 }
@@ -576,6 +628,9 @@ module.exports = {
   sleep,
   bootSolo,
   pickCobaltUi,
+  dismissHowToOverlay,
+  skipChapterIntro,
+  unlockGameAudio,
   snap,
   focusStage,
   walkDesktop,

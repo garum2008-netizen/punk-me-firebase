@@ -1,20 +1,24 @@
-{"sec":18.252,"label":"intro","extra":"character + room"}
-{"sec":20.753,"label":"story_goals","extra":"objective HUD"}
-{"sec":23.23,"label":"duel_start","extra":"street vs Razor"}
-{"sec":116.52,"label":"duel_win","extra":""}
-{"sec":118.543,"label":"decor_room","extra":"apartment editor"}
-{"sec":121.754,"label":"decor_construction","extra":"hangout site"}
-{"sec":124.616,"label":"city_plot","extra":"purchase shop plot"}
-{"sec":127.926,"label":"cemetery_job","extra":"clean paths mini-game"}
-{"sec":140.019,"label":"crypt_decor","extra":"cemetery placements"}
-{"sec":143.135,"label":"outro","extra":"map branding"}
-{"sec":22.293,"label":"intro","extra":"character + room"}
-{"sec":24.794,"label":"story_goals","extra":"objective HUD"}
-{"sec":26.805,"label":"duel_start","extra":"street vs Razor"}
-{"sec":119.916,"label":"duel_win","extra":""}
-{"sec":121.939,"label":"decor_room","extra":"apartment editor"}
-{"sec":125.165,"label":"decor_construction","extra":"hangout site"}
-{"sec":127.964,"label":"city_plot","extra":"purchase shop plot"}
-{"sec":131.153,"label":"cemetery_job","extra":"clean paths mini-game"}
-{"sec":143.559,"label":"crypt_decor","extra":"cemetery placements"}
-{"sec":146.588,"label":"outro","extra":"map branding"}
+{"sec":0,"label":"boot","extra":"page load"}
+{"sec":23.537,"label":"char_select","extra":"Cobalt"}
+{"sec":26.55,"label":"start_overlay","extra":"chapter intro"}
+{"sec":34.991,"label":"start_game","extra":"audio unlock"}
+{"sec":71.019,"label":"tutorial_move","extra":"WASD / joystick — room"}
+{"sec":126.538,"label":"tutorial_street","extra":"map nav → street"}
+{"sec":161.312,"label":"razor_talk","extra":"gang UI → Razor dialog"}
+{"sec":219.025,"label":"quest_journal","extra":"pause menu journal"}
+{"sec":275.544,"label":"tutorial_cemetery","extra":"cemetery visit"}
+{"sec":340.594,"label":"tutorial_duel","extra":"Chain fight UI"}
+{"sec":403.233,"label":"tutorial_duel_result","extra":"win_fight progress=0 — fight UI did not finish in time"}
+{"sec":481.126,"label":"shop_open","extra":"shop modal — prices on grid"}
+{"sec":537.529,"label":"shop_buy","extra":"first item purchased"}
+{"sec":589.757,"label":"onboarding_reward","extra":"onboarding.done + grantRewardOnce"}
+{"sec":671.779,"label":"propiska_intro","extra":"q_initiation_pay accepted"}
+{"sec":749.63,"label":"decor_room","extra":"apartment neon_sign placed"}
+{"sec":784.504,"label":"decor_construction","extra":"hangout site guitar"}
+{"sec":821.572,"label":"city_plot_shop","extra":"purchased plot_shop"}
+{"sec":849.317,"label":"cemetery_job_paths","extra":"job dig"}
+{"sec":916.094,"label":"cemetery_job_lamps","extra":"job cobwebs"}
+{"sec":963.608,"label":"cemetery_job_night","extra":"job cemetery_night"}
+{"sec":1036.815,"label":"crypt_decor","extra":"urn in cemetery crypt zone"}
+{"sec":1061.361,"label":"outro_construction","extra":"hangout site wide"}
+{"sec":1076.9,"label":"reload_continue","extra":"quest=q_initiation_pay coins=660"}
