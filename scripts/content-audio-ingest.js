@@ -29,8 +29,12 @@ function start(destDir) {
     music: path.join(destDir, "music-raw.webm"),
     sfx: path.join(destDir, "sfx-raw.webm")
   };
-  const port = Number(process.env.CONTENT_AUDIO_PORT || 9877);
-  if (server) return Promise.resolve(port);
+  if (server) {
+    try {
+      server.close();
+    } catch (e) {}
+    server = null;
+  }
   server = http.createServer((req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -59,8 +63,12 @@ function start(destDir) {
     res.writeHead(404);
     res.end();
   });
-  return new Promise(resolve => {
-    server.listen(port, "127.0.0.1", () => resolve(port));
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address();
+      resolve(typeof addr === "object" && addr ? addr.port : 9877);
+    });
   });
 }
 

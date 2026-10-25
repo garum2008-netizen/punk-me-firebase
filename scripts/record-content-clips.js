@@ -19,9 +19,31 @@ const root = path.join(__dirname, "../qa/content");
 const commit = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
 const shootDate = new Date().toISOString().slice(0, 10);
 
+function readReportRows() {
+  try {
+    const prev = JSON.parse(fs.readFileSync(path.join(root, ".last-results.json"), "utf8"));
+    return prev;
+  } catch {
+    return {};
+  }
+}
+
+function saveReportRows(merged) {
+  fs.writeFileSync(path.join(root, ".last-results.json"), JSON.stringify(merged, null, 2));
+}
+
 const CLIPS = {
   "01": { dir: "01-first-job", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "fresh", run: Flows.flow01FirstJob },
-  "01en": { dir: "01-first-job-en", lang: "en", w: 1920, h: 1080, mobile: false, setup: "fresh", run: Flows.flow01FirstJob },
+  "01en": {
+    dir: "01-first-job",
+    lang: "en",
+    w: 1920,
+    h: 1080,
+    mobile: false,
+    setup: "fresh",
+    run: Flows.flow01FirstJob,
+    basename: "gameplay-1080p-en"
+  },
   "02": { dir: "02-how-to-start", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "fresh", run: Flows.flow02HowToStart },
   "03": { dir: "03-interact-talk", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "fresh", run: Flows.flow03InteractTalkDesktop },
   "03m": {
@@ -79,13 +101,13 @@ async function injectMultiAudioBridge(context, port) {
         rec.ondataavailable = e => {
           if (e.data?.size) blobs.push(e.data);
         };
-        rec.onstop = () => {
+        rec.onstop = async () => {
           const body = new Blob(blobs, { type: mime });
           if (body.size > 256) {
-            fetch(`${base}/${track}`, { method: "POST", body, mode: "cors" }).catch(() => {});
+            await fetch(`${base}/${track}`, { method: "POST", body, mode: "cors" }).catch(() => {});
           }
         };
-        rec.start();
+        rec.start(400);
         recorders[track] = rec;
       }
       window.__contentCaptureActive = true;
@@ -98,8 +120,15 @@ async function injectMultiAudioBridge(context, port) {
         const rec = recorders[track];
         if (!rec || rec.state === "inactive") continue;
         await new Promise(resolve => {
-          rec.onstop = () => resolve();
+          const upload = rec.onstop;
+          rec.onstop = async () => {
+            try {
+              await upload?.();
+            } catch (e) {}
+            resolve();
+          };
           try {
+            if (rec.state === "recording") rec.requestData();
             rec.stop();
           } catch (e) {
             resolve();
@@ -182,7 +211,7 @@ async function recordOne(clipKey, base) {
   const page = await context.newPage();
   if (spec.mobile) {
     await page.addInitScript(() => {
-      document.documentElement.classList.add("touch-ui");
+      document.documentElement.classList.add("content-force-touch");
     });
   }
 
@@ -197,15 +226,18 @@ async function recordOne(clipKey, base) {
     await Ep1.waitOnboardingDone(page);
     mark("onboarding_cleared", "post-tutorial state for build layer");
   } else if (spec.setup === "freshDuel") {
-    await H.navGo(page, "street");
-    await H.openGangNpc(page, "razor");
-    await H.advanceStoryNext(page).catch(() => {});
-    await H.dismissStoryDialog(page);
-    await H.closeGangModal(page);
-    await H.navGo(page, "cemetery");
-    await page.evaluate(() => window.Onboarding?.onVisitCemetery?.());
-    await H.navGo(page, "street");
-    mark("pre_duel_onboarding", "ready for win_fight step");
+    await page.evaluate(() => {
+      document.getElementById("chapterIntro")?.classList.remove("active");
+      const ob = window.me?.onboarding || { step: 0, progress: {}, done: false };
+      ob.step = 4;
+      ob.done = false;
+      window.me.onboarding = ob;
+      window.Onboarding?.render?.();
+      window.goLocation?.("street");
+      window.syncStage3D?.();
+    });
+    await page.waitForFunction(() => window.me?.location === "street", { timeout: 30000 });
+    mark("pre_duel_onboarding", "step=4 on street (same gate as test:duel-onboarding)");
   }
 
   mark("capture_start", "audio+video");
@@ -222,7 +254,7 @@ async function recordOne(clipKey, base) {
 
   mark("capture_end", "stop");
   await page.evaluate(() => window.__contentStopAudioCapture());
-  await H.sleep(2500);
+  await H.sleep(4500);
   audioIngest.finalizeConcat();
   audioIngest.stop();
   await context.close();
@@ -279,6 +311,8 @@ async function main() {
   if (!process.env.PUNK_BASE) stop();
 
   const reportPath = path.join(root, "REPORT.md");
+  const merged = { ...readReportRows(), ...Object.fromEntries(results.map(r => [r.clipKey, r])) };
+  const order = ["01", "01en", "02", "03", "03m", "04", "05", "06", "07", "08"];
   const lines = [
     "# QA content clips — отчёт",
     "",
@@ -287,11 +321,14 @@ async function main() {
     "| Клип | Длительность | Готово | Заблокировано |",
     "| --- | --- | --- | --- |"
   ];
-  for (const r of results) {
+  for (const key of order) {
+    const r = merged[key];
+    if (!r) continue;
     const dur = r.duration ? `${fmt(r.duration)} (${r.duration.toFixed(1)}s)` : "—";
-    lines.push(`| ${r.clip} | ${dur} | ${r.ready ? "да" : "нет"} | ${r.blocked || "—"} |`);
+    lines.push(`| ${r.clip || CLIPS[key]?.dir} | ${dur} | ${r.ready ? "да" : "нет"} | ${r.blocked || "—"} |`);
   }
   fs.writeFileSync(reportPath, lines.join("\n") + "\n");
+  saveReportRows(merged);
   console.log("Wrote", reportPath);
   console.log(JSON.stringify(results, null, 2));
 }

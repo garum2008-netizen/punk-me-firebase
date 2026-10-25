@@ -16,6 +16,7 @@ async function readEconomy(page) {
 
 async function prepFreshPlayer(page, { lang = "ru" } = {}) {
   await H.dismissHowToOverlay(page);
+  await page.evaluate(() => document.getElementById("chapterIntro")?.classList.remove("active"));
   await H.skipChapterIntro(page);
   await page.evaluate(l => {
     if (typeof setLanguage === "function") setLanguage(l, true);
@@ -27,38 +28,37 @@ async function prepFreshPlayer(page, { lang = "ru" } = {}) {
 async function flow01FirstJob(page, mark) {
   const before = await readEconomy(page);
   mark?.("state_before", JSON.stringify(before));
-  await H.navGo(page, "construction");
-  mark?.("approach_job_area", "construction site");
-  await H.pulseCamera(page);
+  page.on("dialog", d => d.accept().catch(() => {}));
   const jobBtn = page.locator("#btnJob, button[onclick=\"openJobPanel()\"]");
   await jobBtn.first().click({ force: true });
   await page.waitForSelector("#jobModal.active", { timeout: 15000 });
-  mark?.("job_panel_open", "job board modal");
-  const btn = page.locator("#jobModal.active #jobActions button[onclick*=\"'construction_helper'\"]").first();
+  mark?.("job_panel_open", "доска работ");
+  const btn = page.locator("#jobModal.active #jobActions button[onclick*=\"'dig'\"]").first();
   if (!(await btn.count())) {
-    return { blocked: true, reason: "construction_helper not in job panel", before, after: before };
+    return { blocked: true, reason: "dig job not on board", before, after: before };
   }
   await btn.click({ force: true });
-  mark?.("job_accepted", "construction_helper");
-  await page.waitForFunction(() => window.me?.location === "construction", { timeout: 30000 }).catch(() => {});
-  await H.sleep(800);
-  await page.locator("#jobModal .close").click({ timeout: 2000 }).catch(() => {});
+  mark?.("job_accepted", "dig → cemetery");
+  await page.waitForFunction(() => window.me?.location === "cemetery", { timeout: 60000 });
+  await H.dismissHowToOverlay(page);
+  await H.sleep(500);
+  mark?.("job_gameplay", "paths mini-game — WASD + E");
   const t0 = Date.now();
-  while (Date.now() - t0 < 22000) {
-    await H.walkDesktop(page, 600);
+  while (Date.now() - t0 < 16000) {
+    await H.walkDesktop(page, 650);
     await H.focusStage(page);
     await page.keyboard.press("e").catch(() => {});
-    const busy = await page.evaluate(() => !!window.PlayV21?.state?.construction?.active);
-    if (!busy) break;
+    const hud = await page.evaluate(() => !!document.getElementById("gpCemeteryTimer"));
+    if (!hud) break;
   }
   await page.evaluate(() => window.PlayV21?.endAllActivities?.());
   await H.pulseCamera(page);
-  await H.sleep(900);
+  await H.sleep(700);
   const after = await readEconomy(page);
   mark?.("job_complete", `coins ${before.coins} → ${after.coins}`);
   mark?.("state_after", JSON.stringify(after));
   const earned = after.coins > before.coins;
-  return { blocked: !earned, reason: earned ? null : "coins did not increase after job", before, after };
+  return { blocked: !earned, reason: earned ? null : "coins did not increase after dig job", before, after };
 }
 
 async function flow02HowToStart(page, mark) {
@@ -170,7 +170,6 @@ async function flow06CityPlot(page, mark) {
 }
 
 async function flow07Duel(page, mark) {
-  await Ep1.ensureWinFightStep(page);
   await H.dismissHowToOverlay(page);
   const before = await readEconomy(page);
   await page.locator("#btnFight").click({ timeout: 20000, force: true });
@@ -201,10 +200,29 @@ async function flow08Dog(page, mark) {
       (typeof window.hasDog === "function" && window.hasDog())
   );
   if (!has) {
+    let coins = (await readEconomy(page)).coins;
+    const price = 280;
+    if (coins < price) {
+      mark?.("earn_for_dog", `coins ${coins} → need ${price} (dig jobs)`);
+      page.on("dialog", d => d.accept().catch(() => {}));
+      for (let round = 0; round < 5 && coins < price; round++) {
+        const jobBtn = page.locator("#btnJob, button[onclick=\"openJobPanel()\"]");
+        await jobBtn.first().click({ force: true }).catch(() => {});
+        await page.waitForSelector("#jobModal.active", { timeout: 10000 }).catch(() => {});
+        await page.locator("#jobModal.active #jobActions button[onclick*=\"'dig'\"]").first().click({ force: true }).catch(() => {});
+        await page.waitForFunction(() => window.me?.location === "cemetery", { timeout: 60000 }).catch(() => {});
+        const t0 = Date.now();
+        while (Date.now() - t0 < 20000) {
+          await H.walkDesktop(page, 650);
+          await page.keyboard.press("e").catch(() => {});
+          if (!(await page.evaluate(() => !!document.getElementById("gpCemeteryTimer")))) break;
+        }
+        await page.evaluate(() => window.PlayV21?.endAllActivities?.());
+        coins = (await readEconomy(page)).coins;
+      }
+    }
     await page.locator('button[onclick*="openModal(\'shopModal\')"]').click({ force: true }).catch(() => {});
     await page.waitForSelector("#shopModal.active", { timeout: 10000 }).catch(() => {});
-    const coins = await page.evaluate(() => window.me?.coins ?? 0);
-    const price = 280;
     if (coins < price) {
       mark?.("need_coins", `${coins} < ${price}`);
       return { blocked: true, reason: `недостаточно монет для pet_dog (${coins}/${price})` };

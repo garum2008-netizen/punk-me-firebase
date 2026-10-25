@@ -97,6 +97,14 @@ async function walkDesktop(page, ms = 2200) {
 }
 
 async function walkMobile(page, ms = 2200) {
+  await page.evaluate(() => {
+    document.documentElement.classList.add("content-force-touch");
+    const tc = document.getElementById("touchControls");
+    if (tc) {
+      tc.style.display = "block";
+      tc.setAttribute("aria-hidden", "false");
+    }
+  });
   const joy = page.locator("#touchJoystick");
   await joy.waitFor({ state: "visible", timeout: 15000 });
   const box = await joy.boundingBox();

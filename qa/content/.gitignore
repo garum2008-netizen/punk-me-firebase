@@ -1,0 +1,4 @@
+**/capture-raw/
+**/audio-segments/
+**/*-raw.webm
+.last-results.json

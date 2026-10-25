@@ -303,5 +303,6 @@ module.exports = {
   acceptPropiskaPayQuest,
   openJournalMenu,
   reloadAndContinue,
-  waitOnboardingDone
+  waitOnboardingDone,
+  ensureWinFightStep
 };

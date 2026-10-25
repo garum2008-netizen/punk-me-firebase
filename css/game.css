@@ -475,6 +475,10 @@ html.episode-capture .btn-account { display: none !important; }
 html.episode-capture body { background: #140a24; }
 html.episode-capture #howToOverlay.active { display: none !important; pointer-events: none !important; }
 html.episode-capture .howto-overlay.active { display: none !important; }
+/* Vertical content capture at 1080px width still needs touch HUD */
+html.episode-capture.content-force-touch .touch-controls { display: block !important; pointer-events: none; }
+html.episode-capture.content-force-touch .touch-joystick,
+html.episode-capture.content-force-touch .touch-interact { pointer-events: auto; }
 .hud-quests-wrap { display: flex; flex-direction: column; gap: 4px; }
 .hud-quests-toggle {
   display: none;
