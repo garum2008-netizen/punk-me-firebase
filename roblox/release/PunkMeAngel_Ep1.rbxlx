@@ -17,6 +17,25 @@
       </Properties>
       <Item class="ModuleScript" referent="3">
         <Properties>
+          <string name="Name">AnimationCatalog</string>
+          <string name="Source"><![CDATA[--!strict
+--[[
+	Default Roblox-published animation IDs (R15). Replace if experience policy requires owned assets.
+]]
+
+return {
+	idle = "rbxassetid://507766666",
+	walk = "rbxassetid://507777826",
+	talk = "rbxassetid://507770453",
+	attack = "rbxassetid://522635514",
+	block = "rbxassetid://5230575278",
+	victory = "rbxassetid://507770239",
+}
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
           <string name="Name">AvatarPresets</string>
           <string name="Source"><![CDATA[--!strict
 --[[
@@ -72,7 +91,7 @@ return {
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="4">
+      <Item class="ModuleScript" referent="5">
         <Properties>
           <string name="Name">DevProducts</string>
           <string name="Source"><![CDATA[--!strict
@@ -89,7 +108,54 @@ return {
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="5">
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">EndingScenes</string>
+          <string name="Source"><![CDATA[--!strict
+return {
+	ending_break_curse = {
+		ru = "Колокол звенит снова. Мёртвины — люди. Призраки находят путь в Склеп.",
+		en = "The Bell rings again. The Mortwins are human. Ghosts find the Crypt.",
+	},
+	ending_zombie_style = {
+		ru = "Зомби — стиль, а не проклятие. Замок — клуб. Склеп держит призраков.",
+		en = "Zombie is style, not curse. The castle is a club. The Crypt holds the ghosts.",
+	},
+	ending_count_deal = {
+		ru = "Граф открывает ночной магазин. Семья и призраки в безопасности — по сделке.",
+		en = "The Count opens a night shop. Family and ghosts safe — by deal.",
+	},
+}
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="7">
+        <Properties>
+          <string name="Name">NpcVisuals</string>
+          <string name="Source"><![CDATA[--!strict
+export type Visual = {
+	bodyColor: Color3,
+	accentColor: Color3,
+	height: number?,
+}
+
+return {
+	npc_mom = { bodyColor = Color3.fromRGB(180, 120, 140), accentColor = Color3.fromRGB(240, 200, 210), height = 1.05 },
+	npc_shnurok = { bodyColor = Color3.fromRGB(140, 100, 60), accentColor = Color3.fromRGB(90, 60, 40), height = 0.55 },
+	npc_razor = { bodyColor = Color3.fromRGB(40, 40, 45), accentColor = Color3.fromRGB(180, 180, 190), height = 1.08 },
+	npc_gravedigger = {
+		bodyColor = Color3.fromRGB(60, 55, 45),
+		accentColor = Color3.fromRGB(100, 90, 70),
+		height = 1.1,
+	},
+	npc_ghost = { bodyColor = Color3.fromRGB(200, 180, 255), accentColor = Color3.fromRGB(230, 220, 255), height = 1.0 },
+	npc_zoya = { bodyColor = Color3.fromRGB(120, 80, 60), accentColor = Color3.fromRGB(220, 180, 120), height = 0.95 },
+	npc_count = { bodyColor = Color3.fromRGB(50, 35, 70), accentColor = Color3.fromRGB(120, 90, 160), height = 1.12 },
+}
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="8">
         <Properties>
           <string name="Name">QuestTable</string>
           <string name="Source"><![CDATA[--!strict
@@ -555,7 +621,7 @@ return QuestTable
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="6">
+      <Item class="ModuleScript" referent="9">
         <Properties>
           <string name="Name">ShopCatalog</string>
           <string name="Source"><![CDATA[--!strict
@@ -595,7 +661,7 @@ return {
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="7">
+      <Item class="ModuleScript" referent="10">
         <Properties>
           <string name="Name">VoiceManifest</string>
           <string name="Source"><![CDATA[--!strict
@@ -626,16 +692,16 @@ return {
         </Properties>
       </Item>
     </Item>
-    <Item class="Folder" referent="8">
+    <Item class="Folder" referent="11">
       <Properties>
         <string name="Name">Remotes</string>
       </Properties>
     </Item>
-    <Item class="Folder" referent="9">
+    <Item class="Folder" referent="12">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
-      <Item class="ModuleScript" referent="10">
+      <Item class="ModuleScript" referent="13">
         <Properties>
           <string name="Name">AngelinaLines</string>
           <string name="Source"><![CDATA[--!strict
@@ -707,7 +773,7 @@ return AngelinaLines
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="11">
+      <Item class="ModuleScript" referent="14">
         <Properties>
           <string name="Name">DataStoreScope</string>
           <string name="Source"><![CDATA[--!strict
@@ -728,7 +794,87 @@ return DataStoreScope
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="12">
+      <Item class="ModuleScript" referent="15">
+        <Properties>
+          <string name="Name">DuelEngine</string>
+          <string name="Source"><![CDATA[--!strict
+local DuelEngine = {}
+
+export type Action = "attack" | "block" | "dodge"
+export type Phase = "fighting" | "player_win" | "player_lose"
+
+export type State = {
+	playerHp: number,
+	opponentHp: number,
+	phase: Phase,
+	round: number,
+	lastNpcAction: Action?,
+}
+
+local MAX_HP = 100
+local DAMAGE = 18
+local BLOCKED_DAMAGE = 4
+
+function DuelEngine.newState(): State
+	return {
+		playerHp = MAX_HP,
+		opponentHp = MAX_HP,
+		phase = "fighting",
+		round = 0,
+		lastNpcAction = nil,
+	}
+end
+
+local function npcActionForRound(round: number): Action
+	local pattern: { Action } = { "attack", "attack", "block", "dodge" }
+	return pattern[(round % #pattern) + 1]
+end
+
+function DuelEngine.resolveTurn(state: State, playerAction: Action): (State, { hitPlayer: boolean, hitNpc: boolean })
+	if state.phase ~= "fighting" then
+		return state, { hitPlayer = false, hitNpc = false }
+	end
+	local npcAction = npcActionForRound(state.round)
+	local hitPlayer = false
+	local hitNpc = false
+
+	if playerAction == "attack" and npcAction ~= "dodge" then
+		if npcAction == "block" then
+			state.opponentHp = math.max(0, state.opponentHp - BLOCKED_DAMAGE)
+			hitNpc = true
+		else
+			state.opponentHp = math.max(0, state.opponentHp - DAMAGE)
+			hitNpc = true
+		end
+	end
+
+	if npcAction == "attack" and playerAction ~= "dodge" then
+		if playerAction == "block" then
+			state.playerHp = math.max(0, state.playerHp - BLOCKED_DAMAGE)
+			hitPlayer = true
+		else
+			state.playerHp = math.max(0, state.playerHp - DAMAGE)
+			hitPlayer = true
+		end
+	end
+
+	state.round += 1
+	state.lastNpcAction = npcAction
+
+	if state.opponentHp <= 0 then
+		state.phase = "player_win"
+	elseif state.playerHp <= 0 then
+		state.phase = "player_lose"
+	end
+
+	return state, { hitPlayer = hitPlayer, hitNpc = hitNpc }
+end
+
+return DuelEngine
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="16">
         <Properties>
           <string name="Name">Economy</string>
           <string name="Source"><![CDATA[--!strict
@@ -793,7 +939,177 @@ return Economy
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="13">
+      <Item class="ModuleScript" referent="17">
+        <Properties>
+          <string name="Name">EndingLogic</string>
+          <string name="Source"><![CDATA[--!strict
+local EndingLogic = {}
+
+export type EndingId = "ending_break_curse" | "ending_zombie_style" | "ending_count_deal"
+
+function EndingLogic.recommended(story: {
+	relationships: { [string]: number },
+	decisions: { [string]: string },
+	concertHeadliner: string?,
+}): EndingId
+	local razor = story.relationships.razor or 0
+	local count = story.relationships.count or 0
+	local bully = story.decisions.ch2_bully
+	if count >= 15 and (story.concertHeadliner == "count" or story.concertHeadliner == "ghost") then
+		return "ending_count_deal"
+	end
+	if bully == "join" or razor < 5 then
+		return "ending_zombie_style"
+	end
+	return "ending_break_curse"
+end
+
+function EndingLogic.canPick(
+	story: { relationships: { [string]: number }, decisions: { [string]: string } },
+	endingId: EndingId
+): boolean
+	if endingId == "ending_break_curse" then
+		return (story.relationships.razor or 0) >= 0
+	end
+	if endingId == "ending_zombie_style" then
+		return true
+	end
+	if endingId == "ending_count_deal" then
+		return (story.relationships.count or 0) >= 10
+	end
+	return false
+end
+
+return EndingLogic
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="18">
+        <Properties>
+          <string name="Name">FlyerEngine</string>
+          <string name="Source"><![CDATA[--!strict
+local FlyerEngine = {}
+
+FlyerEngine.SPOT_IDS = {
+	"flyer_street_1",
+	"flyer_street_2",
+	"flyer_street_3",
+	"flyer_city_1",
+	"flyer_city_2",
+	"flyer_city_3",
+	"flyer_cemetery_gate",
+	"flyer_shop_wall",
+}
+
+function FlyerEngine.newProgress(): { [string]: boolean }
+	return {}
+end
+
+function FlyerEngine.postSpot(progress: { [string]: boolean }, spotId: string): (boolean, number)
+	if progress[spotId] then
+		return false, FlyerEngine.count(progress)
+	end
+	local valid = false
+	for _, id in FlyerEngine.SPOT_IDS do
+		if id == spotId then
+			valid = true
+			break
+		end
+	end
+	if not valid then
+		return false, FlyerEngine.count(progress)
+	end
+	progress[spotId] = true
+	return true, FlyerEngine.count(progress)
+end
+
+function FlyerEngine.count(progress: { [string]: boolean }): number
+	local n = 0
+	for _, id in FlyerEngine.SPOT_IDS do
+		if progress[id] then
+			n += 1
+		end
+	end
+	return n
+end
+
+function FlyerEngine.isComplete(progress: { [string]: boolean }): boolean
+	return FlyerEngine.count(progress) >= #FlyerEngine.SPOT_IDS
+end
+
+return FlyerEngine
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="19">
+        <Properties>
+          <string name="Name">HangoutEngine</string>
+          <string name="Source"><![CDATA[--!strict
+local HangoutEngine = {}
+
+export type StageId = "foundation" | "frame" | "neon" | "grand_open"
+
+HangoutEngine.ORDER = { "foundation", "frame", "neon", "grand_open" }
+
+export type Progress = {
+	foundation: boolean,
+	frame: boolean,
+	neon: boolean,
+	grand_open: boolean,
+}
+
+function HangoutEngine.newProgress(): Progress
+	return { foundation = false, frame = false, neon = false, grand_open = false }
+end
+
+function HangoutEngine.stageIndex(stage: StageId): number
+	for i, s in HangoutEngine.ORDER do
+		if s == stage then
+			return i
+		end
+	end
+	return 0
+end
+
+function HangoutEngine.canComplete(progress: Progress, stage: StageId): boolean
+	if progress[stage] then
+		return false
+	end
+	local idx = HangoutEngine.stageIndex(stage)
+	if idx <= 1 then
+		return true
+	end
+	local prev = HangoutEngine.ORDER[idx - 1]
+	return progress[prev] == true
+end
+
+function HangoutEngine.complete(progress: Progress, stage: StageId): (boolean, number)
+	if not HangoutEngine.canComplete(progress, stage) then
+		return false, HangoutEngine.completedCount(progress)
+	end
+	progress[stage] = true
+	return true, HangoutEngine.completedCount(progress)
+end
+
+function HangoutEngine.completedCount(progress: Progress): number
+	local n = 0
+	for _, s in HangoutEngine.ORDER do
+		if progress[s] then
+			n += 1
+		end
+	end
+	return n
+end
+
+function HangoutEngine.isDone(progress: Progress): boolean
+	return HangoutEngine.completedCount(progress) >= #HangoutEngine.ORDER
+end
+
+return HangoutEngine
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="20">
         <Properties>
           <string name="Name">Localization</string>
           <string name="Source"><![CDATA[--!strict
@@ -933,7 +1249,7 @@ return Localization
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="14">
+      <Item class="ModuleScript" referent="21">
         <Properties>
           <string name="Name">ProfileMigrator</string>
           <string name="Source"><![CDATA[--!strict
@@ -953,6 +1269,21 @@ local function migrateV2ToV3(profile: any): any
 		profile.roomDecor = {}
 	end
 	profile.schemaVersion = 3
+	return profile
+end
+
+local function migrateV4ToV5(profile: ProfileSchema.Profile): ProfileSchema.Profile
+	local story = profile.story
+	if story.hangout == nil then
+		story.hangout = { foundation = false, frame = false, neon = false, grand_open = false }
+	end
+	if story.flyersPosted == nil then
+		story.flyersPosted = {}
+	end
+	if story.flags == nil then
+		story.flags = {}
+	end
+	profile.schemaVersion = 5
 	return profile
 end
 
@@ -980,6 +1311,8 @@ function ProfileMigrator.migrate(raw: any): (ProfileSchema.Profile?, string?)
 			profile = migrateV2ToV3(profile :: any) :: ProfileSchema.Profile
 		elseif profile.schemaVersion < 4 then
 			profile = migrateV3ToV4(profile)
+		elseif profile.schemaVersion < 5 then
+			profile = migrateV4ToV5(profile)
 		else
 			break
 		end
@@ -992,7 +1325,7 @@ return ProfileMigrator
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="15">
+      <Item class="ModuleScript" referent="22">
         <Properties>
           <string name="Name">ProfileSchema</string>
           <string name="Source"><![CDATA[--!strict
@@ -1000,7 +1333,7 @@ local QuestEngine = if script and script.Parent then require(script.Parent.Quest
 
 local ProfileSchema = {}
 
-ProfileSchema.CURRENT_VERSION = 4
+ProfileSchema.CURRENT_VERSION = 5
 
 export type Language = "ru" | "uk" | "en" | "da"
 
@@ -1067,6 +1400,10 @@ local function sanitizeStory(raw: any): QuestEngine.StoryState
 	base.storyEnding = type(raw.storyEnding) == "string" and raw.storyEnding or nil
 	base.freePlay = raw.freePlay == true
 	base.hangoutStage = type(raw.hangoutStage) == "number" and raw.hangoutStage or 0
+	base.hangout = type(raw.hangout) == "table" and raw.hangout or base.hangout
+	base.flyersPosted = type(raw.flyersPosted) == "table" and raw.flyersPosted or base.flyersPosted
+	base.concertHeadliner = type(raw.concertHeadliner) == "string" and raw.concertHeadliner or nil
+	base.flags = type(raw.flags) == "table" and raw.flags or base.flags
 	base.ch0HouseZones = type(raw.ch0HouseZones) == "table" and raw.ch0HouseZones or base.ch0HouseZones
 	return base
 end
@@ -1148,13 +1485,16 @@ return ProfileSchema
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="16">
+      <Item class="ModuleScript" referent="23">
         <Properties>
           <string name="Name">QuestEngine</string>
           <string name="Source"><![CDATA[--!strict
 local QuestTable = if script and script.Parent
 	then require(script.Parent.Parent.Config.QuestTable)
 	else require("../Config/QuestTable")
+local HangoutEngine = if script and script.Parent
+	then require(script.Parent.HangoutEngine)
+	else require("./HangoutEngine")
 
 local QuestEngine = {}
 
@@ -1171,6 +1511,15 @@ export type StoryState = {
 	storyEnding: string?,
 	freePlay: boolean,
 	hangoutStage: number,
+	hangout: {
+		foundation: boolean,
+		frame: boolean,
+		neon: boolean,
+		grand_open: boolean,
+	},
+	flyersPosted: { [string]: boolean },
+	concertHeadliner: string?,
+	flags: { [string]: boolean },
 	ch0HouseZones: { [string]: boolean },
 }
 
@@ -1193,6 +1542,10 @@ function QuestEngine.defaultStoryState(): StoryState
 		storyEnding = nil,
 		freePlay = false,
 		hangoutStage = 0,
+		hangout = { foundation = false, frame = false, neon = false, grand_open = false },
+		flyersPosted = {},
+		concertHeadliner = nil,
+		flags = {},
 		ch0HouseZones = {},
 	}
 end
@@ -1322,7 +1675,6 @@ function QuestEngine.pickInitiationPath(state: StoryState, path: "pay" | "duel" 
 		then "q_initiation_pay"
 		elseif path == "duel" then "q_initiation_duel"
 		else "q_initiation_graffiti"
-	state.completedQuests[QuestTable.CH1_CHOICE] = true
 	state.activeQuestId = nextId
 	local first = QuestTable.firstStep(nextId)
 	state.activeStepId = if first then first.id else ""
@@ -1363,7 +1715,7 @@ function QuestEngine.trySpecial(state: StoryState, eventId: string, ctx: { coins
 		return false, nil
 	end
 	if eventId == "hangout_stage>=4" and state.activeQuestId == QuestTable.CH2 then
-		if state.hangoutStage >= 4 then
+		if HangoutEngine.isDone(state.hangout) then
 			return QuestEngine.tryCompleteEvent(state, eventId)
 		end
 		return false, nil
@@ -1375,7 +1727,7 @@ return QuestEngine
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="17">
+      <Item class="ModuleScript" referent="24">
         <Properties>
           <string name="Name">ReceiptStore</string>
           <string name="Source"><![CDATA[--!strict
@@ -1413,7 +1765,7 @@ return ReceiptStore
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="18">
+      <Item class="ModuleScript" referent="25">
         <Properties>
           <string name="Name">RemoteValidation</string>
           <string name="Source"><![CDATA[--!strict
@@ -1463,9 +1815,43 @@ return RemoteValidation
 ]]></string>
         </Properties>
       </Item>
+      <Item class="ModuleScript" referent="26">
+        <Properties>
+          <string name="Name">TowerPuzzle</string>
+          <string name="Source"><![CDATA[--!strict
+local TowerPuzzle = {}
+
+-- Canonical solution (observable hints in-world later)
+TowerPuzzle.CANDLE_SEQUENCE = { 2, 4, 1, 3 }
+TowerPuzzle.NOTE_SEQUENCE = { "E", "G", "C", "D" }
+
+function TowerPuzzle.validate(candles: { number }, notes: { string }): boolean
+	if #candles ~= #TowerPuzzle.CANDLE_SEQUENCE then
+		return false
+	end
+	if #notes ~= #TowerPuzzle.NOTE_SEQUENCE then
+		return false
+	end
+	for i, v in TowerPuzzle.CANDLE_SEQUENCE do
+		if candles[i] ~= v then
+			return false
+		end
+	end
+	for i, v in TowerPuzzle.NOTE_SEQUENCE do
+		if notes[i] ~= v then
+			return false
+		end
+	end
+	return true
+end
+
+return TowerPuzzle
+]]></string>
+        </Properties>
+      </Item>
     </Item>
   </Item>
-  <Item class="Script" referent="19">
+  <Item class="Script" referent="27">
     <Properties>
       <string name="Name">ServerScriptService</string>
       <token name="RunContext">0</token>
@@ -1474,7 +1860,128 @@ local GameServer = require(script.GameServer)
 GameServer.start()
 ]]></string>
     </Properties>
-    <Item class="ModuleScript" referent="20">
+    <Item class="ModuleScript" referent="28">
+      <Properties>
+        <string name="Name">AvatarService</string>
+        <string name="Source"><![CDATA[--!strict
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local AvatarPresets = require(ReplicatedStorage.Config.AvatarPresets)
+local ProfileService = require(script.Parent.ProfileService)
+
+local AvatarService = {}
+
+local function applyPresetToCharacter(player: Player, presetId: string)
+	local preset = AvatarPresets.get(presetId)
+	if not preset then
+		return
+	end
+	local char = player.Character
+	if not char then
+		return
+	end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		return
+	end
+	local desc = hum:GetAppliedDescription()
+	desc.HeadColor = preset.accentColor
+	desc.TorsoColor = preset.bodyColor
+	desc.LeftArmColor = preset.bodyColor
+	desc.RightArmColor = preset.bodyColor
+	desc.LeftLegColor = preset.bodyColor
+	desc.RightLegColor = preset.bodyColor
+	hum:ApplyDescription(desc)
+end
+
+function AvatarService.bindPlayer(player: Player)
+	player.CharacterAdded:Connect(function()
+		local session = ProfileService.getSession(player.UserId)
+		if session and session.profile.avatarPreset ~= "" then
+			task.defer(function()
+				applyPresetToCharacter(player, session.profile.avatarPreset)
+			end)
+		end
+	end)
+	if player.Character and player.Character.Parent then
+		local session = ProfileService.getSession(player.UserId)
+		if session and session.profile.avatarPreset ~= "" then
+			applyPresetToCharacter(player, session.profile.avatarPreset)
+		end
+	end
+end
+
+function AvatarService.start()
+	Players.PlayerAdded:Connect(AvatarService.bindPlayer)
+	for _, p in Players:GetPlayers() do
+		AvatarService.bindPlayer(p)
+	end
+end
+
+return AvatarService
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="29">
+      <Properties>
+        <string name="Name">DuelService</string>
+        <string name="Source"><![CDATA[--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local DuelEngine = require(ReplicatedStorage.Shared.DuelEngine)
+
+local DuelService = {}
+
+export type ActiveDuel = {
+	userId: number,
+	state: DuelEngine.State,
+	opponentNpcId: string,
+}
+
+local active: { [number]: ActiveDuel } = {}
+
+function DuelService.startDuel(userId: number, npcId: string): (boolean, DuelEngine.State?)
+	if active[userId] then
+		return false, nil
+	end
+	local state = DuelEngine.newState()
+	active[userId] = { userId = userId, state = state, opponentNpcId = npcId }
+	return true, state
+end
+
+function DuelService.action(
+	userId: number,
+	action: string
+): (boolean, DuelEngine.State?, { hitPlayer: boolean, hitNpc: boolean }?)
+	local duel = active[userId]
+	if not duel then
+		return false, nil, nil
+	end
+	if action ~= "attack" and action ~= "block" and action ~= "dodge" then
+		return false, duel.state, nil
+	end
+	local newState, meta = DuelEngine.resolveTurn(duel.state, action :: DuelEngine.Action)
+	duel.state = newState
+	if newState.phase ~= "fighting" then
+		active[userId] = nil
+	end
+	return true, newState, meta
+end
+
+function DuelService.get(userId: number): ActiveDuel?
+	return active[userId]
+end
+
+function DuelService.cancel(userId: number)
+	active[userId] = nil
+end
+
+return DuelService
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="30">
       <Properties>
         <string name="Name">GameServer</string>
         <string name="Source"><![CDATA[--!strict
@@ -1485,9 +1992,14 @@ local ProfileService = require(script.Parent.ProfileService)
 local WorldBuilder = require(script.Parent.WorldBuilder)
 local MonetizationService = require(script.Parent.MonetizationService)
 local StoryHandlers = require(script.Parent.StoryHandlers)
+local DuelService = require(script.Parent.DuelService)
+local AvatarService = require(script.Parent.AvatarService)
 
 local RemoteValidation = require(ReplicatedStorage.Shared.RemoteValidation)
 local QuestEngine = require(ReplicatedStorage.Shared.QuestEngine)
+local ShopCatalog = require(ReplicatedStorage.Config.ShopCatalog)
+local Economy = require(ReplicatedStorage.Shared.Economy)
+local EndingScenes = require(ReplicatedStorage.Config.EndingScenes)
 local GameServer = {}
 
 local rateBuckets: { [number]: { [string]: RemoteValidation.Bucket } } = {}
@@ -1529,7 +2041,7 @@ function GameServer.setupRemotes()
 		folder.Name = "Remotes"
 		folder.Parent = ReplicatedStorage
 	end
-	local names = { "ProfileUpdated", "RequestAction", "ActionResult" }
+	local names = { "ProfileUpdated", "RequestAction", "ActionResult", "DuelUpdate" }
 	for _, n in names do
 		if not folder:FindFirstChild(n) then
 			local ev = Instance.new("RemoteEvent")
@@ -1539,6 +2051,7 @@ function GameServer.setupRemotes()
 	end
 	local request = folder:WaitForChild("RequestAction") :: RemoteEvent
 	local result = folder:WaitForChild("ActionResult") :: RemoteEvent
+	local duelUpdate = folder:WaitForChild("DuelUpdate") :: RemoteEvent
 
 	request.OnServerEvent:Connect(function(player, action: any, payload: any)
 		if not rateOk(player, "RequestAction") then
@@ -1587,12 +2100,40 @@ function GameServer.setupRemotes()
 			end
 		elseif action == "cemetery_job" then
 			ok = StoryHandlers.handleCemeteryJob(profile)
-		elseif action == "duel_win" then
-			ok = StoryHandlers.handleDuelWin(profile)
-		elseif action == "flyers_done" then
-			ok = StoryHandlers.handleFlyersDone(profile)
-		elseif action == "hangout_stage" then
-			ok = StoryHandlers.handleHangoutStage(profile)
+		elseif action == "duel_start" then
+			if profile.story.activeQuestId == "q_initiation_duel" then
+				local started, state = DuelService.startDuel(player.UserId, "npc_razor")
+				if started and state then
+					duelUpdate:FireClient(player, state)
+					ok = true
+				end
+			end
+		elseif action == "duel_action" then
+			local act = RemoteValidation.validateEnum(payload, { "attack", "block", "dodge" })
+			if act then
+				local success, state, meta = DuelService.action(player.UserId, act)
+				if success and state then
+					duelUpdate:FireClient(player, state, meta)
+					if state.phase == "player_win" then
+						ok = StoryHandlers.handleDuelWin(profile)
+					elseif state.phase == "player_lose" then
+						DuelService.cancel(player.UserId)
+						ok = true
+					else
+						ok = true
+					end
+				end
+			end
+		elseif action == "flyer_post" then
+			local spot = RemoteValidation.validateString(payload, 48)
+			if spot then
+				ok = StoryHandlers.handleFlyerPost(profile, spot)
+			end
+		elseif action == "hangout_build" then
+			local stage = RemoteValidation.validateString(payload, 24)
+			if stage then
+				ok = StoryHandlers.handleHangoutBuild(profile, stage)
+			end
 		elseif action == "ch2_antibully" then
 			local choice = RemoteValidation.validateString(payload, 16)
 			if choice then
@@ -1607,10 +2148,32 @@ function GameServer.setupRemotes()
 			if branch then
 				ok = StoryHandlers.handleBellTongue(profile, branch)
 			end
-		elseif action == "ch4_stage" then
-			local stage = RemoteValidation.validateString(payload, 16)
-			if stage then
-				ok = StoryHandlers.handleCh4Stub(profile, stage)
+		elseif action == "ch4_enter" then
+			ok = StoryHandlers.handleCh4Enter(profile)
+		elseif action == "tower_puzzle" then
+			if type(payload) == "table" then
+				ok = StoryHandlers.handleTowerPuzzle(profile, payload.candles or {}, payload.notes or {})
+			end
+		elseif action == "concert_prepare" then
+			local headliner = RemoteValidation.validateString(payload, 16)
+			if headliner then
+				ok = StoryHandlers.handleConcert(profile, headliner)
+			end
+		elseif action == "graph_confession" then
+			ok = StoryHandlers.handleConfession(profile)
+		elseif action == "shop_buy" then
+			local itemId = RemoteValidation.validateString(payload, 64)
+			if itemId then
+				local item = ShopCatalog.get(itemId)
+				local owned = item and item.grantInventoryKey and (profile.inventory[item.grantInventoryKey] or 0) > 0
+				local purchase = Economy.tryPurchase(profile.coins, item, owned == true)
+				if purchase.ok then
+					profile.coins = purchase.newBalance
+					if item and item.grantInventoryKey then
+						profile.inventory[item.grantInventoryKey] = 1
+					end
+					ok = true
+				end
 			end
 		elseif action == "pick_ending" then
 			local endingId = RemoteValidation.validateString(payload, 40)
@@ -1624,7 +2187,15 @@ function GameServer.setupRemotes()
 		if ok then
 			ProfileService.saveSession(session)
 			pushProfile(player)
-			result:FireClient(player, { ok = true })
+			local extra: any = { ok = true }
+			if action == "pick_ending" and profile.story.storyEnding then
+				local lang = profile.language
+				local scene = (EndingScenes :: any)[profile.story.storyEnding]
+				if scene then
+					extra.endingScene = scene[lang] or scene.en
+				end
+			end
+			result:FireClient(player, extra)
 		else
 			result:FireClient(player, { ok = false })
 		end
@@ -1637,6 +2208,7 @@ function GameServer.onPlayerAdded(player: Player)
 		player:Kick("Save load failed: " .. tostring(err))
 		return
 	end
+	AvatarService.bindPlayer(player)
 	pushProfile(player)
 end
 
@@ -1651,6 +2223,7 @@ end
 
 function GameServer.start()
 	MonetizationService.bind()
+	AvatarService.start()
 	local worldFolder = workspace:WaitForChild("World") :: Folder
 	WorldBuilder.build(worldFolder)
 	GameServer.setupRemotes()
@@ -1665,7 +2238,7 @@ return GameServer
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="21">
+    <Item class="ModuleScript" referent="31">
       <Properties>
         <string name="Name">MonetizationService</string>
         <string name="Source"><![CDATA[--!strict
@@ -1724,7 +2297,52 @@ return MonetizationService
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="22">
+    <Item class="ModuleScript" referent="32">
+      <Properties>
+        <string name="Name">NpcAnimator</string>
+        <string name="Source"><![CDATA[--!strict
+local AnimationCatalog = require(game.ReplicatedStorage.Config.AnimationCatalog)
+
+local NpcAnimator = {}
+
+local function getAnimator(model: Model): Animator?
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		return nil
+	end
+	local animator = hum:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = hum
+	end
+	return animator
+end
+
+function NpcAnimator.playTrack(model: Model, assetId: string): AnimationTrack?
+	local animator = getAnimator(model)
+	if not animator then
+		return nil
+	end
+	local anim = Instance.new("Animation")
+	anim.AnimationId = assetId
+	local track = animator:LoadAnimation(anim)
+	track:Play()
+	return track
+end
+
+function NpcAnimator.playIdle(model: Model)
+	NpcAnimator.playTrack(model, AnimationCatalog.idle)
+end
+
+function NpcAnimator.playTalk(model: Model)
+	NpcAnimator.playTrack(model, AnimationCatalog.talk)
+end
+
+return NpcAnimator
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="33">
       <Properties>
         <string name="Name">ProfileService</string>
         <string name="Source"><![CDATA[--!strict
@@ -1840,7 +2458,70 @@ return ProfileService
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="23">
+    <Item class="ModuleScript" referent="34">
+      <Properties>
+        <string name="Name">RigFactory</string>
+        <string name="Source"><![CDATA[--!strict
+local Players = game:GetService("Players")
+
+local AvatarPresets = require(game.ReplicatedStorage.Config.AvatarPresets)
+local NpcVisuals = require(game.ReplicatedStorage.Config.NpcVisuals)
+local NpcAnimator = require(script.Parent.NpcAnimator)
+
+local RigFactory = {}
+
+local function applyColors(desc: HumanoidDescription, body: Color3, accent: Color3)
+	desc.HeadColor = accent
+	desc.TorsoColor = body
+	desc.LeftArmColor = body
+	desc.RightArmColor = body
+	desc.LeftLegColor = body
+	desc.RightLegColor = body
+end
+
+function RigFactory.spawnNpc(parent: Instance, npcId: string, position: Vector3, actionText: string?): Model
+	local preset = AvatarPresets.get(npcId:gsub("npc_", ""))
+	local visual = (NpcVisuals :: any)[npcId]
+	local desc = Instance.new("HumanoidDescription")
+	if preset then
+		applyColors(desc, preset.bodyColor, preset.accentColor)
+	elseif visual then
+		applyColors(desc, visual.bodyColor, visual.accentColor)
+		if visual.height then
+			desc.HeightScale = visual.height
+		end
+	else
+		applyColors(desc, Color3.fromRGB(80, 80, 90), Color3.fromRGB(200, 200, 210))
+	end
+
+	local model = Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+	model.Name = npcId
+	model:SetAttribute("NpcId", npcId)
+	local hrp = model:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if hrp then
+		model:PivotTo(CFrame.new(position + Vector3.new(0, 3, 0)))
+	end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	end
+	model.Parent = parent
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = actionText or "Talk"
+	prompt.ObjectText = npcId
+	prompt.MaxActivationDistance = 12
+	prompt.Parent = hrp or model
+
+	NpcAnimator.playIdle(model)
+	return model
+end
+
+return RigFactory
+]]></string>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript" referent="35">
       <Properties>
         <string name="Name">StoryHandlers</string>
         <string name="Source"><![CDATA[--!strict
@@ -1850,6 +2531,10 @@ local Economy = require(ReplicatedStorage.Shared.Economy)
 local QuestEngine = require(ReplicatedStorage.Shared.QuestEngine)
 local ProfileSchema = require(ReplicatedStorage.Shared.ProfileSchema)
 local QuestTable = require(ReplicatedStorage.Config.QuestTable)
+local FlyerEngine = require(ReplicatedStorage.Shared.FlyerEngine)
+local HangoutEngine = require(ReplicatedStorage.Shared.HangoutEngine)
+local TowerPuzzle = require(ReplicatedStorage.Shared.TowerPuzzle)
+local EndingLogic = require(ReplicatedStorage.Shared.EndingLogic)
 
 local StoryHandlers = {}
 
@@ -1905,7 +2590,7 @@ function StoryHandlers.handleCemeteryJob(profile: ProfileSchema.Profile): boolea
 		if granted then
 			story.grantedRewards[key] = true
 			profile.coins = newCoins
-			return QuestEngine.tryCompleteEvent(story, "ch3_cemetery_shift")
+			return QuestEngine.tryCompleteEvent(story, "ch3_cemetery_shift") ~= false
 		end
 	end
 	return false
@@ -1915,41 +2600,49 @@ function StoryHandlers.handleDuelWin(profile: ProfileSchema.Profile): boolean
 	local story = profile.story
 	if story.activeQuestId == "q_initiation_duel" then
 		local ok, grant = QuestEngine.tryCompleteEvent(story, "event:duel_razor_win")
-		if ok then
-			if grant then
-				applyGrants(profile, grant)
-			end
-			return true
+		if ok and grant then
+			applyGrants(profile, grant)
 		end
+		return ok
 	end
 	return false
 end
 
-function StoryHandlers.handleFlyersDone(profile: ProfileSchema.Profile): boolean
-	if profile.story.activeQuestId == "q_initiation_graffiti" then
-		local ok, grant = QuestEngine.tryCompleteEvent(profile.story, "event:flyers_done")
-		if ok then
-			if grant then
-				applyGrants(profile, grant)
-			end
-			return true
-		end
+function StoryHandlers.handleFlyerPost(profile: ProfileSchema.Profile, spotId: string): boolean
+	local story = profile.story
+	local posted = FlyerEngine.postSpot(story.flyersPosted, spotId)
+	if not posted then
+		return false
 	end
-	return false
+	if story.activeQuestId == "q_initiation_graffiti" and FlyerEngine.isComplete(story.flyersPosted) then
+		local ok, grant = QuestEngine.tryCompleteEvent(story, "event:flyers_done")
+		if ok and grant then
+			applyGrants(profile, grant)
+		end
+		return ok
+	end
+	return true
 end
 
-function StoryHandlers.handleHangoutStage(profile: ProfileSchema.Profile): boolean
+function StoryHandlers.handleHangoutBuild(profile: ProfileSchema.Profile, stage: string): boolean
 	local story = profile.story
 	if story.activeQuestId ~= QuestTable.CH2 then
 		return false
 	end
-	story.hangoutStage = math.min(4, story.hangoutStage + 1)
-	if story.hangoutStage >= 4 then
-		local ok, grant = QuestEngine.trySpecial(story, "hangout_stage>=4", nil)
+	if stage ~= "foundation" and stage ~= "frame" and stage ~= "neon" and stage ~= "grand_open" then
+		return false
+	end
+	local ok, count = HangoutEngine.complete(story.hangout, stage :: HangoutEngine.StageId)
+	if not ok then
+		return false
+	end
+	story.hangoutStage = count
+	if HangoutEngine.isDone(story.hangout) then
+		local done, grant = QuestEngine.trySpecial(story, "hangout_stage>=4", nil)
 		if grant then
 			applyGrants(profile, grant)
 		end
-		return ok
+		return done
 	end
 	return true
 end
@@ -1962,7 +2655,7 @@ function StoryHandlers.handleCh2Antibully(profile: ProfileSchema.Profile, choice
 	if choice == "stand" then
 		profile.story.relationships.razor = (profile.story.relationships.razor or 0) + 10
 	else
-		profile.story.relationships.cobalt = (profile.story.relationships.cobalt or 0) - 5
+		profile.story.relationships.razor = (profile.story.relationships.razor or 0) - 5
 	end
 	if profile.story.activeQuestId == "q_ch2_antibully" then
 		QuestEngine.tryCompleteEvent(profile.story, "ch2_antibully_resolved")
@@ -1974,7 +2667,7 @@ end
 
 function StoryHandlers.handleCh3Ghost(profile: ProfileSchema.Profile): boolean
 	if profile.story.activeQuestId == QuestTable.CH3 and profile.story.activeStepId == "ch3_s_ghost" then
-		return QuestEngine.tryCompleteEvent(profile.story, "ch3_ghost_helped")
+		return QuestEngine.tryCompleteEvent(profile.story, "ch3_ghost_helped") ~= false
 	end
 	return false
 end
@@ -1982,51 +2675,87 @@ end
 function StoryHandlers.handleCh3Crypt(profile: ProfileSchema.Profile): boolean
 	if profile.story.activeQuestId == QuestTable.CH3 and profile.story.activeStepId == "ch3_s_crypt" then
 		local ok, grant = QuestEngine.tryCompleteEvent(profile.story, "ch3_crypt_built")
-		if ok then
-			if grant then
-				applyGrants(profile, grant)
-			end
-			return true
+		if ok and grant then
+			applyGrants(profile, grant)
 		end
+		return ok
+	end
+	return false
+end
+
+function StoryHandlers.handleCh4Enter(profile: ProfileSchema.Profile): boolean
+	if not profile.story.uniqueItems.bell_rim then
+		return false
+	end
+	if profile.story.activeQuestId == QuestTable.CH4 and profile.story.activeStepId == "ch4_s_enter" then
+		return QuestEngine.tryCompleteEvent(profile.story, "ch4_castle_entered") ~= false
 	end
 	return false
 end
 
 function StoryHandlers.handleBellTongue(profile: ProfileSchema.Profile, branch: string): boolean
+	if profile.story.activeQuestId ~= QuestTable.CH4 or profile.story.activeStepId ~= "ch4_s_tongue" then
+		return false
+	end
 	if branch == "zoya" then
 		if profile.story.uniqueItems.bell_tongue_zombie then
 			return false
 		end
 		if QuestEngine.grantUniqueItem(profile.story, "bell_tongue_zoya") then
-			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained")
+			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained") ~= false
 		end
 	elseif branch == "zombie" then
 		if profile.story.uniqueItems.bell_tongue_zoya then
 			return false
 		end
 		if QuestEngine.grantUniqueItem(profile.story, "bell_tongue_zombie") then
-			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained")
+			return QuestEngine.tryCompleteEvent(profile.story, "ch4_tongue_obtained") ~= false
 		end
 	end
 	return false
 end
 
-function StoryHandlers.handleCh4Stub(profile: ProfileSchema.Profile, stage: string): boolean
-	local story = profile.story
-	if story.activeQuestId ~= QuestTable.CH4 then
+function StoryHandlers.handleTowerPuzzle(
+	profile: ProfileSchema.Profile,
+	candles: { number },
+	notes: { string }
+): boolean
+	if profile.story.activeQuestId ~= QuestTable.CH4 or profile.story.activeStepId ~= "ch4_s_crown" then
 		return false
 	end
-	if stage == "crown" and story.activeStepId == "ch4_s_crown" then
-		QuestEngine.grantUniqueItem(story, "bell_crown")
-		return QuestEngine.tryCompleteEvent(story, "ch4_crown_obtained")
+	if not TowerPuzzle.validate(candles, notes) then
+		return false
 	end
-	if stage == "concert" and story.activeStepId == "ch4_s_concert" then
-		return QuestEngine.tryCompleteEvent(story, "ch4_concert_ready")
+	QuestEngine.grantUniqueItem(profile.story, "bell_crown")
+	return QuestEngine.tryCompleteEvent(profile.story, "ch4_crown_obtained") ~= false
+end
+
+function StoryHandlers.handleConcert(profile: ProfileSchema.Profile, headliner: string): boolean
+	if profile.story.activeQuestId ~= QuestTable.CH4 or profile.story.activeStepId ~= "ch4_s_concert" then
+		return false
 	end
-	return false
+	if headliner ~= "vienna" and headliner ~= "razor" and headliner ~= "count" and headliner ~= "ghost" then
+		return false
+	end
+	profile.story.concertHeadliner = headliner
+	profile.story.flags.concert_ready = true
+	profile.story.relationships.count = (profile.story.relationships.count or 0) + 5
+	return QuestEngine.tryCompleteEvent(profile.story, "ch4_concert_ready") ~= false
+end
+
+function StoryHandlers.handleConfession(profile: ProfileSchema.Profile): boolean
+	if profile.story.activeQuestId ~= QuestTable.CH4 or profile.story.activeStepId ~= "ch4_s_confession" then
+		return false
+	end
+	profile.story.flags.graph_truth = true
+	profile.story.relationships.count = (profile.story.relationships.count or 0) + 8
+	return QuestEngine.tryCompleteEvent(profile.story, "ch4_graph_confession") ~= false
 end
 
 function StoryHandlers.handleEnding(profile: ProfileSchema.Profile, endingId: string): boolean
+	if not EndingLogic.canPick(profile.story, endingId :: EndingLogic.EndingId) then
+		return false
+	end
 	if QuestEngine.pickEnding(profile.story, endingId) then
 		local ending = QuestTable.endings[endingId]
 		if ending then
@@ -2051,7 +2780,7 @@ function StoryHandlers.handleHouseZone(profile: ProfileSchema.Profile, zoneId: s
 		end
 	end
 	if count >= 2 then
-		return QuestEngine.tryCompleteEvent(story, "ch0_house_tour")
+		return QuestEngine.tryCompleteEvent(story, "ch0_house_tour") ~= false
 	end
 	return false
 end
@@ -2060,10 +2789,15 @@ return StoryHandlers
 ]]></string>
       </Properties>
     </Item>
-    <Item class="ModuleScript" referent="24">
+    <Item class="ModuleScript" referent="36">
       <Properties>
         <string name="Name">WorldBuilder</string>
         <string name="Source"><![CDATA[--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RigFactory = require(script.Parent.RigFactory)
+local FlyerEngine = require(ReplicatedStorage.Shared.FlyerEngine)
+
 local WorldBuilder = {}
 
 local function makePart(props: {
@@ -2081,51 +2815,32 @@ local function makePart(props: {
 	p.Color = props.Color
 	p.Anchored = if props.Anchored == nil then true else props.Anchored
 	p.Material = Enum.Material.Concrete
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Parent = props.Parent
 	return p
 end
 
 local function addZone(parent: Instance, name: string, size: Vector3, position: Vector3, color: Color3)
-	local z = makePart({
-		Name = name,
-		Size = size,
-		Position = position,
-		Color = color,
-		Parent = parent,
-	})
+	local z = makePart({ Name = name, Size = size, Position = position, Color = color, Parent = parent })
 	z.Transparency = 0.85
 	z.CanCollide = false
 	z:SetAttribute("ZoneId", name)
 	return z
 end
 
-local function addSpawn(parent: Instance, name: string, position: Vector3)
-	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = name
-	spawn.Size = Vector3.new(6, 1, 6)
-	spawn.Position = position
-	spawn.Anchored = true
-	spawn.Neutral = true
-	spawn.Duration = 0
-	spawn.Parent = parent
-end
-
-local function addNpc(parent: Instance, name: string, position: Vector3, color: Color3, action: string?)
-	local root = makePart({
-		Name = name,
-		Size = Vector3.new(2, 5, 2),
-		Position = position + Vector3.new(0, 2.5, 0),
-		Color = color,
+local function addFlyerSpot(parent: Instance, spotId: string, position: Vector3)
+	local post = makePart({
+		Name = spotId,
+		Size = Vector3.new(2, 4, 0.2),
+		Position = position,
+		Color = Color3.fromRGB(255, 120, 200),
 		Parent = parent,
 	})
-	root:SetAttribute("NpcId", name)
+	post:SetAttribute("FlyerSpotId", spotId)
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = action or "Talk"
-	prompt.ObjectText = name
-	prompt.MaxActivationDistance = 12
-	prompt.Parent = root
+	prompt.ActionText = "Post flyer"
+	prompt.ObjectText = "Flyer spot"
+	prompt.MaxActivationDistance = 10
+	prompt.Parent = post
 end
 
 function WorldBuilder.build(parent: Folder)
@@ -2150,9 +2865,14 @@ function WorldBuilder.build(parent: Folder)
 		Color = Color3.fromRGB(255, 220, 80),
 		Parent = house,
 	})
-	addSpawn(house, "SpawnHouse", Vector3.new(-5, 3, -5))
-	addNpc(house, "npc_mom", Vector3.new(18, 0, 8), Color3.fromRGB(180, 120, 140), "Talk")
-	addNpc(house, "npc_shnurok", Vector3.new(-18, 0, -8), Color3.fromRGB(140, 100, 60), "Pet")
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Size = Vector3.new(6, 1, 6)
+	spawn.Position = Vector3.new(-5, 3, -5)
+	spawn.Anchored = true
+	spawn.Neutral = true
+	spawn.Parent = house
+	RigFactory.spawnNpc(house, "npc_mom", Vector3.new(18, 0, 8), "Talk")
+	RigFactory.spawnNpc(house, "npc_shnurok", Vector3.new(-18, 0, -8), "Pet")
 
 	local street = Instance.new("Folder")
 	street.Name = "Street"
@@ -2165,7 +2885,7 @@ function WorldBuilder.build(parent: Folder)
 		Parent = street,
 	})
 	addZone(street, "zone_street", Vector3.new(55, 10, 28), Vector3.new(80, 5, 0), Color3.fromRGB(255, 100, 180))
-	addNpc(street, "npc_razor", Vector3.new(70, 0, 5), Color3.fromRGB(30, 30, 35))
+	RigFactory.spawnNpc(street, "npc_razor", Vector3.new(70, 0, 5), "Talk")
 	makePart({
 		Name = "Shop",
 		Size = Vector3.new(14, 10, 14),
@@ -2173,6 +2893,36 @@ function WorldBuilder.build(parent: Folder)
 		Color = Color3.fromRGB(90, 40, 120),
 		Parent = street,
 	})
+
+	local city = Instance.new("Folder")
+	city.Name = "City"
+	city.Parent = parent
+	makePart({
+		Name = "CityFloor",
+		Size = Vector3.new(40, 1, 40),
+		Position = Vector3.new(80, 0, -60),
+		Color = Color3.fromRGB(50, 50, 55),
+		Parent = city,
+	})
+
+	local flyers = Instance.new("Folder")
+	flyers.Name = "FlyerSpots"
+	flyers.Parent = parent
+	local spots = {
+		{ "flyer_street_1", Vector3.new(65, 2, 8) },
+		{ "flyer_street_2", Vector3.new(90, 2, 12) },
+		{ "flyer_street_3", Vector3.new(75, 2, -5) },
+		{ "flyer_city_1", Vector3.new(70, 2, -55) },
+		{ "flyer_city_2", Vector3.new(90, 2, -70) },
+		{ "flyer_city_3", Vector3.new(95, 2, -50) },
+		{ "flyer_cemetery_gate", Vector3.new(5, 2, 105) },
+		{ "flyer_shop_wall", Vector3.new(108, 4, -8) },
+	}
+	for _, pair in spots do
+		if table.find(FlyerEngine.SPOT_IDS, pair[1]) then
+			addFlyerSpot(flyers, pair[1], pair[2])
+		end
+	end
 
 	local cemetery = Instance.new("Folder")
 	cemetery.Name = "Cemetery"
@@ -2184,8 +2934,8 @@ function WorldBuilder.build(parent: Folder)
 		Color = Color3.fromRGB(35, 50, 40),
 		Parent = cemetery,
 	})
-	addNpc(cemetery, "npc_gravedigger", Vector3.new(-5, 0, 125), Color3.fromRGB(60, 55, 45), "Work")
-	addNpc(cemetery, "npc_ghost", Vector3.new(10, 0, 130), Color3.fromRGB(200, 180, 255), "Help")
+	RigFactory.spawnNpc(cemetery, "npc_gravedigger", Vector3.new(-5, 0, 125), "Work")
+	RigFactory.spawnNpc(cemetery, "npc_ghost", Vector3.new(10, 0, 130), "Help")
 	local crypt = makePart({
 		Name = "obj_crypt_site",
 		Size = Vector3.new(12, 2, 12),
@@ -2194,7 +2944,7 @@ function WorldBuilder.build(parent: Folder)
 		Parent = cemetery,
 	})
 	local cp = Instance.new("ProximityPrompt")
-	cp.ActionText = "Build"
+	cp.ActionText = "Build crypt"
 	cp.ObjectText = "Crypt"
 	cp.MaxActivationDistance = 14
 	cp.Parent = crypt
@@ -2202,18 +2952,27 @@ function WorldBuilder.build(parent: Folder)
 	local construction = Instance.new("Folder")
 	construction.Name = "Construction"
 	construction.Parent = parent
-	local hangout = makePart({
+	for i, stageName in { "foundation", "frame", "neon", "grand_open" } do
+		local part = makePart({
+			Name = "hangout_" .. stageName,
+			Size = Vector3.new(8, 2, 8),
+			Position = Vector3.new(72 + i * 10, 1, 80),
+			Color = Color3.fromRGB(60 + i * 20, 70, 90),
+			Parent = construction,
+		})
+		part:SetAttribute("HangoutStage", stageName)
+		local hp = Instance.new("ProximityPrompt")
+		hp.ActionText = "Build: " .. stageName
+		hp.MaxActivationDistance = 12
+		hp.Parent = part
+	end
+	makePart({
 		Name = "obj_hangout_site",
-		Size = Vector3.new(20, 2, 20),
+		Size = Vector3.new(20, 1, 20),
 		Position = Vector3.new(80, 0, 80),
-		Color = Color3.fromRGB(70, 70, 90),
+		Color = Color3.fromRGB(40, 40, 50),
 		Parent = construction,
 	})
-	local hp = Instance.new("ProximityPrompt")
-	hp.ActionText = "Build"
-	hp.ObjectText = "Hangout"
-	hp.MaxActivationDistance = 14
-	hp.Parent = hangout
 
 	local duel = Instance.new("Folder")
 	duel.Name = "DuelPit"
@@ -2230,36 +2989,34 @@ function WorldBuilder.build(parent: Folder)
 	local castle = Instance.new("Folder")
 	castle.Name = "Castle"
 	castle.Parent = parent
-	makePart({
-		Name = "zone_castle_hall",
-		Size = Vector3.new(30, 1, 30),
-		Position = Vector3.new(-80, 0, 80),
-		Color = Color3.fromRGB(60, 40, 80),
-		Parent = castle,
-	})
-	makePart({
+	addZone(castle, "zone_castle_hall", Vector3.new(30, 10, 30), Vector3.new(-80, 5, 80), Color3.fromRGB(80, 50, 100))
+	local tower = makePart({
 		Name = "zone_castle_tower",
-		Size = Vector3.new(10, 20, 10),
-		Position = Vector3.new(-95, 10, 95),
+		Size = Vector3.new(12, 22, 12),
+		Position = Vector3.new(-95, 11, 95),
 		Color = Color3.fromRGB(50, 35, 70),
 		Parent = castle,
 	})
-	addNpc(castle, "npc_count", Vector3.new(-80, 0, 80), Color3.fromRGB(90, 70, 120))
-	addNpc(castle, "npc_zoya", Vector3.new(-65, 0, 70), Color3.fromRGB(200, 140, 80), "Talk")
-
-	local parkour = Instance.new("Folder")
-	parkour.Name = "Parkour"
-	parkour.Parent = parent
-	local px = 160
-	for i = 1, 6 do
-		makePart({
-			Name = "Step" .. i,
-			Size = Vector3.new(6, 2, 6),
-			Position = Vector3.new(px + i * 8, i * 3, 40),
-			Color = Color3.fromRGB(255, 180, 60),
-			Parent = parkour,
+	tower:SetAttribute("ZoneId", "zone_castle_tower")
+	for i = 1, 4 do
+		local candle = makePart({
+			Name = "candle_" .. i,
+			Size = Vector3.new(1, 2, 1),
+			Position = Vector3.new(-92 + i * 2, 3, 92),
+			Color = Color3.fromRGB(255, 200, 80),
+			Parent = castle,
 		})
+		candle:SetAttribute("CandleIndex", i)
 	end
+	RigFactory.spawnNpc(castle, "npc_count", Vector3.new(-80, 0, 80), "Talk")
+	RigFactory.spawnNpc(castle, "npc_zoya", Vector3.new(-65, 0, 70), "Talk")
+	makePart({
+		Name = "zone_zombie_house",
+		Size = Vector3.new(10, 8, 10),
+		Position = Vector3.new(-55, 4, 90),
+		Color = Color3.fromRGB(70, 90, 60),
+		Parent = castle,
+	}):SetAttribute("ZoneId", "zone_zombie_house")
 end
 
 return WorldBuilder
@@ -2267,31 +3024,31 @@ return WorldBuilder
       </Properties>
     </Item>
   </Item>
-  <Item class="ServerStorage" referent="25">
+  <Item class="ServerStorage" referent="37">
     <Properties>
       <string name="Name">ServerStorage</string>
     </Properties>
   </Item>
-  <Item class="SoundService" referent="26">
+  <Item class="SoundService" referent="38">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterGui" referent="27">
+  <Item class="StarterGui" referent="39">
     <Properties>
       <string name="Name">StarterGui</string>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="28">
+  <Item class="StarterPlayer" referent="40">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="29">
+    <Item class="StarterPlayerScripts" referent="41">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="30">
+      <Item class="LocalScript" referent="42">
         <Properties>
           <string name="Name">ClientBootstrap</string>
           <string name="Source"><![CDATA[--!strict
@@ -2481,9 +3238,7 @@ local function bindPrompt(prompt: ProximityPrompt)
 			elseif st.activeQuestId == "q_initiation_pay" and st.activeStepId == "s2" then
 				requestAction:FireServer("pay_initiation")
 			elseif st.activeQuestId == "q_initiation_duel" then
-				requestAction:FireServer("duel_win")
-			elseif st.activeQuestId == "q_initiation_graffiti" then
-				requestAction:FireServer("flyers_done")
+				requestAction:FireServer("duel_start")
 			end
 		elseif npcId == "npc_gravedigger" then
 			requestAction:FireServer("cemetery_job")
@@ -2491,13 +3246,23 @@ local function bindPrompt(prompt: ProximityPrompt)
 			requestAction:FireServer("ch3_ghost")
 		elseif npcId == "npc_zoya" then
 			requestAction:FireServer("bell_tongue", "zoya")
-		elseif npcId == "npc_count" and st.activeStepId == "ch4_s_ending" then
-			endingFrame.Visible = true
+		elseif npcId == "npc_count" then
+			if st.activeStepId == "ch4_s_confession" then
+				requestAction:FireServer("graph_confession")
+			elseif st.activeStepId == "ch4_s_ending" then
+				endingFrame.Visible = true
+			end
+		end
+		local flyerId = parent and parent:GetAttribute("FlyerSpotId")
+		if flyerId then
+			requestAction:FireServer("flyer_post", flyerId)
+		end
+		local hangoutStage = parent and parent:GetAttribute("HangoutStage")
+		if hangoutStage then
+			requestAction:FireServer("hangout_build", hangoutStage)
 		end
 		local on = parent and parent.Name
-		if on == "obj_hangout_site" then
-			requestAction:FireServer("hangout_stage")
-		elseif on == "obj_crypt_site" then
+		if on == "obj_crypt_site" then
 			requestAction:FireServer("ch3_crypt")
 		end
 	end)
@@ -2530,10 +3295,56 @@ addChoice("Взнос 150", "initiation_choice", "pay")
 addChoice("Дуэль", "initiation_choice", "duel")
 addChoice("Флаеры", "initiation_choice", "graffiti")
 
+local bullyFrame = Instance.new("Frame")
+bullyFrame.Size = UDim2.new(0, 280, 0, 90)
+bullyFrame.Position = UDim2.new(0.5, -140, 0.65, 0)
+bullyFrame.BackgroundColor3 = Color3.fromRGB(30, 20, 40)
+bullyFrame.Visible = false
+bullyFrame.Parent = screen
+local standBtn = Instance.new("TextButton")
+standBtn.Size = UDim2.new(0.45, 0, 0, 32)
+standBtn.Position = UDim2.new(0.05, 0, 0.5, 0)
+standBtn.Text = "Заступиться"
+standBtn.Parent = bullyFrame
+standBtn.MouseButton1Click:Connect(function()
+	requestAction:FireServer("ch2_antibully", "stand")
+	bullyFrame.Visible = false
+end)
+local joinBtn = Instance.new("TextButton")
+joinBtn.Size = UDim2.new(0.45, 0, 0, 32)
+joinBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
+joinBtn.Text = "Поддержать насмешки"
+joinBtn.Parent = bullyFrame
+joinBtn.MouseButton1Click:Connect(function()
+	requestAction:FireServer("ch2_antibully", "join")
+	bullyFrame.Visible = false
+end)
+
+local concertFrame = Instance.new("Frame")
+concertFrame.Size = UDim2.new(0, 300, 0, 120)
+concertFrame.Position = UDim2.new(0.5, -150, 0.55, 0)
+concertFrame.BackgroundColor3 = Color3.fromRGB(25, 15, 35)
+concertFrame.Visible = false
+concertFrame.Parent = screen
+for i, head in { "vienna", "razor", "count", "ghost" } do
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0.45, 0, 0, 28)
+	b.Position = UDim2.new((i - 1) % 2 * 0.5, 8, 0, 8 + math.floor((i - 1) / 2) * 34)
+	b.Text = head
+	b.Parent = concertFrame
+	b.MouseButton1Click:Connect(function()
+		requestAction:FireServer("concert_prepare", head)
+		concertFrame.Visible = false
+	end)
+end
+
 profileUpdated.OnClientEvent:Connect(function(p)
-	if p.story and p.story.activeStepId == "ch4_s_ending" then
-		endingFrame.Visible = true
+	if not p or not p.story then
+		return
 	end
+	endingFrame.Visible = p.story.activeStepId == "ch4_s_ending"
+	bullyFrame.Visible = p.story.activeQuestId == "q_ch2_antibully"
+	concertFrame.Visible = p.story.activeStepId == "ch4_s_concert"
 end)
 
 RunService.Heartbeat:Connect(function()
@@ -2554,6 +3365,12 @@ RunService.Heartbeat:Connect(function()
 	if st.activeStepId == "ch0_s_street" and hrp.Position.X > 55 then
 		requestAction:FireServer("quest_event", "ch0_enter_street")
 	end
+	if st.activeQuestId == "q_ch4_castle" and st.activeStepId == "ch4_s_enter" and hrp.Position.X < -50 then
+		requestAction:FireServer("ch4_enter")
+	end
+	if st.activeStepId == "ch4_s_tongue" and hrp.Position.X > -60 and hrp.Position.X < -50 and hrp.Position.Z > 85 then
+		requestAction:FireServer("bell_tongue", "zombie")
+	end
 	for _, inst in workspace:GetDescendants() do
 		if inst:IsA("BasePart") and inst:GetAttribute("ZoneId") then
 			local zoneId = inst:GetAttribute("ZoneId") :: string
@@ -2573,15 +3390,139 @@ end)
 ]]></string>
         </Properties>
       </Item>
+      <Item class="LocalScript" referent="43">
+        <Properties>
+          <string name="Name">ClientMechanics</string>
+          <string name="Source"><![CDATA[--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local TowerPuzzle = require(ReplicatedStorage.Shared.TowerPuzzle)
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local requestAction = remotes:WaitForChild("RequestAction") :: RemoteEvent
+local duelUpdate = remotes:WaitForChild("DuelUpdate") :: RemoteEvent
+local actionResult = remotes:WaitForChild("ActionResult") :: RemoteEvent
+
+local duelGui = Instance.new("ScreenGui")
+duelGui.Name = "DuelUI"
+duelGui.ResetOnSpawn = false
+duelGui.Enabled = false
+duelGui.Parent = playerGui
+
+local duelStatus = Instance.new("TextLabel")
+duelStatus.Size = UDim2.new(0, 320, 0, 80)
+duelStatus.Position = UDim2.new(0.5, -160, 0.35, 0)
+duelStatus.BackgroundColor3 = Color3.fromRGB(20, 10, 30)
+duelStatus.TextColor3 = Color3.new(1, 1, 1)
+duelStatus.TextWrapped = true
+duelStatus.Parent = duelGui
+
+local function duelBtn(text: string, action: string, y: number)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0, 100, 0, 36)
+	b.Position = UDim2.new(0.5, -160 + y * 110, 0.5, 0)
+	b.Text = text
+	b.Parent = duelGui
+	b.MouseButton1Click:Connect(function()
+		requestAction:FireServer("duel_action", action)
+	end)
+end
+
+duelBtn("Attack", "attack", 0)
+duelBtn("Block", "block", 1)
+duelBtn("Dodge", "dodge", 2)
+
+duelUpdate.OnClientEvent:Connect(function(state: any, meta: any?)
+	if not state then
+		return
+	end
+	duelGui.Enabled = state.phase == "fighting"
+	local npcHp = state.opponentHp or 0
+	local plHp = state.playerHp or 0
+	duelStatus.Text = string.format("You %d  |  Razor %d", plHp, npcHp)
+	if meta then
+		if meta.hitNpc then
+			duelStatus.Text ..= "\nHit!"
+		end
+		if meta.hitPlayer then
+			duelStatus.Text ..= "\nBlocked or hit!"
+		end
+	end
+	if state.phase == "player_win" then
+		duelStatus.Text = "Victory!"
+		duelGui.Enabled = false
+	elseif state.phase == "player_lose" then
+		duelStatus.Text = "Try again — talk to Razor"
+		duelGui.Enabled = false
+	end
+end)
+
+local endingOverlay = Instance.new("ScreenGui")
+endingOverlay.Name = "EndingScene"
+endingOverlay.ResetOnSpawn = false
+endingOverlay.Enabled = false
+endingOverlay.Parent = playerGui
+
+local endingText = Instance.new("TextLabel")
+endingText.Size = UDim2.new(0.8, 0, 0.4, 0)
+endingText.Position = UDim2.new(0.1, 0, 0.3, 0)
+endingText.BackgroundColor3 = Color3.fromRGB(10, 5, 20)
+endingText.TextColor3 = Color3.fromRGB(255, 220, 255)
+endingText.TextWrapped = true
+endingText.TextSize = 20
+endingText.Parent = endingOverlay
+
+actionResult.OnClientEvent:Connect(function(res)
+	if res and res.ok and res.endingScene then
+		endingOverlay.Enabled = true
+		endingText.Text = res.endingScene
+		task.delay(8, function()
+			endingOverlay.Enabled = false
+		end)
+	end
+end)
+
+-- Tower puzzle submit (canonical solution — hints in-world later)
+local towerGui = Instance.new("ScreenGui")
+towerGui.Name = "TowerPuzzleUI"
+towerGui.ResetOnSpawn = false
+towerGui.Parent = playerGui
+
+local towerBtn = Instance.new("TextButton")
+towerBtn.Size = UDim2.new(0, 200, 0, 40)
+towerBtn.Position = UDim2.new(1, -210, 0.5, 0)
+towerBtn.Text = "Solve tower"
+towerBtn.Visible = false
+towerBtn.Parent = towerGui
+towerBtn.MouseButton1Click:Connect(function()
+	requestAction:FireServer("tower_puzzle", {
+		candles = TowerPuzzle.CANDLE_SEQUENCE,
+		notes = TowerPuzzle.NOTE_SEQUENCE,
+	})
+end)
+
+local profileUpdated = remotes:WaitForChild("ProfileUpdated") :: RemoteEvent
+profileUpdated.OnClientEvent:Connect(function(p)
+	if p and p.story and p.story.activeStepId == "ch4_s_crown" then
+		towerBtn.Visible = true
+	else
+		towerBtn.Visible = false
+	end
+end)
+]]></string>
+        </Properties>
+      </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="31">
+  <Item class="Workspace" referent="44">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>
       <bool name="StreamingEnabled">true</bool>
     </Properties>
-    <Item class="Folder" referent="32">
+    <Item class="Folder" referent="45">
       <Properties>
         <string name="Name">World</string>
       </Properties>
