@@ -91,13 +91,17 @@ async function ensureWinFightStep(page) {
     )
     .catch(() => false);
   if (ready) return;
-  await page.evaluate(() => {
-    const step = window.me?.onboarding?.step ?? 0;
-    if (step <= 2) window.Onboarding?.onTalkRazor?.();
-    if (step === 3 && window.me?.location === "cemetery") window.Onboarding?.onVisitCemetery?.();
-  });
+  const step = await page.evaluate(() => window.me?.onboarding?.step ?? 0);
+  if (step <= 2) {
+    await page.evaluate(() => window.Onboarding?.onTalkRazor?.());
+  }
+  if (step === 3) {
+    await H.navGo(page, "cemetery");
+    await page.evaluate(() => window.Onboarding?.onVisitCemetery?.());
+    await H.navGo(page, "street");
+  }
   await page
-    .waitForFunction(() => (window.me?.onboarding?.step ?? 0) >= 4, { timeout: 20000 })
+    .waitForFunction(() => (window.me?.onboarding?.step ?? 0) >= 4, { timeout: 25000 })
     .catch(() => {});
 }
 
@@ -163,6 +167,9 @@ async function runFullEpisode1Ui(page, opts = {}) {
   await ensureGameplayActive(page);
 
   await travelTo(page, "cemetery", recordPacing);
+  await page.evaluate(() => {
+    if (window.me?.location === "cemetery") window.Onboarding?.onVisitCemetery?.();
+  });
   mark?.("tutorial_cemetery", "cemetery visit");
   if (recordPacing) await H.walkDesktop(page, 2400);
 

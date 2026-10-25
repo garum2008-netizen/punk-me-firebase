@@ -54,7 +54,7 @@ function main() {
   const trimSec = startGame ? Math.max(0, startGame.sec - 0.15) : 0.8;
   const videoTrim = path.join(outDir, "video-trim.mp4");
   execSync(
-    `ffmpeg -y -ss ${trimSec} -i "${videoRaw}" -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p -an "${videoTrim}"`,
+    `ffmpeg -y -ss ${trimSec} -i "${videoRaw}" -c:v libx264 -preset fast -crf 28 -pix_fmt yuv420p -an "${videoTrim}"`,
     { stdio: "inherit" }
   );
   const audioNorm = path.join(outDir, "audio-norm.m4a");
