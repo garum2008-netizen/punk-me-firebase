@@ -7,9 +7,11 @@ const { muxVideoWithAudio } = require("./episode1-audio-mux");
 
 function webmToWav(webmPath, wavPath, trimSec = 0) {
   if (!fs.existsSync(webmPath) || fs.statSync(webmPath).size < 800) return false;
-  const args = ["-y"];
-  if (trimSec > 0.05) args.push("-ss", String(trimSec));
-  args.push("-i", webmPath, "-ac", "2", "-ar", "48000", wavPath);
+  const args = ["-y", "-i", webmPath];
+  if (trimSec > 0.05) {
+    args.push("-af", `atrim=start=${trimSec.toFixed(3)}`);
+  }
+  args.push("-ac", "2", "-ar", "48000", wavPath);
   const r = spawnSync("ffmpeg", args, { encoding: "utf8" });
   return r.status === 0 && fs.existsSync(wavPath);
 }
@@ -59,7 +61,7 @@ function finalizeClipDir(clipDir, opts = {}) {
   trimVideoSilent(videoIn, silentMp4, trimSec);
   const duration = probeDuration(silentMp4);
 
-  for (const track of ["music", "sfx", "mix"]) {
+  for (const track of ["music", "sfx", "voice", "mix"]) {
     const raw = path.join(clipDir, `${track}-raw.webm`);
     webmToWav(raw, path.join(clipDir, `${track}.wav`), trimSec);
   }

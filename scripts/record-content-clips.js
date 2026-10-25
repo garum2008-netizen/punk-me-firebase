@@ -33,34 +33,78 @@ function saveReportRows(merged) {
 }
 
 const CLIPS = {
-  "01": { dir: "01-first-job", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "fresh", run: Flows.flow01FirstJob },
-  "01en": {
-    dir: "01-first-job",
-    lang: "en",
+  "01": {
+    dir: "01-cemetery-job",
+    title: "Сюжет: первая работа на кладбище",
+    lang: "ru",
     w: 1920,
     h: 1080,
     mobile: false,
     setup: "fresh",
-    run: Flows.flow01FirstJob,
-    basename: "gameplay-1080p-en"
+    run: Flows.flow01CemeteryJob
   },
-  "02": { dir: "02-how-to-start", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "fresh", run: Flows.flow02HowToStart },
-  "03": { dir: "03-interact-talk", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "fresh", run: Flows.flow03InteractTalkDesktop },
-  "03m": {
-    dir: "03-interact-talk",
+  "01v": {
+    dir: "01-cemetery-job",
+    title: "Сюжет: первая работа (вертикаль)",
     lang: "ru",
     w: 1080,
     h: 1920,
     mobile: true,
     setup: "fresh",
-    run: Flows.flow03InteractTalkMobile,
+    run: Flows.flow01CemeteryJob,
     basename: "gameplay-1080x1920"
   },
-  "04": { dir: "04-crypt", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "postOnboarding", run: Flows.flow04Crypt },
-  "05": { dir: "05-apartment", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "postOnboarding", run: Flows.flow05Apartment },
-  "06": { dir: "06-city-plot", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "postOnboarding", run: Flows.flow06CityPlot },
-  "07": { dir: "07-duel", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "freshDuel", run: Flows.flow07Duel },
-  "08": { dir: "08-dog-shnurok", lang: "ru", w: 1920, h: 1080, mobile: false, setup: "postOnboarding", run: Flows.flow08Dog }
+  "02": {
+    dir: "02-crypt-decor",
+    title: "Сюжет: склеп до/после",
+    lang: "ru",
+    w: 1920,
+    h: 1080,
+    mobile: false,
+    setup: "postOnboarding",
+    run: Flows.flow02CryptDecor
+  },
+  "03": {
+    dir: "03-controls-desktop",
+    title: "Управление ПК",
+    lang: "ru",
+    w: 1920,
+    h: 1080,
+    mobile: false,
+    setup: "freshHowTo",
+    run: Flows.flow03ControlsDesktop
+  },
+  "04": {
+    dir: "04-controls-mobile",
+    title: "Управление мобильный",
+    lang: "ru",
+    w: 1080,
+    h: 1920,
+    mobile: true,
+    setup: "freshHowTo",
+    run: Flows.flow04ControlsMobile,
+    basename: "gameplay-1080x1920"
+  },
+  "05": {
+    dir: "05-surprise-night",
+    title: "Неожиданность: ночь на кладбище",
+    lang: "ru",
+    w: 1920,
+    h: 1080,
+    mobile: false,
+    setup: "fresh",
+    run: Flows.flow05SurpriseNightJob
+  },
+  "06": {
+    dir: "06-route-fork",
+    title: "Развилка: инициация у Razor",
+    lang: "ru",
+    w: 1920,
+    h: 1080,
+    mobile: false,
+    setup: "fresh",
+    run: Flows.flow06RouteFork
+  }
 };
 
 function fmt(sec) {
@@ -91,7 +135,7 @@ async function injectMultiAudioBridge(context, port) {
       const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : "audio/webm";
-      for (const track of ["mix", "music", "sfx"]) {
+      for (const track of ["mix", "music", "sfx", "voice"]) {
         const stream = map[track] || map.mix;
         try {
           recorders[track]?.stop?.();
@@ -116,7 +160,7 @@ async function injectMultiAudioBridge(context, port) {
 
     window.__contentStopAudioCapture = async function () {
       window.__contentCaptureActive = false;
-      for (const track of ["mix", "music", "sfx"]) {
+      for (const track of ["mix", "music", "sfx", "voice"]) {
         const rec = recorders[track];
         if (!rec || rec.state === "inactive") continue;
         await new Promise(resolve => {
@@ -224,20 +268,7 @@ async function recordOne(clipKey, base) {
 
   if (spec.setup === "postOnboarding") {
     await Ep1.waitOnboardingDone(page);
-    mark("onboarding_cleared", "post-tutorial state for build layer");
-  } else if (spec.setup === "freshDuel") {
-    await page.evaluate(() => {
-      document.getElementById("chapterIntro")?.classList.remove("active");
-      const ob = window.me?.onboarding || { step: 0, progress: {}, done: false };
-      ob.step = 4;
-      ob.done = false;
-      window.me.onboarding = ob;
-      window.Onboarding?.render?.();
-      window.goLocation?.("street");
-      window.syncStage3D?.();
-    });
-    await page.waitForFunction(() => window.me?.location === "street", { timeout: 30000 });
-    mark("pre_duel_onboarding", "step=4 on street (same gate as test:duel-onboarding)");
+    mark("onboarding_cleared", "post-tutorial — декор/склеп");
   }
 
   mark("capture_start", "audio+video");
@@ -276,7 +307,7 @@ async function recordOne(clipKey, base) {
     : flowResult.note || "";
 
   writeClipMd(clipDir, {
-    title: spec.dir,
+    title: spec.title || spec.dir,
     lang: spec.lang,
     resolution: `${spec.w}×${spec.h}`,
     marks: marks.map(m => ({ ...m, sec: Math.max(0, m.sec - trimSec) })),
@@ -312,7 +343,7 @@ async function main() {
 
   const reportPath = path.join(root, "REPORT.md");
   const merged = { ...readReportRows(), ...Object.fromEntries(results.map(r => [r.clipKey, r])) };
-  const order = ["01", "01en", "02", "03", "03m", "04", "05", "06", "07", "08"];
+  const order = ["01", "01v", "02", "03", "04", "05", "06"];
   const lines = [
     "# QA content clips — отчёт",
     "",

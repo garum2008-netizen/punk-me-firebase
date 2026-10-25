@@ -101,6 +101,8 @@ export function createAudioManager() {
   let captureMusicGain = null;
   let captureSfxDest = null;
   let captureSfxGain = null;
+  let captureVoiceDest = null;
+  let captureVoiceGain = null;
 
   const buffers = new Map();
   const speechQueue = [];
@@ -569,8 +571,14 @@ export function createAudioManager() {
       captureSfxGain = ctx.createGain();
       captureSfxGain.gain.value = 5.5;
       channel.sfx.gain.connect(captureSfxGain);
-      channel.speech.gain.connect(captureSfxGain);
       captureSfxGain.connect(captureSfxDest);
+    }
+    if (!captureVoiceDest) {
+      captureVoiceDest = ctx.createMediaStreamDestination();
+      captureVoiceGain = ctx.createGain();
+      captureVoiceGain.gain.value = 5.5;
+      channel.speech.gain.connect(captureVoiceGain);
+      captureVoiceGain.connect(captureVoiceDest);
     }
     return true;
   }
@@ -587,7 +595,8 @@ export function createAudioManager() {
     return {
       mix: captureDest.stream,
       music: captureMusicDest.stream,
-      sfx: captureSfxDest.stream
+      sfx: captureSfxDest.stream,
+      voice: captureVoiceDest.stream
     };
   }
 

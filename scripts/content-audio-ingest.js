@@ -5,11 +5,11 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
-const TRACKS = ["mix", "music", "sfx"];
+const TRACKS = ["mix", "music", "sfx", "voice"];
 let server = null;
 let segmentsDir = null;
 let outPaths = null;
-let segmentIndex = { mix: 0, music: 0, sfx: 0 };
+let segmentIndex = { mix: 0, music: 0, sfx: 0, voice: 0 };
 
 function start(destDir) {
   segmentsDir = path.join(destDir, "audio-segments");
@@ -23,11 +23,12 @@ function start(destDir) {
       } catch (e) {}
     });
   }
-  segmentIndex = { mix: 0, music: 0, sfx: 0 };
+  segmentIndex = { mix: 0, music: 0, sfx: 0, voice: 0 };
   outPaths = {
     mix: path.join(destDir, "mix-raw.webm"),
     music: path.join(destDir, "music-raw.webm"),
-    sfx: path.join(destDir, "sfx-raw.webm")
+    sfx: path.join(destDir, "sfx-raw.webm"),
+    voice: path.join(destDir, "voice-raw.webm")
   };
   if (server) {
     try {
@@ -44,7 +45,7 @@ function start(destDir) {
       res.end();
       return;
     }
-    const m = /^\/segment\/(mix|music|sfx)$/.exec(req.url || "");
+    const m = /^\/segment\/(mix|music|sfx|voice)$/.exec(req.url || "");
     if (req.method === "POST" && m) {
       const track = m[1];
       const chunks = [];
