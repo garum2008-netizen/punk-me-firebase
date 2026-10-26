@@ -899,7 +899,7 @@ html.episode-capture .btn-account { display: none !important; }
   display: none; position: fixed; inset: 0; z-index: 115; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.9); padding: 16px;
 }
-.story-scene.active { display: flex; }
+.story-scene.active { display: flex; z-index: 125; }
 .story-scene-panel {
   max-width: min(520px, 96vw); padding: 20px 22px; border-radius: 16px;
   background: linear-gradient(155deg, #120820, #0a0612); border: 2px solid #ff00ff;

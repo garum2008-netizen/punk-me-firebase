@@ -84,6 +84,8 @@ export function playChapterIntro(opts = {}) {
 }
 
 export function showChapterWrap(chapterNum) {
+  document.getElementById("storyScene")?.classList.remove("active");
+  document.getElementById("storyScene")?.setAttribute("aria-hidden", "true");
   const root = document.getElementById("chapterIntro");
   if (!root) return;
   const titleEl = root.querySelector(".chapter-intro-title");

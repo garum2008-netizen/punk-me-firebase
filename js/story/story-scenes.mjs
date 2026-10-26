@@ -70,6 +70,8 @@ export function playStoryScene(panels, opts = {}) {
     }
   };
 
+  document.getElementById("chapterIntro")?.classList.remove("active");
+  document.getElementById("storyDialog")?.classList.remove("active");
   root.classList.add("active");
   root.setAttribute("aria-hidden", "false");
   render();

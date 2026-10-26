@@ -35,16 +35,19 @@ async function snap(page, tag, name) {
 }
 
 async function advanceStoryScenes(page) {
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 16; i++) {
+    const ch = page.locator(
+      "#chapterIntro.active .chapter-intro-next, #chapterIntro.active .chapter-intro-skip, #chapterIntro.active button.btn"
+    );
+    if (await ch.first().isVisible().catch(() => false)) {
+      await ch.first().click({ force: true, noWaitAfter: true });
+      await H.sleep(280);
+      continue;
+    }
     const btn = page.locator("#storyScene.active .story-scene-next");
     if (!(await btn.isVisible().catch(() => false))) break;
-    await btn.click({ timeout: 5000, noWaitAfter: true });
+    await btn.click({ force: true, timeout: 8000, noWaitAfter: true });
     await H.sleep(280);
-  }
-  const wrap = page.locator("#chapterIntro.active .chapter-intro-next, #chapterIntro.active .chapter-intro-skip");
-  if (await wrap.first().isVisible().catch(() => false)) {
-    await wrap.first().click({ noWaitAfter: true });
-    await H.sleep(200);
   }
 }
 
