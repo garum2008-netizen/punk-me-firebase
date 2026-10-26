@@ -11,7 +11,7 @@ ANON_WINDOW="${ANON_WINDOW:-2026-10-24T00:00:00Z/2026-10-26T00:00:00Z}"
 mkdir -p "$OUT"
 
 echo "==> [1/3] Export LIVE database rules (read-only) → $OUT/rtdb-rules-prod-${STAMP}.json"
-firebase database:rules:get --project "$PROJECT" > "$OUT/rtdb-rules-prod-${STAMP}.json"
+npx firebase database:rules:get --project "$PROJECT" > "$OUT/rtdb-rules-prod-${STAMP}.json"
 
 echo "==> [2/3] list:test-artifacts anon window $ANON_WINDOW"
 node scripts/list-test-artifacts.mjs --anon-window="$ANON_WINDOW" | tee "$OUT/test-artifacts-${STAMP}.json"

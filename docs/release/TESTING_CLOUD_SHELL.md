@@ -12,12 +12,15 @@ cd punk-me-firebase
 git fetch origin cursor/prod-security-hotfix-d81d
 git checkout cursor/prod-security-hotfix-d81d
 
-npm ci
+# В репозитории нет закоммиченного package-lock.json (см. .gitignore) — `npm ci` не подходит.
+npm install --no-audit --no-fund --ignore-scripts
 ```
+
+`--ignore-scripts` достаточно для `owner:readonly-check`, `build:hotfix-rules` и unit/emulator-скриптов PR #45 (Playwright-браузеры для них не нужны). Для полного `npm run test:emulator` при необходимости: `npx playwright install chromium`.
 
 ## 2. Firebase CLI
 
-Локальный CLI из `devDependencies` (после `npm ci`):
+Локальный CLI из `devDependencies` (после `npm install`):
 
 ```bash
 npx firebase --version
