@@ -365,6 +365,7 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .story-goal-main { font-size: 15px; font-weight: 800; color: #ff6ec7; margin-top: 2px; }
 .story-goal-hint { font-size: 12px; opacity: 0.9; margin-top: 4px; }
 .story-goal-progress { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+.story-goal-progress:empty { display: none; margin: 0; padding: 0; height: 0; }
 .lang-corner {
   position: fixed; top: 8px; right: 8px; z-index: 33;
   display: flex; gap: 4px; padding: 4px; border-radius: 10px;
@@ -854,6 +855,7 @@ html.episode-capture .btn-account { display: none !important; }
 .story-goal-main { font-size: 15px; font-weight: 800; color: #ff6ec7; margin-top: 2px; }
 .story-goal-hint { font-size: 12px; opacity: 0.9; margin-top: 4px; }
 .story-goal-progress { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+.story-goal-progress:empty { display: none; margin: 0; padding: 0; height: 0; }
 .chapter-intro {
   position: fixed; inset: 0; z-index: 120; display: none; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.82);
@@ -923,6 +925,19 @@ html.episode-capture .btn-account { display: none !important; }
   padding: 16px;
 }
 #concertPrep.active {
+  display: flex;
+}
+.ending-rewards {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 133;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.9);
+  padding: 16px;
+}
+.ending-rewards.active {
   display: flex;
 }
 .ending-choice {

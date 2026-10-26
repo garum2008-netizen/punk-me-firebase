@@ -17,7 +17,7 @@ function onboardingGoal() {
 
 function storyQuestGoal() {
   const st = window.StoryEngine?.ensureStoryState?.(window.me);
-  const chapter = st?.chapter || 1;
+  const chapter = st?.mainlineChapter ?? st?.chapter ?? 1;
   const titleEl = document.querySelector("#questBox .quest-step-title, #questBox b");
   const hintEl = document.querySelector("#questBox .quest-step-text, #questBox .quest-objective");
   const goal = titleEl?.textContent?.trim() || (typeof window.t === "function" ? window.t("quests_label") : "Quest");

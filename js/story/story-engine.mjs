@@ -409,6 +409,20 @@ export function startQuest(qid) {
     st.flags.initiation_locked = true;
     st.decisions.initiation_branch = qid;
   }
+  if (q.type === "main" && q.chapter) {
+    st.chapter = Math.max(st.chapter || 1, q.chapter);
+    st.mainlineChapter = st.chapter;
+  }
+  if (q.type === "main" && q.chapter >= 3) {
+    const prev = st.quest.activeId;
+    if (prev && prev !== qid) {
+      const prevQ = data.quests.find(x => x.id === prev);
+      if (prevQ && prevQ.type !== "main") {
+        st.quest.activeId = null;
+        st.quest.step = 0;
+      }
+    }
+  }
   st.quest.activeId = qid;
   st.quest.step = 0;
   st.idleHintLevel = 0;
@@ -458,6 +472,7 @@ function pickNextObjective() {
       return;
     }
   }
+  if (st.unique?.bell_rim || st.chapter >= 3 || st.quest.completed?.q_ch3_cemetery_night) return;
   const loc = p.location;
   const candidate = data.quests.find(
     q => !st.quest.completed?.[q.id] && q.loc === loc && q.type !== "main" && !st.quest.activeId
@@ -627,8 +642,10 @@ export function fireStoryEvent(name) {
     }
   }
   if (name === "graph_confession_done") {
+    st.chapter = 4;
+    st.mainlineChapter = 4;
     completeQuest("q_ch4_castle");
-    window.StoryEndings?.showEndingChoice?.({ toast: hooks.toast });
+    window.StoryScenes?.playFinaleBriefingBeforeChoice?.({ toast: hooks.toast, save: hooks.save });
   }
   if (name === "antibully_help") applyAntibullyChoice(true, hooks);
   if (name === "antibully_mock") applyAntibullyChoice(false, hooks);
@@ -822,6 +839,13 @@ export function renderObjectivePanel() {
       const stage = data.hangout?.stages?.[st.hangoutStage];
       objective = stage ? L(stage.hint) : L({ ru: "Стройка: Тусовка", en: "Construction: hangout", da: "Byggeplads" });
       renderConstructionBar();
+    } else if (st.flags.postgame || st.ending) {
+      title = L({ ru: "Свободная игра", en: "Free play", da: "Fri leg" });
+      objective = L({
+        ru: "История Колокола завершена — исследуй Тыквоград",
+        en: "The Bell story is complete — explore Pumpkin City",
+        da: "Historien er færdig — udforsk byen"
+      });
     } else {
       title = L({ ru: "Тыквоград", en: "Pumpkin City", da: "Græskarby" });
       objective = L({

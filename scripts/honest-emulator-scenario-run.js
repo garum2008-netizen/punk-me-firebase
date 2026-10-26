@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Honest full chain on emulator: ?firebaseEmulator=1&solo=1, NO dev/qa.
- * SCENARIO_CACHE=honest-full-v12
+ * Automated honest full chain (Playwright) — NOT a live manual QA session.
+ * Emulator: ?firebaseEmulator=1&solo=1, NO dev/qa. SCENARIO_CACHE=honest-full-v12
  */
 const fs = require("fs");
 const path = require("path");
@@ -327,8 +327,18 @@ async function pickEnding(page, tag, endingId) {
   await openEndingChoice(page);
   await snap(page, tag, `18-ending-choice`);
   await page.locator(`#endingChoice [data-ending="${endingId}"]`).click({ noWaitAfter: true, timeout: 15000 });
-  await H.sleep(1200);
+  await H.sleep(800);
   await advanceStoryScenes(page);
+  await snap(page, tag, `19-ending-scene-${endingId}`);
+  for (let i = 0; i < 8; i++) {
+    const rewards = await page.locator("#endingRewards.active").isVisible().catch(() => false);
+    if (rewards) break;
+    await advanceStoryScenes(page);
+    await H.sleep(350);
+  }
+  await snap(page, tag, `19b-ending-rewards-${endingId}`);
+  await page.evaluate(() => document.querySelector("#endingRewards .ending-rewards-next")?.click());
+  await H.sleep(600);
   const st = await page.evaluate(() => ({
     ending: window.me?.story?.ending,
     postgame: window.StoryEngine?.ensureStoryState?.(window.me)?.flags?.postgame,
@@ -401,16 +411,17 @@ async function runFullChain(page, tag, endingId, opts = {}) {
 
 (async () => {
   const browser = await chromium.launch();
-  const results = { cache, log, endings: {} };
+  const results = { cache, log, automatedPlaywright: true, notLiveManualQa: true, endings: {} };
   try {
     for (let i = 0; i < ENDINGS.length; i++) {
       const endingId = ENDINGS[i];
       const tag = `v12-${endingId.replace("ending_", "")}`;
       const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
       try {
-        const opts = { freePlay: i === 0, f5: i === 0, noDup: i === 0 };
+        const opts = { freePlay: true, f5: true, noDup: true };
         results.endings[endingId] = await runFullChain(page, tag, endingId, opts);
-        note(`PASS ${endingId}`, opts);
+        results.automatedPlaywright = true;
+        note(`PASS automated ${endingId}`, opts);
       } catch (e) {
         await snap(page, tag, "99-error").catch(() => {});
         results.error = { endingId, message: String(e) };

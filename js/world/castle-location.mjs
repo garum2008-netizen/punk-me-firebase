@@ -118,8 +118,30 @@ export function addCastleScene(root, { wall, neonSign, tiledFloor, pushCollider,
   shop.add(kiosk);
   root.add(shop);
 
+  // Courtyard decor (avoid flat grey-box look)
+  const bannerMat = new THREE.MeshStandardMaterial({ color: 0x660044, emissive: 0xff00aa, emissiveIntensity: 0.25 });
+  [-9, 9].forEach(x => {
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 3.2), bannerMat);
+    banner.position.set(x, 3.2, -10.8);
+    root.add(banner);
+  });
+  for (let i = 0; i < 6; i++) {
+    const torch = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.16, 2.4, 8),
+      new THREE.MeshStandardMaterial({ color: 0x2a2030, emissive: 0xff6600, emissiveIntensity: 0.15 })
+    );
+    torch.position.set(-10 + i * 4, 1.2, 8.5);
+    root.add(torch);
+  }
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.35, 8, 16, Math.PI), gold);
+  arch.position.set(0, 4.5, -11.2);
+  arch.rotation.x = Math.PI / 2;
+  root.add(arch);
+
   root.add(tower);
-  root.add(neonSign("ЗАМОК", 0xc9a227).translateY(4.2).translateZ(-11));
+  const signLabel =
+    typeof window.t === "function" ? String(window.t("door_castle") || "Castle").toUpperCase() : "CASTLE";
+  root.add(neonSign(signLabel, 0xc9a227).translateY(4.2).translateZ(-11));
   root.userData.castleRefs = { candleGroup, shop, stage, bell };
 
   return { candleGroup, shop, stage, bell };
@@ -145,5 +167,10 @@ export function applyCastleEndingVisual(root, endingId) {
       bell.material.emissiveIntensity = 1.2;
       bell.material.emissive.setHex(0xffdd88);
     }
+    root.traverse?.(o => {
+      if (o.isMesh && o.material?.emissive) {
+        o.material.emissiveIntensity = Math.min(1, (o.material.emissiveIntensity || 0) + 0.2);
+      }
+    });
   }
 }
