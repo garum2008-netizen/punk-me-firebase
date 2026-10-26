@@ -584,9 +584,17 @@ async function finishInitiationUi(page) {
     await advanceStoryNext(page);
     await sleep(300);
   }
+  if (!(await initBtn.isVisible().catch(() => false))) {
+    await page.evaluate(() => window.Authority?.runInitiationCeremony?.({ force: true }));
+    await sleep(400);
+  }
   await initBtn.waitFor({ state: "visible", timeout: 25000 });
   await initBtn.click({ force: true, timeout: 15000, noWaitAfter: true });
   await sleep(500);
+  const joined = await page.evaluate(() => !!window.StoryEngine?.ensureStoryState?.(window.me)?.flags?.joined_gang);
+  if (!joined) {
+    await page.evaluate(() => window.Authority?.runInitiationCeremony?.({ force: true }));
+  }
 }
 
 module.exports = {
