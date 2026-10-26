@@ -68,80 +68,115 @@ async function readOnboarding(page) {
 }
 
 async function runOnboardingChain(page) {
-  let ob = await readOnboarding(page);
-  note("onboarding_start", ob);
+  note("onboarding_start", await readOnboarding(page));
+  const snaps = new Set();
 
-  if ((ob.step ?? 0) === 0) {
-    await H.walkDesktop(page, 3000);
-    ob = await readOnboarding(page);
-    note("after_move_walk", ob);
-    await snap(page, "02-move-done");
-  }
+  for (let guard = 0; guard < 48; guard++) {
+    const ob = await readOnboarding(page);
+    if (ob.done) break;
+    const step = ob.step ?? 0;
+    note(`onboard_guard_${guard}`, ob);
 
-  if ((ob.step ?? 0) === 1) {
-    await H.navGo(page, "street");
-    ob = await readOnboarding(page);
-    note("after_visit_street", ob);
-    await snap(page, "03-street");
-  }
-
-  if ((ob.step ?? 0) === 2) {
-    await H.navGo(page, "street");
-    await H.openGangNpc(page, "razor");
-    await H.sleep(400);
-    ob = await readOnboarding(page);
-    note("after_razor_gang", ob);
-    await snap(page, "04-razor-talk");
-    await H.closeGangModal(page);
-    if ((ob.step ?? 0) < 3) {
-      throw new Error(`talk_razor did not advance onboarding (step=${ob.step})`);
+    if (step === 0) {
+      await H.walkDesktop(page, 3200);
+      if (!snaps.has("move")) {
+        snaps.add("move");
+        await snap(page, "02-move-done");
+      }
+      continue;
     }
+    if (step === 1) {
+      await H.navGo(page, "street");
+      if (!snaps.has("street")) {
+        snaps.add("street");
+        await snap(page, "03-street");
+      }
+      continue;
+    }
+    if (step === 2) {
+      await H.navGo(page, "street");
+      await H.dismissHowToOverlay(page);
+      await H.openGangNpc(page, "razor");
+      await H.sleep(500);
+      const after = await readOnboarding(page);
+      if ((after.step ?? 0) < 3) {
+        throw new Error(`talk_razor did not advance (step=${after.step})`);
+      }
+      await H.closeGangModal(page);
+      if (!snaps.has("razor")) {
+        snaps.add("razor");
+        await snap(page, "04-razor-talk");
+      }
+      continue;
+    }
+    if (step === 3) {
+      await H.navGo(page, "cemetery");
+      if (!snaps.has("cemetery")) {
+        snaps.add("cemetery");
+        await snap(page, "05-cemetery");
+      }
+      continue;
+    }
+    if (step === 4) {
+      await H.navGo(page, "street");
+      await page.locator("#btnFight").click({ timeout: 20000, force: true });
+      await H.winFightUi(page, 45000);
+      if (!snaps.has("duel")) {
+        snaps.add("duel");
+        await snap(page, "06-duel-win");
+      }
+      continue;
+    }
+    if (step === 5) {
+      await H.navGo(page, "room");
+      await H.buyCheapestShop(page);
+      if (!snaps.has("shop")) {
+        snaps.add("shop");
+        await snap(page, "07-shop");
+      }
+      continue;
+    }
+    await H.sleep(400);
   }
 
-  ob = await readOnboarding(page);
-  if ((ob.step ?? 0) === 3) {
-    await H.navGo(page, "cemetery");
-    ob = await readOnboarding(page);
-    note("after_cemetery", ob);
-    await snap(page, "05-cemetery");
-  }
-
-  ob = await readOnboarding(page);
-  if ((ob.step ?? 0) === 4) {
-    await H.navGo(page, "street");
-    await page.locator("#btnFight").click({ timeout: 20000, force: true });
-    await H.winFightUi(page, 45000);
-    ob = await readOnboarding(page);
-    note("after_fight", ob);
-    await snap(page, "06-duel-win");
-  }
-
-  ob = await readOnboarding(page);
-  if ((ob.step ?? 0) === 5) {
-    await H.navGo(page, "room");
-    await H.buyCheapestShop(page);
-    ob = await readOnboarding(page);
-    note("after_shop", ob);
-    await snap(page, "07-shop");
-  }
-
-  ob = await readOnboarding(page);
-  if (!ob.done) {
-    throw new Error(`onboarding not done (step=${ob.step})`);
-  }
+  const ob = await readOnboarding(page);
+  if (!ob.done) throw new Error(`onboarding not done (step=${ob.step})`);
   note("onboarding_done", ob);
   await snap(page, "08-onboarding-done");
   return ob;
 }
 
-async function runInitiationAndHangout(page) {
+async function clearBlockingUi(page) {
+  await H.dismissStoryDialog(page);
+  await page.evaluate(() => {
+    document.querySelectorAll(".modal.active").forEach(el => el.classList.remove("active"));
+    document.getElementById("chapterIntro")?.classList.remove("active");
+  });
+}
+
+async function runAuthorityInitiationHangout(page) {
+  await clearBlockingUi(page);
+
+  const auth = await H.completeAuthorityPathUi(page, false, log);
+  note("authority_trials", auth.auth);
+  await snap(page, "09-ch3-4-authority");
+
+  await clearBlockingUi(page);
+  await H.navGo(page, "street");
+  await H.openGangNpc(page, "razor");
+  await H.advanceStoryNext(page);
+  await H.clickFirstStoryChoice(page).catch(() => {});
+  await H.dismissStoryDialog(page);
+  await snap(page, "10-razor-initiation-dialog");
+
   await H.finishInitiationUi(page);
   await H.dismissStoryDialog(page);
   await H.clickFirstStoryChoice(page).catch(() => {});
   await H.dismissStoryDialog(page);
   const joined = await page.evaluate(() => !!window.StoryEngine?.ensureStoryState?.(window.me)?.flags?.joined_gang);
   note("joined_gang", { joined });
-  await snap(page, "09-initiation");
+  if (!joined) throw new Error("joined_gang false after initiation ceremony");
+  await snap(page, "11-initiation-patch");
 
   const hang = await H.buildAllHangoutStages(page, log, { outDir, tag });
   note("hangout", hang);
@@ -149,14 +184,11 @@ async function runInitiationAndHangout(page) {
     throw new Error(`hangout incomplete stage=${hang.hangoutStage}`);
   }
   await H.snapHangoutBuild(page, outDir, tag, 4);
-  await snap(page, "10-hangout-stage-4");
-  return hang;
+  await snap(page, "12-hangout-stage-4");
+  return { auth, hang, joined };
 }
 
-async function runAuthorityAndEndings(page) {
-  const auth = await H.completeAuthorityPathUi(page, false, log);
-  note("authority", auth.auth);
-  await snap(page, "11-ch3-4-authority");
+async function runEndings(page) {
 
   await page.evaluate(() => {
     window.StoryEngine?.fireStoryEvent?.("graph_confession_done");
@@ -189,9 +221,9 @@ async function runAuthorityAndEndings(page) {
   try {
     await enterGameHonest(page);
     const ob = await runOnboardingChain(page);
-    const hang = await runInitiationAndHangout(page);
-    const finale = await runAuthorityAndEndings(page);
-    const out = { log, ob, hang, finale };
+    const mid = await runAuthorityInitiationHangout(page);
+    const finale = await runEndings(page);
+    const out = { log, ob, ...mid, finale };
     fs.writeFileSync(path.join(outDir, `${tag}-run-log.json`), JSON.stringify(out, null, 2));
     console.log("honest-emulator-scenario-run: OK");
   } catch (e) {

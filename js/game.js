@@ -1485,6 +1485,7 @@ function goLocation(id, fromHash) {
   me.location = id;
   me.x = 45;
   me.y = 60;
+  dismissTutorialBlockingOverlays();
   portalCooldown = Date.now() + 1600;
   window.World3D?.setPortalGrace?.(1600);
   saveMe();
@@ -1708,7 +1709,22 @@ function questBump(key, amt = 1) {
   document.getElementById("coins").textContent = formatCoinsDisplay();
 }
 
+function dismissTutorialBlockingOverlays() {
+  document.getElementById("howToOverlay")?.classList.remove("active");
+  const chapterIntro = document.getElementById("chapterIntro");
+  if (chapterIntro?.classList.contains("active")) {
+    chapterIntro.classList.remove("active");
+    chapterIntro.setAttribute("aria-hidden", "true");
+    const st = window.StoryEngine?.ensureStoryState?.(window.me);
+    if (st?.flags) st.flags.intro_seen = true;
+  }
+}
+
 function openModal(id) {
+  dismissTutorialBlockingOverlays();
+  document.querySelectorAll(".modal.active").forEach(el => {
+    if (el.id !== id) el.classList.remove("active");
+  });
   document.getElementById(id).classList.add("active");
   if (id === "shopModal") renderShop();
   if (id === "gangModal") renderGangList();
@@ -1846,6 +1862,7 @@ function buyItem(id) {
   toast(t("bought_item") + " " + tShop(it.id));
   window.PlayV21?.syncCosmetics?.(me);
   window.Onboarding?.onShopBuy?.();
+  closeModal("shopModal");
 }
 
 function renderInventory() {

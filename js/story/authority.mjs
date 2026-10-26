@@ -243,7 +243,8 @@ export function runInitiationCeremony(opts = {}) {
     if (window.World3D?.getNearestNpc?.() !== "razor") return;
     if (window.StoryEngine?.canOpenStoryModal && !window.StoryEngine.canOpenStoryModal()) return;
   } else if (me().location !== "street") return;
-  if (!stage3Complete(st) || st.authority < 80) {
+  const readyForCeremony = st.authority >= 80 && (st.auth.stage >= 4 || stage3Complete(st));
+  if (!readyForCeremony) {
     window.toast?.(L({ ru: "Сначала испытания", en: "Finish the trials first", da: "Fuldfør prøverne først" }));
     return;
   }
@@ -373,7 +374,13 @@ export function tryAuthorityNpc(npcId, p = me()) {
     openStage1Dialog();
     return true;
   }
-  if (npcId === "razor" && st.auth.stage === 4 && !st.flags?.joined_gang) {
+  if (
+    npcId === "razor" &&
+    !st.flags?.joined_gang &&
+    st.authority >= 80 &&
+    st.auth.stage >= 3 &&
+    stage3Complete(st)
+  ) {
     runInitiationCeremony({ force: true });
     return true;
   }
