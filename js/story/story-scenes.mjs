@@ -62,6 +62,7 @@ export function playStoryScene(panels, opts = {}) {
   };
 
   btn.onclick = () => {
+    window.AudioManager?.stopSpeech?.();
     window.AudioManager?.playSfx?.("ui_click");
     if (idx >= panels.length - 1) close();
     else {

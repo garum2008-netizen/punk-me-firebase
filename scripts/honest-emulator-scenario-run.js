@@ -38,18 +38,23 @@ async function snap(page, tag, name) {
 
 async function advanceStoryScenes(page) {
   for (let i = 0; i < 16; i++) {
-    const ch = page.locator(
-      "#chapterIntro.active .chapter-intro-next, #chapterIntro.active .chapter-intro-skip, #chapterIntro.active button.btn"
-    );
-    if (await ch.first().isVisible().catch(() => false)) {
-      await ch.first().click({ force: true, noWaitAfter: true });
-      await H.sleep(280);
-      continue;
-    }
-    const btn = page.locator("#storyScene.active .story-scene-next");
-    if (!(await btn.isVisible().catch(() => false))) break;
-    await btn.click({ force: true, timeout: 8000, noWaitAfter: true });
-    await H.sleep(280);
+    const advanced = await page.evaluate(() => {
+      const ch = document.querySelector(
+        "#chapterIntro.active .chapter-intro-next, #chapterIntro.active .chapter-intro-skip"
+      );
+      if (ch) {
+        ch.click();
+        return "chapter";
+      }
+      const btn = document.querySelector("#storyScene.active .story-scene-next");
+      if (btn) {
+        btn.click();
+        return "scene";
+      }
+      return null;
+    });
+    if (!advanced) break;
+    await H.sleep(350);
   }
 }
 
