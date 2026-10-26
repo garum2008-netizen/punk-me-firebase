@@ -1,34 +1,36 @@
-# PR #43 — честный прогон на эмуляторе (без `?dev=1`)
+# PR #43 — automated emulator playthrough (NOT live manual QA)
 
-**URL:** `?solo=1&firebaseEmulator=1`  
-**Runner:** `SCENARIO_CACHE=honest-full-v12 FIREBASE_EMULATOR=1 PUNK_BASE=http://127.0.0.1:3456 node scripts/honest-emulator-scenario-run.js`  
-**Артефакты:** `/opt/cursor/artifacts/scenario-ch01/v12-*.png` (не в git)
+**URL:** `?solo=1&firebaseEmulator=1` (no `?dev=1`)  
+**Runner:** Playwright `scripts/honest-emulator-scenario-run.js` — `automatedPlaywright: true` in log  
+**Command:** `SCENARIO_CACHE=honest-full-v12 FIREBASE_EMULATOR=1 PUNK_BASE=http://127.0.0.1:3456 node scripts/honest-emulator-scenario-run.js`  
+**Artifacts:** `/opt/cursor/artifacts/scenario-ch01/v12-*.png` (not in git)  
+**Last green run:** commits `cfa7a88` + `08ea12f` — `honest-emulator-scenario-run: ALL PASS` (3 endings)
 
-## Исправления в игре (не обходы раннера)
+## Acceptance fixes (post v12 review)
 
-| ID | Проблема | Фикс |
-|----|----------|------|
-| D-ONBOARD-02 | `talk_razor` не закрывался | `tryStoryNpc` + `trigger.conditions` |
-| D-UI-02 | Overlays блокируют HUD | `dismissTutorialBlockingOverlays`, shop close |
-| D-AUTH-01 | Нашивка под story-scene | z-index, overlays в `runInitiationCeremony` |
-| D-CH3-01 | `bell_rim` без сцены (stale `job_cemetery_done`) | `unique:bell_rim`, repair на кладбище |
-| D-CH4-01 | Язык колокола | `tryTongueQuest` на `onLocationChange` |
-| D-CH4-02 | Концерт под canvas | `#concertPrep` z-index; organ `advanceOrganPuzzle` |
-| D-STORY-03 | Граф / confession | `trigger.flag` в `tryStoryNpc` |
+| ID | Fix |
+|----|-----|
+| D-FINALE-01 | Briefing → choice → multi-panel ending → `#endingRewards` → free play |
+| D-FINALE-02 | Subtitles: body only, `resolveSpeakerName` |
+| D-UI-03 | `mainlineChapter` ch.4, no side quests after ch3 |
+| D-UI-04 | Empty story-goal progress hidden |
+| D-I18N-01 | Castle neon sign uses `door_castle` |
+| D-CH4-03 | Castle courtyard decor |
+| D-TEST-02 | All 3 endings: F5 + free play + no duplicate reward |
 
-## Чекпоинты v12 (`ending_break_curse` — PASS)
+## `v12-break_curse-99-error.png` (prior run)
 
-| Шаг | Скрин |
-|-----|--------|
-| Онбординг 0–5 | `v12-break_curse-02` … `08` |
-| Authority + нашивка | `09`, `10-initiation-patch` |
-| Тусовка этап 4 | `11-hangout-stage-4` |
-| Гл.3 Обод | `12-ch3-bell-rim` |
-| Гл.4 Язык / замок / корона / концерт | `13` … `16` |
-| Признание Графа | `17-count-confession` |
-| Выбор финала | `18-ending-choice` |
-| Финал | `19-ending-ending_break_curse` |
-| F5 | `20-after-f5` |
-| Пост-игра | `21-free-play` |
+Not a runtime crash: error screenshot captured while `#concertPrep` was under the 3D canvas (D-CH4-02) with stale HUD (Chapter 2 / Grave flowers). Fixed before this acceptance re-run.
 
-Три финала (`ending_zombie_style`, `ending_count_deal`) — отдельные прогоны тем же раннером (без `HONEST_ENDINGS`). Лог: `honest-run-log.json`.
+## Checkpoints (each ending)
+
+| Step | Screens |
+|------|---------|
+| Onboarding + authority + hangout 4 | `00` … `11` |
+| Ch.3 rim / Ch.4 castle | `12` … `17` |
+| Briefing + choice | `18-ending-choice` |
+| Ending scene + rewards | `19-ending-scene-*`, `19b-ending-rewards-*`, `19-ending-*` |
+| F5 persistence | `20-after-f5` |
+| Free play | `21-free-play` |
+
+All three endings: `ending_break_curse`, `ending_zombie_style`, `ending_count_deal` — separate browser sessions, same runner. Log: `honest-run-log.json`.
