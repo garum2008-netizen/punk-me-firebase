@@ -1727,7 +1727,6 @@ function dismissTutorialBlockingOverlays() {
 
 function openModal(id) {
   dismissTutorialBlockingOverlays();
-  window.StoryEngine?.dismissAllStoryUi?.();
   document.querySelectorAll(".modal.active").forEach(el => {
     if (el.id !== id) el.classList.remove("active");
   });
