@@ -19,9 +19,13 @@
 | D-ONBOARD-01 | Нет авто-обучения | отчёт B | интеграция | main да | preview: intro+6 steps | preview pending |
 | D-ONBOARD-02 | `talk_razor` (step 2): `dlg_razor_initiation` без `onboarding:done` → шаг не сдвигался | честный эмулятор PR #43 | интеграция | да | `checkRequires` на `trigger.conditions` в `tryStoryNpc` | онбординг 6/6 PASS (honest v9) |
 | D-UI-02 | howTo / chapter intro / shop modal блокируют Gang/HUD | честный эмулятор | интеграция | да | `dismissTutorialBlockingOverlays`, `openModal`, `buyItem` close shop | онбординг + authority скрины |
-| D-AUTH-01 | `#authInitBtn` не появлялся после trials при Razor | honest v10 | интеграция | да | `tryAuthorityNpc` + `runInitiationCeremony` gate | pending v11 E2E |
+| D-AUTH-01 | `#authInitBtn` / нашивка: диалог под story-scene, gang modal под canvas | honest v12 | интеграция | да | z-index `#storyDialog`/`#concertPrep`; `runInitiationCeremony` снимает overlays; `openModal` снимает `#storyScene` | v12 break_curse PASS |
+| D-CH3-01 | `q_ch3` закрывался по старому `event:job_cemetery_done` (испытание authority) без `bell_rim` | honest v12 | интеграция | да | `complete_on: unique:bell_rim`; repair `playCemeteryBellScene` на кладбище; ch3 job success at timer | v12 break_curse PASS |
+| D-CH4-01 | Язык колокола не выдавался (не вызывался `tryTongueQuest`) | honest v12 | интеграция | да | `onLocationChange` → `CastleGameplay.tryTongueQuest` | v12 скрин `13-ch4-tongue` |
+| D-CH4-02 | Орган / концерт: UI под `#stage3d` | honest v12 | интеграция | да | `#concertPrep` z-index 132; `advanceOrganPuzzle` на E у органа | v12 crown/concert скрины |
+| D-STORY-03 | `dlg_count_confession` не открывался (`trigger.flag`) | honest v12 | интеграция | да | `tryStoryNpc` проверяет `trigger.flag` | v12 count confession |
 | D-QUEST-01 | Квест не после F5 | отчёт B | интеграция | main | `QUEST_TABLE` + engine | pending |
-| D-STORY-01 | Нет 3 концовок | t104u | интеграция | preview код | `story-endings.mjs` + `story-scenes.mjs` + UI | браузер честное прохождение — pending |
+| D-STORY-01 | Нет 3 концовок | t104u | интеграция | preview код | `story-endings.mjs` + `story-scenes.mjs` + UI | honest v12: 3 прогона + F5 + no dup (раннер) |
 | D-STORY-02 | Замок не в 3D | MASTER TZ | интеграция | WIP `castle` локация | — | частично: двор 3D, орган, концерт; **не** приёмка |
 | D-BUILD-01 | Стройка построек WIP | t104u | интеграция | да | `build_wip` toast | да (код) |
 | D-MONO-01 | Terms/Privacy draft | t104u | интеграция | да | v2026-10-25 terms/privacy | pending |
