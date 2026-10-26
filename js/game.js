@@ -1718,10 +1718,16 @@ function dismissTutorialBlockingOverlays() {
     const st = window.StoryEngine?.ensureStoryState?.(window.me);
     if (st?.flags) st.flags.intro_seen = true;
   }
+  const storyScene = document.getElementById("storyScene");
+  if (storyScene?.classList.contains("active")) {
+    storyScene.classList.remove("active");
+    storyScene.setAttribute("aria-hidden", "true");
+  }
 }
 
 function openModal(id) {
   dismissTutorialBlockingOverlays();
+  window.StoryEngine?.dismissAllStoryUi?.();
   document.querySelectorAll(".modal.active").forEach(el => {
     if (el.id !== id) el.classList.remove("active");
   });

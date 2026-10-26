@@ -130,9 +130,10 @@ async function pressInteract(page, touchOnly) {
 async function openGangNpc(page, nid) {
   await closeGameMenuIfOpen(page);
   await dismissFightOverlay(page);
-  await page.locator('button[onclick*="openModal(\'gangModal\')"]').click();
-  await page.waitForSelector("#gangList");
-  await page.locator(`#gangList .npc-row[data-npc="${nid}"]`).click();
+  await dismissStoryDialog(page);
+  await page.locator('button[onclick*="openModal(\'gangModal\')"]').click({ noWaitAfter: true });
+  await page.waitForSelector("#gangList", { timeout: 20000 });
+  await page.locator(`#gangList .npc-row[data-npc="${nid}"]`).click({ force: true, noWaitAfter: true });
   await sleep(300);
 }
 
