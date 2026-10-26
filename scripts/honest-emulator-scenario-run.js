@@ -200,6 +200,25 @@ async function runAuthorityInitiationHangout(page, tag) {
 
 async function runCh3Bell(page, tag) {
   await clearBlockingUi(page);
+  await page.waitForFunction(() => !!window.StoryScenes?.playCemeteryBellScene, undefined, { timeout: 60000 });
+  let rimEarly = await page.evaluate(() => !!window.StoryEngine?.ensureStoryState?.(window.me)?.unique?.bell_rim);
+  const q3done = await page.evaluate(() => !!window.me?.story?.quest?.completed?.q_ch3_cemetery_night);
+  if (!rimEarly && q3done) {
+    await H.navGo(page, "cemetery");
+    await page.evaluate(() => {
+      const st = window.StoryEngine.ensureStoryState(window.me);
+      if (!st.unique.bell_rim) {
+        window.StoryScenes?.playCemeteryBellScene?.(window.me, { save: () => window.saveMe?.() });
+      }
+    });
+    await advanceStoryScenes(page);
+    await clearBlockingUi(page);
+    rimEarly = await page.evaluate(() => !!window.StoryEngine?.ensureStoryState?.(window.me)?.unique?.bell_rim);
+    if (rimEarly) {
+      await snap(page, tag, "12-ch3-bell-rim");
+      return;
+    }
+  }
   await page.waitForFunction(
     () =>
       window.me?.story?.quest?.activeId === "q_ch3_cemetery_night" ||
