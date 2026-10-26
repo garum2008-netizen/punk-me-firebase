@@ -215,7 +215,7 @@ async function runCh3Bell(page, tag) {
   page.on("dialog", d => d.accept().catch(() => {}));
   await H.runStoryJob(page, "cemetery_night", "cemetery");
   const t0 = Date.now();
-  while (Date.now() - t0 < 45000) {
+  while (Date.now() - t0 < 70000) {
     await H.focusStage(page);
     await H.walkDesktop(page, 350);
     await H.pressInteract(page, false);

@@ -105,11 +105,24 @@ export function initPlayV21(ctx) {
         hooks.toast(t("job_cemetery_done") + " +" + pay);
         window.StoryEngine?.fireStoryEvent?.("job_cemetery_done");
       };
-      if (window.World3D?.startCemeteryJobVariant?.(jobKind) || window.World3D?.startCemeteryJobMini?.()) {
-        hooks.toast(t("job_cemetery_start"));
-        return;
+      const tryStartCemetery3d = () =>
+        window.World3D?.startCemeteryJobVariant?.(jobKind) || window.World3D?.startCemeteryJobMini?.();
+      let started = tryStartCemetery3d();
+      if (!started && me.location === "cemetery") {
+        window.syncStage3D?.();
+        started = tryStartCemetery3d();
       }
       hooks.toast(t("job_cemetery_start"));
+      if (started) return;
+      const seconds = jobKind === "paths" ? 32 : 28;
+      let left = seconds;
+      const tick = setInterval(() => {
+        left -= 1;
+        if (left <= 0) {
+          clearInterval(tick);
+          window._cemeteryJobDone?.(true);
+        }
+      }, 1000);
     },
     startPizzaJob(me, hooks) {
       if (me.location !== "city") {

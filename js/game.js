@@ -2282,5 +2282,6 @@ window.tryDecorPlace = tryDecorPlace;
 window.setBuildType = function (bt) { selectedBuild = bt; toast(t("building") + " " + bt); };
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
+window.syncStage3D = syncStage3D;
 
 document.addEventListener("DOMContentLoaded", init);
