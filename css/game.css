@@ -912,6 +912,19 @@ html.episode-capture .btn-account { display: none !important; }
 .story-scene-title { font-size: 18px; color: #0ff; font-weight: 800; margin-bottom: 6px; }
 .story-scene-speaker { font-size: 13px; color: #ff8800; margin-bottom: 8px; }
 .story-scene-body { font-size: 15px; line-height: 1.55; margin-bottom: 14px; min-height: 4em; }
+#concertPrep {
+  position: fixed;
+  inset: 0;
+  z-index: 132;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  padding: 16px;
+}
+#concertPrep.active {
+  display: flex;
+}
 .ending-choice {
   display: none; position: fixed; inset: 0; z-index: 120; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.88); padding: 16px;

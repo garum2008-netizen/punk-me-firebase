@@ -295,7 +295,9 @@ async function runCh4Castle(page, tag) {
     const hooks = { toast: () => {}, save: () => window.saveMe?.() };
     window.CastleGameplay?.openConcertPrep?.(hooks);
   });
-  await page.locator('#concertPrep [data-headliner="zombina"]').click({ noWaitAfter: true, timeout: 15000 });
+  await page.evaluate(() => {
+    document.querySelector('#concertPrep [data-headliner="zombina"]')?.click();
+  });
   await H.sleep(500);
   const ready = await page.evaluate(() => !!window.StoryEngine?.ensureStoryState?.(window.me)?.flags?.concert_ready);
   if (!ready) throw new Error("concert_ready false");

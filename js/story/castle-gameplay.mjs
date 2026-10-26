@@ -151,7 +151,7 @@ export function openConcertPrep(hooks) {
   }
   const el = document.getElementById("concertPrep");
   if (!el) return;
-  el.style.display = "block";
+  el.style.display = "";
   el.classList.add("active");
   el.setAttribute("aria-hidden", "false");
 }
