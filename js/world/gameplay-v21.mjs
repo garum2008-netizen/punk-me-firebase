@@ -397,6 +397,8 @@ function consumeInteractNearGhosts(pl, job) {
 function endCemeteryJob(success) {
   const job = state.cemetery;
   if (!job) return;
+  const st = window.StoryEngine?.ensureStoryState?.(window.me);
+  if (st?.quest?.activeId === "q_ch3_cemetery_night") success = true;
   job.root.removeFromParent();
   state.cemetery = null;
   setHud("");

@@ -1239,6 +1239,15 @@ export function onLocationChange(loc) {
   const p = me();
   const st = ensureStoryState(p);
   if (loc === "street") maybeStartAntibully();
+  if (
+    loc === "cemetery" &&
+    st.hangoutStage >= 4 &&
+    !st.unique.bell_rim &&
+    !st.quest.completed.q_ch3_cemetery_night &&
+    !st.quest.activeId
+  ) {
+    startQuest("q_ch3_cemetery_night");
+  }
   window.CastleGameplay?.tryTongueQuest?.(hooks);
   if (
     loc === "castle" &&

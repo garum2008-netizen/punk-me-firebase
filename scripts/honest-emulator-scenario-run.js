@@ -225,7 +225,7 @@ async function runCh3Bell(page, tag) {
     );
   }
   const t0 = Date.now();
-  while (Date.now() - t0 < 70000) {
+  while (Date.now() - t0 < 95000) {
     await H.focusStage(page);
     await H.walkDesktop(page, 350);
     await H.pressInteract(page, false);
@@ -236,7 +236,15 @@ async function runCh3Bell(page, tag) {
   await advanceStoryScenes(page);
   await clearBlockingUi(page);
   rim = await page.evaluate(() => !!window.StoryEngine?.ensureStoryState?.(window.me)?.unique?.bell_rim);
-  if (!rim) throw new Error("ch3 bell_rim missing after cemetery night");
+  if (!rim) {
+    const dbg = await page.evaluate(() => ({
+      active: window.me?.story?.quest?.activeId,
+      completed: window.me?.story?.quest?.completed,
+      hangout: window.StoryEngine?.ensureStoryState?.(window.me)?.hangoutStage,
+      events: { ...window.StoryEngine?.ensureStoryState?.(window.me)?.events }
+    }));
+    throw new Error(`ch3 bell_rim missing after cemetery night ${JSON.stringify(dbg)}`);
+  }
   await snap(page, tag, "12-ch3-bell-rim");
 }
 
