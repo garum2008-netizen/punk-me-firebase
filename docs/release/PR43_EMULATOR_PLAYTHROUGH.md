@@ -1,20 +1,30 @@
 # PR #43 — честный прогон на эмуляторе (без `?dev=1`)
 
-**URL:** `http://127.0.0.1:3456/?solo=1&firebaseEmulator=1`  
+**URL:** `?solo=1&firebaseEmulator=1`  
 **Runner:** `FIREBASE_EMULATOR=1 PUNK_BASE=http://127.0.0.1:3456 node scripts/honest-emulator-scenario-run.js`  
 **Артефакты:** `/opt/cursor/artifacts/scenario-ch01/honest-*.png` (не в git)
 
-## Исправление D-ONBOARD-02
+## Исправления в игре (не раннер)
 
-`dlg_razor_initiation` требует `onboarding:done`, но `tryStoryNpc` раньше открывал его на шаге `talk_razor` → `Onboarding.onTalkRazor` не срабатывал как ожидалось.  
-**Фикс:** `checkRequires(d.trigger?.conditions)` при выборе диалога в `story-engine.mjs`.
+| ID | Проблема | Фикс |
+|----|----------|------|
+| D-ONBOARD-02 | `talk_razor` не закрывался | `tryStoryNpc` учитывает `trigger.conditions` → legacy Razor + `onTalkRazor` |
+| D-UI-02 | howTo / chapter intro / shop modal блокируют HUD | `dismissTutorialBlockingOverlays` при travel; `openModal` закрывает другие modals; `buyItem` закрывает shop |
+| D-AUTH-01 | Церемония нашивки не открывалась после trials | `tryAuthorityNpc` razor: `stage>=3` + `stage3Complete` + authority≥80 |
 
-## Цепочка раннера
+## Подтверждённые чекпоинты (эмулятор, v9–v10)
 
-1. Онбординг: move → street → Razor (gang) → cemetery → duel → shop → `done`
-2. Инициация (`finishInitiationUi`) → `joined_gang`
-3. Hangout stages 1–4 (`buildAllHangoutStages`)
-4. Authority path (гл.3–4 UI)
-5. `graph_confession_done` → выбор финала → скрин
+| Шаг | Скрин |
+|-----|--------|
+| Комната / cobalt | `honest-01-room-boot.png` |
+| Move | `honest-02-move-done.png` |
+| Улица | `honest-03-street.png` |
+| Razor talk (step→3) | `honest-04-razor-talk.png` |
+| Кладбище | `honest-05-cemetery.png` |
+| Дуэль | `honest-06-duel-win.png` |
+| Лавка | `honest-07-shop.png` |
+| `onboarding.done` | `honest-08-onboarding-done.png` |
+| Authority trials | `honest-09-ch3-4-authority.png` |
+| Razor initiation dialog | `honest-10-razor-initiation-dialog.png` |
 
-Лог: `honest-run-log.json` в каталоге артефактов.
+Полный прогон (нашивка → hangout 4 → финалы): см. `honest-run-log.json` после успешного `honest-full-v11`.
