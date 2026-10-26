@@ -289,7 +289,7 @@ async function runStoryJob(page, action, loc) {
   await page.waitForSelector("#jobModal.active", { timeout: 15000 });
   await page.locator("#jobModal.active #jobActions button").first().waitFor({ state: "visible", timeout: 15000 });
   const btn = page.locator(`#jobModal.active #jobActions button[onclick*="'${action}'"]`).first();
-  await btn.click({ timeout: 10000, force: true });
+  await btn.click({ timeout: 10000, force: true, noWaitAfter: true });
   await page.waitForFunction(
     ({ a, l }) => window.me?.location === l || a === "construction_helper",
     { a: action, l: loc },
