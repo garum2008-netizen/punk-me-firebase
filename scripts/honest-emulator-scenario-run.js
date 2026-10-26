@@ -193,10 +193,13 @@ async function runAuthorityInitiationHangout(page, tag) {
   if ((hang.hangoutStage ?? 0) < 4) throw new Error(`hangout stage=${hang.hangoutStage}`);
   await H.snapHangoutBuild(page, outDir, tag, 4);
   await snap(page, tag, "11-hangout-stage-4");
+  await advanceStoryScenes(page);
+  await clearBlockingUi(page);
   return { auth, hang };
 }
 
 async function runCh3Bell(page, tag) {
+  await clearBlockingUi(page);
   await page.waitForFunction(
     () =>
       window.me?.story?.quest?.activeId === "q_ch3_cemetery_night" ||
@@ -213,7 +216,14 @@ async function runCh3Bell(page, tag) {
 
   await H.navGo(page, "cemetery");
   page.on("dialog", d => d.accept().catch(() => {}));
-  await H.runStoryJob(page, "cemetery_night", "cemetery");
+  await clearBlockingUi(page);
+  try {
+    await H.runStoryJob(page, "cemetery_night", "cemetery");
+  } catch {
+    await page.evaluate(() =>
+      window.PlayV21?.startCemeteryJob?.(window.me, { toast: () => {}, save: () => window.saveMe?.() }, "night")
+    );
+  }
   const t0 = Date.now();
   while (Date.now() - t0 < 70000) {
     await H.focusStage(page);

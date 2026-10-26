@@ -1980,6 +1980,7 @@ function runJobAction(action) {
 }
 
 function openJobPanel() {
+  dismissTutorialBlockingOverlays();
   document.getElementById("jobModalTitle").textContent = t("jobTitle");
   document.getElementById("jobModalDesc").textContent = t("jobDesc");
   document.getElementById("jobActions").innerHTML = JOB_BOARD.map(j =>
