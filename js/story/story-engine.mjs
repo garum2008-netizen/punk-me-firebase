@@ -603,13 +603,28 @@ export function fireStoryEvent(name) {
   if (name === "duel_razor_win" && st.quest.activeId === "q_initiation_duel" && !st.flags.joined_gang) {
     applyEffects([{ type: "flag", value: "joined_gang" }]);
   }
-  if (name === "hangout_complete" && !st.quest.completed.q_ch2_hangout && st.quest.activeId === "q_ch2_hangout") {
-    checkStepComplete();
+  if (name === "hangout_complete") {
+    if (!st.quest.completed.q_ch2_hangout && st.quest.activeId === "q_ch2_hangout") checkStepComplete();
+    if (
+      st.hangoutStage >= 4 &&
+      !st.quest.completed.q_ch3_cemetery_night &&
+      !st.quest.activeId
+    ) {
+      if (!st.quest.completed.q_ch2_hangout) st.quest.completed.q_ch2_hangout = true;
+      startQuest("q_ch3_cemetery_night");
+    }
   }
-  if (name === "job_cemetery_done" && st.quest.activeId === "q_ch3_cemetery_night" && !st.events.ch3_bell_ready) {
-    window.StoryScenes?.playCemeteryBellScene?.(me(), hooks);
-    st.events.ch3_bell_ready = true;
-    completeQuest("q_ch3_cemetery_night");
+  if (name === "job_cemetery_done" && !st.unique.bell_rim && !st.events.ch3_bell_ready) {
+    if (st.hangoutStage >= 4) {
+      if (!st.quest.completed.q_ch3_cemetery_night && st.quest.activeId !== "q_ch3_cemetery_night") {
+        startQuest("q_ch3_cemetery_night");
+      }
+      if (st.quest.activeId === "q_ch3_cemetery_night") {
+        window.StoryScenes?.playCemeteryBellScene?.(me(), hooks);
+        st.events.ch3_bell_ready = true;
+        completeQuest("q_ch3_cemetery_night");
+      }
+    }
   }
   if (name === "graph_confession_done") {
     completeQuest("q_ch4_castle");
