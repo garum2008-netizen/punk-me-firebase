@@ -583,7 +583,7 @@ async function finishInitiationUi(page) {
     await openGangNpc(page, "razor");
   }
   await initBtn.waitFor({ state: "visible", timeout: 20000 });
-  await initBtn.click({ timeout: 15000 });
+  await initBtn.click({ timeout: 15000, noWaitAfter: true });
   await sleep(400);
   await clickFirstStoryChoice(page).catch(() => {});
   await dismissStoryDialog(page);

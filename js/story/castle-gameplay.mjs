@@ -47,10 +47,11 @@ export function tryCastleInteract(hooks) {
     return playOrganNote(hit.slot ?? hit, hooks);
   }
   if (hit === "organ" || hit.id === "organ") {
+    if (advanceOrganPuzzle(hooks)) return true;
     hooks?.toast?.(
       L({
-        ru: "Орган: зажги свечи в порядке нот (подсказка у пола).",
-        en: "Organ: light candles in note order (hint on the floor).",
+        ru: "Орган: зажги свечи в порядке нот (подсказка у пола). Нажми E у органа снова для следующей ноты.",
+        en: "Organ: light candles in note order. Press E at the organ again for the next note.",
         da: "Orgel: tænd lys i rækkefølge."
       })
     );
@@ -75,6 +76,16 @@ export function tryCastleInteract(hooks) {
     return true;
   }
   return false;
+}
+
+/** Lights the next correct organ candle (same rules as candle interact). */
+export function advanceOrganPuzzle(hooks) {
+  const st = story();
+  if (st.unique?.bell_crown) return false;
+  const slot = st.organProgress?.length ?? 0;
+  if (slot >= ORGAN_SEQUENCE.length) return false;
+  playOrganNote({ slot, note: ORGAN_SEQUENCE[slot] }, hooks);
+  return true;
 }
 
 function playOrganNote(slotInfo, hooks) {
@@ -201,6 +212,7 @@ function openTongueChoice(branch, hooks) {
 
 window.CastleGameplay = {
   tryCastleInteract,
+  advanceOrganPuzzle,
   openConcertPrep,
   confirmConcertPrep,
   tryTongueQuest,

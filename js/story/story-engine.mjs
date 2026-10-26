@@ -1181,7 +1181,9 @@ export function tryStoryNpc(npcId) {
   const dlg = data.dialogues.find(d => {
     if (d.location !== loc) return false;
     if (st.flags.joined_gang && d.id === "dlg_razor_initiation") return false;
-    if (!checkRequires(d.trigger?.conditions)) return false;
+    const tr = d.trigger || {};
+    if (tr.flag && !evalCondition(`flag:${tr.flag}`)) return false;
+    if (!checkRequires(tr.conditions)) return false;
     return d.nodes?.some(n => (n.speaker || "").includes(npcId));
   });
   if (dlg) {
@@ -1222,6 +1224,7 @@ export function onLocationChange(loc) {
   const p = me();
   const st = ensureStoryState(p);
   if (loc === "street") maybeStartAntibully();
+  window.CastleGameplay?.tryTongueQuest?.(hooks);
   if (
     loc === "castle" &&
     st.unique?.bell_rim &&

@@ -259,7 +259,9 @@ export function runInitiationCeremony(opts = {}) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => window.StoryEngine?.applyDialogueCamera?.("razor"));
     });
-    dlg.querySelector("#authInitBtn").onclick = () => {
+    dlg.querySelector("#authInitBtn").onclick = ev => {
+      ev?.preventDefault?.();
+      ev?.stopPropagation?.();
       dlg.classList.remove("active");
       window.StoryEngine?.clearDialogueCamera?.();
       finishInitiation();
