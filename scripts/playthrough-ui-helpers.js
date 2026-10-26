@@ -221,7 +221,7 @@ async function buyCheapestShop(page) {
 
 async function clickFirstStoryChoice(page) {
   const c = page.locator(".story-choice");
-  await c.first().click({ timeout: 15000 });
+  await c.first().click({ timeout: 15000, noWaitAfter: true });
   await sleep(400);
 }
 
