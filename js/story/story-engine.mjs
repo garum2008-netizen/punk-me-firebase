@@ -622,7 +622,7 @@ export function fireStoryEvent(name) {
       if (st.quest.activeId === "q_ch3_cemetery_night") {
         window.StoryScenes?.playCemeteryBellScene?.(me(), hooks);
         st.events.ch3_bell_ready = true;
-        completeQuest("q_ch3_cemetery_night");
+        checkStepComplete();
       }
     }
   }
@@ -1247,6 +1247,10 @@ export function onLocationChange(loc) {
     !st.quest.activeId
   ) {
     startQuest("q_ch3_cemetery_night");
+  }
+  if (loc === "cemetery" && st.quest.completed.q_ch3_cemetery_night && !st.unique.bell_rim) {
+    window.StoryScenes?.playCemeteryBellScene?.(p, hooks);
+    st.events.ch3_bell_ready = true;
   }
   window.CastleGameplay?.tryTongueQuest?.(hooks);
   if (

@@ -620,7 +620,7 @@
             "da": "Nattevagt med Vogteren"
           },
           "beacon": "npc_gravedigger",
-          "complete_on": "event:job_cemetery_done",
+          "complete_on": "unique:bell_rim",
           "hint_nudge": { "ru": "Работа → кладбище → ночная смена", "en": "Jobs → cemetery → night shift", "da": "Job → kirkegård" },
           "hint_60s": { "ru": "На кладбище нажми «Работа» и выбери ночную смену", "en": "On the cemetery, open Jobs and pick night shift", "da": "Vælg nattevagt" },
           "hint_exact": { "ru": "Кнопка «Работа» внизу → «Ночная смена на кладбище»", "en": "Bottom bar Jobs → Cemetery night shift", "da": "Job-knap → nattevagt" }
