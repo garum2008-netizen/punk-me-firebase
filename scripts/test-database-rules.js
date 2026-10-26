@@ -73,7 +73,15 @@ function denied(r) {
 function pass(name, ok, detail = "") {
   results.push({ name, ok, detail });
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
-  if (!ok) throw new Error(name);
+}
+
+function finishResults() {
+  const failed = results.filter(r => !r.ok);
+  const passed = results.length - failed.length;
+  console.log(`\n=== Summary: ${passed} PASS, ${failed.length} FAIL (${results.length} total) ===`);
+  for (const f of failed) console.log(`  FAIL: ${f.name}${f.detail ? ` — ${f.detail}` : ""}`);
+  if (failed.length) process.exit(1);
+  process.exit(0);
 }
 
 async function authSignUp() {
@@ -201,8 +209,7 @@ async function run() {
     console.log(
       "PASS (analysis): owner-admin.mjs reads /players root — needs auth.token.admin (rules allow)."
     );
-    console.log(`\nAll ${results.length} emulator rule cases passed (players-only scope).`);
-    process.exit(0);
+    finishResults();
   }
 
   r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`));
@@ -253,6 +260,16 @@ async function run() {
   });
   pass("alice write own presence → allow", r.status === 200, r.body);
 
+  r = await fetchJson(dbUrl(`presence/room/${aliceUid}`, bobAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...presencePayload, name: "Intruder" })
+  });
+  pass("bob write alice presence → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl("presence/room", aliceAuth.idToken));
+  pass("alice read presence/room (authed) → allow", r.status === 200, `status ${r.status}`);
+
   r = await fetchJson(dbUrl("presence/room"));
   if (prodHotfix) {
     pass("unauth read presence/room → deny (prod-hotfix)", denied(r), `status ${r.status}`);
@@ -297,6 +314,35 @@ async function run() {
     pass("alice place building piece → allow", r.status === 200, r.body);
   }
 
+  r = await fetchJson(dbUrl(`players/${aliceUid}/qa`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled: true })
+  });
+  pass("alice PUT qa → deny", denied(r), `status ${r.status}`);
+
+  await admin.database().ref(`players/${aliceUid}/premium`).set(true);
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coins: 110 })
+  });
+  pass("alice PATCH coins (premium set by admin) → allow", r.status === 200, r.body);
+
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ premium: false })
+  });
+  pass("alice PATCH premium:false → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...samplePlayer, coins: 999, premium: false })
+  });
+  pass("alice PUT whole player dropping premium field → deny", denied(r), `status ${r.status}`);
+
   console.log("\n--- client impact (main @ 450d6da vs rules in this repo) ---");
   console.log(
     "PASS (analysis): main game.js does NOT read /players root; multiplayer uses /presence/{location} only."
@@ -313,12 +359,14 @@ async function run() {
   console.log(
     "PASS (analysis): hotfix game.js saveMe uses .update(sanitizePlayer) without premium — compatible with premium validate + unchanged admin premium."
   );
+  console.log(
+    "PASS (analysis): initMultiplayer/pushPresence write presence/{loc}/{uid} — hotfix repairs presence when live export omits own-write rules."
+  );
 
-  console.log(`\nAll ${results.length} emulator rule cases passed.`);
-  process.exit(0);
+  finishResults();
 }
 
 run().catch(e => {
   console.error(e);
-  process.exit(1);
+  finishResults();
 });

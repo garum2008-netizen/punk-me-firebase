@@ -97,7 +97,16 @@ async function main() {
   }
 
   const live = loadJson(input);
-  const hotfix = applyHotfixPatch(live);
+  const { rulesJson: hotfix, presenceRepair, chatRepair } = applyHotfixPatch(live);
+  if (presenceRepair?.repaired) {
+    console.log(
+      "\nNote: presence rules repaired for client multiplayer (auth read + own write only):",
+      presenceRepair.reason
+    );
+  }
+  if (chatRepair?.repaired) {
+    console.log("\nNote: chat rules repaired for gang chat (auth read + own message write):", chatRepair.reason);
+  }
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(hotfix, null, 2) + "\n");
 
@@ -115,8 +124,7 @@ async function main() {
     await emulatorPass("Emulator: prod audit model (baseline)", live, { PROD_AUDIT_MODE: "baseline" });
     await emulatorPass("Emulator: prod audit model (hotfix)", hotfix, {
       PROD_AUDIT_MODE: "hotfix",
-      RULES_TEST_PROFILE: "prod-hotfix",
-      RULES_TEST_SCOPE: "players-only"
+      RULES_TEST_PROFILE: "prod-hotfix"
     });
   } else {
     await runWithRules(hotfix, async () => {

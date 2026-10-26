@@ -14,6 +14,8 @@ const AUTH_HOST = "127.0.0.1";
 const AUTH_PORT = 9099;
 const DB_NS = `${PROJECT_ID}-default-rtdb`;
 
+const results = [];
+
 function fetchJson(url, opts = {}) {
   return new Promise((resolve, reject) => {
     const req = http.request(url, { method: opts.method || "GET", headers: opts.headers || {} }, res => {
@@ -45,8 +47,16 @@ function denied(r) {
 }
 
 function pass(name, ok, detail = "") {
+  results.push({ name, ok, detail });
   console.log(`${ok ? "PASS" : "FAIL"}: [audit/${MODE}] ${name}${detail ? ` — ${detail}` : ""}`);
-  if (!ok) process.exit(1);
+}
+
+function finishResults() {
+  const failed = results.filter(r => !r.ok);
+  console.log(`\n=== Audit summary: ${results.length - failed.length} PASS, ${failed.length} FAIL ===`);
+  for (const f of failed) console.log(`  FAIL: ${f.name}`);
+  if (failed.length) process.exit(1);
+  process.exit(0);
 }
 
 async function authSignUp() {
@@ -89,10 +99,10 @@ async function run() {
     pass("alice PUT premium → deny", denied(r), `status ${r.status}`);
   }
 
-  console.log(`prod-audit model (${MODE}): all checks passed`);
+  finishResults();
 }
 
 run().catch(e => {
   console.error(e);
-  process.exit(1);
+  finishResults();
 });

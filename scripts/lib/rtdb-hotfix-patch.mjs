@@ -1,6 +1,7 @@
 /**
  * Minimal RTDB rules hotfix: close public /players read; premium/entitlements/qa admin-only.
- * Does NOT modify presence, chat, publicProfiles, buildings (keeps live prod shape).
+ * Preserves live presence/chat/publicProfiles/buildings when present and working.
+ * Repairs presence only when live export cannot allow authenticated own writes (client needs this).
  */
 
 const ADMIN_READ_PLAYERS = "auth != null && auth.token.admin === true";
@@ -16,6 +17,77 @@ export const PRIVILEGED_CHILD_RULES = {
   qa: { ".validate": PRIV_VALIDATE }
 };
 
+/** Matches main @ 450d6da client `pushPresence` payload; read requires auth (prod anon deny). */
+export const MINIMAL_CHAT_FOR_CLIENT = {
+  ".read": "auth != null",
+  $msgId: {
+    ".write":
+      "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 280",
+    ".validate":
+      "newData.hasChildren(['uid', 'name', 'text', 'time']) && newData.child('name').isString() && newData.child('name').val().length <= 64"
+  }
+};
+
+export const MINIMAL_PRESENCE_FOR_CLIENT = {
+  $location: {
+    ".read": "auth != null",
+    $uid: {
+      ".write": UID_WRITE,
+      ".validate":
+        "newData.hasChildren(['name', 'x', 'y', 'ts']) && newData.child('name').isString() && newData.child('name').val().length <= 64 && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('ts').isNumber() && (!newData.hasChild('avatar') || newData.child('avatar').isString()) && (!newData.hasChild('level') || newData.child('level').isNumber()) && (!newData.hasChild('characterId') || newData.child('characterId').isString()) && (!newData.hasChild('anim') || newData.child('anim').isString()) && (!newData.hasChild('probe') || newData.child('probe').isBoolean())"
+    }
+  }
+};
+
+function flattenRules(obj, prefix = "") {
+  const paths = {};
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
+    if (prefix) paths[prefix] = obj;
+    return paths;
+  }
+  for (const [k, v] of Object.entries(obj)) {
+    const p = prefix ? `${prefix}.${k}` : k;
+    if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+      Object.assign(paths, flattenRules(v, p));
+    } else if (prefix || k.startsWith(".")) {
+      paths[p] = v;
+    }
+  }
+  return paths;
+}
+
+/** True if some rule under presence allows auth.uid === $uid to write own leaf. */
+export function presenceAllowsOwnWrite(rulesRoot) {
+  const flat = flattenRules(rulesRoot?.presence ?? {});
+  const writeEntries = Object.entries(flat).filter(([k]) => k.endsWith(".write") || k === ".write");
+  if (!writeEntries.length) return false;
+  return writeEntries.some(([, v]) => {
+    if (typeof v !== "string") return false;
+    return v.includes("auth.uid") && (v.includes("$uid") || v.includes("=== $uid") || v.includes("=== auth.uid"));
+  });
+}
+
+export function ensurePresenceForClient(rulesRoot) {
+  if (presenceAllowsOwnWrite(rulesRoot)) {
+    return { repaired: false };
+  }
+  rulesRoot.presence = JSON.parse(JSON.stringify(MINIMAL_PRESENCE_FOR_CLIENT));
+  return { repaired: true, reason: "live export missing or blocking presence/$location/$uid write" };
+}
+
+function chatAllowsAuthWrite(rulesRoot) {
+  const flat = flattenRules(rulesRoot?.chat ?? {});
+  return Object.entries(flat).some(([k, v]) => k.includes(".write") && typeof v === "string" && v.includes("auth.uid"));
+}
+
+export function ensureChatForClient(rulesRoot) {
+  if (chatAllowsAuthWrite(rulesRoot)) {
+    return { repaired: false };
+  }
+  rulesRoot.chat = JSON.parse(JSON.stringify(MINIMAL_CHAT_FOR_CLIENT));
+  return { repaired: true, reason: "live export missing chat write rules" };
+}
+
 export function applyHotfixPatch(liveRules) {
   const out = JSON.parse(JSON.stringify(liveRules));
   if (!out.rules) out.rules = {};
@@ -30,7 +102,9 @@ export function applyHotfixPatch(liveRules) {
   }
   players["$uid"] = uid;
   out.rules.players = players;
-  return out;
+  const presenceRepair = ensurePresenceForClient(out.rules);
+  const chatRepair = ensureChatForClient(out.rules);
+  return { rulesJson: out, presenceRepair, chatRepair };
 }
 
 /** Flatten rule object to dotted paths for diff. */
@@ -41,6 +115,7 @@ function flatten(obj, prefix = "") {
     return paths;
   }
   for (const [k, v] of Object.entries(obj)) {
+    if (k === "_hotfixMeta") continue;
     const p = prefix ? `${prefix}.${k}` : k;
     if (v !== null && typeof v === "object" && !Array.isArray(v)) {
       Object.assign(paths, flatten(v, p));

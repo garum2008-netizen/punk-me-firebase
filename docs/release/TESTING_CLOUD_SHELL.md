@@ -51,6 +51,20 @@ export FIREBASE_PROJECT=punk-me-40605
 npx firebase database:rules:get --project punk-me-40605 | head -c 200
 ```
 
+Запасной вариант, если CLI недоступен или команда не находится (только чтение rules, ADC / user token):
+
+```bash
+export FIREBASE_PROJECT=punk-me-40605
+gcloud auth application-default login   # или уже залогинен Cloud Shell user
+TOKEN="$(gcloud auth print-access-token)"
+curl -fsS \
+  "https://${FIREBASE_PROJECT}-default-rtdb.firebaseio.com/.settings/rules.json?access_token=${TOKEN}" \
+  -o /tmp/rtdb-rules-prod-export.json
+head -c 200 /tmp/rtdb-rules-prod-export.json
+```
+
+Нужен scope с доступом к Firebase (в Cloud Shell обычно `cloud-platform`). `npm run owner:readonly-check` пробует CLI, затем этот REST автоматически.
+
 ## 4. ADC для Admin SDK (`list-test-artifacts`, owner scripts)
 
 Скрипты `scripts/list-test-artifacts.mjs` и эмуляторные тесты с `firebase-admin` в Cloud Shell используют **Application Default Credentials** пользователя Cloud Shell:
