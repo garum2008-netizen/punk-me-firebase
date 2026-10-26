@@ -14,7 +14,9 @@ assertSafeTestFirebaseTarget();
 const base = process.env.PUNK_BASE || "http://127.0.0.1:3456";
 const outDir = process.env.SCENARIO_ARTIFACT_DIR || "/opt/cursor/artifacts/scenario-ch01";
 const cache = process.env.SCENARIO_CACHE || "honest-full-v12";
-const ENDINGS = ["ending_break_curse", "ending_zombie_style", "ending_count_deal"];
+const ENDINGS = process.env.HONEST_ENDINGS
+  ? process.env.HONEST_ENDINGS.split(",").map(s => s.trim())
+  : ["ending_break_curse", "ending_zombie_style", "ending_count_deal"];
 
 const log = [];
 

@@ -335,7 +335,7 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   background: #1a0a2e; color: #fff;
 }
 .modal {
-  position: absolute; inset: 10px; z-index: 40;
+  position: absolute; inset: 10px; z-index: 90;
   background: rgba(8,6,18,0.97); border: 2px solid #ff00ff;
   border-radius: 16px; padding: 14px; display: none; overflow: auto;
 }
@@ -770,7 +770,7 @@ html.episode-capture .btn-account { display: none !important; }
 .story-objective .story-subgoal { color: #88ffee; margin-top: 4px; font-size: 11px; }
 .story-meters { font-size: 10px; opacity: 0.85; margin-top: 4px; }
 #storyDialog {
-  position: fixed; inset: 0; z-index: 55; display: none; align-items: center; justify-content: center;
+  position: fixed; inset: 0; z-index: 128; display: none; align-items: center; justify-content: center;
   background: rgba(4, 2, 12, 0.38);
 }
 #storyDialog.active { display: flex; }

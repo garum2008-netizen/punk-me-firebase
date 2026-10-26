@@ -251,6 +251,8 @@ export function runInitiationCeremony(opts = {}) {
   const stage = pathData?.stages?.[3];
   const dlg = document.getElementById("storyDialog");
   if (dlg && stage?.ceremony) {
+    document.getElementById("storyScene")?.classList.remove("active");
+    document.getElementById("chapterIntro")?.classList.remove("active");
     dlg.classList.add("active");
     dlg.querySelector(".story-dialog-title").textContent = L(stage.title);
     dlg.querySelector(".story-dialog-body").innerHTML =
