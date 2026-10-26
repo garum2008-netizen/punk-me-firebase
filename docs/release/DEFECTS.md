@@ -24,8 +24,15 @@
 | D-CH4-01 | Язык колокола не выдавался (не вызывался `tryTongueQuest`) | honest v12 | интеграция | да | `onLocationChange` → `CastleGameplay.tryTongueQuest` | v12 скрин `13-ch4-tongue` |
 | D-CH4-02 | Орган / концерт: UI под `#stage3d` | honest v12 | интеграция | да | `#concertPrep` z-index 132; `advanceOrganPuzzle` на E у органа | v12 crown/concert скрины |
 | D-STORY-03 | `dlg_count_confession` не открывался (`trigger.flag`) | honest v12 | интеграция | да | `tryStoryNpc` проверяет `trigger.flag` | v12 count confession |
+| D-FINALE-01 | Финал: одна строка, без брифинга/реакций/наград/пост-игры | v12 скрины приёмки | интеграция | да | `playFinaleBriefingBeforeChoice`, мультипанельные `ENDING_SCENES`, `#endingRewards`, `finishPostgame` | automated v12 re-run |
+| D-FINALE-02 | Субтитры: `npc_narrator:`, склейка «The Bell The chime» | v12 | интеграция | да | `resolveSpeakerName`, subtitle = body only | automated v12 |
+| D-UI-03 | HUD «Chapter 2» в гл.4; сайд-квест «Grave flowers» на финале | v12-99-error | интеграция | да | `mainlineChapter`, блок сайд-квестов после ch3, `startQuest` main | automated v12 |
+| D-UI-04 | Пустая розовая полоса под квестом | v12 | интеграция | да | `.story-goal-progress:empty { display:none }` | automated v12 |
+| D-I18N-01 | Табличка «ЗАМОК» в EN | v12 castle | интеграция | да | `neonSign(t('door_castle'))` | automated v12 |
+| D-CH4-03 | Замок — серые блоки без декора | v12 | интеграция | да | баннеры, факелы, арка в `castle-location.mjs` | automated v12 |
+| D-TEST-02 | Раннер: F5/noDup/free play только 1-й финал; 99-error = concert UI | v12 | интеграция | да | все 3 прогона: F5+free play+noDup; пометка automated Playwright | automated v12 |
 | D-QUEST-01 | Квест не после F5 | отчёт B | интеграция | main | `QUEST_TABLE` + engine | pending |
-| D-STORY-01 | Нет 3 концовок | t104u | интеграция | preview код | `story-endings.mjs` + `story-scenes.mjs` + UI | honest v12: 3 прогона + F5 + no dup (раннер) |
+| D-STORY-01 | Нет 3 концовок (канон: сцены+мир+награды) | t104u | интеграция | preview код | `story-endings.mjs` + `story-scenes.mjs` + UI | automated v12 (не live QA) |
 | D-STORY-02 | Замок не в 3D | MASTER TZ | интеграция | WIP `castle` локация | — | частично: двор 3D, орган, концерт; **не** приёмка |
 | D-BUILD-01 | Стройка построек WIP | t104u | интеграция | да | `build_wip` toast | да (код) |
 | D-MONO-01 | Terms/Privacy draft | t104u | интеграция | да | v2026-10-25 terms/privacy | pending |
