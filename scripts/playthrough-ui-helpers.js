@@ -575,19 +575,18 @@ async function completeAuthorityPathUi(page, touchOnly, log = []) {
 
 async function finishInitiationUi(page) {
   await navGo(page, "street");
-  await dismissStoryDialog(page);
-  await openGangNpc(page, "razor");
   const initBtn = page.locator("#authInitBtn");
-  if (!(await initBtn.isVisible().catch(() => false))) {
-    await advanceStoryNext(page);
-    await dismissStoryDialog(page);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (await initBtn.isVisible().catch(() => false)) break;
     await openGangNpc(page, "razor");
+    await sleep(500);
+    if (await initBtn.isVisible().catch(() => false)) break;
+    await advanceStoryNext(page);
+    await sleep(300);
   }
-  await initBtn.waitFor({ state: "visible", timeout: 20000 });
-  await initBtn.click({ timeout: 15000, noWaitAfter: true });
-  await sleep(400);
-  await clickFirstStoryChoice(page).catch(() => {});
-  await dismissStoryDialog(page);
+  await initBtn.waitFor({ state: "visible", timeout: 25000 });
+  await initBtn.click({ force: true, timeout: 15000, noWaitAfter: true });
+  await sleep(500);
 }
 
 module.exports = {
