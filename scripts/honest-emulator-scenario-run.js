@@ -309,18 +309,37 @@ async function runCh4Castle(page, tag) {
   const confessed = await page.evaluate(() => !!window.StoryEngine?.ensureStoryState?.(window.me)?.flags?.graph_truth);
   if (!confessed) throw new Error("graph_truth / confession missing");
   await snap(page, tag, "17-count-confession");
+  await advanceStoryScenes(page);
 }
 
 async function openEndingChoice(page) {
-  const ui = await page.evaluate(() => ({
-    active: document.getElementById("endingChoice")?.classList.contains("active"),
-    ending: window.me?.story?.ending
-  }));
-  if (!ui.active) {
-    await page.evaluate(() => window.StoryEngine?.fireStoryEvent?.("graph_confession_done"));
-    await H.sleep(600);
+  for (let i = 0; i < 28; i++) {
+    const state = await page.evaluate(() => ({
+      choice: document.getElementById("endingChoice")?.classList.contains("active"),
+      scene: document.getElementById("storyScene")?.classList.contains("active"),
+      confessed: !!window.StoryEngine?.ensureStoryState?.(window.me)?.flags?.graph_truth
+    }));
+    if (state.choice) return;
+    if (state.scene) {
+      await advanceStoryScenes(page);
+      await H.sleep(350);
+      continue;
+    }
+    if (state.confessed) {
+      await page.evaluate(() => {
+        if (!document.getElementById("endingChoice")?.classList.contains("active")) {
+          window.StoryScenes?.playFinaleBriefingBeforeChoice?.({
+            toast: () => {},
+            save: () => window.saveMe?.()
+          });
+        }
+      });
+    } else {
+      await page.evaluate(() => window.StoryEngine?.fireStoryEvent?.("graph_confession_done"));
+    }
+    await H.sleep(400);
   }
-  await page.waitForSelector("#endingChoice.active", { timeout: 30000 });
+  await page.waitForSelector("#endingChoice.active", { timeout: 45000 });
 }
 
 async function pickEnding(page, tag, endingId) {
