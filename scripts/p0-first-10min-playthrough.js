@@ -26,7 +26,11 @@ async function boot(page, base) {
     window.__punkFinishLoadMeFlow();
   });
   await page.locator('.char-pick[data-id="cobalt"]').click();
-  await page.locator("#charSelectConfirm").click();
+  await page.locator("#charSelectConfirm").click({ timeout: 60000 });
+  if (await page.locator("#startGameOverlay.active").count()) {
+    await page.locator("#btnStartGame").evaluate(btn => btn.click());
+    await page.waitForFunction(() => window.me?.tutorial?.episode1Started === true, { timeout: 30000 });
+  }
   await page.waitForFunction(() => window.__playerLoaded && window.World3D?.isReady?.(), { timeout: 120000 });
   await H.dismissHowToOverlay(page);
   await page.evaluate(() => {

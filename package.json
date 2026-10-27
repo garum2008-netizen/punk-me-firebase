@@ -15,6 +15,7 @@
     "test:quest-table-sync": "node scripts/test-quest-table-sync.mjs",
     "test:ch0-p0": "node scripts/test-ch0-p0.mjs",
     "test:p0-first-10min": "node scripts/p0-first-10min-playthrough.js",
+    "test:newcomer-no-force": "node scripts/newcomer-no-force-playthrough.js",
     "test:rules": "node scripts/run-rules-emulator.js",
     "list:test-artifacts": "node scripts/list-test-artifacts.mjs",
     "generate:voice-audit-samples": "node scripts/generate-voice-audit-samples.mjs",

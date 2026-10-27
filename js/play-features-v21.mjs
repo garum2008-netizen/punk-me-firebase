@@ -38,36 +38,72 @@ export function initPlayV21(ctx) {
   const api = {
     tryInteract(me, hooks) {
       const loc = me.location;
+      const obStep = window.Onboarding?.getCurrentStep?.()?.key;
+      const obActive = window.Onboarding?.isActive?.();
+      if (loc === "kitchen" && me.y >= 28 && me.y <= 55 && me.x < 60 && obStep === "ch0_feed_bowl") {
+        window.Onboarding?.onFeedBowl?.();
+        hooks.toast(t("onboard_feed_bowl_toast"));
+        hooks.save();
+        return true;
+      }
+      if (loc === "room" && obActive) {
+        if (obStep === "ch0_mom_talk" && me.x < 22 && me.y < 55) {
+          window.Onboarding?.onMomTalk?.();
+          return true;
+        }
+        if (obStep === "ch0_interact_done") {
+          if (me.x > 62 && me.y > 38) {
+            hooks.toast(t("interact_tv"));
+            window.Onboarding?.onInteractTutorial?.();
+            return true;
+          }
+          const nearSofa = me.x < 58 && me.y > 42;
+          if (nearSofa) {
+            window.World3D?.setPlayerSit?.(true);
+            hooks.toast(t("interact_sit"));
+            window.Onboarding?.onInteractTutorial?.();
+            setTimeout(() => window.World3D?.setPlayerSit?.(false), 4200);
+            return true;
+          }
+        }
+        if (obStep === "ch0_avatar_chosen" && me.x > 68 && me.y > 40) {
+          window.Onboarding?.onAvatarMirror?.();
+          return true;
+        }
+      }
       const nearNpc = window.World3D?.getNearestNpc?.();
-      if (nearNpc && window.openNpcDialog) {
+      const npcBlocksOnboarding =
+        obActive &&
+        (obStep === "ch0_interact_done" || obStep === "ch0_feed_bowl" || obStep === "ch0_mom_talk");
+      if (nearNpc && window.openNpcDialog && !npcBlocksOnboarding) {
         window.openNpcDialog(nearNpc);
         return true;
       }
       if (loc === "room") {
-        if (me.x < 22 && me.y < 55 && window.Onboarding?.isActive?.()) {
+        if (me.x < 22 && me.y < 55 && obActive) {
           window.Onboarding?.onMomTalk?.();
           return true;
         }
         if (me.x > 68 && me.y > 40) {
-          if (window.Onboarding?.getCurrentStep?.()?.key === "ch0_avatar_chosen") {
+          if (obStep === "ch0_avatar_chosen") {
             window.Onboarding?.onAvatarMirror?.();
             return true;
           }
           hooks.toast(t("interact_tv"));
-          window.Onboarding?.onInteractTutorial?.();
+          if (obActive) window.Onboarding?.onInteractTutorial?.();
           return true;
         }
         const nearSofa = me.x < 55 && me.y > 45;
         if (nearSofa) {
           window.World3D?.setPlayerSit?.(true);
           hooks.toast(t("interact_sit"));
-          window.Onboarding?.onInteractTutorial?.();
+          if (obActive) window.Onboarding?.onInteractTutorial?.();
           setTimeout(() => window.World3D?.setPlayerSit?.(false), 4200);
           return true;
         }
       }
       if (loc === "kitchen" && me.y >= 28 && me.y <= 55 && me.x < 60) {
-        if (window.Onboarding?.getCurrentStep?.()?.key === "ch0_feed_bowl") {
+        if (obStep === "ch0_feed_bowl") {
           window.Onboarding?.onFeedBowl?.();
           hooks.toast(t("onboard_feed_bowl_toast"));
           hooks.save();

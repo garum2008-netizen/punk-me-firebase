@@ -1,6 +1,23 @@
 {
   "dialogues": [
     {
+      "id": "dlg_razor_ch1_bridge",
+      "location": "street",
+      "trigger": { "type": "proximity", "radius_m": 10, "conditions": ["onboarding:done", "flag:!joined_gang", "flag:!ch1_initiation_unlocked"] },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_razor",
+          "text": {
+            "ru": "Эй, панк! Банда смотрит. Сначала Ирокез проверит, выдержишь ли насмешки — найди его на улице.",
+            "en": "Hey, punk! The gang's watching. Mohawk runs the hazing first — find him on the street.",
+            "da": "Hey, punk! Banden kigger. Mohawk leder hånen — find ham på gaden."
+          },
+          "next": "END"
+        }
+      ]
+    },
+    {
       "id": "dlg_razor_initiation",
       "location": "street",
       "trigger": { "type": "proximity", "radius_m": 10, "conditions": ["onboarding:done", "flag:!joined_gang", "flag:ch1_initiation_unlocked"] },

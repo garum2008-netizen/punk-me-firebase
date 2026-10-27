@@ -36,7 +36,7 @@ function currentHintStep() {
     const st = window.Onboarding?.getCurrentStep?.();
     if (!st) return null;
     return {
-      id: st.qt || st.id,
+      id: st.id || st.qt,
       hint_nudge: st.hint_nudge,
       hint_60s: st.hint_60s,
       hint_exact: st.hint_exact,
@@ -46,6 +46,18 @@ function currentHintStep() {
   }
   const step = window.StoryEngine?.getActiveStep?.() || null;
   if (step) return step;
+  const auth = window.StoryEngine?.Authority?.getAuthorityObjective?.(window.me);
+  if (auth) {
+    const obj = auth.objective || "";
+    return {
+      id: `auth_${auth.beacon || "stage"}`,
+      hint_nudge: { ru: obj, en: obj, da: obj },
+      hint_60s: auth.title ? { ru: auth.title, en: auth.title, da: auth.title } : undefined,
+      hint_exact: { ru: obj, en: obj, da: obj },
+      hint_solution: auth.beacon ? { ru: obj, en: obj, da: obj } : undefined,
+      hint_solution_path: !!auth.beacon
+    };
+  }
   return null;
 }
 

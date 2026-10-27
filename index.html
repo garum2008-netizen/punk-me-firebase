@@ -308,14 +308,14 @@
     </div>
   </div>
 </div>
-<div id="startGameOverlay" class="start-game-overlay" role="dialog" aria-modal="true">
+<div id="startGameOverlay" class="start-game-overlay" role="dialog" aria-modal="true" aria-hidden="true" inert>
   <div class="start-game-panel">
     <h2 data-i18n="start_game_title">PUNK ME</h2>
     <p data-i18n="start_game_body">Нажми, чтобы включить звук и начать главу 0.</p>
-    <button type="button" class="btn" id="btnStartGame" data-i18n="start_game_btn">Начать</button>
+    <button type="button" class="btn" id="btnStartGame" data-i18n="start_game_btn" tabindex="-1">Начать</button>
   </div>
 </div>
-<div id="gameMenuOverlay" class="game-menu-overlay" role="dialog" aria-modal="true">
+<div id="gameMenuOverlay" class="game-menu-overlay" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="game-menu-panel">
     <button type="button" class="close" id="gameMenuClose">✕</button>
     <h2 data-i18n="game_menu_title">Меню</h2>

@@ -1203,6 +1203,14 @@ export function tryStoryNpc(npcId) {
   if (Authority.tryAuthorityNpc(npcId)) return true;
   const st = story();
   const loc = me().location;
+  if (
+    npcId === "razor" &&
+    !st.flags.joined_gang &&
+    !st.flags.ch1_initiation_unlocked &&
+    (st.flags.ch0_razor_talk || window.me?.onboarding?.done)
+  ) {
+    return openDialogueById("dlg_razor_ch1_bridge");
+  }
   if (npcId === "bolt" && st.flags.joined_gang) {
     openBoltMaterialShop();
     return true;

@@ -5,7 +5,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_awake",
     key: "ch0_awake",
     goal: 1,
-    reward: { coins: 10, xp: 10 },
+    reward: { coins: 5, xp: 8 },
     target: () => ({ loc: "room" }),
     hint_nudge: { ru: "Осмотрись вокруг", en: "Look around", da: "Kig rundt" },
     hint_60s: { ru: "Покрути камеру или пройдись", en: "Turn the camera or walk", da: "Drej kameraet eller gå" },
@@ -16,7 +16,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_mom",
     key: "ch0_mom_talk",
     goal: 1,
-    reward: { coins: 15, xp: 12 },
+    reward: { coins: 8, xp: 10 },
     target: () => ({ loc: "room", wx: 8, wz: 42, door: "kitchen" }),
     hint_nudge: { ru: "Мама зовёт", en: "Mom is calling", da: "Mor kalder" },
     hint_60s: { ru: "Дверь на кухню слева", en: "Kitchen door on the left", da: "Køkkendør til venstre" },
@@ -27,7 +27,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_shnurok",
     key: "ch0_feed_bowl",
     goal: 1,
-    reward: { coins: 15, xp: 12 },
+    reward: { coins: 8, xp: 10 },
     target: () => ({ loc: "kitchen", wx: 0, wz: 30, bowl: true }),
     hint_nudge: { ru: "Шнурок голоден", en: "Shnurok is hungry", da: "Shnurok er sulten" },
     hint_60s: { ru: "Миска на кухне", en: "Bowl in the kitchen", da: "Skål i køkkenet" },
@@ -49,7 +49,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_shnurok",
     key: "ch0_pet_shnurok",
     goal: 4,
-    reward: { coins: 20, xp: 15 },
+    reward: { coins: 10, xp: 12 },
     target: () => ({ loc: "room", npcId: "shnurok" }),
     hint_nudge: { ru: "Шнурок хочет играть", en: "Shnurok wants to play", da: "Shnurok vil lege" },
     hint_60s: { ru: "Погладь пса и брось мяч", en: "Pet the dog and throw the ball", da: "Klapp hunden og kast bolden" },
@@ -60,7 +60,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_avatar",
     key: "ch0_avatar_chosen",
     goal: 1,
-    reward: { coins: 10, xp: 10 },
+    reward: { coins: 5, xp: 8 },
     target: () => ({ loc: "room", wx: 75, wz: 50, mirror: true }),
     hint_nudge: { ru: "Выбери образ", en: "Pick your look", da: "Vælg dit look" },
     hint_60s: { ru: "Зеркало в комнате", en: "Mirror in your room", da: "Spejl på værelset" },
@@ -71,7 +71,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_move",
     key: "ch0_move_done",
     goal: 1,
-    reward: { coins: 15, xp: 12 },
+    reward: { coins: 8, xp: 10 },
     target: () => ({ loc: "room", wx: 44, wz: 72, door: "elevator" }),
     hint_nudge: { ru: "Кто-то стучит в дверь", en: "Someone knocks", da: "Nogen banker på" },
     hint_60s: { ru: "Иди к лифту", en: "Head to the elevator", da: "Gå til elevatoren" },
@@ -84,7 +84,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_interact",
     key: "ch0_interact_done",
     goal: 1,
-    reward: { coins: 15, xp: 12 },
+    reward: { coins: 8, xp: 10 },
     target: () => ({ loc: "room" }),
     hint_nudge: { ru: "Попробуй взаимодействие", en: "Try interacting", da: "Prøv at interagere" },
     hint_60s: { ru: "Нажми E рядом с объектом", en: "Press E near an object", da: "Tryk E ved et objekt" },
@@ -95,7 +95,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_house",
     key: "ch0_house_tour",
     goal: 2,
-    reward: { coins: 20, xp: 15 },
+    reward: { coins: 10, xp: 12 },
     target: () => ({ loc: "kitchen" }),
     hint_nudge: { ru: "Дом большой", en: "Big house", da: "Stort hus" },
     hint_60s: { ru: "Кухня и лифт", en: "Kitchen and elevator", da: "Køkken og elevator" },
@@ -108,7 +108,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_street",
     key: "ch0_enter_street",
     goal: 1,
-    reward: { coins: 25, xp: 18 },
+    reward: { coins: 12, xp: 14 },
     target: () => ({ loc: "elevator", door: "street" }),
     hint_nudge: { ru: "Пора на улицу", en: "Time for the street", da: "Tid til gaden" },
     hint_60s: { ru: "Лифт ведёт вниз", en: "Elevator goes down", da: "Elevatoren går ned" },
@@ -119,7 +119,7 @@ const ONBOARDING_STEPS = [
     qt: "ch0_s_razor",
     key: "ch0_razor_talk",
     goal: 1,
-    reward: { coins: 30, xp: 20 },
+    reward: { coins: 12, xp: 14 },
     target: () => ({ loc: "street", npcId: "razor" }),
     hint_nudge: { ru: "Тебя ждут на улице", en: "They wait outside", da: "De venter ude" },
     hint_60s: { ru: "Рейзор у стены", en: "Razor by the wall", da: "Razor ved muren" },
@@ -158,6 +158,9 @@ function syncCh0QuestStep(qtId) {
 function bump(key, amt = 1) {
   const st = currentStep();
   if (!st || st.key !== key) return;
+  if (!window.me.onboarding.progress || typeof window.me.onboarding.progress !== "object") {
+    window.me.onboarding.progress = {};
+  }
   const p = window.me.onboarding.progress;
   p[key] = (p[key] || 0) + amt;
   if (p[key] >= st.goal) completeStep();
@@ -210,6 +213,7 @@ function finishOnboarding() {
   window.StoryEngine?.recordChapterCheckpoint?.(window.me, 0, { beat: "onboarding_done" });
   window.ChapterIntro?.showChapterWrap?.(0);
   window.StoryEngine?.onOnboardingComplete?.();
+  window.StoryEngine?.syncBeacon?.();
   if (window.saveMe) saveMe();
   renderOnboardingQuest();
   window.refreshSocialPresenceUi?.();
@@ -297,18 +301,32 @@ function onEnterLocation(loc) {
   }
 }
 
+function showMomSubtitle(line) {
+  const el = document.getElementById("voiceSubtitle");
+  if (!el) return;
+  el.textContent = line;
+  el.classList.add("visible");
+  clearTimeout(window._momSubtitleTimer);
+  window._momSubtitleTimer = setTimeout(() => el.classList.remove("visible"), 4200);
+}
+
 function onMomTalk() {
   const st = currentStep();
   if (st?.key !== "ch0_mom_talk") return;
   const line =
     typeof t === "function"
       ? t("onboard_mom_subtitle")
-      : "Lida (behind the door): «Breakfast is on the kitchen table.» (subtitle — no voice file)";
-  toast(line);
-  bump("ch0_mom_talk", 1);
+      : "Lida (behind the door): «Wake up! Breakfast is in the kitchen.»";
+  showMomSubtitle(line);
+  window.setTimeout(() => bump("ch0_mom_talk", 1), 900);
 }
 
 function onFeedBowl() {
+  if (window.me) {
+    window.me.owned = window.me.owned || [];
+    if (!window.me.owned.includes("pet_dog")) window.me.owned.push("pet_dog");
+    window.me.pet = "pet_dog";
+  }
   bump("ch0_feed_bowl", 1);
 }
 
@@ -336,11 +354,7 @@ function onTalkRazor() {
 }
 
 function maybeAutoCompleteAvatar() {
-  const st = currentStep();
-  if (st?.key === "ch0_avatar_chosen" && window.me?.characterId) {
-    window.me.onboarding.progress.ch0_avatar_chosen = 1;
-    completeStep();
-  }
+  /* Avatar step requires mirror E — no auto-skip from character select. */
 }
 
 function adaptSpawnLocation() {
@@ -359,10 +373,12 @@ function initOnboarding() {
   if (!window.me.onboarding) {
     window.me.onboarding = { step: 0, progress: {}, done: false };
   }
+  if (!window.me.onboarding.progress || typeof window.me.onboarding.progress !== "object") {
+    window.me.onboarding.progress = {};
+  }
   syncCh0QuestStep(ONBOARDING_STEPS[window.me.onboarding.step || 0]?.qt);
   renderOnboardingQuest();
   syncGuideTarget();
-  maybeAutoCompleteAvatar();
   window.Narrator?.refresh?.();
   window.StoryGoalHud?.refresh?.();
 }

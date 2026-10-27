@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "story-preview-p0-r2";
+const GAME_VERSION = "story-preview-p0-r3";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -425,7 +425,7 @@ function defaultPlayer() {
   const n = Math.floor(Math.random() * 900) + 100;
   return {
     name: "Панк" + n,
-    coins: devCoinsEnabled() ? 9999 : 100,
+    coins: devCoinsEnabled() ? 9999 : 25,
     energy: 100,
     mood: 100,
     xp: 0,
@@ -518,6 +518,12 @@ function migratePlayerFromSave(raw) {
   }
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
+  if (v.onboarding && typeof v.onboarding === "object" && (v.onboarding.progress == null || typeof v.onboarding.progress !== "object")) {
+    v.onboarding.progress = {};
+  }
+  if (v.quests && typeof v.quests === "object" && (v.quests.progress == null || typeof v.quests.progress !== "object")) {
+    v.quests.progress = {};
+  }
   if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
   if (v.dialogueHeard != null && typeof v.dialogueHeard !== "object") v.dialogueHeard = {};
   if (v.settings != null && typeof v.settings !== "object") v.settings = { audio: {} };
@@ -592,6 +598,8 @@ function applyFirebasePlayerSnapshot(snap) {
     me.inventory.spells = Array.isArray(v.inventory?.spells) ? v.inventory.spells : [];
     me.quests = v.quests && typeof v.quests === "object" ? v.quests : me.quests;
     me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
+    if (!me.onboarding.progress || typeof me.onboarding.progress !== "object") me.onboarding.progress = {};
+    if (!me.quests.progress || typeof me.quests.progress !== "object") me.quests.progress = {};
     me.story = v.story || me.story;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
@@ -729,6 +737,11 @@ function formatCoinsDisplay() {
 function updatePlayersToggleCount() {
   const el = document.getElementById("playersToggleCount");
   if (!el) return;
+  const offline = !presenceOk || isEarlyStorySocialSoft();
+  if (offline) {
+    el.textContent = "—";
+    return;
+  }
   const inLoc = Object.keys(others).length + 1;
   el.textContent = String(inLoc);
 }
@@ -1125,6 +1138,7 @@ function hideLoading() {
   const el = document.getElementById("loading");
   if (el) el.style.display = "none";
 }
+window.__punkHideLoading = hideLoading;
 
 function saveMe() {
   if (!uid) return;
@@ -1698,8 +1712,10 @@ function petDog(fromLife) {
   toast(t("petHappy"));
   me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
   window.Onboarding?.onShnurokInteract?.("pet");
-  window.PlayV21?.bumpDaily?.(me, "pet_dog", { toast, save: saveMe });
-  if (!isOwner) me.coins += 6;
+  const petStep = window.Onboarding?.getCurrentStep?.()?.key === "ch0_pet_shnurok";
+  if (petStep) window.PlayV21?.bumpDaily?.(me, "pet_dog", { toast, save: saveMe });
+  const interactStep = window.Onboarding?.getCurrentStep?.()?.key === "ch0_interact_done";
+  if (!isOwner && !interactStep) me.coins += 3;
   me.xp += 3;
   saveMe();
   document.getElementById("coins").textContent = formatCoinsDisplay();
@@ -1745,6 +1761,7 @@ function questBump(key, amt = 1) {
   if (!qid || !QUESTS[qid]) return;
   const need = QUESTS[qid].need;
   if (!(key in need)) return;
+  if (!me.quests.progress || typeof me.quests.progress !== "object") me.quests.progress = {};
   me.quests.progress[key] = (me.quests.progress[key] || 0) + amt;
   const prog = me.quests.progress;
   const done = Object.entries(need).every(([k, v]) => (prog[k] || 0) >= v);
@@ -1813,7 +1830,6 @@ function renderGangList() {
 function openNpcDialog(nid) {
   if (nid === "shnurok") {
     petDog(false);
-    window.Onboarding?.onShnurokInteract?.("pet");
     closeModal("gangModal");
     return;
   }

@@ -34,6 +34,15 @@ if (ch0Count > 1) fail("duplicate chapter_0_title in ru i18n");
 if (/Купи что-нибудь/.test(ruBlock)) fail("obsolete shop onboarding copy in ru i18n");
 const gameJs = fs.readFileSync(path.join(root, "js/game.js"), "utf8");
 if (!/story-preview-p0-r\d+/.test(gameJs)) fail("GAME_VERSION must be story-preview-p0-r<N> (stable label, see docs/release/P0_PREVIEW_BUILD.md)");
+if (!/onboarding\.progress \|\|/.test(onboardingSrc)) {
+  fail("onboarding bump must default progress to {}");
+}
+if (!/me\.quests\.progress/.test(gameJs) || !/progress = \{\}/.test(gameJs)) {
+  fail("questBump must default me.quests.progress to {}");
+}
+if (!/start-game-overlay/.test(fs.readFileSync(path.join(root, "css/game.css"), "utf8"))) {
+  fail("start-game-overlay CSS must pin overlay to viewport");
+}
 if (/onboard_mom_voice/.test(ruBlock)) fail("do not claim mom voice without VO files");
 
 const steps = [...onboardingSrc.matchAll(/qt:\s*"(ch0_s_[^"]+)"/g)].map(m => m[1]);

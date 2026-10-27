@@ -12,6 +12,8 @@ export function shouldShowChapterIntro() {
   const p = window.me;
   if (!p) return false;
   if (p.story?.flags?.intro_seen) return false;
+  const ob = p.onboarding;
+  if (ob && !ob.done && (ob.step > 0 || (ob.progress && Object.keys(ob.progress).length > 0))) return false;
   return true;
 }
 

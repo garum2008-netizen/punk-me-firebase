@@ -8,6 +8,37 @@ function lang() {
   return typeof getLanguage === "function" ? getLanguage() : "en";
 }
 
+function setStartOverlayVisible(visible) {
+  const ov = el("startGameOverlay");
+  const btn = el("btnStartGame");
+  if (!ov) return;
+  if (visible) {
+    ov.classList.add("active");
+    ov.setAttribute("aria-hidden", "false");
+    ov.inert = false;
+    btn?.removeAttribute("tabindex");
+    btn?.focus?.();
+  } else {
+    ov.classList.remove("active");
+    ov.setAttribute("aria-hidden", "true");
+    ov.inert = true;
+    btn?.setAttribute("tabindex", "-1");
+  }
+}
+
+function shouldSkipStartOverlay() {
+  const me = window.me;
+  if (!me) return false;
+  if (me.tutorial?.episode1Started) return true;
+  const ob = me.onboarding;
+  if (ob && !ob.done) {
+    if ((ob.step || 0) > 0) return true;
+    const prog = ob.progress || {};
+    if (Object.keys(prog).some(k => !k.startsWith("_") && (prog[k] || 0) > 0)) return true;
+  }
+  return false;
+}
+
 function renderJournal() {
   const box = el("gameMenuJournal");
   if (!box || !window.me) return;
@@ -23,16 +54,20 @@ function renderJournal() {
 export function openGameMenu() {
   document.body.dataset.gamePaused = "1";
   el("gameMenuOverlay")?.classList.add("active");
+  el("gameMenuOverlay")?.setAttribute("aria-hidden", "false");
   window.Onboarding?.onJournalOpen?.();
   renderJournal();
 }
 
 export function closeGameMenu() {
   document.body.dataset.gamePaused = "0";
-  el("gameMenuOverlay")?.classList.remove("active");
+  const ov = el("gameMenuOverlay");
+  ov?.classList.remove("active");
+  ov?.setAttribute("aria-hidden", "true");
 }
 
 export function initGameMenu() {
+  setStartOverlayVisible(false);
   el("btnGameMenu")?.addEventListener("click", () => openGameMenu());
   el("gameMenuClose")?.addEventListener("click", () => closeGameMenu());
   el("gameMenuHelp")?.addEventListener("click", () => {
@@ -67,15 +102,16 @@ export function showStartGameOverlay(onStart) {
     onStart?.();
     return;
   }
-  if (window.me?.tutorial?.episode1Started) {
+  if (shouldSkipStartOverlay()) {
     onStart?.();
     return;
   }
-  ov.classList.add("active");
+  window.__punkHideLoading?.();
+  setStartOverlayVisible(true);
   const btn = el("btnStartGame");
   const once = () => {
     btn?.removeEventListener("click", once);
-    ov.classList.remove("active");
+    setStartOverlayVisible(false);
     if (window.me) {
       window.me.tutorial = { ...(window.me.tutorial || {}), episode1Started: true, version: 1, startedAt: Date.now() };
       window.saveMe?.();
