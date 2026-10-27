@@ -1,3 +1,4 @@
+/** SQLite-backed DO; uses synchronous KV storage API (storage.get/put). */
 export class ChatLimitsDO {
   constructor(state, env) {
     this.state = state;

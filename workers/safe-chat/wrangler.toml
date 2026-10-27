@@ -8,9 +8,10 @@ compatibility_date = "2025-04-01"
 name = "CHAT_LIMITS"
 class_name = "ChatLimitsDO"
 
+# SQLite-backed DO (required on Workers Free; see Cloudflare docs new_sqlite_classes).
 [[migrations]]
 tag = "v1"
-new_classes = ["ChatLimitsDO"]
+new_sqlite_classes = ["ChatLimitsDO"]
 
 [triggers]
 crons = ["0 4 * * *"]

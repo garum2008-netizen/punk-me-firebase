@@ -19,6 +19,14 @@ const cases = [
   {
     name: "loadConfig testMode false without test flag",
     pass: loadConfig({ SAFE_CHAT_SKIP_AUTH: "false" }).testMode === false
+  },
+  {
+    name: "wrangler.toml uses new_sqlite_classes for ChatLimitsDO",
+    pass: /new_sqlite_classes\s*=\s*\[\s*"ChatLimitsDO"\s*\]/i.test(wranglerToml)
+  },
+  {
+    name: "wrangler.toml has no new_classes (KV-backed) migration",
+    pass: !/^\s*new_classes\s*=/m.test(wranglerToml)
   }
 ];
 

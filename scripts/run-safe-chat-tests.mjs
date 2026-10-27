@@ -73,6 +73,13 @@ async function main() {
   });
   if (!integrationOk) process.exit(1);
 
+  console.log("\n=== wrangler deploy --dry-run (no publish) ===");
+  const dry = spawnSync2("npx", ["wrangler", "deploy", "--dry-run"], {
+    cwd: path.join(root, "workers/safe-chat"),
+    stdio: "inherit"
+  });
+  if (dry.status !== 0) process.exit(1);
+
   console.log("\nAll safe-chat automated checks passed.");
 }
 

@@ -7,8 +7,9 @@
 ```bash
 cd workers/safe-chat
 npm install
-# Emulator + skip JWT:
-SAFE_CHAT_SKIP_AUTH=true \
+# Emulator + Auth lookup test mode (local only — never set in wrangler.toml [vars]):
+SAFE_CHAT_TEST_MODE=true \
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 \
 FIREBASE_EMULATOR_HOST=127.0.0.1 \
 FIREBASE_EMULATOR_NS=punk-me-40605-default-rtdb \
 SAFE_CHAT_EMULATOR=true \

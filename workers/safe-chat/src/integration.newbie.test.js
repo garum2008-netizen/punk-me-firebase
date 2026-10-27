@@ -2,8 +2,6 @@ import { env, SELF } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import { authSignUp, apiPost, rtdbOwner } from "./test-helpers.js";
 
-import { env } from "cloudflare:test";
-
 describe.skipIf(env.SAFE_CHAT_FREE_TEXT !== "true")("newbie free-text window (freeTextEnabled=true in this suite only)", () => {
   it("first 10 minutes allows only preset phrases", async () => {
     expect(env.SAFE_CHAT_FREE_TEXT).toBe("true");
