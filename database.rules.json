@@ -109,6 +109,12 @@
         },
         "linkedAuth": {
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
+        "chatBlocklist": {
+          ".validate": "true"
+        },
+        "chatRegisteredAt": {
+          ".validate": "!newData.exists() || (newData.isNumber() && newData.val() > 0 && (!data.exists() || newData.val() === data.val()))"
         }
       }
     },
@@ -131,10 +137,29 @@
       }
     },
     "chat": {
-      ".read": true,
-      "$msgId": {
-        ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 280",
-        ".validate": "newData.hasChildren(['uid', 'name', 'text', 'time']) && newData.child('name').isString() && newData.child('name').val().length <= 64"
+      "messages": {
+        ".read": "auth != null",
+        ".write": false,
+        "$msgId": {
+          ".read": "auth != null",
+          ".write": false
+        }
+      },
+      "reports": {
+        ".read": false,
+        ".write": false
+      },
+      "modState": {
+        ".read": false,
+        ".write": false,
+        "$uid": {
+          ".read": false,
+          ".write": false
+        }
+      },
+      "internal": {
+        ".read": false,
+        ".write": false
       }
     },
     "buildings": {

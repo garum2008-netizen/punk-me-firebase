@@ -16,7 +16,8 @@
     "build:hotfix-rules": "node scripts/build-hotfix-rules.mjs",
     "test:pr45-emulator": "node scripts/run-pr45-emulator-suite.mjs",
     "test:deploy-order": "node scripts/test-deploy-order-phase.js a1 && sleep 20 && node scripts/test-deploy-order-phase.js a2 && sleep 20 && node scripts/test-deploy-order-phase.js b",
-    "test:emulator": "node scripts/run-emulator-integration.js"
+    "test:emulator": "node scripts/run-emulator-integration.js",
+    "test:safe-chat": "node scripts/run-safe-chat-tests.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",

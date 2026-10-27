@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PUNK ME — chat moderation (staff)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0612; color: #eee; margin: 1rem; max-width: 960px; }
+    h1 { font-size: 1.2rem; }
+    .warn { color: #ffb4b4; font-size: 0.9rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { border: 1px solid #333; padding: 6px; vertical-align: top; }
+    button { margin: 2px; cursor: pointer; }
+    input { width: 100%; max-width: 420px; }
+  </style>
+</head>
+<body>
+  <h1>Safe chat — moderation</h1>
+  <p class="warn">Staff only. Set <code>window.__PUNK_SAFE_CHAT_URL</code> to your Worker URL before use. Access is enforced by the Worker (moderator UID allowlist / custom claim).</p>
+  <p>
+    Worker URL:
+    <input id="workerUrl" placeholder="https://punk-me-safe-chat.&lt;account&gt;.workers.dev">
+    <button type="button" id="saveUrl">Save</button>
+  </p>
+  <button type="button" id="loadReports">Load reports</button>
+  <pre id="out">Sign in with Firebase Auth (same as game), then load reports.</pre>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script type="module" src="js/moderation.mjs"></script>
+</body>
+</html>

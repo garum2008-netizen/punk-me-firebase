@@ -1,0 +1,30 @@
+# PUNK ME safe gang chat — placeholders only. Deploy only after owner GO (Inna).
+name = "punk-me-safe-chat"
+main = "src/index.js"
+compatibility_date = "2025-04-01"
+
+# Free tier: one Durable Object class for per-player rate limits (see SAFE_CHAT_REPORT.md).
+[[durable_objects.bindings]]
+name = "CHAT_LIMITS"
+class_name = "ChatLimitsDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ChatLimitsDO"]
+
+[triggers]
+crons = ["0 4 * * *"]
+
+[vars]
+FIREBASE_PROJECT_ID = "punk-me-40605"
+FIREBASE_DATABASE_URL = "https://punk-me-40605-default-rtdb.europe-west1.firebasedatabase.app"
+# Set to "true" only in local emulator tests (wrangler dev / vitest).
+SAFE_CHAT_SKIP_AUTH = "false"
+SAFE_CHAT_FREE_TEXT = "false"
+SAFE_CHAT_DAILY_LIMIT = "80"
+SAFE_CHAT_REPORT_AUTO_HIDE = "3"
+
+# Secrets (set via `wrangler secret put`, never commit):
+# FIREBASE_SERVICE_ACCOUNT_JSON — Firebase SA with RTDB write (Database Admin)
+# MODERATOR_UIDS — comma-separated Firebase Auth UIDs (owner + mods)
+# Optional: SAFE_CHAT_WEBHOOK_URL — notify owner on new report (not wired by default)
