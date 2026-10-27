@@ -15,13 +15,15 @@ const PRIV_VALIDATE =
 const UID_PRIVILEGED_VALIDATE = [
   "(!newData.hasChild('premium') || auth.token.admin === true || (data.hasChild('premium') && newData.child('premium').val() == data.child('premium').val()))",
   "(!newData.hasChild('entitlements') || auth.token.admin === true || (data.hasChild('entitlements') && newData.child('entitlements').val() == data.child('entitlements').val()))",
-  "(!newData.hasChild('qa') || auth.token.admin === true || (data.hasChild('qa') && newData.child('qa').val() == data.child('qa').val()))"
+  "(!newData.hasChild('qa') || auth.token.admin === true || (data.hasChild('qa') && newData.child('qa').val() == data.child('qa').val()))",
+  "(!newData.hasChild('owner') || auth.token.admin === true || (data.hasChild('owner') && newData.child('owner').val() == data.child('owner').val()))"
 ].join(" && ");
 
 export const PRIVILEGED_CHILD_RULES = {
   premium: { ".write": "auth != null && auth.token.admin === true", ".validate": PRIV_VALIDATE },
   entitlements: { ".write": "auth != null && auth.token.admin === true", ".validate": PRIV_VALIDATE },
-  qa: { ".write": "auth != null && auth.token.admin === true", ".validate": PRIV_VALIDATE }
+  qa: { ".write": "auth != null && auth.token.admin === true", ".validate": PRIV_VALIDATE },
+  owner: { ".write": "auth != null && auth.token.admin === true", ".validate": PRIV_VALIDATE }
 };
 
 /** Matches main @ 450d6da client `pushPresence` payload; read requires auth (prod anon deny). */

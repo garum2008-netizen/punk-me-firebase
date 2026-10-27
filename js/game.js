@@ -1038,7 +1038,7 @@ function saveMe() {
 }
 
 function sanitizePlayer(p) {
-  return {
+  const out = {
     name: p.name,
     coins: p.coins,
     xp: p.xp,
@@ -1066,10 +1066,11 @@ function sanitizePlayer(p) {
     gang_rank: p.gang_rank ?? p.story?.gang_rank,
     energy: p.energy,
     mood: p.mood,
-    owner: isOwner,
     lastSeen: p.lastSeen,
     linkedAuth: p.linkedAuth || null
   };
+  if (isOwner) out.owner = true;
+  return out;
 }
 
 function initMultiplayer() {

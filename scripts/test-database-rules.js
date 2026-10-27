@@ -274,18 +274,10 @@ async function run() {
   pass("alice read presence/room (authed) → allow", r.status === 200, `status ${r.status}`);
 
   r = await fetchJson(dbUrl("presence/room"));
-  if (prodHotfix) {
-    pass("presence: unauth read → deny (prod-hotfix)", denied(r), `status ${r.status}`);
-  } else {
-    pass("unauth read presence/room → allow", r.status === 200, `status ${r.status}`);
-  }
+  pass("presence: unauth read → deny", denied(r), `status ${r.status}`);
 
   r = await fetchJson(dbUrl("chat"));
-  if (prodHotfix) {
-    pass("chat: unauth read → deny (prod-hotfix)", denied(r), `status ${r.status}`);
-  } else {
-    pass("unauth read chat → allow", r.status === 200, `status ${r.status}`);
-  }
+  pass("chat: unauth read → deny", denied(r), `status ${r.status}`);
 
   const msgId = "msg_" + Date.now();
   r = await fetchJson(dbUrl(`chat/${msgId}`, aliceAuth.idToken), {
@@ -377,6 +369,27 @@ async function run() {
     body: JSON.stringify({ enabled: true })
   });
   pass("alice PUT qa → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`players/${aliceUid}/owner`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(true)
+  });
+  pass("alice PUT players/{uid}/owner:true → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ owner: true })
+  });
+  pass("players: parent PATCH owner:true bypass → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`players/${aliceUid}/owner`, adminAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(true)
+  });
+  pass("admin PUT players/{uid}/owner:true → allow", r.status === 200, `status ${r.status}`);
 
   r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
     method: "PATCH",

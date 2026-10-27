@@ -63,7 +63,8 @@
           ".validate": "newData.isNumber()"
         },
         "owner": {
-          ".validate": "newData.isBoolean()"
+          ".write": "auth != null && auth.token.admin === true",
+          ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
         },
         "premium": {
           ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
@@ -123,7 +124,7 @@
     },
     "presence": {
       "$location": {
-        ".read": true,
+        ".read": "auth != null",
         "$uid": {
           ".write": "auth != null && auth.uid === $uid",
           ".validate": "newData.hasChildren(['name', 'x', 'y', 'ts']) && newData.child('name').isString() && newData.child('name').val().length <= 64 && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('ts').isNumber() && (!newData.hasChild('avatar') || newData.child('avatar').isString()) && (!newData.hasChild('level') || newData.child('level').isNumber()) && (!newData.hasChild('characterId') || newData.child('characterId').isString()) && (!newData.hasChild('anim') || newData.child('anim').isString()) && (!newData.hasChild('probe') || newData.child('probe').isBoolean())"
@@ -131,7 +132,7 @@
       }
     },
     "chat": {
-      ".read": true,
+      ".read": "auth != null",
       "$msgId": {
         ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 280",
         ".validate": "newData.hasChildren(['uid', 'name', 'text', 'time']) && newData.child('name').isString() && newData.child('name').val().length <= 64"

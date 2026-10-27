@@ -6,13 +6,19 @@
 
 The deployable hotfix file **`rtdb-rules-hotfix-from-live.json`** includes **both** repaired **`presence`** and **`chat`** (see `bb77831` / `MINIMAL_*_FOR_CLIENT` in `rtdb-hotfix-patch.mjs`).
 
-**Gang chat is intentionally open to any signed-in player** (read + post own messages). There is **no moderation, rate limit, or content filter** in rules or client for this hotfix.
+**Gang chat stays included** (owner decision **27.10.2026 13:37**): any **signed-in** player may read `chat/` and post their own messages. Chat is **not** disabled in this hotfix.
 
-| Residual risk | Follow-up (not in PR #45) |
-|---------------|---------------------------|
-| Abuse / spam in `chat/` | Server-side or rules-based moderation, profanity filter, report flow |
-| Harassment / PII | Owner policy + optional Cloud Function on write |
-| Message retention | TTL / archival job |
+| Residual risk | Follow-up backlog (not in PR #45) |
+|---------------|-----------------------------------|
+| Abuse / spam | **Rate limit** on chat writes |
+| Harassment / unsafe content | **Report / block** player flows |
+| Offensive text | **Profanity / content filter** (rules or Cloud Function) |
+| Data retention | **TTL / archival** for chat messages |
+| PII / policy | Owner policy + optional server validation on write |
+
+### `players/{uid}/owner` (and similar admin flags)
+
+Clients must **not** self-elevate: `owner` (and existing `premium` / `entitlements` / `qa`) are writable only when **`auth.token.admin === true`**, including blocking parent-path PATCH/PUT bypass. Emulator tests cover direct `owner:true` write and parent PATCH.
 
 ## 1. Cause of `alice write own presence → allow` FAIL
 
@@ -56,7 +62,9 @@ npm run test:pr45-emulator
 
 `test-database-rules.js` logs **PASS/FAIL per case** and a **summary** (no stop on first FAIL).
 
-**prod-hotfix matrix highlights:** non-admin `/players` list deny; presence own write / foreign deny / unauth read deny; chat unauth read deny; new message (own uid, ≤280) allow; edit/delete other’s message deny; >280 chars deny; spoofed uid deny; parent-path PATCH bypass on premium/entitlements/qa deny.
+**prod-hotfix matrix highlights:** non-admin `/players` list deny; `owner` / premium / entitlements / qa admin-only (direct + parent PATCH deny); presence own write / foreign deny / **auth-only** read (no public read); chat **auth-only** read + signed-in post; new message (own uid, ≤280) allow; edit/delete other’s message deny; >280 chars deny; spoofed uid deny.
+
+**Repo target `database.rules.json`:** `presence` and `chat` `.read` = `auth != null` (aligned with `rtdb-rules-hotfix-from-live.json` after `build-hotfix-rules.mjs`).
 
 ## 5. Risk assessment (deploy hotfix rules file)
 
