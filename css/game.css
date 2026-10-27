@@ -911,6 +911,28 @@ html.episode-capture .btn-account { display: none !important; }
   max-width: 200px; text-align: right; pointer-events: none; color: #aaddff;
 }
 .angelina-context.visible { opacity: 0.75; }
+.angelina-help-panel {
+  position: fixed; right: 8px; bottom: 72px; z-index: 27; max-width: min(280px, 92vw);
+  padding: 10px 12px; border-radius: 12px; border: 1px solid #55ccff;
+  background: rgba(8, 12, 24, 0.92); font-size: 12px; line-height: 1.4;
+}
+.angelina-help-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.angelina-portrait {
+  width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #334, #112);
+  border: 2px solid #66ddff;
+}
+.btn-angelina-help { font-size: 11px; padding: 4px 8px; }
+.angelina-help-body { margin: 0; min-height: 2.5em; color: #e8f4ff; }
+.angelina-help-sub { margin: 4px 0 0; font-size: 11px; color: #99bbcc; display: none; }
+.angelina-help-sub.visible { display: block; }
+.angelina-solution-confirm {
+  display: none; position: fixed; inset: 0; z-index: 130; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.75);
+}
+.angelina-solution-confirm.active { display: flex; }
+.angelina-solution-panel {
+  padding: 16px; border-radius: 12px; background: #120820; border: 2px solid #ff00ff; max-width: 320px;
+}
 .story-scene-title { font-size: 18px; color: #0ff; font-weight: 800; margin-bottom: 6px; }
 .story-scene-speaker { font-size: 13px; color: #ff8800; margin-bottom: 8px; }
 .story-scene-body { font-size: 15px; line-height: 1.55; margin-bottom: 14px; min-height: 4em; }

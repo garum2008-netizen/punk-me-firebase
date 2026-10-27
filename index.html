@@ -62,6 +62,22 @@
   <button type="button" class="btn-howto btn-game-menu" id="btnGameMenu" title="Menu" data-i18n="game_menu_btn">☰</button>
   <div id="contextHint" class="context-hint" aria-live="polite"></div>
   <div id="angelinaContext" class="angelina-context" aria-live="polite"></div>
+  <div id="angelinaHelpPanel" class="angelina-help-panel" aria-live="polite">
+    <div class="angelina-help-header">
+      <div class="angelina-portrait" aria-hidden="true"></div>
+      <strong data-i18n="angelina_name">Ангелина</strong>
+      <button type="button" class="btn secondary btn-angelina-help" id="btnAngelinaHelp" data-i18n="angelina_help_btn">Ангелина, помоги</button>
+    </div>
+    <p id="angelinaHelpBody" class="angelina-help-body"></p>
+    <p id="angelinaHelpSub" class="angelina-help-sub"></p>
+  </div>
+  <div id="angelinaSolutionConfirm" class="angelina-solution-confirm" role="dialog" aria-modal="true">
+    <div class="angelina-solution-panel">
+      <p data-i18n="angelina_solution_confirm">Показать решение?</p>
+      <button type="button" class="btn" data-angelina-solution="yes" data-i18n="yes">Да</button>
+      <button type="button" class="btn secondary" data-angelina-solution="no" data-i18n="no">Нет</button>
+    </div>
+  </div>
   <div id="storyGoalBar" class="story-goal-bar" aria-live="polite">
     <div class="story-goal-chapter"></div>
     <div class="story-goal-main"></div>
@@ -382,7 +398,9 @@
   await import("./js/story/castle-gameplay.mjs?v=castle-gp-1");
   await import("./js/story/story-scenes.mjs?v=story-scenes-1");
   await import("./js/story/story-checkpoints.mjs?v=story-checkpoints-1");
-  await import("./js/story/angelina-guide.mjs?v=angelina-1");
+  await import("./js/story/angelina-guide.mjs?v=angelina-2");
+  const { initAngelinaHelp } = await import("./js/story/angelina-help.mjs?v=angelina-2");
+  initAngelinaHelp();
   await import("./js/story/quest-catalog.mjs?v=quest-catalog-1").then(m => m.loadQuestCatalog());
   const concertEl = document.getElementById("concertPrep");
   concertEl?.querySelectorAll("[data-headliner]").forEach(btn => {
@@ -406,7 +424,10 @@
       }
     }));
   });
-  window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
+  window.throwDogBall = () => {
+    window.Onboarding?.onShnurokInteract?.("ball");
+    return window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => true });
+  };
   window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.me = window.me || {};
 </script>

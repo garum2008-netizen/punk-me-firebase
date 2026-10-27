@@ -13,8 +13,8 @@
 
 | id | gl | start | NPC / объект | цель (RU кратко) | успех | награда (grant key) | следующий |
 |----|-----|-------|--------------|------------------|-------|---------------------|-----------|
-| q_ch0_newbie | 0 | новый игрок | — | Пробуждение в Доме 13 | ch0_s_razor | reward_ch0_complete | q_ch1_initiation_choice |
-| q_ch1_initiation_choice | 1 | q_ch0 done | npc_razor | Выбор пути прописки | ch1_s_choice | — | ветка |
+| q_ch0_newbie | 0 | новый игрок | — | Пробуждение в Доме 13 | ch0_s_razor | reward_ch0_complete | q_ch1_authority (web: Authority) → q_ch1_initiation_choice |
+| q_ch1_initiation_choice | 1 | q_ch1_authority errands / tease done (web: `flag:ch1_initiation_unlocked`) | npc_razor | Выбор пути прописки | ch1_s_choice | — | ветка |
 | q_initiation_pay | 1 | выбор: взнос | npc_razor | Заработать 150 и отдать взнос | s2 pay | reward_initiation_pay | q_ch2_hangout |
 | q_initiation_duel | 1 | выбор: дуэль | npc_razor | Победить в дуэли | s1 duel win | reward_initiation_duel | q_ch2_hangout |
 | q_initiation_graffiti | 1 | выбор: флаеры | npc_razor | 8 флаеров | s1 flyers | reward_initiation_graffiti | q_ch2_hangout |
@@ -47,10 +47,10 @@
 | step | веб сейчас | событие / флаг |
 |------|------------|----------------|
 | (пролог) | `#chapterIntro` 4 слайда | `flags.intro_seen` |
-| ch0_s_move … ch0_s_shop | `onboarding` steps 0–5 | `Onboarding.STEPS` → `onboarding.done` |
-| ch0_s_razor | Razor + дуэль + лавка | `talk_razor`, `win_fight`, `shop_buy` |
-| ch0_s_mom | WIP голос Лиды | `flags.mama_morning` (параллельно) |
-| ch0_s_shnurok | пёс Шнурок | `pet_dog` / лавка |
+| ch0_s_awake … ch0_s_razor | `onboarding.js` (11 шагов, id `ch0_s_*`) | `onboarding.step` / `onboarding.done` + `reward_ch0_complete` |
+| ch0_s_razor | Razor на улице, тост «Игра сохранена» | `ch0_razor_talk`, без дуэли до `q_ch1_initiation_choice` |
+| ch0_s_mom | голос Лиды за дверью (без модели) | `Onboarding.onMomTalk` |
+| ch0_s_shnurok | Шнурок NPC + миска | `ch0_feed_bowl`, `ch0_pet_shnurok` |
 | ch0_s_avatar | кастомизация | герой / инвентарь |
 
 ## Шаги q_ch4_castle (канон, детализация веб)
@@ -69,8 +69,8 @@
 | item id | глава | ветка |
 |---------|-------|-------|
 | bell_rim | 3 | один раз |
-| bell_tongue_zoya | 4 | Зоя |
-| bell_tongue_zombie | 4 | дом зомби (взаимоискл.) |
+| bell_tongue_zoya | 4 | Зоя; **только** после `bell_rim` + `ch4_album` / ветка «Барабанные палочки» (web gated, TODO CANON-E) |
+| bell_tongue_zombie | 4 | дом зомби (взаимоискл.); те же гейты |
 | bell_crown | 4 | башня |
 
 ## Синхронизация id (Roblox ↔ веб)

@@ -158,6 +158,7 @@ export function openStage1Dialog(opts = {}) {
       addAuthority(c.authority ?? 0);
       (c.effects || []).forEach(e => window.StoryEngine?.applyEffect?.(e));
       st.auth.s1Done = true;
+      st.flags.ch1_initiation_unlocked = true;
       if (st.authority < 15) addAuthority(15 - st.authority);
       st.auth.stage = 2;
       dlg.classList.remove("active");

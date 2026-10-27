@@ -44,11 +44,33 @@ export function initPlayV21(ctx) {
         return true;
       }
       if (loc === "room") {
+        if (me.x < 22 && me.y < 55 && window.Onboarding?.isActive?.()) {
+          window.Onboarding?.onMomTalk?.();
+          return true;
+        }
+        if (me.x > 68 && me.y > 40) {
+          if (window.Onboarding?.getCurrentStep?.()?.key === "ch0_avatar_chosen") {
+            window.Onboarding?.onAvatarMirror?.();
+            return true;
+          }
+          hooks.toast(t("interact_tv"));
+          window.Onboarding?.onInteractTutorial?.();
+          return true;
+        }
         const nearSofa = me.x < 55 && me.y > 45;
         if (nearSofa) {
           window.World3D?.setPlayerSit?.(true);
           hooks.toast(t("interact_sit"));
+          window.Onboarding?.onInteractTutorial?.();
           setTimeout(() => window.World3D?.setPlayerSit?.(false), 4200);
+          return true;
+        }
+      }
+      if (loc === "kitchen" && me.y >= 28 && me.y <= 55 && me.x < 60) {
+        if (window.Onboarding?.getCurrentStep?.()?.key === "ch0_feed_bowl") {
+          window.Onboarding?.onFeedBowl?.();
+          hooks.toast(t("onboard_feed_bowl_toast"));
+          hooks.save();
           return true;
         }
       }

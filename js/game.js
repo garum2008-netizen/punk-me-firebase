@@ -115,7 +115,7 @@ const LOCATIONS = {
       { x: 44, y: 72, w: 14, h: 14, to: "elevator", labelKey: "door_elevator" },
       { x: 68, y: 18, w: 12, h: 14, to: "roof", labelKey: "door_roof" }
     ],
-    npcs: ["vienna", "mohawk", "cobalt"],
+    npcs: ["shnurok", "vienna", "mohawk", "cobalt"],
     job: false, buildZone: "room_private"
   },
   kitchen: {
@@ -197,6 +197,16 @@ const LOCATIONS = {
 };
 
 const NPCS = {
+  shnurok: {
+    id: "shnurok",
+    name: "Шнурок",
+    img: "imagine_images/sgz0l.jpg",
+    linesI18n: {
+      ru: ["Гав! Мяч! Мяч!", "Вуф — ты свой."],
+      en: ["Woof! Ball! Ball!", "Woof — you're fam."],
+      da: ["Vuf! Bold!", "Vuf — du er en af os."]
+    }
+  },
   razor: {
     id: "razor", name: "Рейзор", img: "imagine_images/LTPb8.jpg",
     linesI18n: {
@@ -356,8 +366,8 @@ const SPELLS = {
 const QUESTS = {
   intro: {
     title: "Ночь начинается",
-    text: "Поговори с Рейзором на улице и выиграй цепную дуэль.",
-    need: { talk_razor: 1, win_fight: 1 },
+    text: "Пройди обучение в доме 13 и поговори с Рейзором на улице.",
+    need: { talk_razor: 1 },
     reward: { coins: 100, xp: 40 }
   },
   chain_duel: {
@@ -1643,6 +1653,7 @@ function petDog(fromLife) {
   if (!fromLife) LifeEngine.barkAndPet();
   toast(t("petHappy"));
   me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
+  window.Onboarding?.onShnurokInteract?.("pet");
   window.PlayV21?.bumpDaily?.(me, "pet_dog", { toast, save: saveMe });
   if (!isOwner) me.coins += 6;
   me.xp += 3;
@@ -1756,6 +1767,12 @@ function renderGangList() {
 }
 
 function openNpcDialog(nid) {
+  if (nid === "shnurok") {
+    petDog(false);
+    window.Onboarding?.onShnurokInteract?.("pet");
+    closeModal("gangModal");
+    return;
+  }
   if (window.StoryEngine?.tryStoryNpc?.(nid)) {
     closeModal("gangModal");
     if (nid === "razor") {

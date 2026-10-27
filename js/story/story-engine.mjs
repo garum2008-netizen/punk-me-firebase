@@ -288,6 +288,11 @@ function evalCondition(cond) {
     const v = cond.split(":")[1];
     if (v === "done") return !!p.onboarding?.done;
   }
+  if (cond.startsWith("auth:")) {
+    const v = cond.split(":")[1];
+    const auth = st.auth || {};
+    if (v === "s1Done") return !!auth.s1Done;
+  }
   if (cond.startsWith("flag:")) {
     const f = cond.slice(5);
     if (f.startsWith("!")) return !st.flags[f.slice(1)];
@@ -1358,10 +1363,20 @@ export function initStoryEngine(h) {
 }
 
 export function onOnboardingComplete() {
-  Authority.startAuthorityPath(me());
+  const p = me();
+  const st = ensureStoryState(p);
+  grantRewardOnce(p, "reward_ch0_complete", () => {
+    st.quest.completed.q_ch0_newbie = true;
+    st.mainlineChapter = 1;
+    st.chapter = Math.max(st.chapter || 0, 1);
+    st.flags.ch0_razor_talk = true;
+  });
+  st.quest.activeId = null;
+  Authority.startAuthorityPath(p);
   pickNextObjective();
   renderObjectivePanel();
   Authority.renderAuthorityHud();
+  window.AngelinaGuide?.refreshAngelinaContextBanner?.();
 }
 
 const api = {
@@ -1403,7 +1418,8 @@ const api = {
   Authority,
   getJobs: () => data.jobs,
   getBalance: () => data.balance,
-  getHangoutStageNeed
+  getHangoutStageNeed,
+  getActiveStep
 };
 
 export default api;

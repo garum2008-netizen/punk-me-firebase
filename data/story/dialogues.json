@@ -3,7 +3,7 @@
     {
       "id": "dlg_razor_initiation",
       "location": "street",
-      "trigger": { "type": "proximity", "radius_m": 10, "conditions": ["onboarding:done", "flag:!joined_gang"] },
+      "trigger": { "type": "proximity", "radius_m": 10, "conditions": ["onboarding:done", "flag:!joined_gang", "flag:ch1_initiation_unlocked"] },
       "callout": { "sound": "sfx_whistle", "icon": "!", "bubble_key": "n1" },
       "nodes": [
         {

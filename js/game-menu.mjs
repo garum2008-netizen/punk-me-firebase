@@ -23,6 +23,7 @@ function renderJournal() {
 export function openGameMenu() {
   document.body.dataset.gamePaused = "1";
   el("gameMenuOverlay")?.classList.add("active");
+  window.Onboarding?.onJournalOpen?.();
   renderJournal();
 }
 

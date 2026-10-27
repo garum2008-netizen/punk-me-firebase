@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Win a 3D chain duel via normal UI (no recording hacks) and advance onboarding win_fight. */
+/** Legacy: duel is no longer an onboarding step; smoke that initiation duel quest can start after choice. */
 const { assertNoProductionBase } = require("./lib/guard-no-prod-firebase");
 assertNoProductionBase();
 const { chromium } = require("playwright");
@@ -19,8 +19,10 @@ async function boot(page, base) {
   await H.dismissHowToOverlay(page);
   await page.evaluate(() => {
     document.getElementById("chapterIntro")?.classList.remove("active");
-    window.me.onboarding = { step: 4, progress: {}, done: false };
-    window.Onboarding?.render?.();
+    window.me.onboarding = { step: 0, progress: {}, done: true };
+    const st = window.StoryEngine.ensureStoryState(window.me);
+    st.flags.ch1_initiation_unlocked = true;
+    window.StoryEngine.startQuest("q_initiation_duel");
     window.me.location = "street";
     window.goLocation?.("street");
     window.syncStage3D?.();
@@ -40,13 +42,11 @@ async function main() {
     await page.waitForSelector("#duel3dHud:not(.hidden)", { timeout: 20000 });
     const won = await H.winFightUi(page, 55000);
     const snap = await page.evaluate(() => ({
-      wonProgress: (window.me?.onboarding?.progress?.win_fight || 0) >= 1,
-      passed: !!window.Onboarding?.hasPassedWinFight?.(),
-      step: window.me?.onboarding?.step,
+      quest: window.StoryEngine?.ensureStoryState?.(window.me)?.quest?.activeId,
       duel: !document.getElementById("duel3dHud")?.classList.contains("hidden")
     }));
-    if (!won || (!snap.wonProgress && !snap.passed)) {
-      errors.push(`duel onboarding not satisfied: ${JSON.stringify(snap)}`);
+    if (!won || snap.quest !== "q_initiation_duel") {
+      errors.push(`initiation duel quest not satisfied: ${JSON.stringify(snap)}`);
     }
     if (snap.duel) errors.push("duel HUD still visible after win");
   } catch (e) {

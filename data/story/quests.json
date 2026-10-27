@@ -1,6 +1,57 @@
 {
   "quests": [
     {
+      "id": "q_ch0_newbie",
+      "chapter": 0,
+      "type": "main",
+      "title": {
+        "ru": "Новенький в доме 13",
+        "en": "New at house 13",
+        "da": "Ny i hus 13"
+      },
+      "steps": [
+        {
+          "id": "ch0_s_razor",
+          "objective": {
+            "ru": "Поговори с Рейзором на улице",
+            "en": "Talk to Razor on the street",
+            "da": "Tal med Razor på gaden"
+          },
+          "beacon": "npc_razor",
+          "complete_on": "onboarding.done"
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 30 }]
+    },
+    {
+      "id": "q_ch1_initiation_choice",
+      "chapter": 1,
+      "type": "main",
+      "title": {
+        "ru": "Выбор прописки",
+        "en": "Initiation choice",
+        "da": "Valg af optagelse"
+      },
+      "steps": [
+        {
+          "id": "ch1_s_choice",
+          "objective": {
+            "ru": "Выбери: взнос, дуэль или знак банды",
+            "en": "Choose: fee, duel, or gang tag",
+            "da": "Vælg: gebyr, duel eller bandetegn"
+          },
+          "beacon": "npc_razor",
+          "complete_on": "flag:initiation_locked",
+          "hint_nudge": {
+            "ru": "TODO(CANON-V2): два или три пути прописки — ждём решения владельца.",
+            "en": "TODO(CANON-V2): two or three initiation paths — owner decision pending.",
+            "da": "TODO(CANON-V2): to eller tre veje — afventer ejer."
+          }
+        }
+      ],
+      "rewards": []
+    },
+    {
       "id": "q_initiation_pay",
       "chapter": 1,
       "type": "main",

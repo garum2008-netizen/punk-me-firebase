@@ -12,7 +12,8 @@ function onboardingGoal() {
   const title = typeof window.t === "function" ? window.t(`onboard_${st.id}_title`) : st.id;
   const text = typeof window.t === "function" ? window.t(`onboard_${st.id}_text`) : "";
   const prog = window.me?.onboarding?.progress?.[st.key] || 0;
-  return { chapter: 0, title: chapterLabel(0), step: `${i}/6`, goal: title, hint: text, progress: `${prog}/${st.goal}` };
+  const total = window.Onboarding?.STEPS?.length || 6;
+  return { chapter: 0, title: chapterLabel(0), step: `${i}/${total}`, goal: title, hint: text, progress: `${prog}/${st.goal}` };
 }
 
 function storyQuestGoal() {

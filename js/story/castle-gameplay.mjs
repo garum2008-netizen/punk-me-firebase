@@ -181,6 +181,9 @@ export function confirmConcertPrep(headlinerId, hooks) {
 export function tryTongueQuest(hooks) {
   const st = story();
   if (st.unique?.bell_tongue_zoya || st.unique?.bell_tongue_zombie) return false;
+  if (!st.unique?.bell_rim) return false;
+  // TODO(CANON-E): gate on ch4_s_album + «Барабанные палочки» branch when implemented.
+  if (!st.flags.ch4_album_drumsticks_ready) return false;
   if (window.me?.location === "kitchen") {
     openTongueChoice("zoya", hooks);
     return true;
