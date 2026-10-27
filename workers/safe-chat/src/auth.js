@@ -56,11 +56,37 @@ async function verifyFirebaseIdToken(idToken, projectId) {
   return { uid: payload.sub, claims: payload };
 }
 
-export async function verifyRequestAuth(request, config) {
+async function verifyViaAuthEmulator(idToken, env, projectId) {
+  const host = env.FIREBASE_AUTH_EMULATOR_HOST || "127.0.0.1:9099";
+  const [h, p] = host.includes(":") ? host.split(":") : [host, "9099"];
+  const url = `http://${h}:${p}/identitytoolkit.googleapis.com/v1/accounts:lookup?key=fake-api-key`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken })
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.users?.[0]?.localId) {
+    throw new Error("emulator lookup failed");
+  }
+  const user = json.users[0];
+  let claims = {};
+  try {
+    if (user.customAttributes && typeof user.customAttributes === "string") {
+      claims = JSON.parse(user.customAttributes);
+    }
+  } catch (_) {}
+  return { uid: user.localId, claims };
+}
+
+export async function verifyRequestAuth(request, config, env = {}) {
   const auth = request.headers.get("Authorization") || "";
   const m = auth.match(/^Bearer\s+(.+)$/i);
   if (!m) throw new Error("missing bearer");
   const token = m[1].trim();
+  if (config.testMode) {
+    return verifyViaAuthEmulator(token, env, config.projectId);
+  }
   if (config.skipAuth) {
     return { uid: token === "test" ? "test-uid" : token, claims: {} };
   }

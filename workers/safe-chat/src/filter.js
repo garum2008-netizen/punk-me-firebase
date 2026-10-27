@@ -106,7 +106,12 @@ export function filterMessage(text, maxLen = 200) {
     return { ok: false, reason: "profanity" };
   }
 
-  if (URL_PATTERN.test(raw) || URL_PATTERN.test(normalized.replace(/\s/g, ""))) {
+  const linkProbe = raw.replace(/\s+/g, "");
+  if (
+    URL_PATTERN.test(raw) ||
+    URL_PATTERN.test(linkProbe) ||
+    /\b[a-z0-9][-a-z0-9]*\s*\.\s*[a-z]{2,}\s*\.\s*[a-z]{2,}\b/i.test(raw)
+  ) {
     return { ok: false, reason: "link" };
   }
   if (EMAIL_PATTERN.test(raw)) return { ok: false, reason: "email" };

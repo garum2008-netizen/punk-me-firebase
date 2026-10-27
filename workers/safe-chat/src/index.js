@@ -21,6 +21,14 @@ function err(code, status = 400) {
   return json({ ok: false, error: code }, status);
 }
 
+export function getNow(env) {
+  if (env.SAFE_CHAT_TEST_MODE === "true" && env.SAFE_CHAT_TEST_NOW_MS) {
+    const n = parseInt(env.SAFE_CHAT_TEST_NOW_MS, 10);
+    if (!Number.isNaN(n)) return n;
+  }
+  return Date.now();
+}
+
 async function getAdminToken(env) {
   if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     if (env.SAFE_CHAT_EMULATOR === "true") return "owner";
@@ -37,7 +45,7 @@ async function checkLimits(env, uid, config) {
       method: "POST",
       body: JSON.stringify({
         uid,
-        now: Date.now(),
+        now: getNow(env),
         cooldownMs: config.cooldownMs,
         dailyLimit: config.dailyLimit
       })
@@ -52,7 +60,8 @@ async function fetchModState(config, env, token, uid) {
   const ban = await rtdbRequest(config, `chat/modState/${uid}/ban`, "GET", null, token, emu, ns);
   if (ban.json) return { banned: true };
   const mute = await rtdbRequest(config, `chat/modState/${uid}/mute`, "GET", null, token, emu, ns);
-  if (mute.json?.until && mute.json.until > Date.now()) return { muted: true, until: mute.json.until };
+  const now = getNow(env);
+  if (mute.json?.until && mute.json.until > now) return { muted: true, until: mute.json.until };
   return {};
 }
 
@@ -60,7 +69,7 @@ async function handleSend(request, env) {
   const config = loadConfig(env);
   let auth;
   try {
-    auth = await verifyRequestAuth(request, config);
+    auth = await verifyRequestAuth(request, config, env);
   } catch {
     return err("unauthorized", 401);
   }
@@ -84,7 +93,7 @@ async function handleSend(request, env) {
   } else {
     if (!config.freeTextEnabled) return err("free_text_disabled");
     const reg = await ensureRegisteredAt(config, env, token, auth.uid);
-    if (Date.now() - reg < config.newbieMs) return err("newbie_phrases_only");
+    if (getNow(env) - reg < config.newbieMs) return err("newbie_phrases_only");
     const filtered = filterMessage(freeText, config.msgMaxLen);
     if (!filtered.ok) return err(filtered.reason);
     text = filtered.text;
@@ -97,7 +106,7 @@ async function handleSend(request, env) {
     uid: auth.uid,
     name,
     text,
-    time: Date.now(),
+    time: getNow(env),
     phraseId: phraseId || null
   };
   if (loc) msg.loc = String(loc).slice(0, 64);
@@ -121,7 +130,7 @@ async function ensureRegisteredAt(config, env, token, uid) {
   const ns = env.FIREBASE_EMULATOR_NS;
   const cur = await rtdbRequest(config, path, "GET", null, token, emu, ns);
   if (typeof cur.json === "number") return cur.json;
-  const now = Date.now();
+  const now = getNow(env);
   await rtdbRequest(config, path, "PUT", now, token, emu, ns);
   return now;
 }
@@ -130,7 +139,7 @@ async function handleReport(request, env) {
   const config = loadConfig(env);
   let auth;
   try {
-    auth = await verifyRequestAuth(request, config);
+    auth = await verifyRequestAuth(request, config, env);
   } catch {
     return err("unauthorized", 401);
   }
@@ -146,7 +155,7 @@ async function handleReport(request, env) {
   const reporter = await anonymizeUid(auth.uid);
   const report = {
     msgId,
-    time: Date.now(),
+    time: getNow(env),
     reporterHash: reporter,
     msgUidHash: await anonymizeUid(msgRes.json.uid || "")
   };
@@ -185,7 +194,7 @@ async function handleConfig(_request, env) {
 
 async function requireMod(request, env) {
   const config = loadConfig(env);
-  const auth = await verifyRequestAuth(request, config);
+  const auth = await verifyRequestAuth(request, config, env);
   if (!isModerator(auth.uid, env, auth.claims)) throw new Error("forbidden");
   return { config, auth, token: await getAdminToken(env) };
 }
@@ -233,7 +242,7 @@ async function handleModMute(request, env) {
     const { config, token } = await requireMod(request, env);
     const { uid, durationMs } = await request.json().catch(() => ({}));
     if (!uid) return err("missing_uid");
-    const until = durationMs ? Date.now() + durationMs : null;
+    const until = durationMs ? getNow(env) + durationMs : null;
     if (durationMs === 0 || durationMs === null) {
       await rtdbRequest(
         config,
@@ -281,7 +290,7 @@ async function handleModBan(request, env) {
         config,
         `chat/modState/${uid}/ban`,
         "PUT",
-        { at: Date.now() },
+        { at: getNow(env) },
         token,
         env.FIREBASE_EMULATOR_HOST,
         env.FIREBASE_EMULATOR_NS
@@ -293,12 +302,12 @@ async function handleModBan(request, env) {
   }
 }
 
-async function runRetention(env) {
+export async function runRetentionJob(env, nowOverride) {
   const config = loadConfig(env);
   const token = await getAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
-  const now = Date.now();
+  const now = nowOverride ?? getNow(env);
 
   const msgs = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
   if (msgs.json && typeof msgs.json === "object") {
@@ -336,6 +345,6 @@ export default {
     }
   },
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runRetention(env));
+    ctx.waitUntil(runRetentionJob(env));
   }
 };

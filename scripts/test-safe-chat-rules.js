@@ -88,6 +88,36 @@ async function run() {
     pass: blocklist.status === 200
   });
 
+  const writeReport = await fetchJson(dbUrl("chat/reports", idToken), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ msgId: "x", time: Date.now() })
+  });
+  cases.push({
+    name: "client POST chat/reports denied",
+    pass: writeReport.status === 403 || writeReport.status === 401
+  });
+
+  const writeMute = await fetchJson(dbUrl(`chat/modState/${localId}/mute`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ until: Date.now() + 99999 })
+  });
+  cases.push({
+    name: "client PUT chat/modState/mute denied",
+    pass: writeMute.status === 403 || writeMute.status === 401
+  });
+
+  const writeInternal = await fetchJson(dbUrl("chat/internal/reportCounts/foo", idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "1"
+  });
+  cases.push({
+    name: "client PUT chat/internal denied",
+    pass: writeInternal.status === 403 || writeInternal.status === 401
+  });
+
   let failed = 0;
   for (const c of cases) {
     const mark = c.pass ? "PASS" : "FAIL";

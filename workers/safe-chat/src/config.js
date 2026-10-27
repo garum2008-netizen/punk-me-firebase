@@ -2,6 +2,7 @@ export function loadConfig(env) {
   return {
     projectId: env.FIREBASE_PROJECT_ID || "punk-me-40605",
     databaseUrl: (env.FIREBASE_DATABASE_URL || "").replace(/\/$/, ""),
+    testMode: env.SAFE_CHAT_TEST_MODE === "true",
     skipAuth: env.SAFE_CHAT_SKIP_AUTH === "true",
     freeTextEnabled: env.SAFE_CHAT_FREE_TEXT === "true",
     dailyLimit: parseInt(env.SAFE_CHAT_DAILY_LIMIT || "80", 10),
