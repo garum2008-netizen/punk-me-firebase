@@ -4,7 +4,7 @@
 |--|--|
 | **Branch** | `cursor/brand-cleanup-d81d` (**from `origin/main` @ `450d6da` only**) |
 | **Draft PR** | [#47](https://github.com/garum2008-netizen/punk-me-firebase/pull/47) |
-| **Head SHA** | `8f49b1e` |
+| **Head SHA** | `6ca8a28` |
 | **changed_files** | **4** |
 | **Deploy** | нет |
 
