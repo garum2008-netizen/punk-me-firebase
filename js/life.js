@@ -178,7 +178,7 @@ const LifeEngine = (() => {
         <div class="tag" id="dogTag">пёс</div>`;
       el.onclick = (e) => {
         e.stopPropagation();
-        barkAndPet();
+        barkAndPet(true);
       };
       document.getElementById("entities")?.appendChild(el);
     }
@@ -197,7 +197,7 @@ const LifeEngine = (() => {
     dog.el = el;
   }
 
-  function barkAndPet() {
+  function barkAndPet(rewardPlayer = false) {
     if (!dog) return;
     dog.state = "jump";
     dog.stateT = 0;
@@ -206,7 +206,7 @@ const LifeEngine = (() => {
     playBark();
     dog.el.classList.add("dog-wag");
     setTimeout(() => dog.el?.classList.remove("dog-wag"), 800);
-    hooks.onPetDog?.();
+    if (rewardPlayer) hooks.onPetDog?.({ explicit: true });
   }
 
   function showBubble(text) {
@@ -237,7 +237,7 @@ const LifeEngine = (() => {
       targetY = nearestCat.c.y;
       speed = 0.22;
       if (nearestCat.d < 4 && dog.stateT > 0.5) {
-        barkAndPet();
+        barkAndPet(false);
         nearestCat.c.x += 8;
       }
     } else if (dog.state === "chase") {

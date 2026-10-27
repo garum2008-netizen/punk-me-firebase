@@ -14,6 +14,7 @@
     "test:story-preview": "node scripts/test-story-preview-smoke.js",
     "test:quest-table-sync": "node scripts/test-quest-table-sync.mjs",
     "test:ch0-p0": "node scripts/test-ch0-p0.mjs",
+    "test:p1-gameplay-economy": "node scripts/test-p1-gameplay-economy.mjs",
     "test:p0-first-10min": "node scripts/p0-first-10min-playthrough.js",
     "test:newcomer-no-force": "node scripts/newcomer-no-force-playthrough.js",
     "test:rules": "node scripts/run-rules-emulator.js",

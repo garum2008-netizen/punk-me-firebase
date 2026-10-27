@@ -77,7 +77,7 @@ function onKeyDown(e) {
   if (e.code === "ArrowRight") state.arrowright = true;
   if (e.code === "ShiftLeft" || e.code === "ShiftRight") state.shift = true;
   if (e.code === "Space") { state.jump = true; e.preventDefault(); }
-  if (e.code === "KeyE") state.interact = true;
+  if (e.code === "KeyE" && !e.repeat) state.interact = true;
 }
 
 function onKeyUp(e) {
@@ -90,6 +90,7 @@ function onKeyUp(e) {
   if (e.code === "ArrowLeft") state.arrowleft = false;
   if (e.code === "ArrowRight") state.arrowright = false;
   if (e.code === "ShiftLeft" || e.code === "ShiftRight") state.shift = false;
+  if (e.code === "KeyE") state.interact = false;
 }
 
 function onPtrDown(e) {

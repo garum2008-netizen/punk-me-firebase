@@ -1271,7 +1271,12 @@ function processInput(dt) {
   }
   if (consumeInteract()) {
     window._lastInteract = true;
-    hooks.onInteract?.();
+    window.__punkExplicitInteract = true;
+    try {
+      hooks.onInteract?.();
+    } finally {
+      window.__punkExplicitInteract = false;
+    }
   }
 }
 

@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "story-preview-p0-r3";
+const GAME_VERSION = "story-preview-p0-r4";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -407,6 +407,8 @@ let shopTab = "clothes";
 let presenceOk = true;
 let playersListenRef = null;
 let dogPos = { x: 38, y: 65 };
+const PET_DOG_COOLDOWN_MS = 2800;
+let lastPetDogAt = 0;
 let dogWag = false;
 let pendingJobAction = null;
 
@@ -913,8 +915,8 @@ function init() {
           return;
         }
         if (window.PlayV21?.tryInteract(me, playCtx)) return;
-        if (window.World3D?.getNearestDog?.()) {
-          petDog(true);
+        if (window.__punkExplicitInteract && window.World3D?.getNearestDog?.()) {
+          petDog(true, { explicit: true });
           return;
         }
         const nid = window.World3D?.getNearestNpc?.();
@@ -946,7 +948,7 @@ function init() {
   LifeEngine.init({
     getMe: () => me,
     hasDog,
-    onPetDog: () => petDog(true),
+    onPetDog: opts => petDog(true, opts),
     onTrashKick: () => {
       if (!isOwner) me.coins += 5;
       me.xp += 2;
@@ -1707,8 +1709,13 @@ function renderPlayers() {
   syncStage3D();
 }
 
-function petDog(fromLife) {
-  if (!fromLife) LifeEngine.barkAndPet();
+function petDog(fromLife, opts = {}) {
+  const explicit = !!window.__punkExplicitInteract || opts.explicit === true;
+  if (!explicit) return;
+  const now = Date.now();
+  if (now - lastPetDogAt < PET_DOG_COOLDOWN_MS) return;
+  lastPetDogAt = now;
+  if (!fromLife) LifeEngine.barkAndPet(false);
   toast(t("petHappy"));
   me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
   window.Onboarding?.onShnurokInteract?.("pet");
@@ -1829,7 +1836,7 @@ function renderGangList() {
 
 function openNpcDialog(nid) {
   if (nid === "shnurok") {
-    petDog(false);
+    petDog(false, { explicit: true });
     closeModal("gangModal");
     return;
   }

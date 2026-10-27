@@ -397,12 +397,26 @@ function consumeInteractNearGhosts(pl, job) {
 function endCemeteryJob(success) {
   const job = state.cemetery;
   if (!job) return;
-  const st = window.StoryEngine?.ensureStoryState?.(window.me);
-  if (st?.quest?.activeId === "q_ch3_cemetery_night") success = true;
+  let prog = 0;
+  if (job.kind === "paths") {
+    const need = job.pathTiles?.length || 10;
+    prog = Math.min(1, (job.pathsDone || 0) / need);
+    success = (job.pathsDone || 0) >= need;
+  } else if (job.kind === "lamps") {
+    const need = job.candles.length || 1;
+    prog = Math.min(1, job.lit / need);
+    success = job.lit >= need;
+  } else {
+    const gNeed = job.ghosts.length || 1;
+    const cNeed = job.candles.length || 1;
+    prog = Math.min(1, (job.lit / cNeed + job.caught / gNeed) / 2);
+    success = job.lit >= cNeed && job.caught >= gNeed;
+  }
+  const result = { success, prog, kind: job.kind };
   job.root.removeFromParent();
   state.cemetery = null;
   setHud("");
-  window._cemeteryJobDone?.(success);
+  window._cemeteryJobDone?.(result);
 }
 
 function hideDuelOccluders(ctx) {

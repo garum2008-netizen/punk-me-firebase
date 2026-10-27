@@ -830,6 +830,17 @@ export function renderObjectivePanel() {
       objective = L(step.objective);
       if (q.id === "q_ch2_hangout" && st.hangoutStage < 4) {
         sub = hangoutObjectiveSub(st);
+      } else if (q.id === "q_ch2_hangout" && st.hangoutStage >= 4) {
+        objective = L({
+          ru: "Построено (4/4) — тусовка готова",
+          en: "Built (4/4) — hangout is ready",
+          da: "Bygget (4/4) — festen er klar"
+        });
+        sub = L({
+          ru: "Дальше: ночная смена на кладбище",
+          en: "Next: cemetery night shift",
+          da: "Næste: nattevagt på kirkegården"
+        });
       }
       const hintLevel = st.idleHintLevel || 0;
       const yt = window.AudioManager?.getYoutubeNarratorMode?.() || false;
@@ -839,6 +850,18 @@ export function renderObjectivePanel() {
         sub = (sub ? sub + " · " : "") + L({ ru: "Показать путь", en: "Show path", da: "Vis vej" });
       }
       window.AngelinaGuide?.refreshAngelinaContextBanner?.();
+    } else if (st.hangoutStage >= 4 && st.flags.joined_gang) {
+      title = L(data.hangout?.title || {});
+      objective = L({
+        ru: "Построено (4/4)",
+        en: "Built (4/4)",
+        da: "Bygget (4/4)"
+      });
+      sub = L({
+        ru: "Тусовка готова — смотри квесты и кладбище",
+        en: "Hangout complete — follow quests to the cemetery",
+        da: "Festen er klar — følg quest til kirkegården"
+      });
     } else if (st.hangoutStage < 4 && st.flags.joined_gang) {
       title = L(data.hangout?.title || {});
       const stage = data.hangout?.stages?.[st.hangoutStage];
@@ -886,6 +909,20 @@ export function updateConstructionHud() {
     return;
   }
   const st = ensureStoryState(p);
+  if (st.hangoutStage >= 4) {
+    hud.classList.add("active");
+    hud.querySelector(".stage-name").textContent = L({
+      ru: "Построено (4/4)",
+      en: "Built (4/4)",
+      da: "Bygget (4/4)"
+    });
+    hud.querySelector(".need-line").textContent = L({
+      ru: "Все этапы завершены",
+      en: "All stages complete",
+      da: "Alle etaper færdige"
+    });
+    return;
+  }
   const stage = data.hangout?.stages?.[st.hangoutStage];
   if (!stage) {
     hud.classList.remove("active");

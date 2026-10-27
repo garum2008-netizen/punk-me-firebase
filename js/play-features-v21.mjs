@@ -155,10 +155,16 @@ export function initPlayV21(ctx) {
         return;
       }
       window._cemeteryJobKind = jobKind;
-      window._cemeteryJobDone = success => {
-        const pay = 25 + (success ? 55 : 15);
+      window._cemeteryJobDone = result => {
+        const r =
+          typeof result === "boolean"
+            ? { success: result, prog: result ? 1 : 0, kind: jobKind }
+            : { kind: jobKind, success: false, prog: 0, ...result };
+        const frac = r.success ? 1 : Math.min(1, Number(r.prog) || 0);
+        const pay = 15 + Math.round(65 * frac);
+        const xp = 10 + Math.round((r.success ? 20 : 5) * (0.35 + 0.65 * frac));
         me.coins += pay;
-        me.xp += 10 + (success ? 20 : 5);
+        me.xp += xp;
         hooks.save();
         hooks.toast(t("job_cemetery_done") + " +" + pay);
         window.StoryEngine?.fireStoryEvent?.("job_cemetery_done");
@@ -178,7 +184,7 @@ export function initPlayV21(ctx) {
         left -= 1;
         if (left <= 0) {
           clearInterval(tick);
-          window._cemeteryJobDone?.(true);
+          window._cemeteryJobDone?.({ success: false, prog: 0, kind: jobKind });
         }
       }, 1000);
     },
