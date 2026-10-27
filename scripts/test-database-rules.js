@@ -140,6 +140,9 @@ async function run() {
   r = await fetchJson(dbUrl("players"));
   pass("unauth read /players root → deny", denied(r), `status ${r.status}`);
 
+  r = await fetchJson(dbUrl("players", aliceAuth.idToken));
+  pass("non-admin read /players list → deny", denied(r), `status ${r.status}`);
+
   r = await fetchJson(dbUrl(`players/${aliceUid}`));
   pass("unauth read /players/{uid} → deny", denied(r), `status ${r.status}`);
 
@@ -258,28 +261,28 @@ async function run() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(presencePayload)
   });
-  pass("alice write own presence → allow", r.status === 200, r.body);
+  pass("presence: own write → allow", r.status === 200, r.body);
 
   r = await fetchJson(dbUrl(`presence/room/${aliceUid}`, bobAuth.idToken), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...presencePayload, name: "Intruder" })
   });
-  pass("bob write alice presence → deny", denied(r), `status ${r.status}`);
+  pass("presence: foreign write → deny", denied(r), `status ${r.status}`);
 
   r = await fetchJson(dbUrl("presence/room", aliceAuth.idToken));
   pass("alice read presence/room (authed) → allow", r.status === 200, `status ${r.status}`);
 
   r = await fetchJson(dbUrl("presence/room"));
   if (prodHotfix) {
-    pass("unauth read presence/room → deny (prod-hotfix)", denied(r), `status ${r.status}`);
+    pass("presence: unauth read → deny (prod-hotfix)", denied(r), `status ${r.status}`);
   } else {
     pass("unauth read presence/room → allow", r.status === 200, `status ${r.status}`);
   }
 
   r = await fetchJson(dbUrl("chat"));
   if (prodHotfix) {
-    pass("unauth read chat → deny (prod-hotfix)", denied(r), `status ${r.status}`);
+    pass("chat: unauth read → deny (prod-hotfix)", denied(r), `status ${r.status}`);
   } else {
     pass("unauth read chat → allow", r.status === 200, `status ${r.status}`);
   }
@@ -295,7 +298,61 @@ async function run() {
       time: Date.now()
     })
   });
-  pass("alice write chat message → allow", r.status === 200, r.body);
+  pass("chat: new message own uid ≤280 chars → allow", r.status === 200, r.body);
+
+  const longMsgId = "msg_long_" + Date.now();
+  r = await fetchJson(dbUrl(`chat/${longMsgId}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      uid: aliceUid,
+      name: "TestPunk",
+      text: "x".repeat(281),
+      time: Date.now()
+    })
+  });
+  pass("chat: message >280 chars → deny", denied(r), `status ${r.status}`);
+
+  const spoofMsgId = "msg_spoof_" + Date.now();
+  r = await fetchJson(dbUrl(`chat/${spoofMsgId}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      uid: bobUid,
+      name: "TestPunk",
+      text: "pretend bob",
+      time: Date.now()
+    })
+  });
+  pass("chat: spoofed uid → deny", denied(r), `status ${r.status}`);
+
+  const bobMsgId = "msg_bob_" + Date.now();
+  r = await fetchJson(dbUrl(`chat/${bobMsgId}`, bobAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      uid: bobUid,
+      name: "Bob",
+      text: "bob says hi",
+      time: Date.now()
+    })
+  });
+  pass("chat: bob creates message → allow", r.status === 200, r.body);
+
+  r = await fetchJson(dbUrl(`chat/${bobMsgId}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      uid: bobUid,
+      name: "Bob",
+      text: "alice edited bob",
+      time: Date.now()
+    })
+  });
+  pass("chat: edit another user message → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`chat/${bobMsgId}`, aliceAuth.idToken), { method: "DELETE" });
+  pass("chat: delete another user message → deny", denied(r), `status ${r.status}`);
 
   r = await fetchJson(dbUrl("buildings/city"));
   if (prodHotfix) {
@@ -320,6 +377,34 @@ async function run() {
     body: JSON.stringify({ enabled: true })
   });
   pass("alice PUT qa → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ entitlements: { stripe: "bypass" } })
+  });
+  pass("players: parent PATCH entitlements bypass → deny", denied(r), `status ${r.status}`);
+
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ qa: { enabled: true, flags: { god: true } } })
+  });
+  pass("players: parent PATCH qa bypass → deny", denied(r), `status ${r.status}`);
+
+  await admin.database().ref(`players/${aliceUid}/premium`).remove();
+  await admin.database().ref(`players/${aliceUid}/entitlements`).remove();
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coins: 120, premium: true })
+  });
+  const premAfterBypass = (await admin.database().ref(`players/${aliceUid}/premium`).get()).val();
+  pass(
+    "players: parent PATCH premium:true bypass → deny",
+    denied(r) && premAfterBypass !== true,
+    `status ${r.status} premium=${JSON.stringify(premAfterBypass)}`
+  );
 
   await admin.database().ref(`players/${aliceUid}/premium`).set(true);
   r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {

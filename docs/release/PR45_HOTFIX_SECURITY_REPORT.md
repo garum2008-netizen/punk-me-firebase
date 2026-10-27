@@ -1,6 +1,18 @@
 # PR #45 — Security hotfix: presence FAIL root cause & risk (t111u)
 
-**Status:** `build:hotfix-rules --test` on prod audit model → **25 PASS, 0 FAIL** (presence + chat repair). **No prod deploy.**
+**Status:** `npm run test:pr45-emulator` — full protocol on hotfix rules (`presence` + `chat` blocks per owner decision 27.10.2026). **No prod deploy.**
+
+## Owner decision (27.10.2026) — gang chat in hotfix
+
+The deployable hotfix file **`rtdb-rules-hotfix-from-live.json`** includes **both** repaired **`presence`** and **`chat`** (see `bb77831` / `MINIMAL_*_FOR_CLIENT` in `rtdb-hotfix-patch.mjs`).
+
+**Gang chat is intentionally open to any signed-in player** (read + post own messages). There is **no moderation, rate limit, or content filter** in rules or client for this hotfix.
+
+| Residual risk | Follow-up (not in PR #45) |
+|---------------|---------------------------|
+| Abuse / spam in `chat/` | Server-side or rules-based moderation, profanity filter, report flow |
+| Harassment / PII | Owner policy + optional Cloud Function on write |
+| Message retention | TTL / archival job |
 
 ## 1. Cause of `alice write own presence → allow` FAIL
 
@@ -39,14 +51,12 @@ If live export **already** has working own-write presence (e.g. `live-published-
 Run (Cloud Shell or CI):
 
 ```bash
-npm run build:hotfix-rules -- --model-audit --test
-npm run test:rules          # git database.rules.json target model
-npm run test:save-sanitize
+npm run test:pr45-emulator
 ```
 
 `test-database-rules.js` logs **PASS/FAIL per case** and a **summary** (no stop on first FAIL).
 
-Cases include: players root, owner coins, premium/entitlements/qa, admin read, publicProfiles, presence (own write, bob deny, authed read, anon deny in prod-hotfix), chat, buildings, PATCH bypass attempts on premium.
+**prod-hotfix matrix highlights:** non-admin `/players` list deny; presence own write / foreign deny / unauth read deny; chat unauth read deny; new message (own uid, ≤280) allow; edit/delete other’s message deny; >280 chars deny; spoofed uid deny; parent-path PATCH bypass on premium/entitlements/qa deny.
 
 ## 5. Risk assessment (deploy hotfix rules file)
 

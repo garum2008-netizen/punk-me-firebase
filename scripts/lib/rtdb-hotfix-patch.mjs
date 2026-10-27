@@ -11,10 +11,17 @@ const UID_WRITE = "auth != null && auth.uid === $uid";
 const PRIV_VALIDATE =
   "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())";
 
+/** Block parent PATCH/PUT from introducing or changing privileged fields (child .validate alone is insufficient). */
+const UID_PRIVILEGED_VALIDATE = [
+  "(!newData.hasChild('premium') || auth.token.admin === true || (data.hasChild('premium') && newData.child('premium').val() == data.child('premium').val()))",
+  "(!newData.hasChild('entitlements') || auth.token.admin === true || (data.hasChild('entitlements') && newData.child('entitlements').val() == data.child('entitlements').val()))",
+  "(!newData.hasChild('qa') || auth.token.admin === true || (data.hasChild('qa') && newData.child('qa').val() == data.child('qa').val()))"
+].join(" && ");
+
 export const PRIVILEGED_CHILD_RULES = {
-  premium: { ".validate": PRIV_VALIDATE },
-  entitlements: { ".validate": PRIV_VALIDATE },
-  qa: { ".validate": PRIV_VALIDATE }
+  premium: { ".write": "auth != null && auth.token.admin === true", ".validate": PRIV_VALIDATE },
+  entitlements: { ".write": "auth != null && auth.token.admin === true", ".validate": PRIV_VALIDATE },
+  qa: { ".write": "auth != null && auth.token.admin === true", ".validate": PRIV_VALIDATE }
 };
 
 /** Matches main @ 450d6da client `pushPresence` payload; read requires auth (prod anon deny). */
@@ -96,7 +103,10 @@ export function applyHotfixPatch(liveRules) {
   if (players[".write"] === undefined) players[".write"] = false;
   const uid = { ...(players["$uid"] ?? {}) };
   uid[".read"] = UID_READ;
-  uid[".write"] = UID_WRITE;
+  uid[".write"] = `auth != null && auth.uid === $uid && (${UID_PRIVILEGED_VALIDATE})`;
+  uid[".validate"] = uid[".validate"]
+    ? `(${uid[".validate"]}) && (${UID_PRIVILEGED_VALIDATE})`
+    : UID_PRIVILEGED_VALIDATE;
   for (const [k, v] of Object.entries(PRIVILEGED_CHILD_RULES)) {
     uid[k] = v;
   }

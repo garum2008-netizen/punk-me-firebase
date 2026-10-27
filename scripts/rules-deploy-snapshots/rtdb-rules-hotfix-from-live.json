@@ -7,20 +7,24 @@
       ".write": false,
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
-        ".write": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && ((!newData.hasChild('premium') || auth.token.admin === true || (data.hasChild('premium') && newData.child('premium').val() == data.child('premium').val())) && (!newData.hasChild('entitlements') || auth.token.admin === true || (data.hasChild('entitlements') && newData.child('entitlements').val() == data.child('entitlements').val())) && (!newData.hasChild('qa') || auth.token.admin === true || (data.hasChild('qa') && newData.child('qa').val() == data.child('qa').val())))",
         "name": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
         },
         "coins": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999999"
         },
+        ".validate": "(!newData.hasChild('premium') || auth.token.admin === true || (data.hasChild('premium') && newData.child('premium').val() == data.child('premium').val())) && (!newData.hasChild('entitlements') || auth.token.admin === true || (data.hasChild('entitlements') && newData.child('entitlements').val() == data.child('entitlements').val())) && (!newData.hasChild('qa') || auth.token.admin === true || (data.hasChild('qa') && newData.child('qa').val() == data.child('qa').val()))",
         "premium": {
+          ".write": "auth != null && auth.token.admin === true",
           ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
         },
         "entitlements": {
+          ".write": "auth != null && auth.token.admin === true",
           ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
         },
         "qa": {
+          ".write": "auth != null && auth.token.admin === true",
           ".validate": "!newData.exists() || auth.token.admin === true || (data.exists() && newData.val() == data.val())"
         }
       }
