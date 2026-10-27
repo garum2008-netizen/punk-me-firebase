@@ -33,7 +33,7 @@ const ch0Count = (ruBlock.match(/chapter_0_title:/g) || []).length;
 if (ch0Count > 1) fail("duplicate chapter_0_title in ru i18n");
 if (/Купи что-нибудь/.test(ruBlock)) fail("obsolete shop onboarding copy in ru i18n");
 const gameJs = fs.readFileSync(path.join(root, "js/game.js"), "utf8");
-if (!/story-preview-p0-[0-9a-f]{7}/.test(gameJs)) fail("GAME_VERSION must be story-preview-p0-<sha7>");
+if (!/story-preview-p0-r\d+/.test(gameJs)) fail("GAME_VERSION must be story-preview-p0-r<N> (stable label, see docs/release/P0_PREVIEW_BUILD.md)");
 if (/onboard_mom_voice/.test(ruBlock)) fail("do not claim mom voice without VO files");
 
 const steps = [...onboardingSrc.matchAll(/qt:\s*"(ch0_s_[^"]+)"/g)].map(m => m[1]);

@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "story-preview-p0-93de098";
+const GAME_VERSION = "story-preview-p0-r2";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
