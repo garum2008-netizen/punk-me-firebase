@@ -4,7 +4,7 @@
 |-------|--------|
 | **Branch** | `cursor/prod-security-hotfix-d81d` |
 | **PR** | [#45](https://github.com/garum2008-netizen/punk-me-firebase/pull/45) (Draft) |
-| **Head SHA** | `dd83a3b` |
+| **Head SHA** | `0322440` |
 | **Deploy** | **No** — emulator + docs only until owner GO |
 
 ## Scope delivered
