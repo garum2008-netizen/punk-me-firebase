@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-accounts-r1";
+const GAME_VERSION = "story-preview-p0-6f1cd47";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -613,6 +613,8 @@ function applyFirebasePlayerSnapshot(snap) {
   me.lastSeen = Date.now();
   if (window.StoryEngine?.ensureStoryState) window.StoryEngine.ensureStoryState(me);
   if (me.characterId) writeStoredCharacterId(me.characterId);
+  syncLocationTitle(me.location);
+  refreshSocialPresenceUi();
 }
 
 function finishLoadMeFlow() {
@@ -1274,6 +1276,7 @@ function initMultiplayer() {
   }).catch(() => {
     presenceOk = false;
     listenPlayersInLocation();
+    refreshSocialPresenceUi();
   });
 }
 
@@ -1302,6 +1305,7 @@ function disablePresence(reason) {
   console.warn("Presence disabled:", reason);
   if (presenceListenRef) presenceListenRef.off();
   listenPlayersInLocation();
+  refreshSocialPresenceUi();
 }
 
 function isPrivateRoomLoc(locId) {
@@ -1453,10 +1457,48 @@ function countLivePlayers(all) {
   return Object.values(all || {}).filter(p => p && p.lastSeen && now - p.lastSeen < PRESENCE_STALE_MS).length;
 }
 
+function isEarlyStorySocialSoft() {
+  const p = window.me;
+  if (!p) return true;
+  if (p.onboarding && !p.onboarding.done) return true;
+  const st = p.story;
+  if (!st?.flags?.joined_gang && (st?.chapter ?? 0) < 2) return true;
+  return false;
+}
+
+function refreshSocialPresenceUi() {
+  const offline = !presenceOk || isEarlyStorySocialSoft();
+  document.body.classList.toggle("social-presence-offline", offline);
+  const chatInp = document.getElementById("chatInput");
+  const chatToggle = document.getElementById("chatToggle");
+  if (chatInp) {
+    chatInp.disabled = offline;
+    chatInp.placeholder = offline
+      ? (typeof t === "function" ? t("chat_offline_ph") : "Chat offline")
+      : (typeof t === "function" ? t("chatPh") : "");
+  }
+  if (chatToggle) chatToggle.setAttribute("aria-disabled", offline ? "true" : "false");
+  const gEl = document.getElementById("onlineGlobal");
+  const badge = document.querySelector(".hud-online-combined");
+  if (offline && gEl) gEl.textContent = "—";
+  if (badge) badge.setAttribute("title", offline && typeof t === "function" ? t("social_offline_hint") : "");
+}
+
+function syncLocationTitle(locId) {
+  const id = locId || me?.location || "room";
+  const el = document.getElementById("locTitle");
+  if (!el) return;
+  el.textContent = typeof locTitle === "function" ? locTitle(id) : id;
+  el.setAttribute("data-i18n-loc", id);
+}
+
 function updateOnlineCount() {
+  const offline = !presenceOk || isEarlyStorySocialSoft();
   const inLoc = Object.keys(others).length + 1;
-  document.getElementById("onlineCount").textContent = String(inLoc);
+  const countEl = document.getElementById("onlineCount");
+  if (countEl) countEl.textContent = offline ? "—" : String(inLoc);
   updatePlayersToggleCount();
+  refreshSocialPresenceUi();
   if (!presenceOk) return;
   db.ref("presence").once("value").then(s => {
     const global = countLivePresenceTree(s.val());
@@ -1512,6 +1554,8 @@ function goLocation(id, fromHash) {
     setTimeout(() => runJobAction(act), 350);
   }
   afterLocationChange();
+  syncLocationTitle(id);
+  refreshSocialPresenceUi();
   window.AudioManager?.setLocationMusic?.(id);
   window.StoryGoalHud?.refresh?.();
 }
@@ -1556,7 +1600,7 @@ function renderAll() {
     const bgDup = document.getElementById("bgDup");
     if (bgDup) bgDup.src = loc.bg;
   }
-  document.getElementById("locTitle").textContent = locTitle(loc.id);
+  syncLocationTitle(loc.id);
   document.getElementById("coins").textContent = formatCoinsDisplay();
   document.getElementById("xp").textContent = String(me.xp);
   document.getElementById("level").textContent = String(me.level);
@@ -2301,5 +2345,7 @@ window.setBuildType = function (bt) { selectedBuild = bt; toast(t("building") + 
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
 window.syncStage3D = syncStage3D;
+window.syncLocationTitle = syncLocationTitle;
+window.refreshSocialPresenceUi = refreshSocialPresenceUi;
 
 document.addEventListener("DOMContentLoaded", init);

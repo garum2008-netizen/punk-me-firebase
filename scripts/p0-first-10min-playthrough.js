@@ -5,6 +5,7 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 const { chromium } = require("playwright");
 const { start, stop } = require("./local-static-server");
 const H = require("./playthrough-ui-helpers");
@@ -61,7 +62,7 @@ async function advanceOnboardingScripted(page) {
         window.Onboarding.onEnterLocation("elevator");
       }
       if (key === "ch0_enter_street") {
-        window.me.location = "street";
+        window.goLocation?.("street");
         window.Onboarding.onEnterLocation("street");
       }
       if (key === "ch0_razor_talk") window.Onboarding.onTalkRazor();
@@ -139,19 +140,36 @@ async function runLang(browser, base, lang) {
     fs.writeFileSync(path.join(dir, "state.json"), JSON.stringify(snap, null, 2));
   } finally {
     await context.close();
+    let videoPath = null;
     if (RECORD_VIDEO) {
       const webm = fs.readdirSync(dir).find(f => f.endsWith(".webm"));
       if (webm) {
+        const webmPath = path.join(dir, webm);
+        const mp4Path = path.join(dir, `AUTOMATED-playthrough-${lang}-30fps.mp4`);
         try {
-          fs.renameSync(path.join(dir, webm), path.join(dir, `playthrough-${lang}-AUTOMATED.webm`));
-        } catch {
-          fs.unlinkSync(path.join(dir, webm));
+          execSync(
+            `ffmpeg -y -i "${webmPath}" -r 30 -c:v libx264 -pix_fmt yuv420p -movflags +faststart "${mp4Path}"`,
+            { stdio: "pipe" }
+          );
+          videoPath = mp4Path;
+          fs.unlinkSync(webmPath);
+        } catch (e) {
+          errors.push(`${lang}: ffmpeg mp4 failed: ${e.message || e}`);
+          try {
+            fs.renameSync(webmPath, path.join(dir, `AUTOMATED-playthrough-${lang}.webm`));
+          } catch {
+            fs.unlinkSync(webmPath);
+          }
         }
+      } else {
+        errors.push(`${lang}: no webm recorded (P0_RECORD_VIDEO=1)`);
       }
     }
     fs.writeFileSync(
       path.join(dir, `AUTOMATED-playthrough-${lang}.md`),
-      `# Automated playthrough (${lang}) — NOT human\n\nScreenshots in this folder. Video optional (P0_RECORD_VIDEO=1).\n`
+      `# Automated playthrough (${lang}) — NOT human\n\nScreenshots in this folder.${
+        videoPath ? `\n\nVideo: \`${path.basename(videoPath)}\` (30 fps, automated).\n` : ""
+      }`
     );
   }
 }

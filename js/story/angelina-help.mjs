@@ -72,13 +72,23 @@ function markSeenExplain(help, id) {
   if (!help.seenExplains.includes(id)) help.seenExplains.push(id);
 }
 
-function renderPanel(text, speaker = "angelina") {
+function renderPanel(text) {
+  const help = ensureHelpSettings(window.me);
   const body = document.getElementById("angelinaHelpBody");
   const sub = document.getElementById("angelinaHelpSub");
-  if (body) body.textContent = text;
-  if (sub && ensureHelpSettings(window.me).subtitles) {
-    sub.textContent = text;
-    sub.classList.add("visible");
+  // Text-only Angelina: one surface. Subtitle line reserved for future recorded VO.
+  if (help.voiceHints && help.subtitles) {
+    if (body) body.textContent = "";
+    if (sub) {
+      sub.textContent = text;
+      sub.classList.add("visible");
+    }
+  } else {
+    if (body) body.textContent = text;
+    if (sub) {
+      sub.textContent = "";
+      sub.classList.remove("visible");
+    }
   }
   window.AngelinaGuide?.refreshAngelinaContextBanner?.();
 }

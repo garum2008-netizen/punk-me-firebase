@@ -49,7 +49,7 @@
 | (пролог) | `#chapterIntro` 4 слайда | `flags.intro_seen` |
 | ch0_s_awake … ch0_s_razor | `onboarding.js` (11 шагов, id `ch0_s_*`) | `onboarding.step` / `onboarding.done` + `reward_ch0_complete` |
 | ch0_s_razor | Razor на улице, тост «Игра сохранена» | `ch0_razor_talk`, без дуэли до `q_ch1_initiation_choice` |
-| ch0_s_mom | голос Лиды за дверью (без модели) | `Onboarding.onMomTalk` |
+| ch0_s_mom | субтитры Лиды за дверью (без модели, без VO-файла) | `Onboarding.onMomTalk` |
 | ch0_s_shnurok | Шнурок NPC + миска | `ch0_feed_bowl`, `ch0_pet_shnurok` |
 | ch0_s_avatar | кастомизация | герой / инвентарь |
 

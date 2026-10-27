@@ -199,6 +199,7 @@ function completeStep() {
   syncGuideTarget();
   window.Narrator?.refresh?.();
   window.StoryGoalHud?.refresh?.();
+  window.refreshSocialPresenceUi?.();
 }
 
 function finishOnboarding() {
@@ -211,6 +212,7 @@ function finishOnboarding() {
   window.StoryEngine?.onOnboardingComplete?.();
   if (window.saveMe) saveMe();
   renderOnboardingQuest();
+  window.refreshSocialPresenceUi?.();
 }
 
 function saveMeQuiet() {
@@ -300,8 +302,8 @@ function onMomTalk() {
   if (st?.key !== "ch0_mom_talk") return;
   const line =
     typeof t === "function"
-      ? t("onboard_mom_voice")
-      : "Lida (behind the door): Breakfast is ready! Come to the kitchen when you can.";
+      ? t("onboard_mom_subtitle")
+      : "Lida (behind the door): «Breakfast is on the kitchen table.» (subtitle — no voice file)";
   toast(line);
   bump("ch0_mom_talk", 1);
 }

@@ -2,6 +2,8 @@
 const I18N = {
   ru: {
     coins: "Монеты", xp: "XP", level: "Уровень", rep: "Репутация", chain: "Цепь", online: "Здесь", onlineGlobal: "Всего в игре",
+    social_offline_hint: "Чат и счётчик игроков недоступны в офлайн-режиме или на раннем сюжете.",
+    chat_offline_ph: "Чат недоступен (офлайн)",
     loading: "Вход в банду...", loading_retry: "Повторить", loading_fresh: "Начать заново (аккаунт сохранится)",
     loading_timeout: "Загрузка слишком долгая. Проверь сеть или нажми «Повторить».",
     loading_boot_error: "Не удалось загрузить сохранение.",
@@ -180,10 +182,10 @@ const I18N = {
     hint_talk_npc: "E — поговорить", hint_portal: "Зайди в неоновое кольцо — переход", hint_portal_named: "Портал: {dest}",
     onboard_title: "Дом 13 · обучение", onboard_step_done: "Шаг готов!", onboard_all_done: "Обучение пройдено!",
     onboard_save_toast: "Игра сохранена.",
-    onboard_mom_voice: "Лида (за дверью): «Проснись! Завтрак на кухне. Шнурок уже скулил.»",
+    onboard_mom_subtitle: "Лида (за дверью): «Проснись! Завтрак на кухне.» — субтитры, без озвучки.",
     onboard_feed_bowl_toast: "Шнурок мило жуёт корм.",
     onboard_awake_title: "Осмотрись", onboard_awake_text: "Покрути камеру и сделай несколько шагов.",
-    onboard_mom_title: "Мама зовёт", onboard_mom_text: "Подойди к двери на кухню и нажми E.",
+    onboard_mom_title: "Мама зовёт", onboard_mom_text: "Подойди к двери на кухню и нажми E — услышишь субтитры (без озвучки).",
     onboard_shnurok_intro_title: "Покорми Шнурка", onboard_shnurok_intro_text: "На кухне нажми E у миски.",
     onboard_journal_title: "Журнал заданий", onboard_journal_text: "Открой меню ☰ — там цель и подсказки.",
     onboard_shnurok_play_title: "Поиграй со Шнурком", onboard_shnurok_play_text: "Погладь пса и брось мяч (E).",
@@ -232,6 +234,8 @@ const I18N = {
   },
   en: {
     coins: "Coins", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
+    social_offline_hint: "Gang chat and player counts are offline during early story or without presence.",
+    chat_offline_ph: "Chat unavailable (offline)",
     loading: "Joining the gang...", loading_retry: "Retry", loading_fresh: "Start fresh (keep account)",
     loading_timeout: "Loading is taking too long. Check your network or tap Retry.",
     loading_boot_error: "Could not load your save.",
@@ -407,10 +411,10 @@ const I18N = {
     hint_talk_npc: "E — talk", hint_portal: "Step into the neon ring to travel", hint_portal_named: "Portal: {dest}",
     onboard_title: "House 13 · training", onboard_step_done: "Step complete!", onboard_all_done: "Training complete!",
     onboard_save_toast: "Game saved.",
-    onboard_mom_voice: "Lida (behind the door): \"Wake up! Breakfast is in the kitchen. Shnurok's whining.\"",
+    onboard_mom_subtitle: "Lida (behind the door): \"Wake up! Breakfast is in the kitchen.\" — subtitles only, no VO.",
     onboard_feed_bowl_toast: "Shnurok munches happily.",
     onboard_awake_title: "Look around", onboard_awake_text: "Turn the camera and take a few steps.",
-    onboard_mom_title: "Mom calls", onboard_mom_text: "Go to the kitchen door and press E.",
+    onboard_mom_title: "Mom calls", onboard_mom_text: "Go to the kitchen door and press E — subtitles only (no voice file).",
     onboard_shnurok_intro_title: "Feed Shnurok", onboard_shnurok_intro_text: "In the kitchen, press E at the bowl.",
     onboard_journal_title: "Quest journal", onboard_journal_text: "Open the ☰ menu to see your goal.",
     onboard_shnurok_play_title: "Play with Shnurok", onboard_shnurok_play_text: "Pet the dog and throw the ball (E).",
@@ -459,6 +463,8 @@ const I18N = {
   },
   da: {
     coins: "Mønter", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
+    social_offline_hint: "Chat og spillertællere er offline i tidlig historie eller uden presence.",
+    chat_offline_ph: "Chat utilgængelig (offline)",
     loading: "Går ind i banden...", loading_retry: "Prøv igen", loading_fresh: "Start forfra (behold konto)",
     loading_timeout: "Indlæsning tager for lang tid. Tjek netværket eller tryk Prøv igen.",
     loading_boot_error: "Kunne ikke indlæse dit save.",
@@ -634,10 +640,10 @@ const I18N = {
     hint_talk_npc: "E — tal", hint_portal: "Gå ind i neonringen for at rejse", hint_portal_named: "Portal: {dest}",
     onboard_title: "Hus 13 · træning", onboard_step_done: "Trin klaret!", onboard_all_done: "Træning færdig!",
     onboard_save_toast: "Spil gemt.",
-    onboard_mom_voice: "Lida (bag døren): «Vågn op! Morgenmad i køkkenet.»",
+    onboard_mom_subtitle: "Lida (bag døren): «Vågn op! Morgenmad i køkkenet.» — kun undertekst, ingen VO.",
     onboard_feed_bowl_toast: "Shnurok spiser glad.",
     onboard_awake_title: "Kig rundt", onboard_awake_text: "Drej kameraet og tag et par skridt.",
-    onboard_mom_title: "Mor kalder", onboard_mom_text: "Gå til køkkendøren og tryk E.",
+    onboard_mom_title: "Mor kalder", onboard_mom_text: "Gå til køkkendøren og tryk E — kun undertekst (ingen VO).",
     onboard_shnurok_intro_title: "Fodr Shnurok", onboard_shnurok_intro_text: "I køkkenet, tryk E ved skålen.",
     onboard_journal_title: "Journal", onboard_journal_text: "Åbn ☰ menuen for dit mål.",
     onboard_shnurok_play_title: "Leg med Shnurok", onboard_shnurok_play_text: "Klapp hunden og kast bolden (E).",
@@ -763,7 +769,9 @@ const LOC_TITLES = {
   roof: { ru: "Крыша", en: "Rooftop", da: "Tag" },
   street: { ru: "Улица банды", en: "Gang street", da: "Bandegade" },
   cemetery: { ru: "Кладбище банды", en: "Gang cemetery", da: "Bandekirkegård" },
-  city: { ru: "Стройка кварталов", en: "District build", da: "Byggekvarter" },
+  city: { ru: "Город", en: "City", da: "Byen" },
+  construction: { ru: "Стройка", en: "Construction site", da: "Byggeplads" },
+  castle: { ru: "Замок", en: "Castle", da: "Slot" },
   parkour: { ru: "Крышный паркур", en: "Rooftop parkour", da: "Tag-parkour" }
 };
 
@@ -861,6 +869,11 @@ function doorT(key) {
 }
 
 function applyI18nDom() {
+  const locEl = document.getElementById("locTitle");
+  if (locEl && window.me?.location) {
+    const id = locEl.getAttribute("data-i18n-loc") || window.me.location;
+    locEl.textContent = locTitle(id);
+  }
   document.querySelectorAll("[data-i18n]").forEach(el => {
     const k = el.getAttribute("data-i18n");
     if (k) el.textContent = t(k);

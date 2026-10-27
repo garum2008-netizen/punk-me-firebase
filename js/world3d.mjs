@@ -1318,6 +1318,7 @@ function sync(data) {
   const justChangedLoc = location !== currentLoc;
   if (justChangedLoc) {
     rebuildLocation(location);
+    window.syncLocationTitle?.(location);
     captureFrameLock = false;
     setElevatorCutaway(false);
     const dogActor = actors.get("dog");

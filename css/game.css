@@ -285,6 +285,13 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   text-transform: uppercase; color: #ff6ec7;
   text-shadow: 0 0 12px #ff00ff;
 }
+body.social-presence-offline .hud-online-combined,
+body.social-presence-offline #chatPanel {
+  opacity: 0.42;
+  filter: grayscale(0.35);
+}
+body.social-presence-offline #chatPanel { pointer-events: none; }
+body.social-presence-offline .hud-online-combined strong { font-weight: 600; }
 .panel-bottom {
   display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
   max-width: 96vw;
