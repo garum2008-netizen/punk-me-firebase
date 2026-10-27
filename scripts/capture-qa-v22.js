@@ -1,3 +1,4 @@
+require('./lib/require-local-capture.js');
 #!/usr/bin/env node
 /** QA v22 captures — 3 min hard cap per shot, one retry. */
 const { chromium, devices } = require("playwright");

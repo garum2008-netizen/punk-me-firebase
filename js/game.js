@@ -18,6 +18,26 @@ window.__punkFirebaseReady =
   });
 const PRESENCE_STALE_MS = 120000;
 
+function isLocalDevHost() {
+  try {
+    const h = location.hostname;
+    return h === "localhost" || h === "127.0.0.1";
+  } catch (e) {
+    return false;
+  }
+}
+
+/** True when the page talks to production RTDB (not emulator / not localhost). */
+function isProductionFirebaseClient() {
+  if (window.__punkFirebaseEmulatorActive) return false;
+  if (isLocalDevHost()) return false;
+  try {
+    if (new URLSearchParams(location.search).has("firebaseEmulator")) return false;
+  } catch (e) {}
+  return true;
+}
+window.isProductionFirebaseClient = isProductionFirebaseClient;
+
 function connectFirebaseEmulatorsIfRequested() {
   try {
     const q = new URLSearchParams(location.search);
@@ -27,6 +47,7 @@ function connectFirebaseEmulatorsIfRequested() {
     const authPort = parseInt(q.get("firebaseEmulatorAuthPort") || "9099", 10);
     firebase.database().useEmulator(host, dbPort);
     firebase.auth().useEmulator(`http://${host}:${authPort}`);
+    window.__punkFirebaseEmulatorActive = true;
   } catch (e) {
     console.warn("Firebase emulator connect failed", e);
   }
@@ -64,9 +85,28 @@ function othersForStage3D() {
 }
 
 function devCoinsEnabled() {
+  if (isProductionFirebaseClient()) return false;
   try {
     return new URLSearchParams(location.search).has("dev") || localStorage.getItem("punkme_dev") === "1";
   } catch (e) { return false; }
+}
+
+function qaSessionEnabled() {
+  if (isProductionFirebaseClient()) return false;
+  try {
+    return new URLSearchParams(location.search).has("qa") || localStorage.getItem("punkme_qa") === "1";
+  } catch (e) { return false; }
+}
+
+function prodDevWriteBlocked() {
+  if (!isProductionFirebaseClient()) return false;
+  try {
+    if (new URLSearchParams(location.search).has("dev")) return true;
+    if (new URLSearchParams(location.search).has("qa")) return true;
+    if (localStorage.getItem("punkme_dev") === "1") return true;
+    if (localStorage.getItem("punkme_qa") === "1") return true;
+  } catch (e) {}
+  return false;
 }
 
 const LOCATIONS = {
@@ -958,14 +998,33 @@ function hideLoading() {
   if (el) el.style.display = "none";
 }
 
+function stripUndefinedDeep(value) {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    return value.map(stripUndefinedDeep).filter(v => v !== undefined);
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    const next = stripUndefinedDeep(v);
+    if (next !== undefined) out[k] = next;
+  }
+  return out;
+}
+
 function saveMe() {
   if (!uid) return;
   if (!window.__playerLoaded) return;
+  if (prodDevWriteBlocked()) {
+    console.warn("saveMe blocked: dev/qa flags on production — use localhost + ?firebaseEmulator=1");
+    return;
+  }
   const prevLvl = me.level || 1;
   me.level = levelFromXp(me.xp || 0);
   if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
   me.lastSeen = Date.now();
-  const payload = sanitizePlayer(me);
+  const payload = stripUndefinedDeep(sanitizePlayer(me));
+  if (!payload) return;
   // players/{uid} must succeed even when publicProfiles is denied (pre-rules-publish).
   db.ref("players/" + uid).update(payload);
   db.ref("publicProfiles/" + uid)
@@ -979,7 +1038,7 @@ function saveMe() {
 }
 
 function sanitizePlayer(p) {
-  return {
+  const out = {
     name: p.name,
     coins: p.coins,
     xp: p.xp,
@@ -1007,10 +1066,11 @@ function sanitizePlayer(p) {
     gang_rank: p.gang_rank ?? p.story?.gang_rank,
     energy: p.energy,
     mood: p.mood,
-    owner: isOwner,
     lastSeen: p.lastSeen,
     linkedAuth: p.linkedAuth || null
   };
+  if (isOwner) out.owner = true;
+  return out;
 }
 
 function initMultiplayer() {
