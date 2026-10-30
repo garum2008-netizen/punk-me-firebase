@@ -2,7 +2,9 @@
 
 **Issue:** [#20](https://github.com/garum2008-netizen/punk-me-firebase/issues/20)  
 **Goal:** Close public read of `/players` while keeping saves and multiplayer working.  
-**Do not publish rules from a cloud agent** — only you, from Console or authenticated CLI after backup.
+**Do not publish rules from a cloud agent** — only you, from Console or authenticated CLI.
+
+**Policy (2026-10-25, Inna):** Firebase Rules публикуются **вместе с релизом после приёмки §18** (сообщение «приёмка подтверждена»). До приёмки — только репозиторий + эмулятор (`docs/release/FIREBASE_RULES_RELEASE.md`).
 
 ---
 

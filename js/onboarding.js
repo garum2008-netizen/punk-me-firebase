@@ -1,23 +1,154 @@
-/** First-session onboarding chain (RU/EN/DA via i18n). */
+/** Chapter 0 onboarding — aligned with q_ch0_newbie / ch0_s_* (QUEST_TABLE.md). */
 const ONBOARDING_STEPS = [
-  { id: "move", key: "moved", goal: 1, reward: { coins: 20, xp: 15 },
-    target: () => ({ loc: "room", wx: -4.2, wz: 3.8 }) },
-  { id: "go_street", key: "visit_street", goal: 1, reward: { coins: 30, xp: 20 },
-    target: () => ({ loc: "room", wx: 0, wz: 5.2 }) },
-  { id: "talk_razor", key: "talk_razor", goal: 1, reward: { coins: 40, xp: 25 },
-    target: () => ({ loc: "street", npcId: "razor" }) },
-  { id: "visit_cemetery", key: "visit_cemetery", goal: 1, reward: { coins: 50, xp: 30 },
-    target: () => ({ loc: "street", wx: 10, wz: -2 }) },
-  { id: "win_fight", key: "win_fight", goal: 1, reward: { coins: 80, xp: 45 },
-    target: () => ({ loc: "street", npcId: "razor" }) },
-  { id: "shop_buy", key: "shop_buy", goal: 1, reward: { coins: 25, xp: 35 },
-    target: () => ({ loc: "room", wx: -1, wz: 0, ui: "shop" }) }
+  {
+    id: "awake",
+    qt: "ch0_s_awake",
+    key: "ch0_awake",
+    goal: 1,
+    reward: { coins: 5, xp: 8 },
+    target: () => ({ loc: "room" }),
+    hint_nudge: { ru: "Осмотрись вокруг", en: "Look around", da: "Kig rundt" },
+    hint_60s: { ru: "Покрути камеру или пройдись", en: "Turn the camera or walk", da: "Drej kameraet eller gå" },
+    hint_exact: { ru: "WASD или стик — сделай несколько шагов", en: "WASD or stick — take a few steps", da: "WASD — tag et par skridt" },
+    hint_solution: { ru: "WASD или стик — сделай несколько шагов", en: "WASD or stick — take a few steps", da: "WASD — tag et par skridt" },
+    hint_solution_path: true
+  },
+  {
+    id: "mom",
+    qt: "ch0_s_mom",
+    key: "ch0_mom_talk",
+    goal: 1,
+    reward: { coins: 8, xp: 10 },
+    target: () => ({ loc: "room", wx: 8, wz: 42, door: "kitchen" }),
+    hint_nudge: { ru: "Мама зовёт", en: "Mom is calling", da: "Mor kalder" },
+    hint_60s: { ru: "Дверь на кухню слева", en: "Kitchen door on the left", da: "Køkkendør til venstre" },
+    hint_exact: { ru: "Подойди к двери на кухню и нажми E", en: "Go to the kitchen door and press E", da: "Gå til køkkendøren og tryk E" },
+    hint_solution: { ru: "Подойди к двери на кухню и нажми E", en: "Go to the kitchen door and press E", da: "Gå til køkkendøren og tryk E" },
+    hint_solution_path: true
+  },
+  {
+    id: "shnurok_intro",
+    qt: "ch0_s_shnurok",
+    key: "ch0_feed_bowl",
+    goal: 1,
+    reward: { coins: 8, xp: 10 },
+    target: () => ({ loc: "kitchen", wx: 0, wz: 30, bowl: true }),
+    hint_nudge: { ru: "Шнурок голоден", en: "Shnurok is hungry", da: "Shnurok er sulten" },
+    hint_60s: { ru: "Миска на кухне", en: "Bowl in the kitchen", da: "Skål i køkkenet" },
+    hint_exact: { ru: "Нажми E у миски", en: "Press E at the food bowl", da: "Tryk E ved skålen" },
+    hint_solution: { ru: "Нажми E у миски на кухне", en: "Press E at the bowl in the kitchen", da: "Tryk E ved skålen i køkkenet" },
+    hint_solution_path: true
+  },
+  {
+    id: "journal",
+    qt: "ch0_s_interact",
+    key: "ch0_journal_open",
+    goal: 1,
+    reward: { coins: 10, xp: 8 },
+    target: () => ({ ui: "journal" }),
+    hint_nudge: { ru: "Задание записано", en: "Quest logged", da: "Opgave logget" },
+    hint_60s: { ru: "Открой журнал", en: "Open the journal", da: "Åbn journalen" },
+    hint_exact: { ru: "Меню ☰ → журнал или клавиша Esc", en: "Menu ☰ → journal or Esc", da: "Menu ☰ → journal" },
+    hint_solution: { ru: "Меню ☰ → журнал или клавиша Esc", en: "Menu ☰ → journal or Esc", da: "Menu ☰ → journal" },
+    hint_solution_path: false
+  },
+  {
+    id: "shnurok_play",
+    qt: "ch0_s_shnurok",
+    key: "ch0_pet_shnurok",
+    goal: 4,
+    reward: { coins: 10, xp: 12 },
+    target: () => ({ loc: "room", npcId: "shnurok" }),
+    hint_nudge: { ru: "Шнурок хочет играть", en: "Shnurok wants to play", da: "Shnurok vil lege" },
+    hint_60s: { ru: "Погладь пса и брось мяч", en: "Pet the dog and throw the ball", da: "Klapp hunden og kast bolden" },
+    hint_exact: { ru: "E у Шнурка: погладить и мяч ×3", en: "E near Shnurok: pet and ball ×3", da: "E ved Shnurok: klap og bold ×3" },
+    hint_solution: { ru: "E у Шнурка: погладить и мяч ×3", en: "E near Shnurok: pet and ball ×3", da: "E ved Shnurok: klap og bold ×3" },
+    hint_solution_path: true
+  },
+  {
+    id: "avatar",
+    qt: "ch0_s_avatar",
+    key: "ch0_avatar_chosen",
+    goal: 1,
+    reward: { coins: 5, xp: 8 },
+    target: () => ({ loc: "room", wx: 75, wz: 50, mirror: true }),
+    hint_nudge: { ru: "Выбери образ", en: "Pick your look", da: "Vælg dit look" },
+    hint_60s: { ru: "Зеркало в комнате", en: "Mirror in your room", da: "Spejl på værelset" },
+    hint_exact: { ru: "Подойди к зеркалу и нажми E", en: "Go to the mirror and press E", da: "Gå til spejlet og tryk E" },
+    hint_solution: { ru: "Подойди к зеркалу и нажми E", en: "Go to the mirror and press E", da: "Gå til spejlet og tryk E" },
+    hint_solution_path: true
+  },
+  {
+    id: "move",
+    qt: "ch0_s_move",
+    key: "ch0_move_done",
+    goal: 1,
+    reward: { coins: 8, xp: 10 },
+    target: () => ({ loc: "room", wx: 44, wz: 72, door: "elevator" }),
+    hint_nudge: { ru: "Кто-то стучит в дверь", en: "Someone knocks", da: "Nogen banker på" },
+    hint_60s: { ru: "Иди к лифту", en: "Head to the elevator", da: "Gå til elevatoren" },
+    hint_exact: { ru: "WASD к светящейся двери лифта", en: "WASD toward the elevator door", da: "WASD mod elevatordøren" },
+    hint_solution: { ru: "Стой у двери лифта", en: "Stand at the elevator door", da: "Stå ved elevatordøren" },
+    hint_solution_path: true
+  },
+  {
+    id: "interact",
+    qt: "ch0_s_interact",
+    key: "ch0_interact_done",
+    goal: 1,
+    reward: { coins: 8, xp: 10 },
+    target: () => ({ loc: "room" }),
+    hint_nudge: { ru: "Попробуй взаимодействие", en: "Try interacting", da: "Prøv at interagere" },
+    hint_60s: { ru: "Нажми E рядом с объектом", en: "Press E near an object", da: "Tryk E ved et objekt" },
+    hint_exact: { ru: "E у дивана или телевизора", en: "E at the sofa or TV", da: "E ved sofaen eller TV" },
+    hint_solution: { ru: "E у дивана или телевизора", en: "E at the sofa or TV", da: "E ved sofaen eller TV" },
+    hint_solution_path: true
+  },
+  {
+    id: "house",
+    qt: "ch0_s_house",
+    key: "ch0_house_tour",
+    goal: 2,
+    reward: { coins: 10, xp: 12 },
+    target: () => ({ loc: "kitchen" }),
+    hint_nudge: { ru: "Дом большой", en: "Big house", da: "Stort hus" },
+    hint_60s: { ru: "Кухня и лифт", en: "Kitchen and elevator", da: "Køkken og elevator" },
+    hint_exact: { ru: "Зайди на кухню, потом в лифт", en: "Visit kitchen, then elevator", da: "Besøg køkken, så elevator" },
+    hint_solution: { ru: "Кухня → комната → лифт", en: "Kitchen → room → elevator", da: "Køkken → værelse → elevator" },
+    hint_solution_path: true
+  },
+  {
+    id: "go_street",
+    qt: "ch0_s_street",
+    key: "ch0_enter_street",
+    goal: 1,
+    reward: { coins: 12, xp: 14 },
+    target: () => ({ loc: "elevator", door: "street" }),
+    hint_nudge: { ru: "Пора на улицу", en: "Time for the street", da: "Tid til gaden" },
+    hint_60s: { ru: "Лифт ведёт вниз", en: "Elevator goes down", da: "Elevatoren går ned" },
+    hint_exact: { ru: "В лифте выбери «Улица»", en: "In the elevator pick Street", da: "Vælg Gade i elevatoren" },
+    hint_solution: { ru: "В лифте выбери «Улица»", en: "In the elevator pick Street", da: "Vælg Gade i elevatoren" },
+    hint_solution_path: true
+  },
+  {
+    id: "talk_razor",
+    qt: "ch0_s_razor",
+    key: "ch0_razor_talk",
+    goal: 1,
+    reward: { coins: 12, xp: 14 },
+    target: () => ({ loc: "street", npcId: "razor" }),
+    hint_nudge: { ru: "Тебя ждут на улице", en: "They wait outside", da: "De venter ude" },
+    hint_60s: { ru: "Рейзор у стены", en: "Razor by the wall", da: "Razor ved muren" },
+    hint_exact: { ru: "Подойди к Рейзору и нажми E", en: "Go to Razor and press E", da: "Gå til Razor og tryk E" },
+    hint_solution: { ru: "Подойди к Рейзору и нажми E", en: "Go to Razor and press E", da: "Gå til Razor og tryk E" },
+    hint_solution_path: true
+  }
 ];
 
-/** Portal waypoints when the player is not yet in the step's target location. */
 const PORTAL_WAYPOINTS = {
-  street: { room: { wx: 0, wz: 5.2 } },
-  cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.2 } }
+  kitchen: { room: { wx: 8, wz: 42 } },
+  elevator: { room: { wx: 44, wz: 72 } },
+  street: { elevator: { wx: 62, wz: 30 }, room: { wx: 44, wz: 72 } }
 };
 
 function stepIndex() {
@@ -35,34 +166,75 @@ function progress() {
   return window.me?.onboarding?.progress || {};
 }
 
+function syncCh0QuestStep(qtId) {
+  const st = window.StoryEngine?.ensureStoryState?.(window.me);
+  if (!st) return;
+  st.flags.ch0_current_step = qtId;
+  st.quest.activeId = st.quest.activeId || "q_ch0_newbie";
+}
+
 function bump(key, amt = 1) {
   const st = currentStep();
   if (!st || st.key !== key) return;
+  if (!window.me.onboarding.progress || typeof window.me.onboarding.progress !== "object") {
+    window.me.onboarding.progress = {};
+  }
   const p = window.me.onboarding.progress;
   p[key] = (p[key] || 0) + amt;
   if (p[key] >= st.goal) completeStep();
-  else saveMeQuiet();
+  else {
+    saveMeQuiet();
+    window.AngelinaHelp?.resetHintTier?.();
+  }
   renderOnboardingQuest();
 }
 
 function completeStep() {
   const st = currentStep();
   if (!st) return;
+  window.Narrator?.reset?.();
+  window.AngelinaHelp?.react?.("step_ok");
   const r = st.reward || {};
-  if (!window.isOwner && r.coins) window.me.coins += r.coins;
-  if (r.xp) window.me.xp += r.xp;
+  const grantedKey = `onboard_step_${st.qt}_${window.me.onboarding.step}`;
+  const stStory = window.StoryEngine?.ensureStoryState?.(window.me);
+  if (stStory && !stStory.rewardsGiven?.[grantedKey] && !window.isOwner) {
+    if (r.coins) window.me.coins += r.coins;
+    if (r.xp) window.me.xp += r.xp;
+    if (stStory.rewardsGiven) stStory.rewardsGiven[grantedKey] = Date.now();
+  } else if (!window.isOwner && r.coins) {
+    window.me.coins += r.coins;
+    if (r.xp) window.me.xp += r.xp;
+  }
   toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + (r.coins || 0));
+  syncCh0QuestStep(st.qt);
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
+  window.AngelinaHelp?.resetHintTier?.();
+  maybeAutoCompleteAvatar();
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
-    window.me.onboarding.done = true;
-    toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");
-    window.StoryEngine?.onOnboardingComplete?.();
+    finishOnboarding();
+  } else {
+    saveMeQuiet();
   }
-  if (window.saveMe) saveMe();
-  else saveMeQuiet();
   renderOnboardingQuest();
   syncGuideTarget();
+  window.Narrator?.refresh?.();
+  window.StoryGoalHud?.refresh?.();
+  window.refreshSocialPresenceUi?.();
+}
+
+function finishOnboarding() {
+  window.me.onboarding.done = true;
+  toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");
+  toast(typeof t === "function" ? t("onboard_save_toast") : "Game saved.");
+  window.StoryEngine?.fireStoryEvent?.("ch0_razor_talk");
+  window.StoryEngine?.recordChapterCheckpoint?.(window.me, 0, { beat: "onboarding_done" });
+  window.ChapterIntro?.showChapterWrap?.(0);
+  window.StoryEngine?.onOnboardingComplete?.();
+  window.StoryEngine?.syncBeacon?.();
+  if (window.saveMe) saveMe();
+  renderOnboardingQuest();
+  window.refreshSocialPresenceUi?.();
 }
 
 function saveMeQuiet() {
@@ -102,16 +274,12 @@ function getGuideTarget() {
   const st = currentStep();
   if (!st || !window.me) return null;
   const tgt = st.target();
-  if (tgt.ui === "shop") {
-    if (window.me.location === "room") return { wx: tgt.wx, wz: tgt.wz };
-    return waypointToReach("room") || null;
-  }
+  if (tgt.npcId) return { npcId: tgt.npcId };
   if (tgt.loc && window.me.location !== tgt.loc) {
     const wp = waypointToReach(tgt.loc);
     if (wp) return { wx: wp.wx, wz: wp.wz };
     return null;
   }
-  if (tgt.npcId) return { npcId: tgt.npcId };
   if (tgt.wx != null && tgt.wz != null) return { wx: tgt.wx, wz: tgt.wz };
   return null;
 }
@@ -121,33 +289,128 @@ function syncGuideTarget() {
   World3D.setGuideTarget(getGuideTarget());
 }
 
+function showSolutionPath() {
+  syncGuideTarget();
+  const st = currentStep();
+  if (!st || !window.StoryEngine?.setBeacon) return;
+  const tgt = st.target();
+  if (tgt.npcId) {
+    const beacon = tgt.npcId === "mohawk" ? "npc_mohawk_street" : `npc_${tgt.npcId}`;
+    window.StoryEngine.setBeacon(beacon);
+    window.StoryEngine.syncBeacon?.();
+    return;
+  }
+  if (tgt.bowl) {
+    window.StoryEngine.setBeacon("obj_dog_bowl");
+    window.StoryEngine.syncBeacon?.();
+    return;
+  }
+  if (tgt.door === "kitchen") {
+    window.StoryEngine.setBeacon("npc_zoya");
+  }
+}
+
 function onMove(x, y) {
   const st = currentStep();
-  if (!st || st.key !== "moved") return;
-  if (!window.me._onboardOrigin) window.me._onboardOrigin = { x, y };
-  const o = window.me._onboardOrigin;
-  if (Math.hypot(x - o.x, y - o.y) > 8) bump("moved", 1);
+  if (!st) return;
+  if (st.key === "ch0_awake" || st.key === "ch0_move_done") {
+    if (!window.me._onboardOrigin) window.me._onboardOrigin = { x, y };
+    const o = window.me._onboardOrigin;
+    if (Math.hypot(x - o.x, y - o.y) > 6) bump(st.key, 1);
+  }
+}
+
+function onCameraOrbit(deltaRad) {
+  const st = currentStep();
+  if (!st) return;
+  if (st.key !== "ch0_awake" && st.key !== "ch0_move_done") return;
+  const acc = (window.me._onboardLookRad = (window.me._onboardLookRad || 0) + Math.abs(deltaRad || 0));
+  if (acc > 0.28) bump(st.key, 1);
 }
 
 function onEnterLocation(loc) {
   const st = currentStep();
   if (!st) return;
-  if (st.key === "visit_street" && loc === "street") bump("visit_street", 1);
-  if (st.key === "visit_cemetery" && loc === "cemetery") bump("visit_cemetery", 1);
+  if (st.key === "ch0_enter_street" && loc === "street") bump("ch0_enter_street", 1);
+  if (st.key === "ch0_house_tour") {
+    const p = window.me.onboarding.progress;
+    if (loc === "kitchen") p._kitchen = true;
+    if (loc === "elevator") p._elevator = true;
+    const visits = (p._kitchen ? 1 : 0) + (p._elevator ? 1 : 0);
+    p.ch0_house_tour = visits;
+    if (visits >= st.goal) completeStep();
+    else saveMeQuiet();
+    renderOnboardingQuest();
+  }
 }
 
-function onTalkRazor() { bump("talk_razor", 1); }
-function onVisitCemetery() { if (window.me?.location === "cemetery") bump("visit_cemetery", 1); }
-function onWinFight() { bump("win_fight", 1); }
-function onShopBuy() { bump("shop_buy", 1); }
+function showMomSubtitle(line) {
+  const el = document.getElementById("voiceSubtitle");
+  if (!el) return;
+  el.textContent = line;
+  el.classList.add("visible");
+  el.dataset.subtitleLockUntil = String(Date.now() + 4800);
+  clearTimeout(window._momSubtitleTimer);
+  window._momSubtitleTimer = setTimeout(() => {
+    el.classList.remove("visible");
+    delete el.dataset.subtitleLockUntil;
+  }, 4800);
+}
+
+function onMomTalk() {
+  const st = currentStep();
+  if (st?.key !== "ch0_mom_talk") return;
+  const line =
+    typeof t === "function"
+      ? t("onboard_mom_subtitle")
+      : "Lida (behind the door): «Wake up! Breakfast is in the kitchen.»";
+  showMomSubtitle(line);
+  window.setTimeout(() => bump("ch0_mom_talk", 1), 900);
+}
+
+function onFeedBowl() {
+  if (window.me) {
+    window.me.owned = window.me.owned || [];
+    if (!window.me.owned.includes("pet_dog")) window.me.owned.push("pet_dog");
+    window.me.pet = "pet_dog";
+  }
+  bump("ch0_feed_bowl", 1);
+}
+
+function onShnurokInteract(kind) {
+  const st = currentStep();
+  if (st?.key !== "ch0_pet_shnurok") return;
+  bump("ch0_pet_shnurok", kind === "ball" ? 2 : 1);
+}
+
+function onJournalOpen() {
+  bump("ch0_journal_open", 1);
+}
+
+function onAvatarMirror() {
+  bump("ch0_avatar_chosen", 1);
+}
+
+function onInteractTutorial() {
+  bump("ch0_interact_done", 1);
+}
+
+function onTalkRazor() {
+  const st = currentStep();
+  if (st?.key === "ch0_razor_talk") bump("ch0_razor_talk", 1);
+}
+
+function maybeAutoCompleteAvatar() {
+  /* Avatar step requires mirror E — no auto-skip from character select. */
+}
 
 function adaptSpawnLocation() {
   if (!window.me?.onboarding || window.me.onboarding.done) return;
   const loc = window.me.location;
   if (!loc || loc === "room") return;
   const st = currentStep();
-  if (st?.key === "moved") {
-    window.me.onboarding.progress.moved = st.goal;
+  if (st?.key === "ch0_awake" || st?.key === "ch0_move_done") {
+    window.me.onboarding.progress[st.key] = st.goal;
     completeStep();
   }
 }
@@ -157,21 +420,60 @@ function initOnboarding() {
   if (!window.me.onboarding) {
     window.me.onboarding = { step: 0, progress: {}, done: false };
   }
+  if (!window.me.onboarding.progress || typeof window.me.onboarding.progress !== "object") {
+    window.me.onboarding.progress = {};
+  }
+  syncCh0QuestStep(ONBOARDING_STEPS[window.me.onboarding.step || 0]?.qt);
   renderOnboardingQuest();
   syncGuideTarget();
+  window.Narrator?.refresh?.();
+  window.StoryGoalHud?.refresh?.();
 }
 
+function resetOnboarding() {
+  if (!window.me) return;
+  window.me.onboarding = { step: 0, progress: {}, done: false };
+  window.Narrator?.reset?.();
+  renderOnboardingQuest();
+  syncGuideTarget();
+  if (window.saveMe) saveMe();
+  window.Narrator?.refresh?.();
+  window.StoryGoalHud?.refresh?.();
+}
+
+/** Legacy hooks — initiation duel only after ch1 choice, not onboarding. */
+function onWinFight() {}
+function onShopBuy() {}
+function onVisitCemetery() {}
+function hasPassedWinFight() {
+  return !!window.me?.onboarding?.done;
+}
+function applyPendingOnboardingWins() {}
+
 window.Onboarding = {
+  STEPS: ONBOARDING_STEPS,
   init: initOnboarding,
   adaptSpawnLocation,
   render: renderOnboardingQuest,
   syncGuideTarget,
+  showSolutionPath,
   onMove,
+  onCameraOrbit,
   onEnterLocation,
+  onMomTalk,
+  onFeedBowl,
+  onShnurokInteract,
+  onJournalOpen,
+  onAvatarMirror,
+  onInteractTutorial,
   onTalkRazor,
   onVisitCemetery,
   onWinFight,
   onShopBuy,
   getGuideTarget,
+  getCurrentStep: currentStep,
+  reset: resetOnboarding,
+  replay: resetOnboarding,
+  hasPassedWinFight,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

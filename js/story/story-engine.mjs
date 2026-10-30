@@ -3,6 +3,10 @@
  */
 
 import * as Authority from "./authority.mjs";
+import { buildEarnState, resolveReturnBeacon, resolveReturnLabel } from "./earn-state.mjs";
+import { ensureStoryProgressSave, grantRewardOnce } from "./story-save-schema.mjs";
+import { recordChapterCheckpoint } from "./story-checkpoints.mjs";
+import { applyAntibullyChoice, maybeStartAntibully } from "./antibully-quest.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -21,17 +25,21 @@ const BEACONS = {
   obj_fridge: { loc: "kitchen", wx: 4.2, wz: -3.2 },
   obj_dog_bowl: { loc: "room", wx: -2.5, wz: 3.5 },
   obj_decor_btn: { loc: "room", ui: "decor" },
+  obj_shop: { loc: "room", ui: "shop" },
   obj_scrap_roof: { loc: "roof", wx: 5, wz: -4 },
   obj_parkour_finish: { loc: "parkour", wx: 0, wz: -8 },
   portal_roof: { loc: "elevator", portalTo: "roof" },
   portal_construction: { loc: "city", portalTo: "construction" },
   npc_mohawk_street: { loc: "street", npcId: "mohawk" },
   npc_cobalt_roof: { loc: "roof", npcId: "cobalt" },
-  obj_roof_parkour: { loc: "roof", wx: 4, wz: -3 }
+  obj_roof_parkour: { loc: "roof", wx: 4, wz: -3 },
+  npc_count: { loc: "castle", npcId: "count" },
+  npc_rookie: { loc: "street", npcId: "rookie" },
+  obj_castle_stage: { loc: "castle", wx: 4, wz: 2 }
 };
 
 const STORY_NPC_IDS = new Set([
-  "razor", "tony", "bolt", "zoya", "plukh", "gravedigger", "foreman", "vintik"
+  "razor", "tony", "bolt", "zoya", "plukh", "gravedigger", "foreman", "vintik", "count", "rookie"
 ]);
 
 let data = { quests: [], dialogues: [], jobs: [], balance: null, hangout: null };
@@ -54,6 +62,19 @@ function L(obj) {
 
 function me() {
   return window.me;
+}
+
+export function syncUnifiedMaterials(p) {
+  const inv = p?.inventory?.materials;
+  if (!inv || typeof inv !== "object") return;
+  const st = p.story || {};
+  if (!st.materials) return;
+  for (const [k, v] of Object.entries(inv)) {
+    const n = Number(v) || 0;
+    if (n <= 0) continue;
+    st.materials[k] = (st.materials[k] || 0) + n;
+    inv[k] = 0;
+  }
 }
 
 export function ensureStoryState(p) {
@@ -94,10 +115,20 @@ export function ensureStoryState(p) {
   const q = p.story.quest;
   if (q.activeId === undefined) q.activeId = null;
   if (q.step == null) q.step = 0;
-  if (!q.completed || typeof q.completed !== "object") q.completed = {};
+  if (!q.completed || typeof q.completed !== "object" || Array.isArray(q.completed)) {
+    q.completed = {};
+  } else if (q.completed.__ === 1 && Object.keys(q.completed).length === 1) {
+    q.completed = {};
+  } else if (q.completed.__ != null) {
+    delete q.completed.__;
+  }
   if (!p.story.materials || typeof p.story.materials !== "object") {
     p.story.materials = { board: 0, brick: 0, nails: 0, chain: 0, spray: 0, neon_tube: 0, scrap: 0 };
   }
+  if (!p.story.rewardsGranted || typeof p.story.rewardsGranted !== "object") {
+    p.story.rewardsGranted = {};
+  }
+  syncUnifiedMaterials(p);
   if (!p.story.rel || typeof p.story.rel !== "object") p.story.rel = { gang_rust: 0, zombie: 0 };
   if (!p.story.auth || typeof p.story.auth !== "object") {
     p.story.auth = { stage: 1, s1Done: false, tasks: {}, trials: {}, ch2Done: false };
@@ -109,6 +140,10 @@ export function ensureStoryState(p) {
   if (p.story.chapter == null) p.story.chapter = 1;
   if (p.story.authority == null) p.story.authority = 0;
   if (!p.story.gang_rank) p.story.gang_rank = "newbie";
+  ensureStoryProgressSave(p);
+  if (p.story.rewardsGiven && p.story.rewardsGranted) {
+    Object.assign(p.story.rewardsGranted, p.story.rewardsGiven);
+  }
   return p.story;
 }
 
@@ -197,6 +232,22 @@ function setSubtitle(text, speaker) {
   if (el) el.textContent = speaker ? `${speaker}: ${text}` : text;
 }
 
+function speakStoryLine(speaker, text, lineId) {
+  if (!text) return;
+  const npcId = (speaker || "").replace(/^npc_/, "") || speaker;
+  const cid = npcId.startsWith("npc_") ? npcId.replace("npc_", "") : npcId;
+  if (window.SpeechBridge?.play) {
+    window.SpeechBridge.play({
+      lineId,
+      text,
+      characterId: cid
+    });
+  } else if (window.Voice) {
+    Voice.speakCharacter(cid, text);
+  }
+  if (window.World3D?.setTalking) World3D.setTalking(cid, true);
+}
+
 function showBubble(npcId, text) {
   const layer = document.getElementById("storyBubbles");
   if (!layer) return;
@@ -234,6 +285,11 @@ function evalCondition(cond) {
     const v = cond.split(":")[1];
     if (v === "done") return !!p.onboarding?.done;
   }
+  if (cond.startsWith("auth:")) {
+    const v = cond.split(":")[1];
+    const auth = st.auth || {};
+    if (v === "s1Done") return !!auth.s1Done;
+  }
   if (cond.startsWith("flag:")) {
     const f = cond.slice(5);
     if (f.startsWith("!")) return !st.flags[f.slice(1)];
@@ -248,6 +304,7 @@ function evalCondition(cond) {
   }
   if (cond.startsWith("energy>=")) return (p.energy ?? st.energy) >= parseInt(cond.split(">=")[1], 10);
   if (cond.startsWith("coins>=")) return p.coins >= parseInt(cond.split(">=")[1], 10);
+  if (cond.startsWith("unique:")) return !!st.unique?.[cond.slice(7)];
   return true;
 }
 
@@ -309,6 +366,9 @@ function applyEffects(effects) {
         p.gang_rank = e.value;
         Authority.renderAuthorityHud(p);
         break;
+      case "story_event":
+        fireStoryEvent(e.name);
+        break;
       default:
         break;
     }
@@ -320,18 +380,51 @@ function applyEffects(effects) {
 
 function onJoinedGang() {
   const st = ensureStoryState(me());
+  const p = me();
   st.chapter = Math.max(st.chapter, 2);
-  if (!st.quest.completed.q_hangout_build && !st.quest.activeId) {
-    startQuest("q_hangout_build");
+  st.gang_rank = st.gang_rank === "newbie" ? "gang_member" : st.gang_rank;
+  p.gang_rank = st.gang_rank;
+  ["q_initiation_pay", "q_initiation_duel", "q_initiation_graffiti"].forEach(id => {
+    st.quest.completed[id] = true;
+  });
+  if (["q_initiation_pay", "q_initiation_duel", "q_initiation_graffiti"].includes(st.quest.activeId)) {
+    st.quest.activeId = null;
+    st.quest.step = 0;
+  }
+  st.earn = null;
+  if (!st.quest.completed.q_ch2_hangout && !st.quest.activeId) {
+    startQuest("q_ch2_hangout");
   }
   hooks.toast?.(L({ ru: "Нашивка «Ржавые Цепи» получена!", en: "Rusty Chains patch earned!", da: "Rusty Chains-mærke!" }));
+  window.StoryScenes?.playInitiationCeremony?.(p, hooks);
+  renderObjectivePanel();
 }
+
+const INITIATION_QUESTS = new Set(["q_initiation_pay", "q_initiation_duel", "q_initiation_graffiti"]);
 
 export function startQuest(qid) {
   const p = me();
   const st = ensureStoryState(p);
   const q = data.quests.find(x => x.id === qid);
   if (!q || st.quest.completed[qid]) return;
+  if (INITIATION_QUESTS.has(qid)) {
+    st.flags.initiation_locked = true;
+    st.decisions.initiation_branch = qid;
+  }
+  if (q.type === "main" && q.chapter) {
+    st.chapter = Math.max(st.chapter || 1, q.chapter);
+    st.mainlineChapter = st.chapter;
+  }
+  if (q.type === "main" && q.chapter >= 3) {
+    const prev = st.quest.activeId;
+    if (prev && prev !== qid) {
+      const prevQ = data.quests.find(x => x.id === prev);
+      if (prevQ && prevQ.type !== "main") {
+        st.quest.activeId = null;
+        st.quest.step = 0;
+      }
+    }
+  }
   st.quest.activeId = qid;
   st.quest.step = 0;
   st.idleHintLevel = 0;
@@ -343,7 +436,7 @@ export function startQuest(qid) {
   logEvent("quest_start", qid);
 }
 
-function completeQuest(qid) {
+export function completeQuest(qid) {
   const p = me();
   const st = ensureStoryState(p);
   const q = data.quests.find(x => x.id === qid);
@@ -355,6 +448,16 @@ function completeQuest(qid) {
     st.quest.step = 0;
   }
   hooks.toast?.(L({ ru: "Задание выполнено", en: "Quest complete", da: "Opgave fuldført" }) + ": " + L(q.title));
+  if (qid === "q_ch2_hangout" && !st.flags.hangout_open_scene_played) {
+    st.flags.hangout_open_scene_played = true;
+    window.StoryScenes?.playHangoutOpeningScene?.(p, hooks);
+  }
+  if (qid === "q_ch3_cemetery_night") {
+    window.ChapterIntro?.showChapterWrap?.(3);
+  }
+  if (qid === "q_ch2_hangout" && !st.quest.completed.q_ch3_cemetery_night && !st.quest.activeId) {
+    startQuest("q_ch3_cemetery_night");
+  }
   pickNextObjective();
 }
 
@@ -371,6 +474,7 @@ function pickNextObjective() {
       return;
     }
   }
+  if (st.unique?.bell_rim || st.chapter >= 3 || st.quest.completed?.q_ch3_cemetery_night) return;
   const loc = p.location;
   const candidate = data.quests.find(
     q => !st.quest.completed?.[q.id] && q.loc === loc && q.type !== "main" && !st.quest.activeId
@@ -451,6 +555,8 @@ function checkStepComplete() {
     done = (st.materials[mat] || 0) >= parseInt(op, 10);
   } else if (co.startsWith("hangout_stage>=")) done = st.hangoutStage >= parseInt(co.split(">=")[1], 10);
   else if (co.startsWith("event:")) done = !!st.events[co.slice(6)];
+  else if (co.startsWith("flag:")) done = !!st.flags[co.slice(5)];
+  else if (co.startsWith("unique:")) done = !!st.unique?.[co.slice(7)];
   if (!done) return;
   if (st.quest.step + 1 < q.steps.length) {
     st.quest.step += 1;
@@ -511,9 +617,40 @@ export function fireStoryEvent(name) {
   const st = ensureStoryState(me());
   st.events[name] = true;
   Authority.onAuthStoryEvent(name);
-  if (name === "duel_razor_win" && st.quest.activeId === "q_initiation_duel") {
+  if (name === "duel_razor_win" && st.quest.activeId === "q_initiation_duel" && !st.flags.joined_gang) {
     applyEffects([{ type: "flag", value: "joined_gang" }]);
   }
+  if (name === "hangout_complete") {
+    if (!st.quest.completed.q_ch2_hangout && st.quest.activeId === "q_ch2_hangout") checkStepComplete();
+    if (
+      st.hangoutStage >= 4 &&
+      !st.quest.completed.q_ch3_cemetery_night &&
+      !st.quest.activeId
+    ) {
+      if (!st.quest.completed.q_ch2_hangout) st.quest.completed.q_ch2_hangout = true;
+      startQuest("q_ch3_cemetery_night");
+    }
+  }
+  if (name === "job_cemetery_done" && !st.unique.bell_rim && !st.events.ch3_bell_ready) {
+    if (st.hangoutStage >= 4) {
+      if (!st.quest.completed.q_ch3_cemetery_night && st.quest.activeId !== "q_ch3_cemetery_night") {
+        startQuest("q_ch3_cemetery_night");
+      }
+      if (st.quest.activeId === "q_ch3_cemetery_night") {
+        window.StoryScenes?.playCemeteryBellScene?.(me(), hooks);
+        st.events.ch3_bell_ready = true;
+        checkStepComplete();
+      }
+    }
+  }
+  if (name === "graph_confession_done") {
+    st.chapter = 4;
+    st.mainlineChapter = 4;
+    completeQuest("q_ch4_castle");
+    window.StoryScenes?.playFinaleBriefingBeforeChoice?.({ toast: hooks.toast, save: hooks.save });
+  }
+  if (name === "antibully_help") applyAntibullyChoice(true, hooks);
+  if (name === "antibully_mock") applyAntibullyChoice(false, hooks);
   checkStepComplete();
   if (st.earn && name.startsWith("job_")) {
     onEarnProgress();
@@ -545,13 +682,17 @@ function onEarnProgress() {
 export function beginEarnCoins(shortfall, context) {
   const p = me();
   const st = ensureStoryState(p);
+  const need = Math.max(0, Number(shortfall) || 0);
+  const returnBeacon = resolveReturnBeacon(context, st);
+  const returnLabel = resolveReturnLabel(context, () => L(getActiveQuest()?.title));
   if ((p.energy ?? st.energy) < 10) {
-    st.earn = {
+    st.earn = buildEarnState({
       mode: "snack",
-      needTotal: p.coins + shortfall,
-      returnBeacon: context?.returnBeacon,
-      returnLabel: context?.returnLabel
-    };
+      needTotal: p.coins + need,
+      shortfall: need,
+      returnBeacon,
+      returnLabel
+    });
     setBeacon("obj_fridge");
     renderObjectivePanel();
     hooks.toast?.(
@@ -564,16 +705,18 @@ export function beginEarnCoins(shortfall, context) {
     return;
   }
   const job = pickNearestJob(p.location);
-  st.earn = {
-    needTotal: p.coins + shortfall,
-    shortfall,
-    jobId: job?.id,
-    employerBeacon: job?.employer?.startsWith("npc_")
-      ? job.employer
-      : "npc_" + (job?.employer || "tony"),
-    returnBeacon: context?.returnBeacon || st.beacon,
-    returnLabel: context?.returnLabel || L(getActiveQuest()?.title)
-  };
+  const employer = job?.employer;
+  const employerBeacon = employer
+    ? (employer.startsWith("npc_") ? employer : "npc_" + employer)
+    : "npc_tony";
+  st.earn = buildEarnState({
+    needTotal: p.coins + need,
+    shortfall: need,
+    jobId: job?.id || null,
+    employerBeacon,
+    returnBeacon,
+    returnLabel
+  });
   setBeacon(st.earn.employerBeacon);
   st.flags.earn_mode = true;
   renderObjectivePanel();
@@ -604,6 +747,37 @@ export function tryStoryPurchase(cost, ctx) {
   if (p.coins >= cost) return true;
   const short = cost - p.coins;
   beginEarnCoins(short, ctx);
+  return false;
+}
+
+export function getArcadeDailyCap() {
+  return data.balance?.arcadeDailyCap ?? 100;
+}
+
+export function onEconomyChanged() {
+  checkStepComplete();
+  onEarnProgress();
+  renderObjectivePanel();
+}
+
+export function storyQuestCompletedForSave(completed) {
+  const c = { ...(completed || {}) };
+  if (Object.keys(c).length === 0) c.__ = 1;
+  return c;
+}
+
+export function tryBeaconInteract() {
+  const p = me();
+  const st = ensureStoryState(p);
+  const id = st.beacon;
+  if (p.location === "parkour" && (id === "obj_parkour_finish" || getActiveStep()?.beacon === "obj_parkour_finish")) {
+    window.runParkour?.();
+    return true;
+  }
+  if (p.location === "roof" && st.auth?.stage === 3 && !st.auth.trials?.roof_parkour && id === "obj_roof_parkour") {
+    window.runParkour?.();
+    return true;
+  }
   return false;
 }
 
@@ -651,16 +825,52 @@ export function renderObjectivePanel() {
     if (q && step) {
       title = L(q.title);
       objective = L(step.objective);
-      const hintLevel = st.idleHintLevel || 0;
-      if (hintLevel > 0 && step.hint_60s) {
-        sub = L(step.hint_60s);
-        if (hintLevel >= 3) sub += " · " + L({ ru: "Показать путь", en: "Show path", da: "Vis vej" });
+      if (q.id === "q_ch2_hangout" && st.hangoutStage < 4) {
+        sub = hangoutObjectiveSub(st);
+      } else if (q.id === "q_ch2_hangout" && st.hangoutStage >= 4) {
+        objective = L({
+          ru: "Построено (4/4) — тусовка готова",
+          en: "Built (4/4) — hangout is ready",
+          da: "Bygget (4/4) — festen er klar"
+        });
+        sub = L({
+          ru: "Дальше: ночная смена на кладбище",
+          en: "Next: cemetery night shift",
+          da: "Næste: nattevagt på kirkegården"
+        });
       }
+      const hintLevel = st.idleHintLevel || 0;
+      const yt = window.AudioManager?.getYoutubeNarratorMode?.() || false;
+      const angelina = window.AngelinaGuide?.pickAngelinaHint?.(step, hintLevel, yt);
+      if (angelina) sub = angelina;
+      else if (hintLevel >= 3) {
+        sub = (sub ? sub + " · " : "") + L({ ru: "Показать путь", en: "Show path", da: "Vis vej" });
+      }
+      window.AngelinaGuide?.refreshAngelinaContextBanner?.();
+    } else if (st.hangoutStage >= 4 && st.flags.joined_gang) {
+      title = L(data.hangout?.title || {});
+      objective = L({
+        ru: "Построено (4/4)",
+        en: "Built (4/4)",
+        da: "Bygget (4/4)"
+      });
+      sub = L({
+        ru: "Тусовка готова — смотри квесты и кладбище",
+        en: "Hangout complete — follow quests to the cemetery",
+        da: "Festen er klar — følg quest til kirkegården"
+      });
     } else if (st.hangoutStage < 4 && st.flags.joined_gang) {
       title = L(data.hangout?.title || {});
       const stage = data.hangout?.stages?.[st.hangoutStage];
       objective = stage ? L(stage.hint) : L({ ru: "Стройка: Тусовка", en: "Construction: hangout", da: "Byggeplads" });
       renderConstructionBar();
+    } else if (st.flags.postgame || st.ending) {
+      title = L({ ru: "Свободная игра", en: "Free play", da: "Fri leg" });
+      objective = L({
+        ru: "История Колокола завершена — исследуй Тыквоград",
+        en: "The Bell story is complete — explore Pumpkin City",
+        da: "Historien er færdig — udforsk byen"
+      });
     } else {
       title = L({ ru: "Тыквоград", en: "Pumpkin City", da: "Græskarby" });
       objective = L({
@@ -696,6 +906,20 @@ export function updateConstructionHud() {
     return;
   }
   const st = ensureStoryState(p);
+  if (st.hangoutStage >= 4) {
+    hud.classList.add("active");
+    hud.querySelector(".stage-name").textContent = L({
+      ru: "Построено (4/4)",
+      en: "Built (4/4)",
+      da: "Bygget (4/4)"
+    });
+    hud.querySelector(".need-line").textContent = L({
+      ru: "Все этапы завершены",
+      en: "All stages complete",
+      da: "Alle etaper færdige"
+    });
+    return;
+  }
   const stage = data.hangout?.stages?.[st.hangoutStage];
   if (!stage) {
     hud.classList.remove("active");
@@ -731,13 +955,89 @@ export function buildHangoutStage() {
     }
   }
   for (const [k, n] of Object.entries(need)) st.materials[k] -= n;
-  st.hangoutStage += 1;
+  const builtStage = st.hangoutStage + 1;
+  st.hangoutStage = builtStage;
+  st.events[`hangout_stage_${builtStage}`] = true;
   window.World3D?.refreshHangoutStage?.(st.hangoutStage);
   hooks.toast?.(L({ ru: "Этап построен!", en: "Stage built!", da: "Etape bygget!" }));
+  fireStoryEvent(`hangout_stage_${builtStage}`);
   if (st.hangoutStage >= 4) fireStoryEvent("hangout_complete");
   checkStepComplete();
   renderObjectivePanel();
   hooks.save?.();
+}
+
+const STORY_MAT_SHOP = ["brick", "board", "nails", "chain", "spray", "neon_tube"];
+
+export function purchaseStoryMaterial(materialId, qty = 1) {
+  const p = me();
+  const st = ensureStoryState(p);
+  const prices = data.balance?.materialPrices || {};
+  const unit = prices[materialId];
+  if (unit == null) return false;
+  const cost = unit * qty;
+  if (!tryStoryPurchase(cost, { returnBeacon: "npc_bolt", returnLabel: L({ ru: "Дядя Болт", en: "Uncle Bolt", da: "Onkel Bolt" }) })) {
+    return false;
+  }
+  if (!window.isOwner) p.coins -= cost;
+  st.materials[materialId] = (st.materials[materialId] || 0) + qty;
+  hooks.toast?.(
+    L({
+      ru: `Куплено: ${materialId} ×${qty} (−${cost} монет)`,
+      en: `Bought: ${materialId} ×${qty} (−${cost} coins)`,
+      da: `Købt: ${materialId} ×${qty} (−${cost} mønter)`
+    })
+  );
+  onEconomyChanged();
+  hooks.save?.();
+  return true;
+}
+
+export function openBoltMaterialShop() {
+  const dlg = document.getElementById("storyDialog");
+  if (!dlg) return;
+  const st = ensureStoryState(me());
+  const prices = data.balance?.materialPrices || {};
+  dlg.classList.add("active");
+  dlg.querySelector(".story-dialog-title").textContent = L({
+    ru: "Скобяная лавка — Дядя Болт",
+    en: "Hardware stall — Uncle Bolt",
+    da: "Hardwarebod — Onkel Bolt"
+  });
+  const body = dlg.querySelector(".story-dialog-body");
+  const stage = data.hangout?.stages?.[st.hangoutStage];
+  const need = stage?.need || {};
+  body.innerHTML =
+    `<p class="story-line">${escapeHtml(L(stage?.hint || { ru: "Материалы для Тусовки", en: "Hangout materials", da: "Hæng-materialer" }))}</p>` +
+    STORY_MAT_SHOP.map(id => {
+      const have = st.materials[id] || 0;
+      const needN = need[id] || 0;
+      const price = prices[id] ?? "?";
+      return `<button type="button" class="btn story-choice" data-mat="${id}">
+        <span class="choice-text">${escapeHtml(id)} — ${price} 🪙</span>
+        <small class="choice-hint">${escapeHtml(L({ ru: `Есть: ${have}${needN ? ` / нужно ${needN}` : ""}`, en: `Have: ${have}${needN ? ` / need ${needN}` : ""}`, da: `Har: ${have}` }))}</small>
+      </button>`;
+    }).join("");
+  body.querySelectorAll("[data-mat]").forEach(btn => {
+    btn.onclick = () => {
+      purchaseStoryMaterial(btn.dataset.mat, 1);
+      openBoltMaterialShop();
+    };
+  });
+  applyDialogueCamera("bolt");
+}
+
+function hangoutObjectiveSub(st) {
+  const stage = data.hangout?.stages?.[st.hangoutStage];
+  if (!stage) return "";
+  const need = stage.need || {};
+  const parts = Object.entries(need).map(([k, n]) => `${k} ${st.materials[k] || 0}/${n}`);
+  return L(stage.name) + ` (${st.hangoutStage + 1}/4) · ` + parts.join(", ");
+}
+
+export function getHangoutStageNeed(stageIndex) {
+  const stage = data.hangout?.stages?.[stageIndex];
+  return stage?.need ? { ...stage.need } : {};
 }
 
 export function whereToGetMaterials() {
@@ -745,7 +1045,23 @@ export function whereToGetMaterials() {
   const stage = data.hangout?.stages?.[st.hangoutStage];
   if (stage?.beacon) setBeacon(stage.beacon);
   syncBeacon();
-  hooks.toast?.(L(stage?.hint || {}));
+  const missing = [];
+  const need = stage?.need || {};
+  for (const [k, n] of Object.entries(need)) {
+    const short = n - (st.materials[k] || 0);
+    if (short > 0) missing.push(`${k} ×${short}`);
+  }
+  if (missing.length) {
+    hooks.toast?.(
+      L({
+        ru: `Не хватает: ${missing.join(", ")}. Город — Дядя Болт (Скобяная лавка) или смена «Подсобник» на Стройке`,
+        en: `Short: ${missing.join(", ")}. City — Uncle Bolt (hardware stall) or Site helper shift`,
+        da: `Mangler: ${missing.join(", ")}. By — Onkel Bolt eller byggehjælper`
+      })
+    );
+  } else hooks.toast?.(L(stage?.hint || {}));
+  if (me().location !== "city") setBeacon("npc_bolt");
+  else openBoltMaterialShop();
 }
 
 function tryCallouts() {
@@ -785,6 +1101,7 @@ function triggerCalloutDialogue(d) {
   playSfx(d.callout?.sound || "sfx_whistle");
   showBubble(speaker, text);
   setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker);
+  speakStoryLine(speaker, text, `dlg_${d.id}_${node.id}`);
   const ind = document.getElementById("storyDirection");
   if (ind) {
     ind.textContent = d.callout?.icon || "!";
@@ -808,11 +1125,20 @@ function showDialogueNode(dlg, node) {
   el.classList.add("active");
   const speaker = (node.speaker || "npc").replace("npc_", "");
   applyDialogueCamera(speakerToNpcId(node.speaker) || speaker);
+  const st = ensureStoryState(me());
+  const metKey = `met_${speaker}`;
+  if (!st.flags[metKey] && speaker && speaker !== "player") {
+    st.flags[metKey] = true;
+    const introKey = `npc_intro_${speaker}`;
+    const introLine = typeof window.t === "function" ? window.t(introKey) : "";
+    if (introLine && introLine !== introKey) hooks.toast?.(introLine);
+  }
   el.querySelector(".story-dialog-title").textContent =
     typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker;
   const body = el.querySelector(".story-dialog-body");
   const text = L(node.text);
   setSubtitle(text);
+  speakStoryLine(speaker, text, `dlg_${dlg.id}_${node.id}`);
   playSfx("sfx_chain");
   if (node.choices?.length) {
     body.innerHTML = node.choices
@@ -852,17 +1178,24 @@ function showDialogueNode(dlg, node) {
 }
 
 function closeDialogue() {
+  if (activeDlg?.id === "dlg_razor_ch1_bridge") {
+    const st = ensureStoryState(me());
+    st.flags.razor_bridge_seen = true;
+    hooks.save?.();
+  }
   if (activeDlg?.id === "dlg_plukh_enter" && story().flags.plukh_stays) fireStoryEvent("plukh_choice");
   if (activeDlg?.id === "dlg_plukh_enter" && story().flags.plukh_cemetery) fireStoryEvent("plukh_choice");
   activeDlg = null;
   document.getElementById("storyDialog")?.classList.remove("active");
   clearDialogueCamera();
   setSubtitle("");
+  window.AudioManager?.stopSpeech?.();
   hideDirection();
 }
 
 export function dismissAllStoryUi() {
   closeDialogue();
+  clearDialogueCamera();
   document.getElementById("storyDialog")?.classList.remove("active");
   const body = document.getElementById("storyDialog")?.querySelector(".story-dialog-body");
   if (body && !activeDlg) body.innerHTML = "";
@@ -870,6 +1203,7 @@ export function dismissAllStoryUi() {
   document.getElementById("storyDirection")?.classList.remove("visible");
   const sub = document.getElementById("voiceSubtitle");
   if (sub) sub.textContent = "";
+  window.AudioManager?.stopSpeech?.();
 }
 
 export function canOpenStoryModal() {
@@ -885,14 +1219,62 @@ export function showNpcProximityCallout(npcId, text) {
   if (!canOpenStoryModal()) return;
   showBubble(npcId, text);
   setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(npcId) : npcId);
+  speakStoryLine(npcId, text);
+}
+
+function showRankNpcChatter(npcId) {
+  const lines = Authority.getNpcLinesForRank(npcId, me());
+  if (!lines?.length) return false;
+  const line = lines[Math.floor(Math.random() * lines.length)];
+  const dlg = document.getElementById("storyDialog");
+  if (!dlg) return false;
+  dlg.classList.add("active");
+  dlg.querySelector(".story-dialog-title").textContent =
+    typeof window.tNpcName === "function" ? window.tNpcName(npcId) : npcId;
+  dlg.querySelector(".story-dialog-body").innerHTML =
+    `<p class="story-line">${escapeHtml(line)}</p>
+     <button type="button" class="btn" id="storyRankDlgClose">${L({ ru: "Ок", en: "OK", da: "OK" })}</button>`;
+  dlg.querySelector("#storyRankDlgClose").onclick = () => dlg.classList.remove("active");
+  return true;
 }
 
 export function tryStoryNpc(npcId) {
   if (Authority.tryAuthorityNpc(npcId)) return true;
-  if (!STORY_NPC_IDS.has(npcId)) return false;
+  const st = story();
   const loc = me().location;
+  if (
+    npcId === "razor" &&
+    !st.flags.joined_gang &&
+    !st.flags.ch1_initiation_unlocked &&
+    (st.flags.ch0_razor_talk || window.me?.onboarding?.done)
+  ) {
+    return openDialogueById("dlg_razor_ch1_bridge");
+  }
+  if (npcId === "bolt" && st.flags.joined_gang) {
+    openBoltMaterialShop();
+    return true;
+  }
+  if (npcId === "foreman" && st.flags.joined_gang) {
+    startQuest("q_construction_sign");
+    hooks.toast?.(L({ ru: "Список прораба: собери кирпичи для вывески", en: "Foreman's list: gather bricks for the sign", da: "Formandens liste" }));
+    return true;
+  }
+  if (npcId === "razor" && st.flags.joined_gang) {
+    return showRankNpcChatter("razor");
+  }
+  if (npcId === "rookie" && st.quest.activeId === "q_ch2_antibully" && !st.flags.ch2_antibully_resolved) {
+    return openDialogueById("dlg_antibully_rookie");
+  }
+  if (npcId === "count" && loc === "castle") {
+    return window.CastleGameplay?.tryCastleInteract?.(hooks) || openDialogueById("dlg_count_confession");
+  }
+  if (!STORY_NPC_IDS.has(npcId)) return false;
   const dlg = data.dialogues.find(d => {
     if (d.location !== loc) return false;
+    if (st.flags.joined_gang && d.id === "dlg_razor_initiation") return false;
+    const tr = d.trigger || {};
+    if (tr.flag && !evalCondition(`flag:${tr.flag}`)) return false;
+    if (!checkRequires(tr.conditions)) return false;
     return d.nodes?.some(n => (n.speaker || "").includes(npcId));
   });
   if (dlg) {
@@ -917,11 +1299,50 @@ function payInitiationFee() {
   fireStoryEvent("pay_initiation_fee");
   applyEffects([{ type: "flag", value: "joined_gang" }]);
   hooks.toast?.(L({ ru: "Взнос принят!", en: "Fee paid!", da: "Gebyr betalt!" }));
+  onEconomyChanged();
+  hooks.save?.();
+}
+
+export function openDialogueById(dlgId) {
+  const d = data.dialogues.find(x => x.id === dlgId);
+  if (!d) return false;
+  openDialogueTree(d);
+  return true;
 }
 
 export function onLocationChange(loc) {
   dismissAllStoryUi();
   const p = me();
+  const st = ensureStoryState(p);
+  if (loc === "street") maybeStartAntibully();
+  if (
+    loc === "cemetery" &&
+    st.hangoutStage >= 4 &&
+    !st.unique.bell_rim &&
+    !st.quest.completed.q_ch3_cemetery_night &&
+    !st.quest.activeId
+  ) {
+    startQuest("q_ch3_cemetery_night");
+  }
+  if (loc === "cemetery" && st.quest.completed.q_ch3_cemetery_night && !st.unique.bell_rim) {
+    window.StoryScenes?.playCemeteryBellScene?.(p, hooks);
+    st.events.ch3_bell_ready = true;
+  }
+  window.CastleGameplay?.tryTongueQuest?.(hooks);
+  if (
+    loc === "castle" &&
+    st.unique?.bell_rim &&
+    !st.flags.castle_enter_hint
+  ) {
+    st.flags.castle_enter_hint = true;
+    hooks.toast?.(
+      L({
+        ru: "Замок: зажги свечи у органа (ноты C E G C E), подготовь концерт на сцене, затем поговори с Графом.",
+        en: "Castle: light organ candles (C E G C E), prep the concert stage, then speak to the Count.",
+        da: "Slot: tænd orgellys, forbered koncerten, tal med greven."
+      })
+    );
+  }
   p._storyJustEntered = loc;
   setTimeout(() => {
     if (me()) me()._storyJustEntered = null;
@@ -989,10 +1410,21 @@ export function initStoryEngine(h) {
 }
 
 export function onOnboardingComplete() {
-  Authority.startAuthorityPath(me());
+  const p = me();
+  const st = ensureStoryState(p);
+  grantRewardOnce(p, "reward_ch0_complete", () => {
+    st.quest.completed.q_ch0_newbie = true;
+    st.mainlineChapter = 1;
+  st.chapter = Math.max(st.chapter || 0, 1);
+  st.flags.ch0_razor_talk = true;
+  st.flags.ch1_started = true;
+  });
+  st.quest.activeId = null;
+  Authority.startAuthorityPath(p);
   pickNextObjective();
   renderObjectivePanel();
   Authority.renderAuthorityHud();
+  window.AngelinaGuide?.refreshAngelinaContextBanner?.();
 }
 
 const api = {
@@ -1007,13 +1439,24 @@ const api = {
   beginEarnCoins,
   tryStoryPurchase,
   buildHangoutStage,
+  updateConstructionHud,
   whereToGetMaterials,
+  purchaseStoryMaterial,
+  openBoltMaterialShop,
+  tryBeaconInteract,
+  getArcadeDailyCap,
+  onEconomyChanged,
+  storyQuestCompletedForSave,
   setBeacon,
   syncBeacon,
   resolveGuideTarget,
   startQuest,
+  completeQuest,
   ensureStoryState,
+  syncUnifiedMaterials,
   onOnboardingComplete,
+  recordChapterCheckpoint,
+  openDialogueById,
   dismissAllStoryUi,
   applyDialogueCamera,
   clearDialogueCamera,
@@ -1022,7 +1465,9 @@ const api = {
   applyEffect,
   Authority,
   getJobs: () => data.jobs,
-  getBalance: () => data.balance
+  getBalance: () => data.balance,
+  getHangoutStageNeed,
+  getActiveStep
 };
 
 export default api;

@@ -7,6 +7,7 @@ const LifeEngine = (() => {
   let dog = null;
   let cats = [];
   let lastT = 0;
+  let trashKickAt = 0;
   let playerStillMs = 0;
   let lastPx = 0;
   let lastPy = 0;
@@ -124,6 +125,9 @@ const LifeEngine = (() => {
       if (s.type === "trash") {
         el.onclick = (e) => {
           e.stopPropagation();
+          const now = Date.now();
+          if (now - trashKickAt < 900) return;
+          trashKickAt = now;
           el.classList.add("rustle");
           setTimeout(() => el.classList.remove("rustle"), 600);
           hooks.onTrashKick?.();
@@ -178,7 +182,7 @@ const LifeEngine = (() => {
         <div class="tag" id="dogTag">пёс</div>`;
       el.onclick = (e) => {
         e.stopPropagation();
-        barkAndPet();
+        barkAndPet(true);
       };
       document.getElementById("entities")?.appendChild(el);
     }
@@ -197,7 +201,7 @@ const LifeEngine = (() => {
     dog.el = el;
   }
 
-  function barkAndPet() {
+  function barkAndPet(rewardPlayer = false) {
     if (!dog) return;
     dog.state = "jump";
     dog.stateT = 0;
@@ -206,7 +210,7 @@ const LifeEngine = (() => {
     playBark();
     dog.el.classList.add("dog-wag");
     setTimeout(() => dog.el?.classList.remove("dog-wag"), 800);
-    hooks.onPetDog?.();
+    if (rewardPlayer) hooks.onPetDog?.({ explicit: true });
   }
 
   function showBubble(text) {
@@ -237,7 +241,7 @@ const LifeEngine = (() => {
       targetY = nearestCat.c.y;
       speed = 0.22;
       if (nearestCat.d < 4 && dog.stateT > 0.5) {
-        barkAndPet();
+        barkAndPet(false);
         nearestCat.c.x += 8;
       }
     } else if (dog.state === "chase") {

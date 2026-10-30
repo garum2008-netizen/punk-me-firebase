@@ -152,6 +152,20 @@ async function run() {
   });
   assert(r.status === 200, `alice write own: ${r.status} ${r.body}`);
 
+  console.log("rules: guest (anon) write own settings + dialogueHeard");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/settings`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ audio: { music: 0.5, speech: 0.8 } })
+  });
+  assert(r.status === 200, `guest settings: ${r.status} ${r.body}`);
+  r = await fetchJson(dbUrl(`players/${aliceUid}/dialogueHeard`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ npc_razor_0: true })
+  });
+  assert(r.status === 200, `guest dialogueHeard: ${r.status} ${r.body}`);
+
   console.log("rules: alice write pet string (pet_dog)");
   r = await fetchJson(dbUrl(`players/${aliceUid}/pet`, aliceAuth.idToken), {
     method: "PUT",
@@ -187,6 +201,53 @@ async function run() {
     body: JSON.stringify({ name: "Hack", coins: 0 })
   });
   assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
+
+  const presencePayload = {
+    name: "TestPunk",
+    x: 50,
+    y: 55,
+    ts: Date.now(),
+    level: 1,
+    characterId: "cobalt",
+    anim: "idle",
+    avatar: "imagine_images/Oo040.jpg"
+  };
+
+  console.log("rules: unauth write presence → deny");
+  r = await fetchJson(dbUrl(`presence/room/${aliceUid}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(presencePayload)
+  });
+  assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
+
+  console.log("rules: alice write own presence → allow");
+  r = await fetchJson(dbUrl(`presence/room/${aliceUid}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(presencePayload)
+  });
+  assert(r.status === 200, `alice presence: ${r.status} ${r.body}`);
+
+  console.log("rules: bob write alice presence → deny");
+  r = await fetchJson(dbUrl(`presence/room/${aliceUid}`, bobAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...presencePayload, name: "Intruder" })
+  });
+  assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
+
+  console.log("rules: presence read without auth → allow");
+  r = await fetchJson(dbUrl("presence/room"));
+  assert(r.status === 200, `presence read: ${r.status}`);
+
+  console.log("rules: invalid presence (missing name) → deny");
+  r = await fetchJson(dbUrl(`presence/room/${aliceUid}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ x: 1, y: 2, ts: Date.now() })
+  });
+  assert(r.status === 401 || r.json?.error, `expected deny invalid presence, got ${r.status}`);
 
   console.log("\nAll database rules tests passed.");
   process.exit(0);

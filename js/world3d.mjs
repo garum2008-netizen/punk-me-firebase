@@ -24,6 +24,7 @@ import {
 import { createAtmospherePipeline, renderAtmosphere } from "./world/atmosphere.mjs";
 import { loadPunkDogTemplate, createMeshyDog, updateMeshyDogAnim } from "./world/meshy-dog.mjs";
 import { pulseScene } from "./world/location-enrich.mjs";
+import { applyCastleEndingVisual } from "./world/castle-location.mjs";
 import {
   bindGameplayToWorld3D,
   onGameplayLocationBuilt,
@@ -46,6 +47,7 @@ import {
   consumeInteract,
   initControls3D
 } from "./controls-3d.mjs";
+import { createLocomotionState, stepLocomotion } from "./world/locomotion-sm.mjs";
 
 function resolveAnimName(name) {
   if (name === "wave" && !WAVE_EMOTE_ENABLED) return "idle";
@@ -86,6 +88,104 @@ let locFillLight = null;
 let atmospherePipe = null;
 let motionProbe = null;
 let dialogueCaptureBoost = null;
+let hangoutSnapRestore = null;
+const CONSTRUCTION_HEMI = 1.95;
+const CONSTRUCTION_FOG_D = 0.006;
+const CONSTRUCTION_BG = 0x281818;
+
+function clearDialogueCaptureBoost() {
+  if (!dialogueCaptureBoost || !renderer) {
+    dialogueCaptureBoost = null;
+    return;
+  }
+  if (scene.fog && dialogueCaptureBoost.fogD != null) scene.fog.density = dialogueCaptureBoost.fogD;
+  if (dialogueCaptureBoost.exp != null) renderer.toneMappingExposure = dialogueCaptureBoost.exp;
+  if (scene.background?.setHex && dialogueCaptureBoost.bg != null) scene.background.setHex(dialogueCaptureBoost.bg);
+  if (dialogueCaptureBoost.hemi != null) {
+    scene.traverse(c => {
+      if (c.isHemisphereLight) c.intensity = dialogueCaptureBoost.hemi;
+    });
+  }
+  dialogueCaptureBoost = null;
+}
+
+function hideDialogueShotLights() {
+  if (dialogueKeyLight) dialogueKeyLight.visible = false;
+  if (dialogueRimLight) dialogueRimLight.visible = false;
+  if (dialogueNpcFill) dialogueNpcFill.visible = false;
+  if (dialogueBackdrop) dialogueBackdrop.visible = false;
+}
+
+function resetLocFillForHangoutCapture() {
+  if (!locFillLight) return;
+  locFillLight.intensity = 1.85;
+  locFillLight.position.set(0, 4.2, 1);
+}
+
+function resetConstructionSceneLighting() {
+  clearDialogueCaptureBoost();
+  hideDialogueShotLights();
+  resetLocFillForHangoutCapture();
+  scene.traverse(c => {
+    if (c.isHemisphereLight) c.intensity = CONSTRUCTION_HEMI;
+  });
+  if (scene.fog?.density != null) scene.fog.density = CONSTRUCTION_FOG_D;
+  if (scene.background?.setHex) scene.background.setHex(CONSTRUCTION_BG);
+  if (renderer) renderer.toneMappingExposure = 0.78;
+}
+
+function restoreHangoutSnapDimming() {
+  if (!hangoutSnapRestore) return;
+  if (renderer) renderer.toneMappingExposure = hangoutSnapRestore.exp;
+  hangoutSnapRestore.mats?.forEach(({ m, ei }) => {
+    m.emissiveIntensity = ei;
+  });
+  hangoutSnapRestore.pointLights?.forEach(({ light, intensity }) => {
+    light.intensity = intensity;
+  });
+  if (hangoutSnapRestore.locFill && locFillLight) {
+    locFillLight.intensity = hangoutSnapRestore.locFill.intensity;
+    locFillLight.position.copy(hangoutSnapRestore.locFill.pos);
+  }
+  if (hangoutSnapRestore.hemi != null) {
+    scene.traverse(c => {
+      if (c.isHemisphereLight) c.intensity = hangoutSnapRestore.hemi;
+    });
+  }
+  hangoutSnapRestore = null;
+}
+
+function beginHangoutSnapDimming(root) {
+  restoreHangoutSnapDimming();
+  resetConstructionSceneLighting();
+  let hemi = CONSTRUCTION_HEMI;
+  scene.traverse(c => {
+    if (c.isHemisphereLight) hemi = c.intensity;
+  });
+  hangoutSnapRestore = {
+    exp: renderer.toneMappingExposure,
+    hemi,
+    mats: [],
+    pointLights: [],
+    locFill: locFillLight
+      ? { intensity: locFillLight.intensity, pos: locFillLight.position.clone() }
+      : null
+  };
+  renderer.toneMappingExposure = 0.76;
+  root.traverse(o => {
+    if (o.isPointLight) {
+      hangoutSnapRestore.pointLights.push({ light: o, intensity: o.intensity });
+      o.intensity *= 0.38;
+    }
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m?.emissive || (m.emissiveIntensity ?? 0) <= 0.08) return;
+      hangoutSnapRestore.mats.push({ m, ei: m.emissiveIntensity });
+      m.emissiveIntensity = Math.min(0.2, m.emissiveIntensity * 0.22);
+    });
+  });
+}
 let dialogueKeyLight = null;
 let dialogueRimLight = null;
 let dialogueNpcFill = null;
@@ -236,28 +336,23 @@ function fadeTo(actor, name) {
   actor.current = key;
 }
 
+function ensureLocoState(actor) {
+  if (!actor._locoSm) actor._locoSm = createLocomotionState();
+  return actor._locoSm;
+}
+
 function pickLocomotionAnim(actor, speed, talking) {
   if (actor._holdAnim && actor._holdUntil > performance.now()) {
     if (actor._holdAnim === "walk" || actor._holdAnim === "run") return actor._holdAnim;
     return resolveAnimName(actor._holdAnim);
   }
-  if (talking && speed < 0.08) return "idle";
-  if (actor.isPlayer && actor._intentRun && speed > 0.05) return "run";
-  const walkGate = actor._meshy ? 0.14 : 0.08;
-  const prev = actor.current === "walk" || actor.current === "run" ? actor.current : "idle";
-  if (prev === "run") {
-    if (speed > 0.92) return "run";
-    if (speed > walkGate * 0.75) return "walk";
-    return "idle";
-  }
-  if (prev === "walk") {
-    if (speed > 1.42) return "run";
-    if (speed > walkGate * 0.65) return "walk";
-    return "idle";
-  }
-  if (speed > 1.42) return "run";
-  if (speed > walkGate) return "walk";
-  return "idle";
+  const intentRun = !!(actor.isPlayer && actor._intentRun);
+  return stepLocomotion(ensureLocoState(actor), {
+    speed,
+    intentRun,
+    talking: !!talking,
+    meshy: !!actor._meshy
+  });
 }
 
 function playOneShot(actor, name, ms = 1400) {
@@ -397,6 +492,10 @@ function rebuildLocation(locId) {
   spawnParticles(locId);
   ensureMarkerRoot(scene);
   onGameplayLocationBuilt(locId, locationRoot, bounds);
+  if (locId === "castle") {
+    const ending = window.me?.story?.ending;
+    if (ending) applyCastleEndingVisual(locationRoot, ending);
+  }
 }
 
 function spawnParticles(locId) {
@@ -494,27 +593,27 @@ function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
     actor.group.position.x = c.x;
     actor.group.position.z = c.z;
   } else {
-    const lerp = 0.22;
-    actor.group.position.x += (c.x - actor.group.position.x) * lerp;
-    actor.group.position.z += (c.z - actor.group.position.z) * lerp;
-    const snapped = clampWorld(actor.group.position.x, actor.group.position.z);
-    actor.group.position.x = snapped.x;
-    actor.group.position.z = snapped.z;
+    actor.group.position.x = c.x;
+    actor.group.position.z = c.z;
   }
   actor.group.position.y = 0;
-  const dx = c.x - (actor.wx ?? c.x);
-  const dz = c.z - (actor.wz ?? c.z);
+  const dx = isPlayer ? c.x - (actor.wx ?? c.x) : 0;
+  const dz = isPlayer ? c.z - (actor.wz ?? c.z) : 0;
   const dist = Math.hypot(dx, dz);
   const now = performance.now();
   const lastT = actor._moveT || now;
   const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
   actor._moveT = now;
-  let speed = dist / dt;
+  let speed = isPlayer ? dist / dt : 0;
+  if (isNpc && actor._patrol?.length) speed = actor._spd || 0;
   if (actor.id.startsWith("demo_")) speed = 0;
-  if (!isPlayer && isNpc && dist < 0.025) speed = 0;
+  if (dist < (isPlayer ? 0.006 : 0.022)) speed = isPlayer ? 0 : speed;
+  if (!isPlayer && isNpc && !actor._patrol?.length) speed = 0;
   if (!isPlayer && actor._netAnim === "idle") speed = 0;
   const smooth = actor._locoSpeed ?? speed;
-  actor._locoSpeed = smooth * 0.72 + speed * 0.28;
+  const blend = speed < 0.02 ? 0.42 : 0.72;
+  actor._locoSpeed = smooth * blend + speed * (1 - blend);
+  if (isPlayer && !actor._fromLocomotion && actor._locoSpeed < 0.04) actor._locoSpeed = 0;
   actor._spd = actor._locoSpeed;
   if (isPlayer) { meLastDx = dx; meLastDy = dz; }
   actor.wx = actor.group.position.x;
@@ -791,6 +890,30 @@ const LOCATION_CAMERA = {
   cemetery: { dist: 7.0, height: 2.5, lookY: 1.3, yaw: 0.32 },
   roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
+  castle: {
+    fixed: true,
+    fov: 48,
+    pos: [2, 3.4, 10],
+    look: [-2, 2, -2],
+    player: { x: 2, z: 6, yaw: -2.8 },
+    dog: { dx: 0.7, dz: -0.2 }
+  },
+  construction: {
+    fixed: true,
+    fov: 52,
+    pos: [0.5, 3.1, 5.2],
+    look: [0, 1.35, -2.2],
+    player: { x: 1.8, z: 3.5, yaw: -2.4 },
+    dog: { dx: 0.65, dz: -0.2 },
+    mobile: {
+      portraitFromPlayer: false,
+      fov: 50,
+      pos: [0.35, 2.85, 5.8],
+      look: [0, 1.2, -2.2],
+      player: { x: 1.6, z: 3.8, yaw: -2.35 },
+      dog: { dx: 0.55, dz: -0.15 }
+    }
+  },
   kitchen: {
     fixed: true,
     fov: 56,
@@ -1050,7 +1173,14 @@ function tickNpcPatrols(dt) {
     const step = 1.55 * dt;
     if (dist < 0.4) {
       a._patrolIdx = (idx + 1) % path.length;
-      if (dist < 0.08) return;
+      if (dist < 0.08) {
+        a._spd = 0;
+        a.group.position.x = a.wx;
+        a.group.position.z = a.wz;
+        fadeTo(a, "idle");
+        updateLocomotionTimeScale(a);
+        return;
+      }
     }
     const ux = dx / (dist || 1);
     const uz = dz / (dist || 1);
@@ -1061,7 +1191,8 @@ function tickNpcPatrols(dt) {
     a.group.rotation.y = Math.atan2(ux, uz);
     const spd = move / Math.max(dt, 0.001);
     a._spd = spd;
-    fadeTo(a, spd > 1.15 ? "run" : "walk");
+    a._intentRun = false;
+    fadeTo(a, pickLocomotionAnim(a, spd, false));
     updateLocomotionTimeScale(a);
     a.group.position.x = a.wx;
     a.group.position.z = a.wz;
@@ -1127,9 +1258,11 @@ function processInput(dt) {
       window.StoryEngine?.onPlayerMove?.();
     }
   } else {
-    player._locoSpeed = (player._locoSpeed || 0) * 0.55;
-    player._spd = player._locoSpeed;
-    fadeTo(player, pickLocomotionAnim(player, player._locoSpeed, false));
+    player._intentRun = false;
+    player._locoSpeed = 0;
+    player._spd = 0;
+    fadeTo(player, "idle");
+    ensureLocoState(player).mode = "idle";
     updateLocomotionTimeScale(player);
   }
   if (consumeJump() && (player._onGround ?? true)) {
@@ -1138,7 +1271,12 @@ function processInput(dt) {
   }
   if (consumeInteract()) {
     window._lastInteract = true;
-    hooks.onInteract?.();
+    window.__punkExplicitInteract = true;
+    try {
+      hooks.onInteract?.();
+    } finally {
+      window.__punkExplicitInteract = false;
+    }
   }
 }
 
@@ -1154,7 +1292,7 @@ function getNearestNpcId() {
   const pl = actors.get("player");
   if (!pl) return null;
   let best = null;
-  let bestD = 2.4;
+  let bestD = 3.55;
   actors.forEach((a, id) => {
     if (!id.startsWith("npc_")) return;
     const d = Math.hypot(pl.wx - a.wx, pl.wz - a.wz);
@@ -1166,6 +1304,15 @@ function getNearestNpcId() {
 function getNearPortal() {
   const pl = actors.get("player");
   if (!pl) return null;
+  const obKey = window.Onboarding?.isActive?.() ? window.Onboarding.getCurrentStep?.()?.key : null;
+  if (
+    obKey &&
+    /^(ch0_awake|ch0_move_done|ch0_mom_talk|ch0_pet_shnurok|ch0_avatar_chosen|ch0_interact_done|ch0_journal_open)$/.test(
+      obKey
+    )
+  ) {
+    return null;
+  }
   const portals = PORTALS[currentLoc] || [];
   let best = null;
   let bestD = Infinity;
@@ -1185,6 +1332,7 @@ function sync(data) {
   const justChangedLoc = location !== currentLoc;
   if (justChangedLoc) {
     rebuildLocation(location);
+    window.syncLocationTitle?.(location);
     captureFrameLock = false;
     setElevatorCutaway(false);
     const dogActor = actors.get("dog");
@@ -1200,8 +1348,8 @@ function sync(data) {
     }
   }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
-    const g = worldToGameLoc(-0.12, 0.36, bounds);
-    hooks.onMove?.(g.x, g.y);
+    const g = worldToGameLoc(0.1, 0.22, bounds);
+    hooks.onMove?.(g.x, g.y, { sync3d: false });
   }
 
   const keep = new Set(["player"]);
@@ -1322,6 +1470,23 @@ function onPointer(e) {
   pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
+  const npcRoots = [];
+  const npcIdByRoot = new Map();
+  actors.forEach((a, id) => {
+    if (!id.startsWith("npc_")) return;
+    npcRoots.push(a.group);
+    npcIdByRoot.set(a.group, id.replace("npc_", ""));
+  });
+  const npcHits = raycaster.intersectObjects(npcRoots, true);
+  if (npcHits.length) {
+    let node = npcHits[0].object;
+    while (node && !npcIdByRoot.has(node)) node = node.parent;
+    const picked = node ? npcIdByRoot.get(node) : null;
+    if (picked) {
+      hooks.onNpcClick?.(picked);
+      return;
+    }
+  }
   const hits = raycaster.intersectObject(floorMesh, true);
   const hit = hits.find(h => h.object.isMesh);
   if (hit && bounds) {
@@ -1333,14 +1498,6 @@ function onPointer(e) {
     const g = worldToGameLoc(hit.point.x, hit.point.z, bounds);
     hooks.onMove?.(g.x, g.y);
   }
-  let best = null;
-  let bestD = 1.8;
-  actors.forEach((a, id) => {
-    if (!id.startsWith("npc_")) return;
-    const d = Math.hypot(a.group.position.x - hit?.point.x, a.group.position.z - hit?.point.z);
-    if (d < bestD) { bestD = d; best = id.replace("npc_", ""); }
-  });
-  if (best) hooks.onNpcClick?.(best);
 }
 
 function loop() {
@@ -1429,12 +1586,20 @@ function init(h) {
   if (!canvas) return Promise.resolve(false);
   mobileQuality =
     window.matchMedia("(max-width: 900px)").matches || (canvas?.clientWidth ?? 999) < 520;
-  renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: !mobileQuality,
-    powerPreference: "high-performance",
-    preserveDrawingBuffer: true
-  });
+  try {
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: !mobileQuality,
+      powerPreference: "high-performance",
+      preserveDrawingBuffer: true
+    });
+  } catch (e) {
+    const msg = e?.message || String(e);
+    throw new Error(/webgl/i.test(msg) ? msg : `Error creating WebGL context: ${msg}`);
+  }
+  if (!renderer.getContext()) {
+    throw new Error("Error creating WebGL context");
+  }
   renderer.setPixelRatio(mobileQuality ? 1 : Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = !mobileQuality;
   scene = new THREE.Scene();
@@ -1464,8 +1629,16 @@ function init(h) {
     if (e.target !== canvas) return;
     api.updateDecorGhostFromEvent?.(e);
   });
-  initControls3D(canvas, delta => { cameraYaw += delta; });
-  initTouchControls({ onCameraOrbit: delta => { cameraYaw += delta; } });
+  initControls3D(canvas, delta => {
+    cameraYaw += delta;
+    window.Onboarding?.onCameraOrbit?.(delta);
+  });
+  initTouchControls({
+    onCameraOrbit: delta => {
+      cameraYaw += delta;
+      window.Onboarding?.onCameraOrbit?.(delta);
+    }
+  });
   window.addEventListener("resize", resize);
   document.body.classList.add("mode-world3d");
 
@@ -1556,22 +1729,13 @@ const api = {
     setElevatorCutaway(false);
     resetPropDimOpacity();
     resetOccluderOpacity();
-    if (dialogueCaptureBoost) {
-      if (scene.fog && dialogueCaptureBoost.fogD != null) scene.fog.density = dialogueCaptureBoost.fogD;
-      if (dialogueCaptureBoost.exp != null) renderer.toneMappingExposure = dialogueCaptureBoost.exp;
-      if (scene.background?.setHex && dialogueCaptureBoost.bg != null) scene.background.setHex(dialogueCaptureBoost.bg);
-      if (dialogueCaptureBoost.hemi != null) {
-        scene.traverse(c => {
-          if (c.isHemisphereLight) c.intensity = dialogueCaptureBoost.hemi;
-        });
-      }
-      dialogueCaptureBoost = null;
+    clearDialogueCaptureBoost();
+    if (locFillLight) {
+      locFillLight.intensity = 3.2;
+      locFillLight.position.set(0, 4.2, 1);
     }
-    if (locFillLight) locFillLight.intensity = 3.2;
-    if (dialogueKeyLight) dialogueKeyLight.visible = false;
-    if (dialogueRimLight) dialogueRimLight.visible = false;
-    if (dialogueNpcFill) dialogueNpcFill.visible = false;
-    if (dialogueBackdrop) dialogueBackdrop.visible = false;
+    hideDialogueShotLights();
+    restoreHangoutSnapDimming();
     const pl = actors.get("player");
     actors.forEach(a => {
       if (a.isPlayer || a.id?.startsWith("npc_")) {
@@ -1580,6 +1744,9 @@ const api = {
       }
     });
     captureFrameLock = false;
+    if (renderer && renderer.toneMappingExposure > 1.45) {
+      renderer.toneMappingExposure = 1.2;
+    }
   },
   captureDogCloseup: () => {
     const dog = actors.get("dog");
@@ -2202,6 +2369,7 @@ const api = {
     return true;
   },
   snapScreenshotView: () => {
+    api.releaseCaptureFrame();
     const a = actors.get("player");
     if (!a || !bounds || !renderer || !camera) return false;
     if (captureHideActors) {
@@ -2255,7 +2423,45 @@ const api = {
     actors.forEach(act => act.mixer?.update(1 / 60));
     const capPl = actors.get("player");
     if (capPl) dimPropsBetweenCameraAnd(capPl.wx, 1.05, capPl.wz, 0.2);
+    if (currentLoc === "construction" && renderer && locationRoot) {
+      beginHangoutSnapDimming(locationRoot);
+    }
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
+  snapHangoutBuildShot: stage => {
+    api.releaseCaptureFrame();
+    if (currentLoc !== "construction" || !locationRoot || !renderer || !camera) return false;
+    document.getElementById("storyDialog")?.classList.remove("active", "story-dialog-cinematic");
+    document.getElementById("howToOverlay")?.classList.remove("active");
+    buildHangoutVisual(stage, locationRoot);
+    captureHideActors = [];
+    actors.forEach((act, id) => {
+      if (id === "player" || id === "dog") return;
+      act.group.visible = false;
+      captureHideActors.push(act);
+    });
+    const a = actors.get("player");
+    const shot = LOCATION_CAMERA.construction;
+    applyViewportCameraProfile();
+    if (shot?.fixed && a) {
+      if (shot.player) {
+        a.group.position.set(shot.player.x, 0, shot.player.z);
+        a.wx = shot.player.x;
+        a.wz = shot.player.z;
+        a.group.rotation.y = shot.player.yaw ?? 0;
+      }
+      camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2]);
+      camera.lookAt(shot.look[0], shot.look[1], shot.look[2]);
+      if (shot.fov) {
+        camera.fov = shot.fov;
+        camera.updateProjectionMatrix();
+      }
+    }
+    resetOccluderOpacity();
+    beginHangoutSnapDimming(locationRoot);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    captureFrameLock = true;
     return true;
   },
   getShowcaseScreenProjection: () => {
@@ -2478,6 +2684,47 @@ const api = {
     if (!captureFrameLock) updateThirdPersonCamera(dt);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return motionProbe.frames.length;
+  },
+  getPlayerWorldPos: () => {
+    const pl = actors.get("player");
+    if (!pl) return null;
+    return { x: pl.wx, z: pl.wz };
+  },
+  getCastleCandleSlots: () => {
+    if (!locationRoot || currentLoc !== "castle") return [];
+    const grp = locationRoot.getObjectByName("castle_candles");
+    if (!grp) return [];
+    return grp.children.map((g, i) => ({
+      slot: g.userData.slot ?? i,
+      note: g.userData.noteId,
+      x: g.position.x,
+      z: g.position.z
+    }));
+  },
+  lightCastleCandle: (slot, on) => {
+    const grp = locationRoot?.getObjectByName("castle_candles");
+    const g = grp?.children[slot];
+    const flame = g?.getObjectByName("flame");
+    if (flame) flame.visible = !!on;
+  },
+  resetCastleCandles: () => {
+    const grp = locationRoot?.getObjectByName("castle_candles");
+    grp?.children.forEach(c => {
+      const flame = c.getObjectByName("flame");
+      if (flame) flame.visible = false;
+    });
+  },
+  spawnCastleCrownPickup: () => {
+    hooks.toast?.(
+      typeof window.t === "function"
+        ? window.t("castle_crown_ready")
+        : "Bell crown ready."
+    );
+  },
+  applyCastleEndingVisualFromSave: () => {
+    if (locationRoot && currentLoc === "castle" && window.me?.story?.ending) {
+      applyCastleEndingVisual(locationRoot, window.me.story.ending);
+    }
   },
   countVisibleProps: (opts = {}) => countVisiblePropsInScene(opts),
   auditLargeMeshes: (minSize = 1.5) => {

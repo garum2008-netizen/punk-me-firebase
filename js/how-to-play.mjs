@@ -45,6 +45,9 @@ function openHowTo() {
   el.classList.add("active");
   el.querySelector(".howto-close")?.addEventListener("click", () => {
     try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) {}
+    const st = window.StoryEngine?.ensureStoryState?.(window.me);
+    if (st?.flags) st.flags.howto_seen = true;
+    window.saveMe?.();
     el.classList.remove("active");
   });
   el.querySelectorAll("#howtoLangSwitch .lang-btn").forEach(btn => {
@@ -62,8 +65,13 @@ function initHowToPlay() {
   btn?.addEventListener("click", openHowTo);
   let seen = false;
   try { seen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (e) {}
+  if (!seen && window.me?.story?.flags?.howto_seen) seen = true;
+  const ob = window.me?.onboarding;
+  if (ob && !ob.done && (ob.step > 0 || Object.keys(ob.progress || {}).length > 0)) seen = true;
   if (!seen && location.hash !== "#account") {
     setTimeout(() => {
+      if (document.getElementById("chapterIntro")?.classList.contains("active")) return;
+      if (document.getElementById("storyScene")?.classList.contains("active")) return;
       if (!window.__punkIsAccountModalOpen?.() && !document.getElementById("accountModal")?.classList.contains("active")) {
         openHowTo();
       }

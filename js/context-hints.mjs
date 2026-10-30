@@ -1,3 +1,5 @@
+import { pickContextHintKind } from "./interact-priority.mjs";
+
 let el;
 
 export function initContextHints() {
@@ -6,20 +8,21 @@ export function initContextHints() {
 
 export function updateContextHints(data) {
   if (!el || !data) return;
-  const { nearNpc, nearPortal, nearDog, location } = data;
-  if (nearDog) {
+  const { nearNpc, nearPortal, location } = data;
+  const kind = pickContextHintKind(data);
+  if (kind === "dog") {
     el.textContent = typeof t === "function" ? t("hint_pet_dog") : "E — pet";
     el.classList.add("visible");
-  } else if (nearNpc) {
+  } else if (kind === "npc" && nearNpc) {
     el.textContent = typeof t === "function" ? t("hint_talk_npc") : "E — talk";
     el.classList.add("visible");
-  } else if (nearPortal?.labelKey) {
+  } else if (kind === "portal" && nearPortal?.labelKey) {
     const dest = typeof doorT === "function" ? doorT(nearPortal.labelKey) : nearPortal.to;
     el.textContent = typeof t === "function"
       ? t("hint_portal_named").replace("{dest}", dest || "…")
       : `Portal: ${dest || ""}`;
     el.classList.add("visible");
-  } else if (nearPortal) {
+  } else if (kind === "portal" && nearPortal) {
     el.textContent = typeof t === "function" ? t("hint_portal") : "Walk into the glow";
     el.classList.add("visible");
   } else if (window.Onboarding?.isActive?.() && location === "room") {
@@ -33,6 +36,7 @@ export function updateContextHints(data) {
   } else {
     el.classList.remove("visible");
   }
+  window.updateInteractionHud?.(data, kind);
 }
 
 window.initContextHints = initContextHints;

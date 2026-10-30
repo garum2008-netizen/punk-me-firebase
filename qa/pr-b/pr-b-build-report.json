@@ -1,0 +1,37 @@
+{
+  "at": "2026-10-25T07:43:28.222Z",
+  "music": {
+    "ok": true,
+    "sizes": 7
+  },
+  "results": [
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "ok": true,
+      "errors": []
+    },
+    {
+      "browser": "webkit",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "ok": true,
+      "errors": []
+    },
+    {
+      "browser": "chromium-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "ok": true,
+      "errors": []
+    }
+  ],
+  "pass": true
+}

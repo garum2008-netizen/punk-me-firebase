@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-accounts-r1";
+const GAME_VERSION = "story-preview-p0-r4";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -17,6 +17,23 @@ window.__punkFirebaseReady =
     window.__punkResolveFirebaseReady = resolve;
   });
 const PRESENCE_STALE_MS = 120000;
+window.__punkFirebaseEmulatorActive = false;
+
+function isLocalDevHost() {
+  const h = location.hostname;
+  return h === "localhost" || h === "127.0.0.1";
+}
+
+/** True when the page talks to production RTDB (not emulator / not localhost). */
+function isProductionFirebaseClient() {
+  if (window.__punkFirebaseEmulatorActive) return false;
+  if (isLocalDevHost()) return false;
+  try {
+    if (new URLSearchParams(location.search).has("firebaseEmulator")) return false;
+  } catch (e) {}
+  return true;
+}
+window.isProductionFirebaseClient = isProductionFirebaseClient;
 
 function connectFirebaseEmulatorsIfRequested() {
   try {
@@ -27,6 +44,7 @@ function connectFirebaseEmulatorsIfRequested() {
     const authPort = parseInt(q.get("firebaseEmulatorAuthPort") || "9099", 10);
     firebase.database().useEmulator(host, dbPort);
     firebase.auth().useEmulator(`http://${host}:${authPort}`);
+    window.__punkFirebaseEmulatorActive = true;
   } catch (e) {
     console.warn("Firebase emulator connect failed", e);
   }
@@ -64,9 +82,28 @@ function othersForStage3D() {
 }
 
 function devCoinsEnabled() {
+  if (isProductionFirebaseClient()) return false;
   try {
     return new URLSearchParams(location.search).has("dev") || localStorage.getItem("punkme_dev") === "1";
   } catch (e) { return false; }
+}
+
+function qaSessionEnabled() {
+  if (isProductionFirebaseClient()) return false;
+  try {
+    return new URLSearchParams(location.search).has("qa") || localStorage.getItem("punkme_qa") === "1";
+  } catch (e) { return false; }
+}
+
+function prodDevWriteBlocked() {
+  if (!isProductionFirebaseClient()) return false;
+  try {
+    if (new URLSearchParams(location.search).has("dev")) return true;
+    if (new URLSearchParams(location.search).has("qa")) return true;
+    if (localStorage.getItem("punkme_dev") === "1") return true;
+    if (localStorage.getItem("punkme_qa") === "1") return true;
+  } catch (e) {}
+  return false;
 }
 
 const LOCATIONS = {
@@ -78,7 +115,7 @@ const LOCATIONS = {
       { x: 44, y: 72, w: 14, h: 14, to: "elevator", labelKey: "door_elevator" },
       { x: 68, y: 18, w: 12, h: 14, to: "roof", labelKey: "door_roof" }
     ],
-    npcs: ["vienna", "mohawk", "cobalt"],
+    npcs: ["shnurok", "vienna", "mohawk", "cobalt"],
     job: false, buildZone: "room_private"
   },
   kitchen: {
@@ -116,14 +153,23 @@ const LOCATIONS = {
       { x: 85, y: 45, w: 10, h: 18, to: "cemetery", labelKey: "door_cemetery" },
       { x: 45, y: 70, w: 14, h: 14, to: "city", labelKey: "door_city" }
     ],
-    npcs: ["razor", "mohawk", "vienna", "cobalt", "ghost"],
+    npcs: ["razor", "mohawk", "vienna", "cobalt", "ghost", "rookie"],
     night: true
   },
   cemetery: {
     id: "cemetery", title: "Кладбище у Вены", bg: "imagine_images/RgdDh.jpg",
-    doors: [{ x: 4, y: 52, w: 10, h: 16, to: "street", labelKey: "door_street" }],
+    doors: [
+      { x: 4, y: 52, w: 10, h: 16, to: "street", labelKey: "door_street" },
+      { x: 88, y: 40, w: 12, h: 16, to: "castle", labelKey: "door_castle" }
+    ],
     job: true, night: true,
     npcs: ["gravedigger", "cobalt"]
+  },
+  castle: {
+    id: "castle", title: "Замок Графа", bg: "imagine_images/RgdDh.jpg",
+    doors: [{ x: 50, y: 58, w: 12, h: 14, to: "cemetery", labelKey: "door_cemetery" }],
+    npcs: ["count", "razor", "mohawk", "vienna", "rookie"],
+    night: true
   },
   city: {
     id: "city", title: "Город", bg: "imagine_images/Z7wM3.jpg",
@@ -151,6 +197,16 @@ const LOCATIONS = {
 };
 
 const NPCS = {
+  shnurok: {
+    id: "shnurok",
+    name: "Шнурок",
+    img: "imagine_images/sgz0l.jpg",
+    linesI18n: {
+      ru: ["Гав! Мяч! Мяч!", "Вуф — ты свой."],
+      en: ["Woof! Ball! Ball!", "Woof — you're fam."],
+      da: ["Vuf! Bold!", "Vuf — du er en af os."]
+    }
+  },
   razor: {
     id: "razor", name: "Рейзор", img: "imagine_images/LTPb8.jpg",
     linesI18n: {
@@ -243,6 +299,22 @@ const NPCS = {
       da: ["Tre minutter — så er brædderne dine!"]
     }
   },
+  count: {
+    id: "count", name: "Граф", visualId: "ghost", img: "imagine_images/iVbon.jpg",
+    linesI18n: {
+      ru: ["Колокол помнит каждый удар…"],
+      en: ["The Bell remembers every strike…"],
+      da: ["Klokken husker hvert slag…"]
+    }
+  },
+  rookie: {
+    id: "rookie", name: "Новичок", visualId: "cobalt", img: "imagine_images/QTaiE.jpg",
+    linesI18n: {
+      ru: ["Я только вступил… не подведи."],
+      en: ["I just joined… don't let me down."],
+      da: ["Jeg er ny…"]
+    }
+  },
   gravedigger: {
     id: "gravedigger", name: "Смотритель", img: "imagine_images/HePl7.jpg",
     lines: [
@@ -294,8 +366,8 @@ const SPELLS = {
 const QUESTS = {
   intro: {
     title: "Ночь начинается",
-    text: "Поговори с Рейзором на улице и выиграй цепную дуэль.",
-    need: { talk_razor: 1, win_fight: 1 },
+    text: "Пройди обучение в доме 13 и поговори с Рейзором на улице.",
+    need: { talk_razor: 1 },
     reward: { coins: 100, xp: 40 }
   },
   chain_duel: {
@@ -335,6 +407,8 @@ let shopTab = "clothes";
 let presenceOk = true;
 let playersListenRef = null;
 let dogPos = { x: 38, y: 65 };
+const PET_DOG_COOLDOWN_MS = 2800;
+let lastPetDogAt = 0;
 let dogWag = false;
 let pendingJobAction = null;
 
@@ -353,7 +427,7 @@ function defaultPlayer() {
   const n = Math.floor(Math.random() * 900) + 100;
   return {
     name: "Панк" + n,
-    coins: devCoinsEnabled() ? 9999 : 100,
+    coins: devCoinsEnabled() ? 9999 : 25,
     energy: 100,
     mood: 100,
     xp: 0,
@@ -370,6 +444,8 @@ function defaultPlayer() {
     stats: { chain: 10, magic: 8, hp: 100, maxHp: 100 },
     quests: { active: "intro", progress: {} },
     onboarding: { step: 0, progress: {}, done: false },
+    dialogueHeard: {},
+    settings: { audio: {} },
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -426,6 +502,13 @@ function migratePlayerFromSave(raw) {
     if (inferred) v.characterId = inferred;
   }
   if (typeof v.characterId === "string" && !v.characterId.trim()) delete v.characterId;
+  if (v.story?.earn != null && typeof v.story.earn === "object") {
+    Object.keys(v.story.earn).forEach(k => {
+      if (v.story.earn[k] === undefined) delete v.story.earn[k];
+    });
+  } else if (v.story && v.story.earn === undefined) {
+    /* keep null */
+  }
   if (v.story && typeof v.story === "object") {
     if (v.story.quest != null && typeof v.story.quest !== "object") {
       v.story.quest = { activeId: null, step: 0, completed: {} };
@@ -437,7 +520,21 @@ function migratePlayerFromSave(raw) {
   }
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
+  if (v.onboarding && typeof v.onboarding === "object" && (v.onboarding.progress == null || typeof v.onboarding.progress !== "object")) {
+    v.onboarding.progress = {};
+  }
+  if (v.quests && typeof v.quests === "object" && (v.quests.progress == null || typeof v.quests.progress !== "object")) {
+    v.quests.progress = {};
+  }
   if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
+  if (v.dialogueHeard != null && typeof v.dialogueHeard !== "object") v.dialogueHeard = {};
+  if (v.settings != null && typeof v.settings !== "object") v.settings = { audio: {} };
+  if (v.settings && v.settings.audio != null && typeof v.settings.audio !== "object") {
+    v.settings.audio = {};
+  }
+  try {
+    window.__migrateBuildSave?.(v);
+  } catch (e) {}
   return v;
 }
 
@@ -461,8 +558,17 @@ function restoreLoadingMarkup() {
   if (typeof applyI18nDom === "function") applyI18nDom();
 }
 
-function showLoadingFailure(message, detail) {
+function showLoadingFailure(message, detail, opts = {}) {
   clearLoadMeTimeout();
+  const kind =
+    opts.kind ||
+    (typeof window.__punkClassifyBootError === "function"
+      ? window.__punkClassifyBootError(detail || message, opts.code)
+      : "save");
+  if (typeof window.__punkShowBootFailure === "function") {
+    window.__punkShowBootFailure(kind, detail || message || "", opts);
+    return;
+  }
   const el = document.getElementById("loading");
   if (!el) return;
   el.style.display = "flex";
@@ -472,10 +578,6 @@ function showLoadingFailure(message, detail) {
     <div class="loading-actions">
       <button type="button" class="btn" id="loadingRetryBtn">${escapeHtml(t("loading_retry"))}</button>
       <button type="button" class="btn secondary" id="loadingFreshBtn">${escapeHtml(t("loading_fresh"))}</button>
-    </div>
-    <div class="legal-footer legal-footer-start">
-      <span class="age-badge-inline" data-i18n="age_13">13+</span>
-      <a href="subscribe.html" data-i18n="footer_subscribe">${escapeHtml(t("footer_subscribe"))}</a>
     </div>`;
   document.getElementById("loadingRetryBtn")?.addEventListener("click", () => {
     restoreLoadingMarkup();
@@ -486,7 +588,11 @@ function showLoadingFailure(message, detail) {
 
 function applyFirebasePlayerSnapshot(snap) {
   if (snap.exists()) {
-    const v = migratePlayerFromSave(snap.val());
+    let v = migratePlayerFromSave(snap.val());
+    if (window.__punkGuestMergeSnapshot && typeof window.__punkMergePlayerSaves === "function") {
+      v = window.__punkMergePlayerSaves(window.__punkGuestMergeSnapshot, v);
+      window.__punkGuestMergeSnapshot = null;
+    }
     me = { ...defaultPlayer(), ...v };
     if (devCoinsEnabled()) me.coins = 9999;
     me.inventory = { materials: {}, spells: [], ...(v.inventory || {}) };
@@ -494,11 +600,17 @@ function applyFirebasePlayerSnapshot(snap) {
     me.inventory.spells = Array.isArray(v.inventory?.spells) ? v.inventory.spells : [];
     me.quests = v.quests && typeof v.quests === "object" ? v.quests : me.quests;
     me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
+    if (!me.onboarding.progress || typeof me.onboarding.progress !== "object") me.onboarding.progress = {};
+    if (!me.quests.progress || typeof me.quests.progress !== "object") me.quests.progress = {};
     me.story = v.story || me.story;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
     me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
     if (v.lang) initLanguage(v.lang);
+    if (v.settings?.audio) window.AudioManager?.importFromPlayerSave?.(v.settings.audio);
+    if (typeof v.settings?.audio?.narratorEnabled === "boolean") {
+      window.AudioManager?.setNarratorEnabled?.(v.settings.audio.narratorEnabled);
+    }
   } else {
     me = me || defaultPlayer();
   }
@@ -511,6 +623,8 @@ function applyFirebasePlayerSnapshot(snap) {
   me.lastSeen = Date.now();
   if (window.StoryEngine?.ensureStoryState) window.StoryEngine.ensureStoryState(me);
   if (me.characterId) writeStoredCharacterId(me.characterId);
+  syncLocationTitle(me.location);
+  refreshSocialPresenceUi();
 }
 
 function finishLoadMeFlow() {
@@ -531,6 +645,7 @@ function finishLoadMeFlow() {
     return;
   }
   continueGameBoot();
+  window.refreshStartOverlayCopy?.();
 }
 
 function startFreshPlayerKeepAccount() {
@@ -543,7 +658,7 @@ function startFreshPlayerKeepAccount() {
   restoreLoadingMarkup();
   loadMeTimeoutId = setTimeout(() => {
     if (gen !== loadMeGeneration) return;
-    showLoadingFailure(t("loading_timeout"));
+    showLoadingFailure(t("boot_title_timeout"), "", { kind: "timeout" });
   }, LOAD_ME_TIMEOUT_MS);
   db.ref("players/" + uid)
     .once("value")
@@ -570,7 +685,7 @@ function startFreshPlayerKeepAccount() {
         finishLoadMeFlow();
       } catch (err) {
         console.error("startFreshPlayerKeepAccount", err);
-        showLoadingFailure(t("loading_boot_error"), err.message || String(err));
+        showLoadingFailure(t("boot_title_save"), err.message || String(err), { kind: "save" });
       }
     })
     .catch(err => {
@@ -625,6 +740,11 @@ function formatCoinsDisplay() {
 function updatePlayersToggleCount() {
   const el = document.getElementById("playersToggleCount");
   if (!el) return;
+  const offline = !presenceOk || isEarlyStorySocialSoft();
+  if (offline) {
+    el.textContent = "—";
+    return;
+  }
   const inLoc = Object.keys(others).length + 1;
   el.textContent = String(inLoc);
 }
@@ -706,16 +826,34 @@ function syncStage3D() {
 }
 
 function init() {
+  const webglProbe = typeof window.__punkProbeWebGL === "function" ? window.__punkProbeWebGL() : { ok: true };
+  if (!webglProbe.ok) {
+    showLoadingFailure(t("boot_title_webgl"), webglProbe.reason || "webgl", { kind: "webgl", code: "webgl" });
+    return;
+  }
   me = defaultPlayer();
   window.me = me;
   window.__playerLoaded = false;
   window.saveMe = saveMe;
-  window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
+  window.onLanguageChanged = () => {
+    renderAll();
+    applyI18nDom();
+    window.__audioOnLangChanged?.();
+    window.Narrator?.reset?.();
+    window.Narrator?.refresh?.();
+    window.StoryGoalHud?.refresh?.();
+    if (document.getElementById("howToOverlay")?.classList.contains("active")) {
+      window.openHowToPlay?.();
+    }
+  };
   initLanguage();
-  document.querySelectorAll(".lang-btn").forEach(btn => {
-    btn.onclick = () => setLanguage(btn.dataset.lang, true);
-    btn.classList.toggle("active", btn.dataset.lang === getLanguage());
-  });
+  const bindLang = btn => {
+    const lang = btn.dataset.lang;
+    if (!lang) return;
+    btn.onclick = () => setLanguage(lang, true);
+    btn.classList.toggle("active", lang === getLanguage());
+  };
+  document.querySelectorAll(".lang-btn[data-lang]").forEach(bindLang);
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
@@ -725,7 +863,7 @@ function init() {
     window.dispatchEvent(new Event("punkme-firebase-ready"));
   } catch (bootErr) {
     console.error("Firebase init failed", bootErr);
-    showLoadingFailure(t("loading_boot_error"), bootErr.message || String(bootErr));
+    showLoadingFailure(t("boot_title_auth"), bootErr.message || String(bootErr), { kind: "auth" });
     return;
   }
   auth.onAuthStateChanged(async u => {
@@ -743,12 +881,12 @@ function init() {
         if (new URLSearchParams(location.search).get("loadtest") !== "timeout") loadMe();
       } catch (e) {
         console.error("loadMe", e);
-        showLoadingFailure(t("loading_boot_error"), e.message || String(e));
+        showLoadingFailure(t("boot_title_save"), e.message || String(e), { kind: "save" });
       }
     } else {
       auth.signInAnonymously().catch(e => {
         console.error("signInAnonymously", e);
-        showLoadingFailure(t("login_error"), e.message || String(e));
+        showLoadingFailure(t("boot_title_auth"), e.message || String(e), { kind: "auth" });
       });
     }
   });
@@ -774,13 +912,37 @@ function init() {
       onNpcClick: (nid) => openNpcDialog(nid),
       onInteract: () => {
         const playCtx = { toast, save: saveMe, hasDog };
-        if (window.PlayV21?.tryInteract(me, playCtx)) return;
-        if (window.World3D?.getNearestDog?.()) {
-          petDog(true);
+        if (
+          me.location === "castle" &&
+          window.CastleGameplay?.tryCastleInteract?.(playCtx)
+        ) {
           return;
         }
-        const nid = window.World3D?.getNearestNpc?.();
-        if (nid) openNpcDialog(nid);
+        const hints = {
+          nearNpc: window.World3D?.getNearestNpc?.() || null,
+          nearDog: !!window.World3D?.getNearestDog?.()
+        };
+        const kind =
+          typeof window.resolveInteractKind === "function"
+            ? window.resolveInteractKind(hints)
+            : hints.nearNpc
+              ? "npc"
+              : hints.nearDog
+                ? "dog"
+                : "none";
+        if (kind === "prop" && window.PlayV21?.tryInteract(me, playCtx)) return;
+        if (kind === "npc") {
+          const nid = hints.nearNpc;
+          if (nid) {
+            openNpcDialog(nid);
+            return;
+          }
+        }
+        if (kind === "dog" && window.__punkExplicitInteract && hints.nearDog) {
+          petDog(true, { explicit: true });
+          return;
+        }
+        if (window.PlayV21?.tryInteract(me, playCtx)) return;
       },
       onHints: h => window.updateContextHints?.(h),
       onPortal: (to) => {
@@ -808,12 +970,14 @@ function init() {
   LifeEngine.init({
     getMe: () => me,
     hasDog,
-    onPetDog: () => petDog(true),
+    onPetDog: opts => petDog(true, opts),
     onTrashKick: () => {
-      if (!isOwner) me.coins += 5;
+      if (isOwner) return;
+      const before = me.coins;
+      me.coins += 5;
       me.xp += 2;
       saveMe();
-      toast(t("trash_coins"));
+      if (me.coins > before) toast(t("trash_coins"));
       document.getElementById("coins").textContent = formatCoinsDisplay();
     },
     onCatPet: () => toast(t("cat_hiss"))
@@ -824,7 +988,7 @@ function init() {
 
 function loadMe() {
   if (!uid || !db) {
-    showLoadingFailure(t("loading_boot_error"), "no session");
+    showLoadingFailure(t("boot_title_auth"), "no session", { kind: "auth" });
     return;
   }
   window.__playerLoaded = false;
@@ -836,7 +1000,7 @@ function loadMe() {
       : LOAD_ME_TIMEOUT_MS;
   loadMeTimeoutId = setTimeout(() => {
     if (gen !== loadMeGeneration) return;
-    showLoadingFailure(t("loading_timeout"));
+    showLoadingFailure(t("boot_title_timeout"), "", { kind: "timeout" });
   }, timeoutMs);
   db.ref("players/" + uid)
     .once("value")
@@ -848,14 +1012,18 @@ function loadMe() {
         finishLoadMeFlow();
       } catch (err) {
         console.error("loadMe apply", err);
-        showLoadingFailure(t("loading_boot_error"), err.message || String(err));
+        showLoadingFailure(t("boot_title_save"), err.message || String(err), { kind: "save" });
       }
     })
     .catch(err => {
       if (gen !== loadMeGeneration) return;
       clearLoadMeTimeout();
       console.error("loadMe firebase", err);
-      showLoadingFailure(t("login_error"), err.message || String(err));
+      const kind =
+        typeof window.__punkClassifyBootError === "function"
+          ? window.__punkClassifyBootError(err.message || String(err), err.code)
+          : "network";
+      showLoadingFailure(t(`boot_title_${kind}`), err.message || String(err), { kind, code: err.code });
     });
 }
 
@@ -871,6 +1039,24 @@ function pickCharacterAndContinue(id) {
 }
 
 function continueGameBoot() {
+  try {
+    const boot = () => continueGameBootInner();
+    if (window.__punkShowStartGameOverlay) {
+      window.__punkShowStartGameOverlay(boot);
+      return;
+    }
+    continueGameBootInner();
+  } catch (err) {
+    console.error("continueGameBoot", err);
+    const kind =
+      typeof window.__punkClassifyBootError === "function"
+        ? window.__punkClassifyBootError(err.message, "webgl")
+        : "unknown";
+    showLoadingFailure(t(`boot_title_${kind}`), err.message || String(err), { kind });
+  }
+}
+
+function continueGameBootInner() {
   try {
     hideLoading();
     initResponsiveHud();
@@ -893,9 +1079,25 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    window.StoryGoalHud?.init?.();
+    window.AudioManager?.unlockAudio?.().then(ok => {
+      if (ok) window.AudioManager?.setLocationMusic?.(me.location || "room");
+      if (window.ChapterIntro?.shouldShowChapterIntro?.()) {
+        window.ChapterIntro.playChapterIntro({
+          onDone: () => window.Narrator?.refresh?.()
+        });
+      } else {
+        window.Narrator?.refresh?.();
+      }
+    });
+    window.StoryGoalHud?.refresh?.();
   } catch (err) {
     console.error("continueGameBoot", err);
-    showLoadingFailure(t("loading_boot_error"), err.message || String(err));
+    const kind =
+      typeof window.__punkClassifyBootError === "function"
+        ? window.__punkClassifyBootError(err.message, "webgl")
+        : "unknown";
+    showLoadingFailure(t(`boot_title_${kind}`), err.message || String(err), { kind });
   }
 }
 
@@ -916,6 +1118,7 @@ window.__punkApplyFirebaseSnapshot = applyFirebasePlayerSnapshot;
 window.__punkFinishLoadMeFlow = finishLoadMeFlow;
 window.__punkLoadMe = loadMe;
 window.__punkRestoreLoadingMarkup = restoreLoadingMarkup;
+window.__punkStartFreshPlayerKeepAccount = startFreshPlayerKeepAccount;
 window.pickCharacterAndContinue = pickCharacterAndContinue;
 window.__showLoadingFailure = showLoadingFailure;
 
@@ -929,9 +1132,13 @@ function applyHashRoute() {
 function renderMapModal() {
   const grid = document.getElementById("mapGrid");
   if (!grid) return;
-  grid.innerHTML = Object.values(LOCATIONS).map(loc => `
-    <div class="card">
-      <img src="${loc.bg}" alt="">
+  const brand = `<div class="map-brand-banner" aria-label="PUNK ME">
+    <span class="map-brand-logo">PUNK ME</span>
+    <span class="map-brand-tag">${escapeHtml(t("map_brand_tag"))}</span>
+  </div>`;
+  grid.innerHTML = brand + Object.values(LOCATIONS).map(loc => `
+    <div class="card map-card">
+      <div class="map-thumb-wrap"><img src="${loc.bg}" alt=""></div>
       <div><b>${escapeHtml(locTitle(loc.id))}</b></div>
       <button class="btn" style="margin-top:6px;width:100%" ${me.location === loc.id ? "disabled" : ""}
         onclick="goLocation('${loc.id}'); closeModal('mapModal');">
@@ -957,25 +1164,91 @@ function hideLoading() {
   const el = document.getElementById("loading");
   if (el) el.style.display = "none";
 }
+window.__punkHideLoading = hideLoading;
 
 function saveMe() {
   if (!uid) return;
   if (!window.__playerLoaded) return;
+  if (prodDevWriteBlocked()) {
+    console.warn("saveMe blocked: dev/qa test flags on production — use localhost + firebaseEmulator");
+    return;
+  }
   const prevLvl = me.level || 1;
   me.level = levelFromXp(me.xp || 0);
   if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
   me.lastSeen = Date.now();
-  const payload = sanitizePlayer(me);
-  // players/{uid} must succeed even when publicProfiles is denied (pre-rules-publish).
-  db.ref("players/" + uid).update(payload);
+  const payload = stripUndefinedDeep(sanitizePlayer(me));
+  if (!payload) return;
+  window.__punkSaveState = "saving";
+  updateSaveStatusUi("saving");
+  const playersRef = db.ref("players/" + uid);
+  playersRef
+    .update(payload)
+    .then(() => {
+      window.__punkSaveState = "saved";
+      updateSaveStatusUi("saved");
+    })
+    .catch(err => {
+      console.error("saveMe players", err);
+      window.__punkSaveState = "error";
+      updateSaveStatusUi("error");
+      toast(typeof t === "function" ? t("save_failed") : "Save failed");
+    });
   db.ref("publicProfiles/" + uid)
     .set({
       name: payload.name || me.name || "Player",
       avatar: payload.avatar || me.avatar || "",
       coins: payload.coins ?? 0
     })
-    .catch(() => {});
+    .catch(err => {
+      console.warn("saveMe publicProfiles", err);
+      if (window.__punkSaveState !== "error") {
+        window.__punkSaveState = "error";
+        updateSaveStatusUi("error");
+        toast(typeof t === "function" ? t("save_failed") : "Save failed");
+      }
+    });
   pushPresence();
+}
+
+function updateSaveStatusUi(state) {
+  const el = document.getElementById("saveStatus");
+  if (!el) return;
+  const key = state === "saved" ? "save_ok" : state === "saving" ? "save_saving" : state === "error" ? "save_failed" : "";
+  el.textContent = key && typeof t === "function" ? t(key) : "";
+  el.dataset.state = state || "";
+  el.classList.toggle("visible", state === "saved" || state === "error" || state === "saving");
+  if (state === "saved") {
+    clearTimeout(window.__punkSaveHideTimer);
+    window.__punkSaveHideTimer = setTimeout(() => {
+      el.classList.remove("visible");
+      el.textContent = "";
+    }, 2400);
+  }
+}
+
+function stripUndefinedDeep(value) {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    return value.map(stripUndefinedDeep).filter(v => v !== undefined);
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (v === undefined) continue;
+    const next = stripUndefinedDeep(v);
+    if (next !== undefined) out[k] = next;
+  }
+  return out;
+}
+
+function sanitizeStory(st) {
+  if (!st || typeof st !== "object") return st;
+  try {
+    return stripUndefinedDeep(JSON.parse(JSON.stringify(st)));
+  } catch (e) {
+    return stripUndefinedDeep(st);
+  }
 }
 
 function sanitizePlayer(p) {
@@ -1002,26 +1275,39 @@ function sanitizePlayer(p) {
     dog: dogPos,
     lang: getLanguage(),
     characterId: p.characterId || null,
-    story: p.story,
+    story: sanitizeStory(p.story),
     authority: p.authority ?? p.story?.authority,
     gang_rank: p.gang_rank ?? p.story?.gang_rank,
     energy: p.energy,
     mood: p.mood,
     owner: isOwner,
     lastSeen: p.lastSeen,
-    linkedAuth: p.linkedAuth || null
+    linkedAuth: p.linkedAuth || null,
+    onboarding: p.onboarding,
+    dialogueHeard: p.dialogueHeard || {},
+    settings: p.settings || { audio: window.AudioManager?.exportSettings?.() || {} }
   };
+}
+
+function buildPresencePayload() {
+  const name = String(me.name || "Player").trim().slice(0, 64) || "Player";
+  const x = Number.isFinite(me.x) ? me.x : 50;
+  const y = Number.isFinite(me.y) ? me.y : 55;
+  const level = Number.isFinite(me.level) ? Math.max(0, Math.min(9999, me.level)) : 1;
+  const avatar = me.avatar ? String(me.avatar).slice(0, 512) : "";
+  const characterId = String(me.characterId || "vienna").slice(0, 32);
+  const anim = String(me._animState || "idle").slice(0, 32);
+  const payload = { name, x, y, level, characterId, anim, ts: Date.now() };
+  if (avatar) payload.avatar = avatar;
+  return payload;
 }
 
 function initMultiplayer() {
   if (!uid) return;
-  const probe = db.ref("presence/" + me.location + "/" + uid);
-  const probePayload = {
-    name: me.name || "Player",
-    x: me.x ?? 50,
-    y: me.y ?? 55,
-    ts: Date.now()
-  };
+  if (!auth?.currentUser || auth.currentUser.uid !== uid) return;
+  const loc = me.location || "room";
+  const probe = db.ref("presence/" + loc + "/" + uid);
+  const probePayload = { ...buildPresencePayload(), ts: Date.now() };
   probe.set(probePayload).then(() => {
     presenceOk = true;
     probe.remove().catch(() => {});
@@ -1030,6 +1316,7 @@ function initMultiplayer() {
   }).catch(() => {
     presenceOk = false;
     listenPlayersInLocation();
+    refreshSocialPresenceUi();
   });
 }
 
@@ -1037,19 +1324,14 @@ function pushPresence() {
   if (!uid) return;
   if (!window.__playerLoaded) return;
   if (!presenceOk) return;
-  const loc = me.location;
-  const data = {
-    name: me.name,
-    x: me.x,
-    y: me.y,
-    avatar: me.avatar,
-    level: me.level,
-    characterId: me.characterId || "vienna",
-    anim: me._animState || "idle",
-    ts: Date.now()
-  };
+  if (!auth?.currentUser || auth.currentUser.uid !== uid) return;
+  const loc = me.location || "room";
+  const data = buildPresencePayload();
   const ref = db.ref("presence/" + loc + "/" + uid);
-  ref.set(data).catch(() => disablePresence("write"));
+  ref.set(data).catch(err => {
+    if (err?.code) console.warn("presence set:", err.code);
+    disablePresence("write");
+  });
   if (presenceRef && presenceRef.key !== loc) {
     presenceRef.child(uid).remove().catch(() => {});
   }
@@ -1063,6 +1345,7 @@ function disablePresence(reason) {
   console.warn("Presence disabled:", reason);
   if (presenceListenRef) presenceListenRef.off();
   listenPlayersInLocation();
+  refreshSocialPresenceUi();
 }
 
 function isPrivateRoomLoc(locId) {
@@ -1214,10 +1497,48 @@ function countLivePlayers(all) {
   return Object.values(all || {}).filter(p => p && p.lastSeen && now - p.lastSeen < PRESENCE_STALE_MS).length;
 }
 
+function isEarlyStorySocialSoft() {
+  const p = window.me;
+  if (!p) return true;
+  if (p.onboarding && !p.onboarding.done) return true;
+  const st = p.story;
+  if (!st?.flags?.joined_gang && (st?.chapter ?? 0) < 2) return true;
+  return false;
+}
+
+function refreshSocialPresenceUi() {
+  const offline = !presenceOk || isEarlyStorySocialSoft();
+  document.body.classList.toggle("social-presence-offline", offline);
+  const chatInp = document.getElementById("chatInput");
+  const chatToggle = document.getElementById("chatToggle");
+  if (chatInp) {
+    chatInp.disabled = offline;
+    chatInp.placeholder = offline
+      ? (typeof t === "function" ? t("chat_offline_ph") : "Chat offline")
+      : (typeof t === "function" ? t("chatPh") : "");
+  }
+  if (chatToggle) chatToggle.setAttribute("aria-disabled", offline ? "true" : "false");
+  const gEl = document.getElementById("onlineGlobal");
+  const badge = document.querySelector(".hud-online-combined");
+  if (offline && gEl) gEl.textContent = "—";
+  if (badge) badge.setAttribute("title", offline && typeof t === "function" ? t("social_offline_hint") : "");
+}
+
+function syncLocationTitle(locId) {
+  const id = locId || me?.location || "room";
+  const el = document.getElementById("locTitle");
+  if (!el) return;
+  el.textContent = typeof locTitle === "function" ? locTitle(id) : id;
+  el.setAttribute("data-i18n-loc", id);
+}
+
 function updateOnlineCount() {
+  const offline = !presenceOk || isEarlyStorySocialSoft();
   const inLoc = Object.keys(others).length + 1;
-  document.getElementById("onlineCount").textContent = String(inLoc);
+  const countEl = document.getElementById("onlineCount");
+  if (countEl) countEl.textContent = offline ? "—" : String(inLoc);
   updatePlayersToggleCount();
+  refreshSocialPresenceUi();
   if (!presenceOk) return;
   db.ref("presence").once("value").then(s => {
     const global = countLivePresenceTree(s.val());
@@ -1227,6 +1548,7 @@ function updateOnlineCount() {
 }
 
 function afterLocationChange() {
+  window.AudioManager?.setLocationMusic?.(me.location);
   window.Onboarding?.onEnterLocation?.(me.location);
   window.Onboarding?.syncGuideTarget?.();
   window.StoryEngine?.onLocationChange?.(me.location);
@@ -1242,6 +1564,21 @@ function afterLocationChange() {
 
 function goLocation(id, fromHash) {
   if (!LOCATIONS[id]) return;
+  if (
+    !fromHash &&
+    id === "street" &&
+    (me.location === "kitchen" || me.location === "room" || me.location === "toilet")
+  ) {
+    goLocation("elevator", true);
+    window.setTimeout(() => goLocation("street", fromHash), 650);
+    return;
+  }
+  if (window.StorySpine && !window.StorySpine.isLocationUnlocked(id)) {
+    toast(window.StorySpine.blockReason(id) || (typeof t === "function" ? t("spine_loc_locked") : id));
+    return;
+  }
+  const portalHint = window.StorySpine?.explainPortal?.(id);
+  if (portalHint) toast(portalHint);
   if (!fromHash && location.hash !== "#" + id) {
     history.replaceState(null, "", "#" + id);
   }
@@ -1249,6 +1586,7 @@ function goLocation(id, fromHash) {
   me.location = id;
   me.x = 45;
   me.y = 60;
+  dismissTutorialBlockingOverlays();
   portalCooldown = Date.now() + 1600;
   window.World3D?.setPortalGrace?.(1600);
   saveMe();
@@ -1265,6 +1603,10 @@ function goLocation(id, fromHash) {
     setTimeout(() => runJobAction(act), 350);
   }
   afterLocationChange();
+  syncLocationTitle(id);
+  refreshSocialPresenceUi();
+  window.AudioManager?.setLocationMusic?.(id);
+  window.StoryGoalHud?.refresh?.();
 }
 
 function onRoomClick(e) {
@@ -1286,17 +1628,17 @@ function onRoomClick(e) {
 function onKey(e) {
   if (document.body.classList.contains("mode-world3d")) return;
   const step = 4;
-  if (["w", "a", "s", "d", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-    if (e.key === "w" || e.key === "ArrowUp") me.y -= step;
-    if (e.key === "s" || e.key === "ArrowDown") me.y += step;
-    if (e.key === "a" || e.key === "ArrowLeft") me.x -= step;
-    if (e.key === "d" || e.key === "ArrowRight") me.x += step;
-    me.x = Math.max(5, Math.min(95, me.x));
-    me.y = Math.max(20, Math.min(92, me.y));
-    saveMe();
-    renderPlayers();
-    syncStage3D();
-  }
+  const moveCodes = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+  if (!moveCodes.has(e.code)) return;
+  if (e.code === "KeyW" || e.code === "ArrowUp") me.y -= step;
+  if (e.code === "KeyS" || e.code === "ArrowDown") me.y += step;
+  if (e.code === "KeyA" || e.code === "ArrowLeft") me.x -= step;
+  if (e.code === "KeyD" || e.code === "ArrowRight") me.x += step;
+  me.x = Math.max(5, Math.min(95, me.x));
+  me.y = Math.max(20, Math.min(92, me.y));
+  saveMe();
+  renderPlayers();
+  syncStage3D();
 }
 
 function renderAll() {
@@ -1307,7 +1649,7 @@ function renderAll() {
     const bgDup = document.getElementById("bgDup");
     if (bgDup) bgDup.src = loc.bg;
   }
-  document.getElementById("locTitle").textContent = locTitle(loc.id);
+  syncLocationTitle(loc.id);
   document.getElementById("coins").textContent = formatCoinsDisplay();
   document.getElementById("xp").textContent = String(me.xp);
   document.getElementById("level").textContent = String(me.level);
@@ -1400,15 +1742,27 @@ function renderPlayers() {
   syncStage3D();
 }
 
-function petDog(fromLife) {
-  if (!fromLife) LifeEngine.barkAndPet();
-  toast(t("petHappy"));
-  me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
-  window.PlayV21?.bumpDaily?.(me, "pet_dog", { toast, save: saveMe });
-  if (!isOwner) me.coins += 6;
+function petDog(fromLife, opts = {}) {
+  const explicit = !!window.__punkExplicitInteract || opts.explicit === true;
+  if (!explicit) return;
+  const now = Date.now();
+  if (now - lastPetDogAt < PET_DOG_COOLDOWN_MS) return;
+  lastPetDogAt = now;
+  if (!fromLife) LifeEngine.barkAndPet(false);
+  window.Onboarding?.onShnurokInteract?.("pet");
+  const petStep = window.Onboarding?.getCurrentStep?.()?.key === "ch0_pet_shnurok";
+  if (petStep) window.PlayV21?.bumpDaily?.(me, "pet_dog", { toast, save: saveMe });
+  const interactStep = window.Onboarding?.getCurrentStep?.()?.key === "ch0_interact_done";
+  let rewarded = false;
+  if (!isOwner && !interactStep) {
+    me.coins += 3;
+    rewarded = true;
+  }
   me.xp += 3;
+  me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
   saveMe();
   document.getElementById("coins").textContent = formatCoinsDisplay();
+  if (rewarded || petStep) toast(t("petHappy"));
 }
 
 function renderNpcMarkers() {}
@@ -1451,6 +1805,7 @@ function questBump(key, amt = 1) {
   if (!qid || !QUESTS[qid]) return;
   const need = QUESTS[qid].need;
   if (!(key in need)) return;
+  if (!me.quests.progress || typeof me.quests.progress !== "object") me.quests.progress = {};
   me.quests.progress[key] = (me.quests.progress[key] || 0) + amt;
   const prog = me.quests.progress;
   const done = Object.entries(need).every(([k, v]) => (prog[k] || 0) >= v);
@@ -1470,7 +1825,27 @@ function questBump(key, amt = 1) {
   document.getElementById("coins").textContent = formatCoinsDisplay();
 }
 
+function dismissTutorialBlockingOverlays() {
+  document.getElementById("howToOverlay")?.classList.remove("active");
+  const chapterIntro = document.getElementById("chapterIntro");
+  if (chapterIntro?.classList.contains("active")) {
+    chapterIntro.classList.remove("active");
+    chapterIntro.setAttribute("aria-hidden", "true");
+    const st = window.StoryEngine?.ensureStoryState?.(window.me);
+    if (st?.flags) st.flags.intro_seen = true;
+  }
+  const storyScene = document.getElementById("storyScene");
+  if (storyScene?.classList.contains("active")) {
+    storyScene.classList.remove("active");
+    storyScene.setAttribute("aria-hidden", "true");
+  }
+}
+
 function openModal(id) {
+  dismissTutorialBlockingOverlays();
+  document.querySelectorAll(".modal.active").forEach(el => {
+    if (el.id !== id) el.classList.remove("active");
+  });
   document.getElementById(id).classList.add("active");
   if (id === "shopModal") renderShop();
   if (id === "gangModal") renderGangList();
@@ -1497,8 +1872,17 @@ function renderGangList() {
 }
 
 function openNpcDialog(nid) {
+  if (nid === "shnurok") {
+    petDog(false, { explicit: true });
+    closeModal("gangModal");
+    return;
+  }
   if (window.StoryEngine?.tryStoryNpc?.(nid)) {
     closeModal("gangModal");
+    if (nid === "razor") {
+      questBump("talk_razor");
+      window.Onboarding?.onTalkRazor?.();
+    }
     return;
   }
   const n = NPCS[nid];
@@ -1570,7 +1954,10 @@ function buyItem(id) {
   if (!isOwner && me.coins < it.price) {
     const short = it.price - me.coins;
     toast(t("notEnough") + " — " + short + " " + (t("coins_short") || ""));
-    window.StoryEngine?.beginEarnCoins?.(short, { returnLabel: tShop(id) });
+    window.StoryEngine?.beginEarnCoins?.(short, {
+      returnBeacon: "obj_shop",
+      returnLabel: tShop(id)
+    });
     return;
   }
   if (!isOwner) me.coins -= it.price;
@@ -1601,6 +1988,7 @@ function buyItem(id) {
   toast(t("bought_item") + " " + tShop(it.id));
   window.PlayV21?.syncCosmetics?.(me);
   window.Onboarding?.onShopBuy?.();
+  closeModal("shopModal");
 }
 
 function renderInventory() {
@@ -1660,7 +2048,15 @@ function doJob(action) {
 
 function runJobAction(action) {
   if (action === "cemetery_night") {
-    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe });
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe }, "night");
+    return;
+  }
+  if (action === "dig") {
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe }, "paths");
+    return;
+  }
+  if (action === "cobwebs") {
+    window.PlayV21?.startCemeteryJob(me, { toast, save: saveMe }, "lamps");
     return;
   }
   if (action === "pizza_delivery") {
@@ -1680,7 +2076,7 @@ function runJobAction(action) {
     runParkourJob();
     return;
   }
-  const cemeteryActions = ["dig", "cobwebs", "clean", "water"];
+  const cemeteryActions = ["clean", "water"];
   if (!cemeteryActions.includes(action)) return;
   if (me.location !== "cemetery") {
     pendingJobAction = action;
@@ -1705,6 +2101,7 @@ function runJobAction(action) {
 }
 
 function openJobPanel() {
+  dismissTutorialBlockingOverlays();
   document.getElementById("jobModalTitle").textContent = t("jobTitle");
   document.getElementById("jobModalDesc").textContent = t("jobDesc");
   document.getElementById("jobActions").innerHTML = JOB_BOARD.map(j =>
@@ -1726,8 +2123,8 @@ function travelJob(action, loc) {
 }
 
 function toggleBuildMode() {
-  buildMode = !buildMode;
-  toast(buildMode ? t("build_mode_on") : t("build_mode_off"));
+  toast(t("build_wip"));
+  return;
 }
 
 function tryPlaceBuild(x, y) {
@@ -1864,8 +2261,15 @@ function npcTurn() {
 
 function endFight(win) {
   document.getElementById("fightOverlay").classList.remove("active");
+  document.getElementById("duel3dHud")?.classList.add("hidden");
   const shieldLeft = fight ? fight.shield : 0;
+  if (win && fight?._rewarded) {
+    fight = null;
+    window._duel3dEnd = null;
+    return;
+  }
   if (win) {
+    if (fight) fight._rewarded = true;
     const reward = 70 + Math.floor(Math.random() * 40);
     if (!isOwner) me.coins += reward;
     me.xp += 25;
@@ -1880,6 +2284,7 @@ function endFight(win) {
     me.stats.hp = me.stats.maxHp;
   }
   fight = null;
+  window._duel3dEnd = null;
   if (shieldLeft) me.stats._shield = shieldLeft;
   saveMe();
   renderAll();
@@ -1903,24 +2308,56 @@ function runParkour() {
 function runParkourJob() {
   const steps = [t("parkour_step1"), t("parkour_step2"), t("parkour_step3"), t("parkour_step4")];
   let i = 0;
-  const next = () => {
+  const ov = document.getElementById("parkourPrompt");
+  const titleEl = ov?.querySelector(".parkour-prompt-title");
+  const bodyEl = ov?.querySelector(".parkour-prompt-body");
+  const okBtn = ov?.querySelector(".parkour-prompt-ok");
+  const cancelBtn = ov?.querySelector(".parkour-prompt-cancel");
+  if (!ov || !okBtn) {
+    toast(t("parkour_fail"));
+    return;
+  }
+  const finish = () => {
+    ov.classList.remove("active");
+    ov.setAttribute("aria-hidden", "true");
+    me.rep += 12;
+    me.xp += 30;
+    const pay = 65 + Math.floor(Math.random() * 30);
+    if (!isOwner) me.coins += pay;
+    saveMe();
+    renderAll();
+    questBump("parkour_win");
+    toast(t("parkour_done") + " +" + pay);
+  };
+  const fail = () => {
+    ov.classList.remove("active");
+    ov.setAttribute("aria-hidden", "true");
+    toast(t("parkour_fail"));
+  };
+  const showStep = () => {
     if (i >= steps.length) {
-      me.rep += 12;
-      me.xp += 30;
-      const pay = 65 + Math.floor(Math.random() * 30);
-      if (!isOwner) me.coins += pay;
-      saveMe();
-      renderAll();
-      questBump("parkour_win");
-      toast(t("parkour_done") + " +" + pay);
+      finish();
       return;
     }
-    if (confirm(steps[i] + " — нажми OK вовремя")) {
-      i++;
-      setTimeout(next, 280);
-    } else toast(t("parkour_fail"));
+    if (titleEl) titleEl.textContent = t("parkour");
+    if (bodyEl) bodyEl.textContent = steps[i] + " — " + (t("parkour_tap_ok") || "OK");
+    ov.classList.add("active");
+    ov.setAttribute("aria-hidden", "false");
+    const onOk = () => {
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn?.removeEventListener("click", onFail);
+      i += 1;
+      setTimeout(showStep, 280);
+    };
+    const onFail = () => {
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn?.removeEventListener("click", onFail);
+      fail();
+    };
+    okBtn.addEventListener("click", onOk);
+    cancelBtn?.addEventListener("click", onFail);
   };
-  next();
+  showStep();
 }
 
 function sendChat() {
@@ -1967,5 +2404,8 @@ window.tryDecorPlace = tryDecorPlace;
 window.setBuildType = function (bt) { selectedBuild = bt; toast(t("building") + " " + bt); };
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
+window.syncStage3D = syncStage3D;
+window.syncLocationTitle = syncLocationTitle;
+window.refreshSocialPresenceUi = refreshSocialPresenceUi;
 
 document.addEventListener("DOMContentLoaded", init);

@@ -1,6 +1,57 @@
 {
   "quests": [
     {
+      "id": "q_ch0_newbie",
+      "chapter": 0,
+      "type": "main",
+      "title": {
+        "ru": "Новенький в доме 13",
+        "en": "New at house 13",
+        "da": "Ny i hus 13"
+      },
+      "steps": [
+        {
+          "id": "ch0_s_razor",
+          "objective": {
+            "ru": "Поговори с Рейзором на улице",
+            "en": "Talk to Razor on the street",
+            "da": "Tal med Razor på gaden"
+          },
+          "beacon": "npc_razor",
+          "complete_on": "onboarding.done"
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 30 }]
+    },
+    {
+      "id": "q_ch1_initiation_choice",
+      "chapter": 1,
+      "type": "main",
+      "title": {
+        "ru": "Выбор прописки",
+        "en": "Initiation choice",
+        "da": "Valg af optagelse"
+      },
+      "steps": [
+        {
+          "id": "ch1_s_choice",
+          "objective": {
+            "ru": "Выбери: взнос, дуэль или знак банды",
+            "en": "Choose: fee, duel, or gang tag",
+            "da": "Vælg: gebyr, duel eller bandetegn"
+          },
+          "beacon": "npc_razor",
+          "complete_on": "flag:initiation_locked",
+          "hint_nudge": {
+            "ru": "TODO(CANON-V2): два или три пути прописки — ждём решения владельца.",
+            "en": "TODO(CANON-V2): two or three initiation paths — owner decision pending.",
+            "da": "TODO(CANON-V2): to eller tre veje — afventer ejer."
+          }
+        }
+      ],
+      "rewards": []
+    },
+    {
       "id": "q_initiation_pay",
       "chapter": 1,
       "type": "main",
@@ -97,7 +148,7 @@
       ]
     },
     {
-      "id": "q_hangout_build",
+      "id": "q_ch2_hangout",
       "chapter": 2,
       "type": "main",
       "title": {
@@ -118,6 +169,29 @@
         }
       ],
       "rewards": [{ "type": "rep", "value": 20 }, { "type": "xp", "value": 80 }]
+    },
+    {
+      "id": "q_ch2_antibully",
+      "chapter": 2,
+      "type": "main",
+      "title": {
+        "ru": "Новичок на улице",
+        "en": "Rookie on the street",
+        "da": "Nybegynder på gaden"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Поговори с новичком — заступись или нет",
+            "en": "Talk to the rookie — stand up for them or not",
+            "da": "Tal med nybegynderen"
+          },
+          "beacon": "npc_rookie",
+          "complete_on": "flag:ch2_antibully_resolved"
+        }
+      ],
+      "rewards": [{ "type": "rep", "value": 8 }]
     },
     {
       "id": "q_room_morning",
@@ -556,12 +630,12 @@
       "steps": [
         {
           "id": "s1",
-          "objective": { "ru": "Собери 5 кирпичей для фундамента", "en": "Gather 5 bricks for the foundation", "da": "Saml 5 mursten til fundamentet" },
+          "objective": { "ru": "Собери 3 кирпича для фундамента", "en": "Gather 3 bricks for the foundation", "da": "Saml 3 mursten til fundamentet" },
           "beacon": "obj_hangout_site",
-          "complete_on": "material:brick>=5"
+          "complete_on": "material:brick>=3"
         }
       ],
-      "rewards": [{ "type": "material", "id": "brick", "value": 2 }]
+      "rewards": [{ "type": "material", "id": "brick", "value": 5 }]
     },
     {
       "id": "q_parkour_time",
@@ -578,6 +652,85 @@
         }
       ],
       "rewards": [{ "type": "rep", "value": 6 }]
+    },
+    {
+      "id": "q_ch3_cemetery_night",
+      "chapter": 3,
+      "type": "main",
+      "title": {
+        "ru": "Ночь на кладбище",
+        "en": "Cemetery night",
+        "da": "Kirkegårdsnat"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Ночная смена у Смотрителя",
+            "en": "Night shift with the Keeper",
+            "da": "Nattevagt med Vogteren"
+          },
+          "beacon": "npc_gravedigger",
+          "complete_on": "unique:bell_rim",
+          "hint_nudge": { "ru": "Работа → кладбище → ночная смена", "en": "Jobs → cemetery → night shift", "da": "Job → kirkegård" },
+          "hint_60s": { "ru": "На кладбище нажми «Работа» и выбери ночную смену", "en": "On the cemetery, open Jobs and pick night shift", "da": "Vælg nattevagt" },
+          "hint_exact": { "ru": "Кнопка «Работа» внизу → «Ночная смена на кладбище»", "en": "Bottom bar Jobs → Cemetery night shift", "da": "Job-knap → nattevagt" }
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 80 }]
+    },
+    {
+      "id": "q_ch4_castle",
+      "chapter": 4,
+      "type": "main",
+      "title": {
+        "ru": "Тайна замка",
+        "en": "Castle secret",
+        "da": "Slottets hemmelighed"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Иди к Замку с кладбища — орган, концерт, Граф",
+            "en": "Enter the Castle from the cemetery — organ, concert, Count",
+            "da": "Gå til slottet fra kirkegården"
+          },
+          "beacon": "npc_count",
+          "complete_on": "flag:concert_ready",
+          "hint_nudge": {
+            "ru": "С Ободом — к Тусовке, Граф соберёт части.",
+            "en": "With the rim — head to the hangout; the Count gathers the pieces.",
+            "da": "Med randen — til hænget."
+          },
+          "hint_60s": {
+            "ru": "Телепорт: Город → Стройка",
+            "en": "Travel: City → Construction",
+            "da": "By → byggeplads"
+          },
+          "hint_exact": {
+            "ru": "Карта → Стройка (construction)",
+            "en": "Map → Construction site",
+            "da": "Kort → byggeplads"
+          }
+        },
+        {
+          "id": "s2",
+          "objective": {
+            "ru": "Выслушай признание Графа",
+            "en": "Hear the Count's confession",
+            "da": "Hør grevens tilståelse"
+          },
+          "beacon": "obj_hangout_site",
+          "complete_on": "event:graph_confession_done",
+          "hint_exact": {
+            "ru": "После сцены подготовки откроется диалог Графа",
+            "en": "After the prep scene, the Count's dialogue opens",
+            "da": "Efter forberedelsesscenen åbnes dialogen"
+          }
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 120 }]
     }
   ]
 }

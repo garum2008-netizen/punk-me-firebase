@@ -51,7 +51,7 @@
       "xp": 15,
       "energy": -10,
       "action": "construction_helper",
-      "rewardMaterials": { "board": 2 },
+      "rewardMaterials": { "board": 2, "brick": 1, "nails": 1 },
       "callout": {
         "sound": "sfx_crane",
         "bubble": {

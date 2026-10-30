@@ -1,5 +1,7 @@
 /** v21 playable systems: interactables, jobs, daily quests, room decor, dog fetch. */
 
+import { zoneForLocation, migrateBuildSave } from "./build/build-layer.mjs";
+
 const DECOR_KEY = "punkme_room_decor_v21";
 const DAILY_KEY = "punkme_daily_v21";
 
@@ -29,18 +31,87 @@ function applyJobShift(me, hooks, opts) {
   }
   hooks.save();
   window.StoryEngine?.fireStoryEvent?.("job_shift_done");
+  window.StoryEngine?.onEconomyChanged?.();
 }
 
 export function initPlayV21(ctx) {
   const api = {
     tryInteract(me, hooks) {
       const loc = me.location;
+      const obStep = window.Onboarding?.getCurrentStep?.()?.key;
+      const obActive = window.Onboarding?.isActive?.();
+      if (obActive && obStep === "ch0_pet_shnurok") return false;
+      if (loc === "kitchen" && me.y >= 28 && me.y <= 55 && me.x < 60 && obStep === "ch0_feed_bowl") {
+        window.Onboarding?.onFeedBowl?.();
+        hooks.toast(t("onboard_feed_bowl_toast"));
+        hooks.save();
+        return true;
+      }
+      if (loc === "room" && obActive) {
+        if (obStep === "ch0_mom_talk" && me.x < 22 && me.y < 55) {
+          window.Onboarding?.onMomTalk?.();
+          return true;
+        }
+        if (obStep === "ch0_interact_done") {
+          if (me.x > 62 && me.y > 38) {
+            hooks.toast(t("interact_tv"));
+            window.Onboarding?.onInteractTutorial?.();
+            return true;
+          }
+          const nearSofa = me.x < 58 && me.y > 42;
+          if (nearSofa) {
+            window.World3D?.setPlayerSit?.(true);
+            hooks.toast(t("interact_sit"));
+            window.Onboarding?.onInteractTutorial?.();
+            setTimeout(() => window.World3D?.setPlayerSit?.(false), 4200);
+            return true;
+          }
+        }
+        if (obStep === "ch0_avatar_chosen" && me.x > 68 && me.y > 40) {
+          window.Onboarding?.onAvatarMirror?.();
+          return true;
+        }
+      }
+      const nearNpc = window.World3D?.getNearestNpc?.();
+      const npcBlocksOnboarding =
+        obActive &&
+        (obStep === "ch0_interact_done" ||
+          obStep === "ch0_feed_bowl" ||
+          obStep === "ch0_mom_talk" ||
+          obStep === "ch0_pet_shnurok" ||
+          obStep === "ch0_avatar_chosen");
+      if (nearNpc && window.openNpcDialog && !npcBlocksOnboarding) {
+        window.openNpcDialog(nearNpc);
+        return true;
+      }
       if (loc === "room") {
+        if (me.x < 22 && me.y < 55 && obActive) {
+          window.Onboarding?.onMomTalk?.();
+          return true;
+        }
+        if (me.x > 68 && me.y > 40) {
+          if (obStep === "ch0_avatar_chosen") {
+            window.Onboarding?.onAvatarMirror?.();
+            return true;
+          }
+          hooks.toast(t("interact_tv"));
+          if (obActive) window.Onboarding?.onInteractTutorial?.();
+          return true;
+        }
         const nearSofa = me.x < 55 && me.y > 45;
         if (nearSofa) {
           window.World3D?.setPlayerSit?.(true);
           hooks.toast(t("interact_sit"));
+          if (obActive) window.Onboarding?.onInteractTutorial?.();
           setTimeout(() => window.World3D?.setPlayerSit?.(false), 4200);
+          return true;
+        }
+      }
+      if (loc === "kitchen" && me.y >= 28 && me.y <= 55 && me.x < 60) {
+        if (obStep === "ch0_feed_bowl") {
+          window.Onboarding?.onFeedBowl?.();
+          hooks.toast(t("onboard_feed_bowl_toast"));
+          hooks.save();
           return true;
         }
       }
@@ -61,9 +132,19 @@ export function initPlayV21(ctx) {
         return true;
       }
       if (loc === "street") {
-        hooks.toast(t("interact_arcade"));
-        me.coins += 12;
+        if (window.Onboarding?.isActive?.()) return false;
+        const cap = window.StoryEngine?.getArcadeDailyCap?.() ?? 100;
+        const day = todayKey();
+        if (!me._arcadeDay || me._arcadeDay.day !== day) me._arcadeDay = { day, coins: 0 };
+        if (me._arcadeDay.coins >= cap) {
+          hooks.toast(t("interact_arcade_cap") || t("interact_arcade"));
+          return true;
+        }
+        const pay = Math.min(12, cap - me._arcadeDay.coins);
+        if (!window.isOwner) me.coins += pay;
+        me._arcadeDay.coins += pay;
         me.xp += 5;
+        hooks.toast(t("interact_arcade") + (pay < 12 ? ` (+${pay})` : ""));
         hooks.save();
         return true;
       }
@@ -73,24 +154,44 @@ export function initPlayV21(ctx) {
       }
       return false;
     },
-    startCemeteryJob(me, hooks) {
+    startCemeteryJob(me, hooks, jobKind = "night") {
       if (me.location !== "cemetery") {
         hooks.toast(t("job_go_cemetery"));
         return;
       }
-      window._cemeteryJobDone = success => {
-        const pay = 25 + (success ? 55 : 15);
+      window._cemeteryJobKind = jobKind;
+      window._cemeteryJobDone = result => {
+        const r =
+          typeof result === "boolean"
+            ? { success: result, prog: result ? 1 : 0, kind: jobKind }
+            : { kind: jobKind, success: false, prog: 0, ...result };
+        const frac = r.success ? 1 : Math.min(1, Number(r.prog) || 0);
+        const pay = 15 + Math.round(65 * frac);
+        const xp = 10 + Math.round((r.success ? 20 : 5) * (0.35 + 0.65 * frac));
         me.coins += pay;
-        me.xp += 10 + (success ? 20 : 5);
+        me.xp += xp;
         hooks.save();
         hooks.toast(t("job_cemetery_done") + " +" + pay);
         window.StoryEngine?.fireStoryEvent?.("job_cemetery_done");
       };
-      if (window.World3D?.startCemeteryJobMini?.()) {
-        hooks.toast(t("job_cemetery_start"));
-        return;
+      const tryStartCemetery3d = () =>
+        window.World3D?.startCemeteryJobVariant?.(jobKind) || window.World3D?.startCemeteryJobMini?.();
+      let started = tryStartCemetery3d();
+      if (!started && me.location === "cemetery") {
+        window.syncStage3D?.();
+        started = tryStartCemetery3d();
       }
       hooks.toast(t("job_cemetery_start"));
+      if (started) return;
+      const seconds = jobKind === "paths" ? 32 : 28;
+      let left = seconds;
+      const tick = setInterval(() => {
+        left -= 1;
+        if (left <= 0) {
+          clearInterval(tick);
+          window._cemeteryJobDone?.({ success: false, prog: 0, kind: jobKind });
+        }
+      }, 1000);
     },
     startPizzaJob(me, hooks) {
       if (me.location !== "city") {
@@ -171,8 +272,9 @@ export function initPlayV21(ctx) {
       localStorage.setItem(DECOR_KEY, JSON.stringify(items));
     },
     toggleDecorMode(me, hooks) {
-      if (me.location !== "room") {
-        hooks.toast(t("decor_room_only"));
+      migrateBuildSave(me);
+      if (!zoneForLocation(me.location)) {
+        hooks.toast(t("decor_zone_only") || t("decor_room_only"));
         return;
       }
       me._decorMode = !me._decorMode;
