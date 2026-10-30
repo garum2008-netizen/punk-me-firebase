@@ -13,7 +13,8 @@
     { id: "thanks", text: { ru: "Спасибо!", uk: "Дякую!", en: "Thanks!", da: "Tak!" } }
   ];
   let config = { freeTextEnabled: false, phrases: DEFAULT_PHRASES, cooldownMs: 3000 };
-  let blocklist = {};
+  let blockedSids = {};
+  let mySid = "";
   let chatPath = "chat/messages";
 
   function workerBase() {
@@ -22,7 +23,7 @@
   }
 
   function useSafeChat() {
-    return Boolean(workerBase()) || window.__PUNK_SAFE_CHAT_FORCE === true;
+    return Boolean(workerBase());
   }
 
   async function getIdToken() {
@@ -54,33 +55,8 @@
     if (typeof window.toast === "function") window.toast(tChat("chatNotSent"));
   }
 
-  function loadBlocklistFromMe() {
-    blocklist = { ...(window.me?.chatBlocklist || {}) };
-  }
-
-  function saveBlocklist(uidToBlock) {
-    if (!window.me || !window.uid) return;
-    window.me.chatBlocklist = window.me.chatBlocklist || {};
-    window.me.chatBlocklist[uidToBlock] = true;
-    blocklist = { ...window.me.chatBlocklist };
-    if (typeof window.saveMe === "function") window.saveMe();
-  }
-
-  function unblockUser(uidToUnblock) {
-    if (!window.me?.chatBlocklist) return;
-    delete window.me.chatBlocklist[uidToUnblock];
-    blocklist = { ...window.me.chatBlocklist };
-    if (typeof window.saveMe === "function") window.saveMe();
-  }
-
-  function isBlocked(uid) {
-    return Boolean(blocklist[uid]);
-  }
-
-  function ensureChatRegisteredAt() {
-    if (!window.me || window.me.chatRegisteredAt) return;
-    window.me.chatRegisteredAt = Date.now();
-    if (typeof window.saveMe === "function") window.saveMe();
+  function isBlocked(sid) {
+    return Boolean(sid && blockedSids[sid]);
   }
 
   function renderPhraseButtons() {
@@ -104,23 +80,38 @@
   function applyFreeTextUi() {
     const inp = document.getElementById("chatInput");
     if (!inp) return;
-    const on = config.freeTextEnabled;
+    const on = config.freeTextEnabled && useSafeChat();
     inp.disabled = !on;
     inp.placeholder = on
       ? (typeof window.t === "function" ? window.t("chatPh") : "…")
       : tChat("chatFreeTextOff");
   }
 
+  function setChatReadOnlyUi() {
+    const inp = document.getElementById("chatInput");
+    if (inp) {
+      inp.disabled = true;
+      inp.placeholder = tChat("chatFreeTextOff");
+    }
+    const row = document.getElementById("chatPhraseRow");
+    if (row) row.innerHTML = "";
+  }
+
   async function refreshConfig() {
     if (!workerBase()) {
       config.freeTextEnabled = false;
+      setChatReadOnlyUi();
       return;
     }
     try {
-      const res = await fetch(`${workerBase()}/api/chat/config`);
-      const json = await res.json();
+      const { json } = await api("/api/chat/config");
       if (json.ok) {
         config = { ...config, ...json };
+        if (json.mySid) mySid = json.mySid;
+        blockedSids = {};
+        (json.blockedSids || []).forEach(s => {
+          blockedSids[s] = true;
+        });
         renderPhraseButtons();
         applyFreeTextUi();
       }
@@ -137,9 +128,14 @@
       .replace(/"/g, "&quot;");
   }
 
+  function messageSid(m) {
+    return m?.sid || m?.uid || "";
+  }
+
   function appendMessageLine(m, msgId) {
     if (!m || m.hidden) return;
-    if (isBlocked(m.uid)) return;
+    const sid = messageSid(m);
+    if (isBlocked(sid)) return;
     const box = document.getElementById("chatMessages");
     if (!box) return;
     const line = document.createElement("div");
@@ -153,7 +149,7 @@
       ":</b> " +
       escapeHtml(text) +
       "</span>";
-    if (msgId && m.uid !== window.uid) {
+    if (msgId && sid && sid !== mySid) {
       const safety = document.createElement("button");
       safety.type = "button";
       safety.className = "chat-report-btn chat-safety-btn";
@@ -174,7 +170,7 @@
       blk.title = tChat("chatBlock");
       blk.textContent = "×";
       blk.addEventListener("click", () => {
-        saveBlocklist(m.uid);
+        blockMessage(msgId, sid);
         line.remove();
       });
       line.appendChild(blk);
@@ -183,7 +179,17 @@
     box.scrollTop = box.scrollHeight;
   }
 
+  async function blockMessage(msgId, sid) {
+    if (!useSafeChat()) return;
+    const body = sid ? { sid } : { msgId };
+    const { json } = await api("/api/chat/block", body);
+    if (json.ok && json.sid) {
+      blockedSids[json.sid] = true;
+    }
+  }
+
   function listenChat() {
+    if (!useSafeChat()) return;
     const db = window.db;
     if (!db) return;
     db.ref(chatPath).limitToLast(25).on("child_added", s => {
@@ -192,33 +198,37 @@
   }
 
   async function ensureAge13Declared() {
-    if (!useSafeChat()) return true;
+    if (!useSafeChat()) return false;
     const { json } = await api("/api/chat/declare-age13", { confirmed: true });
     return json.ok === true;
   }
 
   async function sendPhrase(phraseId) {
-    ensureChatRegisteredAt();
-    if (!useSafeChat()) return legacySendPhrase?.(phraseId);
+    if (!useSafeChat()) {
+      showNotSent();
+      return;
+    }
     await ensureAge13Declared();
-    const { status, json } = await api("/api/chat/send", {
+    const { json } = await api("/api/chat/send", {
       phraseId,
       lang: typeof window.getLanguage === "function" ? window.getLanguage() : "en"
     });
     if (!json.ok) showNotSent();
-    return { status, json };
+    return json;
   }
 
   async function sendFreeText(text) {
-    ensureChatRegisteredAt();
-    if (!useSafeChat()) return legacySendFreeText?.(text);
+    if (!useSafeChat()) {
+      showNotSent();
+      return;
+    }
     await ensureAge13Declared();
-    const { status, json } = await api("/api/chat/send", {
+    const { json } = await api("/api/chat/send", {
       text,
       lang: typeof window.getLanguage === "function" ? window.getLanguage() : "en"
     });
     if (!json.ok) showNotSent();
-    return { status, json };
+    return json;
   }
 
   async function reportMessage(msgId, category) {
@@ -233,7 +243,6 @@
 
   function init(opts) {
     if (opts?.workerUrl) workerUrl = opts.workerUrl;
-    loadBlocklistFromMe();
     if (typeof window.onLanguageChanged === "undefined") {
       window.onLanguageChanged = function () {};
     }
@@ -254,8 +263,7 @@
     sendPhrase,
     sendFreeText,
     reportMessage,
-    saveBlocklist,
-    unblockUser,
+    blockMessage,
     isBlocked,
     useSafeChat,
     refreshConfig,
