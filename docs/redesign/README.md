@@ -1,6 +1,6 @@
 # PUNK ME ANGEL — redesign (Phase 1 design)
 
-Owner directive **t135u** (2026-10-30): gameplay redesign toward **Interactive Life Story Simulator**.
+Owner directives **t135u + t137u** (2026-10-30): **My Life, My Story** = Life Simulator + Mystery Story.
 
 | Doc | Purpose |
 |-----|---------|

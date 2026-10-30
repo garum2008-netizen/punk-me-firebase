@@ -166,10 +166,49 @@ Cost ranges: see `EFFORT_PLAN.md` (GVAA / Voquent / Real Voice Over — **not** 
 
 ---
 
+## Q14 — “New Girl in Town” vs player gender / character choice (t137u)
+
+| Option | Description |
+|--------|-------------|
+| **A. Neutral title** | UI string “New in Town” / “Новенький в городе” (gender-neutral RU) |
+| **B. Keep “New Girl”** | Fixed feminine marketing; player picks any avatar body |
+| **C. Dynamic title** | Journal title from `character.genderPresentation` flag |
+| **D. Separate titles** | Male/female/nonbinary copy variants in i18n |
+
+**Conflict:** Chapter 1 Owner title is **New Girl in Town**; playable cast includes Cobalt and others (`CHARACTERS.md`).
+
+---
+
+## Q15 — Punk-gang / Halloween canon vs Angel City (t137u)
+
+| Option | Description |
+|--------|-------------|
+| **A. Separate IP layer** | Angel City = primary; Tykvograd = TV show inside game / poster world |
+| **B. Same world** | Razor/Mohawk live in another district (“Old Town”) reachable later |
+| **C. Reskin gang** | Existing Meshy heroes become Angel City teens with new names |
+| **D. Pause legacy** | Hide House 13 route until Season 2+; no gang in P1 MVP |
+
+**Assets:** `assets/models/meshy/*.glb`, Halloween tone in `PUNK_ME_TZ_locations.md`.
+
+---
+
+## Q16 — Graveyard / crypt / chain-fight content (t137u)
+
+| Option | Description |
+|--------|-------------|
+| **A. Later season district** | Cemetery as unlockable zone Season 2+ with Bell mystery |
+| **B. Mini-zone in Season 1** | Ch5 truth ties to crypt (heavy scope) |
+| **C. Cut from Angel City mode** | Legacy Tykvograd only; not in P1 district |
+| **D. Narrative echo only** | Posters/lore; no cemetery gameplay in S1 |
+
+**Current code:** `cemetery`, `castle`, duels, `authority-path.json` chain fights.
+
+---
+
 ## Priority for Owner meeting (recommended order)
 
-1. **Q1 + Q2** (world + season vs Bell)  
+1. **Q1 + Q2 + Q14–Q16** (world, season, title, canon geography)  
 2. **Q3** (replace ch0 or not)  
 3. **Q5 + Q8** (Angelina presence + voice budget)  
 4. **Q12** (Roblox)  
-5. **Q4, Q6, Q9–Q11** (secondary)
+5. **Q4, Q6, Q9–Q11, Q13** (secondary)

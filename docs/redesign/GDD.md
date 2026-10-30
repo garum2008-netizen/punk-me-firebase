@@ -1,23 +1,60 @@
-# GDD — PUNK ME ANGEL: Interactive Life Story Simulator (Phase 1 architecture)
+# GDD — PUNK ME ANGEL: My Life, My Story (Phase 1 architecture)
 
+**Working title (Owner t137u):** **PUNK ME ANGEL — My Life, My Story** = **Life Simulator + Mystery Story**.  
 **Status:** design only (no implementation in Phase 1 doc pass).  
 **Baseline code reuse:** r6 @ `b4ea4c7`.  
-**Owner directive:** t135u (2026-10-30) — Narrated Gameplay, Angelina host, Season 1 × 5 chapters, child-safe life-sim layer.
+**Owner directives:** t135u + **t137u** (2026-10-30) — not “walk around and change clothes only”; a **living story** where the player builds a life and uncovers the city’s secret.
 
 ---
 
 ## 1. Product pillars
 
-1. **Life story first** — clear chapter arc (goal → conflict → climax → resolution → cliffhanger) each session.
-2. **Narrated Gameplay** — narrator speaks at **story beats**, not continuously; reacts to player milestones.
-3. **Angelina as host** — always available NPC guide (13–15 look): follow/lead, short hints, emotional support; subtitles + mute.
-4. **Player agency** — dialogue choices with **persisted consequences** (flags, relationships, unlocks).
-5. **Readable next action** — journal + world markers + one primary objective line.
-6. **Keep what works** — 3D locomotion, quest engine, Firebase save, i18n, existing hero assets where canon allows.
+1. **My life, my story** — seven life systems (below) run **every day**; mystery season gives meaning and forward pull.
+2. **Next goal, free choice** — UI always shows the **next achievable** story/life goal; player may ignore it for daily life until they choose to continue.
+3. **Fun in 3–5 minutes** — no long tutorial wall: **clear mission** → outfit choice → meet Angelina → **first reward** (Owner t137u).
+4. **Narrated Gameplay** — narrator at key beats only (cooldowns); reacts to milestones, not continuous chatter.
+5. **Angelina mentor** — permanent NPC (13–15 look): hints, dialogues, voiced key events; subtitles + mute.
+6. **Choices with consequences** — dialogue flags, relationships, reputation, season branches.
+7. **Keep what works** — quest engine, save, 3D locomotion, i18n, reusable assets (`AUDIT_CURRENT_BUILD.md`).
 
 ---
 
-## 2. Core loop (session)
+## 2. Seven life systems + mystery layer
+
+| System | Player verbs | MVP (P1) | Season growth | Code/data reuse |
+|--------|--------------|----------|---------------|-----------------|
+| **Home** | Decorate room, place furniture, invite friends over | First room + 3 furniture slots | Room tiers, friend visits | `game.js` build/placement, `room-furniture-catalog.mjs` |
+| **Style** | Outfits, mirror, fashion challenges | Clothes shop + ch1 outfit pick | Unlock sets, challenges | char select, shop catalog |
+| **School** | Classes, tasks, events | **Stub** in ch2; banner in city | Ch3 Secret Club hub | new `school` district + quests |
+| **Work** | Cafe / shop / studio shifts → currency | **Cafe** shift in ch1 | Shop, design studio jobs | `jobs.json`, `gameplay-v21.mjs` |
+| **Friends** | Talk, choices, affinity | 3–5 NPCs in district 1 | Schedules, gifts | `dialogues.json`, `story.relationships` |
+| **City** | Explore districts, shops, secrets | **One district** + cafe + clothes | Parks, secret locations | `story-spine.mjs` unlocks, `locations.mjs` |
+| **Reputation** | Help others, creativity, missions | Hidden numeric + 1 visible rank toast | Achievements surface | extend `story.reputation` (new) |
+
+**Mystery story layer (Season 1):** sits **above** daily life — journal missions, narrator beats, cliffhangers per chapter (`SEASON1_SCRIPT.md`). Player can grind cafe or decorate **outside** the main mission; story gates **districts/secrets**, not basic room decoration.
+
+---
+
+## 3. Core loop (session)
+
+**Dual loop:** (A) **Story mission** from journal; (B) **Daily life** optional anytime.
+
+```mermaid
+flowchart TB
+  subgraph always [Always visible]
+    G[Next achievable goal card]
+  end
+  subgraph free [Player choice]
+    S[Continue story mission]
+    D[Daily life: work / home / style / friends / explore]
+  end
+  G --> S
+  G --> D
+  S --> B[Beat: narrator / Angelina VO]
+  D --> R[Rewards: coins rep items]
+  B --> R
+  R --> G
+```
 
 ```mermaid
 flowchart LR
@@ -41,9 +78,11 @@ flowchart LR
 | Resolve | Coins/XP/item/unlock | `story-save-schema`, `balance.json` (Angel Coins rename TBD — see OWNER_QUESTIONS) |
 | Persist | Autosave on beat | existing `saveMe()` |
 
+**First session (3–5 min target):** Mission «Выбери образ» → meet Angelina → follow → **first Angel Coins** — **no** 14-step House 13 tutorial (`onboarding.js` replaced in MVP — Owner Q3).
+
 ---
 
-## 3. Narrated Gameplay system
+## 4. Narrated Gameplay system
 
 ### 3.1 Event model (new layer on top of story-engine)
 
@@ -79,7 +118,7 @@ flowchart LR
 
 ---
 
-## 4. Angelina — permanent NPC host
+## 5. Angelina — mentor NPC (not just help panel)
 
 ### 4.1 Behaviours
 
@@ -108,7 +147,7 @@ flowchart LR
 
 ---
 
-## 5. Dialogue system (choices & consequences)
+## 6. Dialogue system (choices & consequences)
 
 ### 5.1 Data format (extends `dialogues.json`)
 
@@ -148,7 +187,7 @@ flowchart LR
 
 ---
 
-## 6. Quest journal & next-action UI
+## 7. Quest journal & next-action UI
 
 | UI element | Purpose | Reuse |
 |------------|---------|-------|
@@ -160,7 +199,7 @@ flowchart LR
 
 ---
 
-## 7. Rewards, achievements, unlocks
+## 8. Rewards, achievements, unlocks
 
 | System | Current | Target |
 |--------|---------|--------|
@@ -170,21 +209,6 @@ flowchart LR
 | Location unlock | `story-spine.mjs` | KEEP; map Angel City districts |
 | Room decoration | partial build/placement `game.js` | **Expand** ch1 loop (place 3 items → reward) |
 | Clothes | shop + character select | **Expand** first-room outfit choice with preview |
-
----
-
-## 8. Life-sim systems (Season 1 scope)
-
-| Pillar | MVP (ch1) | Season arc |
-|--------|-----------|------------|
-| **Home / room** | Pick room, place furniture, outfit mirror | Upgrade room tier |
-| **Friends** | 1 NPC friend + affinity flag | Small cast with schedules |
-| **Work** | Cafe mini-shift (timed prompts) | City jobs from `jobs.json` pattern |
-| **City** | Angel City hub + cafe interior | Unlock districts by chapter |
-| **Currency** | Earn/spend Angel Coins | Balance from `balance.json` |
-| **Progress** | Chapter flags + journal | Five-chapter season gate |
-
-**Reuse:** `gameplay-v21.mjs` job pattern, `goLocation`, shop catalog in `game.js`.
 
 ---
 
@@ -201,15 +225,19 @@ flowchart LR
 
 ---
 
-## 10. Child safety & personal data
+## 10. Child safety, social (P2), & personal data
 
 | Requirement | Design |
 |-------------|--------|
 | Age 13+ | Splash + parent copy; no open social profile fields |
 | Chat | **Quick phrases only** (preset list); disable free text in Angel City mode |
 | PII | No real names in saves; display names from preset list |
-| Parental consent | Required for moderated user tests (process in EFFORT_PLAN) |
-| Data | Firebase rules: own `players/{uid}` only; COPPA/GDPR copy in `privacy.html` update (legal review) |
+| Parental consent | Required for minors user tests — `docs/release/PARENTAL_CONSENT_PLAYTEST.md` (DRAFT) |
+| Parental settings (P2) | Toggle chat/co-op, spend caps, session reminders |
+| Safe co-op (P2) | Instanced districts; quick phrases only |
+| Data | Firebase rules: own `players/{uid}` only; GDPR copy legal review |
+
+**P3 monetization (Owner):** cosmetics, extra decor, seasonal collections only — **no** pay-for-story, **no** pressure on children; payments require separate Owner GO.
 
 **Reuse:** rules pattern in `database.rules.json`; replace chat write shape.
 

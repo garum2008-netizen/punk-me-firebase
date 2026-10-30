@@ -1,6 +1,7 @@
-# Chapter 1 — dialogue script (RU)
+# Chapter 1 — New Girl in Town (dialogue script, RU)
 
-**Scope:** Season 1 Chapter 1 — first **10 minutes** guided onboarding (Owner t135u).  
+**Chapter (Owner t137u):** **New Girl in Town** / «Новенькая в городе».  
+**Scope:** Season 1 Chapter 1 — first **10 minutes** guided onboarding (Owner t135u + t137u: outfit, Angelina, first reward, **no long tutorial**).  
 **Languages in shipping:** RU master; EN/DA/UK localisation follows this script (not written here).  
 **Speakers:** `narrator`, `angelina`, `npc_*`, `ui` (mission toasts).  
 **Format:** `→` player choice; `[flag]` consequence.
