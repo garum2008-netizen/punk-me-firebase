@@ -14,6 +14,17 @@
 
 We **do not** store email or IP in chat message records. Firebase Auth processes sign-in separately (see main `privacy.html`).
 
+## Backups and logs (analysis draft)
+
+| Location | May contain chat data? | Retention note |
+|----------|------------------------|----------------|
+| Firebase RTDB automated backups (Google) | Yes, if enabled on project | Independent of Worker cron; **purge on restore** or align backup TTL with owner policy before GO |
+| Cloudflare Worker observability logs | Request metadata only (no message body in default code) | Short platform retention |
+| Cloudflare cron `runRetentionJob` | Deletes aged rows in RTDB | Does not erase backup snapshots |
+| Moderator exports / manual copies | Possible | Out of band — procedure for owner |
+
+**Child-safety hold:** messages with `safetyHold` and linked reports are skipped by automated retention until `/api/mod/resolve-safety`.
+
 ## How to delete
 
 - In-game: hide/block a player (client-side list on your profile).
