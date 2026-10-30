@@ -24,6 +24,13 @@ const SAFE_CHAT_I18N = {
     chatReport: "Report",
     chatReportSafety: "Child harm / threat / grooming",
     chatReportSafetyDone: "Urgent report sent to moderators",
+    chatReportSafetyThanks: "Thank you — we received your report",
+    chatSafetyPickTitle: "Pick the closest reason (enter number):",
+    chatSafetyImmediate: "Immediate danger to a child",
+    chatSafetySexual: "Sexual exploitation",
+    chatSafetyGrooming: "Grooming",
+    chatSafetyViolence: "Threat of violence",
+    chatSafetyOther: "Other child safety concern",
     chatBlock: "Hide player",
     chatReported: "Report submitted"
   },

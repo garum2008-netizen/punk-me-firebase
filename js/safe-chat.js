@@ -155,7 +155,7 @@
       safety.className = "chat-report-btn chat-safety-btn";
       safety.title = tChat("chatReportSafety");
       safety.textContent = "⚠";
-      safety.addEventListener("click", () => reportMessage(msgId, "child_safety"));
+      safety.addEventListener("click", () => openChildSafetyReport(msgId));
       line.appendChild(safety);
       const rep = document.createElement("button");
       rep.type = "button";
@@ -231,14 +231,45 @@
     return json;
   }
 
-  async function reportMessage(msgId, category) {
+  async function reportMessage(msgId, category, subcategory) {
     if (!useSafeChat()) return;
     const body = { msgId };
     if (category) body.category = category;
-    await api("/api/chat/report", body);
+    if (subcategory) body.subcategory = subcategory;
+    const { json } = await api("/api/chat/report", body);
     if (typeof window.toast === "function") {
-      window.toast(category === "child_safety" ? tChat("chatReportSafetyDone") : tChat("chatReported"));
+      if (json.messageKey === "thanks_received" || category === "child_safety" || subcategory) {
+        window.toast(tChat("chatReportSafetyThanks"));
+      } else {
+        window.toast(tChat("chatReported"));
+      }
     }
+    return json;
+  }
+
+  function openChildSafetyReport(msgId) {
+    const subs = config.childSafetySubcategories || [
+      "immediate_danger",
+      "sexual_exploitation",
+      "grooming",
+      "violence_threat",
+      "other_child_safety"
+    ];
+    const labels = {
+      immediate_danger: tChat("chatSafetyImmediate"),
+      sexual_exploitation: tChat("chatSafetySexual"),
+      grooming: tChat("chatSafetyGrooming"),
+      violence_threat: tChat("chatSafetyViolence"),
+      other_child_safety: tChat("chatSafetyOther")
+    };
+    const pick = window.prompt(
+      [tChat("chatSafetyPickTitle"), ...subs.map(s => `- ${labels[s] || s}`)].join("\n"),
+      "1"
+    );
+    if (pick == null) return;
+    const idx = parseInt(pick, 10);
+    const sub = Number.isFinite(idx) && idx >= 1 && idx <= subs.length ? subs[idx - 1] : subs[0];
+    reportMessage(msgId, sub, sub);
   }
 
   function init(opts) {

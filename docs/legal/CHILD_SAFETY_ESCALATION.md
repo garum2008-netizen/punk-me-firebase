@@ -1,36 +1,56 @@
-# Child safety escalation procedure (DRAFT — not approved policy)
+# Child safety escalation (DRAFT — legal review)
 
-> **Owner review required (Inna). This document does not authorize automated law-enforcement contact.**
+**Model:** Risk-Based Child Safety Moderation (Owner decision t139u). Child protection does **not** depend on reporter age or report quotas. Reporter credibility **weights** risk; it never blocks submission.
 
-## Owner rule (non-negotiable)
+## Report subcategories (client quick-select)
 
-Suspected **child harm** content must be **hidden from public view immediately** and sent to a **priority moderator queue**, with **evidence retained** until a moderator decides.
+| Subcategory | Typical server action |
+|-------------|------------------------|
+| `immediate_danger` | Temporary hide when risk threshold met; **immediate_danger** queue tier; shortest SLA; `moderatorNotify` |
+| `sexual_exploitation`, `grooming`, `violence_threat` | Temporary hide when category + corroborating signal (message context, filter hit, author history) |
+| `other_child_safety` | Urgent review + evidence; auto-hide only at higher risk threshold |
+| Legacy `child_safety` | Treated as `other_child_safety` |
 
-## Two paths
+## Risk signals (server)
 
-| Path | Hide? | Queue |
-|------|-------|-------|
-| **Server filter** (`detectChildHarmSignals`) | **Always immediately** | Critical + evidence |
-| **`child_safety` report** | Immediately **only if abuse controls allow** | **Always** critical + evidence |
+- Message **filter** (`detectChildHarmSignals`) → mandatory temporary hide + queue (no reporter).
+- **Conversation context** (RU/UK/EN/DA keyword/regex set): off-platform contact, age/location/photo asks, secrecy, gifts, etc.
+- **Author history:** prior moderator-confirmed violations, new-account flag (`chat/internal/authorSafety`).
+- **Independent reporters:** small weighted boost only; **report count alone never increases risk**; coordinated clusters (/24, registration time, timing) merged into one case with zero boost.
 
-Filter detection is **not** subject to reporter quotas, cluster caps, or reputation.
+## Auto-hide vs queue
 
-## Report path — abuse controls (reporter-side)
+| Source | Hide |
+|--------|------|
+| Filter serious threat | Always (mandatory) |
+| High-tier report + corroboration | Always (mandatory), regardless of reporter age/ban/quota |
+| `other_child_safety` at threshold | Yes; may consume **discretionary** reporter auto-hide quota (1/3 per 24h) |
+| Banned/suspicious reporter alone | Never sufficient to hide |
+| Mass identical coordinated reports | Merged; no hide from count alone |
 
-All reports require server **`chatMeta.chatAge13DeclaredAt`**, and reporter must not be **muted/banned**.
+**Reports are never rate-limited** for child-safety subcategories. Quotas apply only to discretionary auto-hide weight.
 
-1. **Hide quota (24h rolling, DO):** low-trust (new / low send history) **1 hide/day**; trusted **3 hides/day**. Over quota → report still **queues**, **no new hide** (message stays visible unless already hidden).
-2. **Reputation:** moderator **`dismiss` + `falseReport`** → reporter **queue-only for 30 days** (`childSafetyHideDeniedUntil`). Repeated false reports → **auto-mute** (pending mod review).
-3. **Author brigading signal:** if the **same author** receives **>N** distinct **low-trust** hides in a short window **without filter trigger**, queue item flagged **`possibleBrigading`** + **`moderatorNotify`** (message **stays hidden** until mod **`restore_visibility`** or uphold).
-4. **Cluster cap (optional):** salted HMAC of IPv4 **/24** in DO only — max hides per cluster per 24h. See `docs/legal/CHAT_PRIVACY.md`.
-5. **Moderator:** **`restore_visibility`** one-click unhide + decision log; **`confirm_legal_hold`** for extended hold; SLA via existing **`overdue`** escalation.
+## Immediate danger escalation (moderator procedure)
 
-## Residual risk (accepted)
+1. Queue item: `escalationTier: immediate_danger`, `moderatorNotify: true`, SLA `SAFE_CHAT_IMMEDIATE_DANGER_SLA_MS` (default 4h).
+2. Moderator reviews evidence (minimal snapshot; moderator-only RTDB paths).
+3. **Documented owner/moderator step:** if real-world imminent harm is credible, contact **local emergency services / national child helpline** using official public numbers for the jurisdiction — **no automated external calls** from the Worker.
+4. Log decision in `chat/internal/safetyDecisions`; restore visibility via `restore_visibility` if wrongful.
 
-A determined attacker with **many aged, trusted accounts** can still hide a **limited** number of messages until moderator review. This is accepted because **child-protection immediate hide** is owner priority. Mitigations: quotas, cluster cap, brigading flag, reputation, mod SLA.
+## False reports
 
-## Related
+After mod review with `falseReport: true`: reporter **auto-hide weight** reduced for 30 days (`childSafetyAutoHideDeniedUntil`). **Reporting remains allowed.**
 
-- `docs/legal/CHILD_HARM_EVIDENCE_RETENTION.md` — retention & access  
-- `docs/legal/CHAT_PRIVACY.md` — cluster HMAC  
-- `docs/release/SAFE_CHAT_REPORT.md` — test matrix
+## Reporter privacy (GDPR)
+
+API response to reporter: `{ received: true, messageKey: "thanks_received" }` only — no target identity, case status, evidence, or mod notes.
+
+## Appeal
+
+Player: `POST /api/chat/appeal-hide` `{ msgId, reasonCode }` → appeal queue + decision log entry. Moderator resolves with `restore_visibility` or uphold.
+
+## Related docs
+
+- `CHILD_HARM_EVIDENCE_RETENTION.md` — evidence minimization & retention  
+- `CHAT_PRIVACY.md` — cluster HMAC for coordination (24h)  
+- `ERASURE_AND_LEGAL_HOLD.md` — deferred erasure while queued  

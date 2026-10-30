@@ -182,9 +182,31 @@ Chat messages expose **`sid`** (HMAC of uid) and a **filtered display name**, no
 | NEW-7 HIGH erasure vs safetyHold | `erasureDeferred` + batch delete-my-data | see git log |
 | NEW-9 erasure scale | batch cursor, rate limit, reporter cleanup | see git log |
 | (c) level tier | account-age-only limits; `chatRegisteredAt` on every send | see git log |
-| (d) child_safety abuse | queue + trusted reporter / 2-reporter hide | see git log |
+| (d) child_safety abuse | Risk-based moderation (t139u): subcategories, scoring, mandatory vs discretionary hide | see git log |
 | (b) field delete | parent validate blocks deletion | see git log |
 | NEW-10 blocklist save | validate uses `==` for objects | see git log |
+
+## Risk-based child safety (Owner t139u)
+
+| Subcategory | Intrinsic base | Mandatory hide when |
+|-------------|----------------|---------------------|
+| Filter `detectChildHarmSignals` | +50 | Always (send path) |
+| `immediate_danger` | 38 | Corroboration + threshold, or filter hit; immediate SLA queue |
+| `sexual_exploitation`, `grooming`, `violence_threat` | 30–34 | Category + message context / author history / filter (not reporter count) |
+| `other_child_safety` | 12 | Effective score ≥ 50 (or corroboration band); discretionary quota may apply |
+
+| Control | Behavior |
+|---------|----------|
+| Reporter age | Not required to submit; not a gate for high-tier mandatory hide |
+| Report submission | Never capped for child-safety subcategories |
+| Reporter credibility | Weight only |
+| Coordinated mass reports | Merged case; zero reporter boost |
+| False report (mod) | Auto-hide weight −30d; reports still accepted |
+| Reporter API response | `thanks_received` only |
+
+**Residual:** aged Sybil + corroborating content can still trigger bounded mandatory hides until mod review. Context regex set is draft — mod restore/appeal required.
+
+**Minors release default:** `SAFE_CHAT_FREE_TEXT=false` (phrases/reactions). Before free text: age limits, block/report, mod `immediate_danger` capacity — owner sign-off manual.
 
 ## Remaining risks
 
