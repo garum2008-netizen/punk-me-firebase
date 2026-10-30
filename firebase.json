@@ -3,8 +3,10 @@
     "rules": "database.rules.json"
   },
   "emulators": {
-    "auth": { "port": 9099 },
-    "database": { "port": 9000 },
+    "auth": { "host": "127.0.0.1", "port": 9099 },
+    "database": { "host": "127.0.0.1", "port": 9000 },
+    "hub": { "host": "127.0.0.1", "port": 4400 },
+    "logging": { "host": "127.0.0.1", "port": 4500 },
     "ui": { "enabled": false }
   },
   "hosting": {

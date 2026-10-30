@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * RTDB rules: safe chat denies direct client writes to chat/messages.
+ * RTDB rules: safe chat denies direct client writes; auth-only chat read.
  */
 const http = require("http");
 
@@ -32,8 +32,10 @@ function fetchJson(url, opts = {}) {
   });
 }
 
-function dbUrl(pathSuffix, idToken) {
-  const q = `ns=${encodeURIComponent(DB_NS)}${idToken ? `&auth=${encodeURIComponent(idToken)}` : ""}`;
+function dbUrl(pathSuffix, idToken, admin) {
+  let q = `ns=${encodeURIComponent(DB_NS)}`;
+  if (admin) q += "&access_token=owner";
+  else if (idToken) q += `&auth=${encodeURIComponent(idToken)}`;
   return `http://${DB_HOST}:${DB_PORT}/${pathSuffix}.json?${q}`;
 }
 
@@ -52,6 +54,12 @@ async function run() {
   const cases = [];
   const { idToken, localId } = await signUp();
 
+  const unauthRead = await fetchJson(dbUrl("chat/messages", null));
+  cases.push({
+    name: "unauthenticated read chat/messages denied",
+    pass: unauthRead.status === 401 || unauthRead.status === 403
+  });
+
   const readMsg = await fetchJson(dbUrl("chat/messages", idToken));
   cases.push({
     name: "auth read chat/messages",
@@ -61,7 +69,7 @@ async function run() {
   const writeMsg = await fetchJson(dbUrl("chat/messages", idToken), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ uid: localId, name: "A", text: "hi", time: Date.now() })
+    body: JSON.stringify({ sid: "abc", name: "A", text: "hi", time: Date.now() })
   });
   cases.push({
     name: "client POST chat/messages denied",
@@ -78,14 +86,69 @@ async function run() {
     pass: legacyWrite.status === 403 || legacyWrite.status === 401
   });
 
-  const blocklist = await fetchJson(dbUrl(`players/${localId}/chatBlocklist/other-uid`, idToken), {
-    method: "PUT",
+  const adminWrite = await fetchJson(dbUrl("chat/messages", null, true), {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: "true"
+    body: JSON.stringify({ sid: "deadbeefdeadbeefdeadbeefdeadbeef", name: "W", text: "ok", time: Date.now() })
   });
   cases.push({
-    name: "player can save chatBlocklist",
-    pass: blocklist.status === 200
+    name: "admin SDK POST chat/messages allowed",
+    pass: adminWrite.status === 200
+  });
+
+  const forgeAge = await fetchJson(dbUrl(`players/${localId}/chatAge13DeclaredAt`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "1"
+  });
+  cases.push({
+    name: "client cannot set players chatAge13DeclaredAt",
+    pass: forgeAge.status === 403 || forgeAge.status === 401
+  });
+
+  const forgeReg = await fetchJson(dbUrl(`players/${localId}/chatRegisteredAt`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "1"
+  });
+  cases.push({
+    name: "client cannot set players chatRegisteredAt",
+    pass: forgeReg.status === 403 || forgeReg.status === 401
+  });
+
+  const forgeLevel = await fetchJson(dbUrl(`chatMeta/${localId}/rateLimitLevel`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "9999"
+  });
+  cases.push({
+    name: "client cannot write chatMeta rateLimitLevel",
+    pass: forgeLevel.status === 403 || forgeLevel.status === 401
+  });
+
+  const metaForge = await fetchJson(dbUrl(`chatMeta/${localId}/chatAge13DeclaredAt`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "1"
+  });
+  cases.push({
+    name: "client cannot write chatMeta",
+    pass: metaForge.status === 403 || metaForge.status === 401
+  });
+
+  const saveName = await fetchJson(dbUrl(`players/${localId}/name`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify("Hero")
+  });
+  const saveCoins = await fetchJson(dbUrl(`players/${localId}/coins`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "10"
+  });
+  cases.push({
+    name: "player save name/coins still works",
+    pass: saveName.status === 200 && saveCoins.status === 200
   });
 
   const writeReport = await fetchJson(dbUrl("chat/reports", idToken), {

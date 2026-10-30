@@ -1,48 +1,26 @@
 /**
- * Safe-chat test harness: Auth + Database emulators with RTDB rules overlay
- * (main database.rules.json + applySafeChatPatch), without modifying repo rules file.
+ * Safe-chat test harness: Auth + Database emulators using repo database.rules.json.
  */
-import { spawn, spawnSync } from "child_process";
-import fs from "fs";
+import { spawn } from "child_process";
 import net from "net";
-import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
-import { applySafeChatPatch } from "./rtdb-safe-chat-patch.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..", "..");
 const project = process.env.FIREBASE_EMULATOR_PROJECT || "punk-me-40605";
 
-export function writeOverlayRulesDir() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "punk-safe-chat-rules-"));
-  const base = JSON.parse(fs.readFileSync(path.join(root, "database.rules.json"), "utf8"));
-  const patched = { rules: applySafeChatPatch(base.rules) };
-  fs.writeFileSync(path.join(tmpDir, "database.rules.json"), JSON.stringify(patched, null, 2) + "\n");
-  fs.writeFileSync(
-    path.join(tmpDir, "firebase.json"),
-    JSON.stringify(
-      {
-        database: { rules: "database.rules.json" },
-        emulators: {
-          auth: { port: 9099 },
-          database: { port: 9000 },
-          ui: { enabled: false }
-        }
-      },
-      null,
-      2
-    ) + "\n"
-  );
-  return tmpDir;
-}
-
-export function spawnEmulators(configDir) {
-  const configPath = path.join(configDir, "firebase.json");
+export function spawnEmulators() {
+  const configPath = path.join(root, "firebase.json");
   return spawn(
     "npx",
     ["firebase", "emulators:start", "--only", "auth,database", "--project", project, "--config", configPath],
-    { cwd: root, stdio: "pipe", env: { ...process.env, FIREBASE_EMULATOR_HUB: "" } }
+    {
+      cwd: root,
+      stdio: "pipe",
+      env: { ...process.env, FIREBASE_EMULATOR_HUB: "" },
+      detached: true
+    }
   );
 }
 
@@ -88,18 +66,26 @@ async function waitPortsFree(ports, timeoutMs = 30000) {
   throw new Error(`ports not free after ${timeoutMs}ms: ${ports.join(",")}`);
 }
 
-function stopFirebaseEmulators(child) {
-  try {
-    child.kill("SIGTERM");
-  } catch (_) {}
-  spawnSync("pkill", ["-TERM", "-f", "java.*firebase"], { stdio: "ignore" });
-  spawnSync("pkill", ["-TERM", "-f", "firebase emulators:start"], { stdio: "ignore" });
-}
-
-function rmDir(dir) {
-  try {
-    fs.rmSync(dir, { recursive: true, force: true });
-  } catch (_) {}
+function stopEmulatorChild(child) {
+  if (!child || child.exitCode != null) return Promise.resolve();
+  return new Promise(resolve => {
+    const finish = () => resolve();
+    child.once("exit", finish);
+    try {
+      if (child.pid) process.kill(-child.pid, "SIGTERM");
+      else child.kill("SIGTERM");
+    } catch (_) {
+      try {
+        child.kill("SIGTERM");
+      } catch (_) {}
+    }
+    setTimeout(() => {
+      try {
+        if (child.exitCode == null && child.pid) process.kill(-child.pid, "SIGKILL");
+      } catch (_) {}
+      finish();
+    }, 8000);
+  });
 }
 
 /** @param {() => Promise<void>|void} fn */
@@ -107,14 +93,17 @@ export async function withSafeChatRulesEmulator(fn) {
   delete process.env.FIREBASE_DATABASE_EMULATOR_HOST;
   delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
   await waitPortsFree([9000, 9099, 4400], 15000);
-  const configDir = writeOverlayRulesDir();
-  const emu = spawnEmulators(configDir);
+  const emu = spawnEmulators();
   try {
     await waitForLog(emu, "All emulators ready");
     await fn();
   } finally {
-    stopFirebaseEmulators(emu);
-    rmDir(configDir);
-    await waitPortsFree([9000, 9099], 30000);
+    await stopEmulatorChild(emu);
+    await waitPortsFree([9000, 9099, 4400], 45000);
   }
+}
+
+/** @deprecated use withSafeChatRulesEmulator — rules are in repo database.rules.json */
+export function writeOverlayRulesDir() {
+  return null;
 }
