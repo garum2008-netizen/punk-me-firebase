@@ -179,8 +179,7 @@ async function runOnboarding(page, tag, mobile) {
     note(tag, "onboarding step", { key, loc: st.location, coins: st.coins });
 
     if (key === "ch0_awake" || key === "ch0_move_done") {
-      await Nav.dismissChapterIntroUi(page);
-      await Nav.dismissHowToUi(page);
+      await Nav.ensureOverlaysClear(page);
       await Nav.waitGameplayUnblocked(page);
       await Nav.wanderMove(page, mobile);
       await Nav.walkTowardGuide(page, mobile, 40);
@@ -315,8 +314,8 @@ async function runViewport(tag, viewport, lang) {
     await pickCharacter(page);
     await waitBoot(page);
     await maybeStartOverlay(page);
-    await Nav.dismissChapterIntroUi(page);
-    await Nav.dismissHowToUi(page);
+    await Nav.ensureOverlaysClear(page);
+    await Nav.waitGameplayUnblocked(page, 25000);
     await snap(page, tag, "boot");
 
     await runOnboarding(page, tag, mobile);
@@ -334,9 +333,14 @@ async function runViewport(tag, viewport, lang) {
 
 async function main() {
   fs.mkdirSync(ART, { recursive: true });
+  const only = process.env.HONEST_CH01_ONLY;
   await withEmulators(async () => {
-    await runViewport("en1440", { width: 1440, height: 900 }, "en");
-    await runViewport("ru390", { width: 390, height: 844 }, "ru");
+    if (!only || only === "en1440") {
+      await runViewport("en1440", { width: 1440, height: 900 }, "en");
+    }
+    if (!only || only === "ru390") {
+      await runViewport("ru390", { width: 390, height: 844 }, "ru");
+    }
   });
   if (console404.some(e => /ep1_intro|voice\/ru\/ep1/.test(e))) {
     errors.push("forbidden VO 404 in console");

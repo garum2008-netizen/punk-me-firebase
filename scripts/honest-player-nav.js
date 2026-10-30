@@ -177,6 +177,21 @@ async function dismissHowToUi(page) {
   }
 }
 
+async function ensureOverlaysClear(page) {
+  for (let i = 0; i < 28; i++) {
+    await dismissChapterIntroUi(page);
+    await dismissHowToUi(page);
+    const blocked = await page.evaluate(() => ({
+      intro: !!document.getElementById("chapterIntro")?.classList.contains("active"),
+      howto: !!document.getElementById("howToOverlay")?.classList.contains("active"),
+      start: !!document.getElementById("startGameOverlay")?.classList.contains("active"),
+      menu: !!document.getElementById("gameMenuOverlay")?.classList.contains("active")
+    }));
+    if (!blocked.intro && !blocked.howto && !blocked.start && !blocked.menu) return;
+    await sleep(700);
+  }
+}
+
 async function advanceStoryDialog(page) {
   for (let i = 0; i < 12; i++) {
     const next = page.locator("#storyDialog.active #storyDlgNext, #storyDialog.active .story-choice");
@@ -215,5 +230,6 @@ module.exports = {
   advanceStoryDialog,
   clickNavLocation,
   waitGameplayUnblocked,
-  orbitLook
+  orbitLook,
+  ensureOverlaysClear
 };
