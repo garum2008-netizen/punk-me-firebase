@@ -914,13 +914,31 @@ function init() {
         ) {
           return;
         }
-        if (window.PlayV21?.tryInteract(me, playCtx)) return;
-        if (window.__punkExplicitInteract && window.World3D?.getNearestDog?.()) {
+        const hints = {
+          nearNpc: window.World3D?.getNearestNpc?.() || null,
+          nearDog: !!window.World3D?.getNearestDog?.()
+        };
+        const kind =
+          typeof window.resolveInteractKind === "function"
+            ? window.resolveInteractKind(hints)
+            : hints.nearNpc
+              ? "npc"
+              : hints.nearDog
+                ? "dog"
+                : "none";
+        if (kind === "prop" && window.PlayV21?.tryInteract(me, playCtx)) return;
+        if (kind === "npc") {
+          const nid = hints.nearNpc;
+          if (nid) {
+            openNpcDialog(nid);
+            return;
+          }
+        }
+        if (kind === "dog" && window.__punkExplicitInteract && hints.nearDog) {
           petDog(true, { explicit: true });
           return;
         }
-        const nid = window.World3D?.getNearestNpc?.();
-        if (nid) openNpcDialog(nid);
+        if (window.PlayV21?.tryInteract(me, playCtx)) return;
       },
       onHints: h => window.updateContextHints?.(h),
       onPortal: (to) => {
@@ -1716,16 +1734,20 @@ function petDog(fromLife, opts = {}) {
   if (now - lastPetDogAt < PET_DOG_COOLDOWN_MS) return;
   lastPetDogAt = now;
   if (!fromLife) LifeEngine.barkAndPet(false);
-  toast(t("petHappy"));
-  me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
   window.Onboarding?.onShnurokInteract?.("pet");
   const petStep = window.Onboarding?.getCurrentStep?.()?.key === "ch0_pet_shnurok";
   if (petStep) window.PlayV21?.bumpDaily?.(me, "pet_dog", { toast, save: saveMe });
   const interactStep = window.Onboarding?.getCurrentStep?.()?.key === "ch0_interact_done";
-  if (!isOwner && !interactStep) me.coins += 3;
+  let rewarded = false;
+  if (!isOwner && !interactStep) {
+    me.coins += 3;
+    rewarded = true;
+  }
   me.xp += 3;
+  me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
   saveMe();
   document.getElementById("coins").textContent = formatCoinsDisplay();
+  if (rewarded || petStep) toast(t("petHappy"));
 }
 
 function renderNpcMarkers() {}

@@ -40,6 +40,7 @@ export function initPlayV21(ctx) {
       const loc = me.location;
       const obStep = window.Onboarding?.getCurrentStep?.()?.key;
       const obActive = window.Onboarding?.isActive?.();
+      if (obActive && obStep === "ch0_pet_shnurok") return false;
       if (loc === "kitchen" && me.y >= 28 && me.y <= 55 && me.x < 60 && obStep === "ch0_feed_bowl") {
         window.Onboarding?.onFeedBowl?.();
         hooks.toast(t("onboard_feed_bowl_toast"));
@@ -74,7 +75,11 @@ export function initPlayV21(ctx) {
       const nearNpc = window.World3D?.getNearestNpc?.();
       const npcBlocksOnboarding =
         obActive &&
-        (obStep === "ch0_interact_done" || obStep === "ch0_feed_bowl" || obStep === "ch0_mom_talk");
+        (obStep === "ch0_interact_done" ||
+          obStep === "ch0_feed_bowl" ||
+          obStep === "ch0_mom_talk" ||
+          obStep === "ch0_pet_shnurok" ||
+          obStep === "ch0_avatar_chosen");
       if (nearNpc && window.openNpcDialog && !npcBlocksOnboarding) {
         window.openNpcDialog(nearNpc);
         return true;

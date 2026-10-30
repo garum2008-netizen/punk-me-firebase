@@ -25,8 +25,9 @@ export function initInteractionHud() {
   });
 }
 
-export function updateInteractionHud(data) {
-  const near = !!data?.nearNpc;
+export function updateInteractionHud(data, kind) {
+  const resolved = kind || window.resolveInteractKind?.(data) || (data?.nearNpc ? "npc" : "none");
+  const near = resolved === "npc" && !!data?.nearNpc;
   const btn = document.getElementById("btnTalk");
   const touch = document.getElementById("touchTalk");
   if (btn) btn.style.display = near ? "inline-block" : "none";
