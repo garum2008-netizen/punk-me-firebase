@@ -6,10 +6,11 @@ import { anonymizeUid, chatPublicSid, rtdbPath, rtdbRequest } from "./rtdb.js";
 import { ChatLimitsDO } from "./limits-do.js";
 import { resolveSendLimits } from "./limits-policy.js";
 import { assertFirebaseId, assertReportHash } from "./ids.js";
-import { loadPlayerProfileForChat } from "./player-profile.js";
+import { loadPlayerProfileForChat, reporterTrustForChildSafety } from "./player-profile.js";
 import { getCachedAdminToken } from "./admin-token.js";
 import { corsHeaders } from "./cors.js";
-import { runUserErasureBatch } from "./erasure.js";
+import { runUserErasureBatch, continueErasureForUid } from "./erasure.js";
+import { applyImmediateChildHarmResponse, detectChildHarmSignals } from "./child-harm.js";
 
 export { ChatLimitsDO };
 
@@ -69,12 +70,46 @@ async function checkSendLimits(env, uid, limits) {
   });
 }
 
+async function scheduleErasureContinuation(env, uid) {
+  try {
+    await limitsStub(env, "/schedule-erasure-continue", { uid });
+  } catch (_) {}
+}
+
+async function drainErasureInProcess(env, token, authUid, sid, firstResult) {
+  let result = firstResult;
+  let guard = 0;
+  while (result.continueScheduled && result.cursor && guard < 20) {
+    guard += 1;
+    result = await runUserErasureBatch({
+      config: loadConfig(env),
+      env,
+      token,
+      authUid,
+      sid,
+      now: getNow(env),
+      storedCursor: result.cursor,
+      budget: loadConfig(env).erasureMaxSubrequests
+    });
+  }
+  return result;
+}
+
 async function checkReportLimits(env, uid, config) {
   return limitsStub(env, "/check-report", {
     uid,
     now: getNow(env),
     dailyLimit: config.reportDailyLimit
   });
+}
+
+async function bumpChatSendCount(config, env, token, uid) {
+  const path = pathChatMeta(uid, "chatSendCount");
+  const emu = env.FIREBASE_EMULATOR_HOST;
+  const ns = env.FIREBASE_EMULATOR_NS;
+  const cur = await rtdbRequest(config, path, "GET", null, token, emu, ns);
+  const prev = typeof cur.json === "number" && cur.json >= 0 ? cur.json : 0;
+  await rtdbRequest(config, path, "PUT", prev + 1, token, emu, ns);
 }
 
 async function fetchModState(config, env, token, uid) {
@@ -229,7 +264,22 @@ async function handleSend(request, env) {
     env.FIREBASE_EMULATOR_NS
   );
   if (!push.ok) return err(request, env, "rtdb_write_failed", 502);
-  return json(request, env, { ok: true, id: push.json?.name || push.json });
+  const msgId = push.json?.name || push.json;
+  if (detectChildHarmSignals(text)) {
+    await applyImmediateChildHarmResponse({
+      config,
+      token,
+      emu: env.FIREBASE_EMULATOR_HOST,
+      ns: env.FIREBASE_EMULATOR_NS,
+      msgId,
+      now,
+      trigger: "filter",
+      trustedReporterCount: 0,
+      childSafetyReportCount: 0
+    });
+  }
+  await bumpChatSendCount(config, env, token, auth.uid);
+  return json(request, env, { ok: true, id: msgId });
 }
 
 async function handleReport(request, env) {
@@ -265,9 +315,6 @@ async function handleReport(request, env) {
     return err(request, env, "age_not_declared", 403);
   }
 
-  const repLimits = await checkReportLimits(env, auth.uid, config);
-  if (!repLimits.ok) return err(request, env, repLimits.reason, 429);
-
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
 
@@ -275,16 +322,19 @@ async function handleReport(request, env) {
   if (!msgRes.json) return err(request, env, "message_not_found", 404);
 
   const now = getNow(env);
-  if (!(await checkGlobalMsgReportLimit(config, token, emu, ns, msgId, now))) {
-    return err(request, env, "global_report_limit", 429);
-  }
-
   const salt = env.SAFE_CHAT_HASH_SALT || "";
   const reporter = assertReportHash(await anonymizeUid(auth.uid, salt));
   const dedupPath = rtdbPath("chat", "internal", "reportDedup", msgId, reporter);
   const existing = await rtdbRequest(config, dedupPath, "GET", null, token, emu, ns);
   if (existing.json) {
     return json(request, env, { ok: true, duplicate: true });
+  }
+
+  const repLimits = await checkReportLimits(env, auth.uid, config);
+  if (!repLimits.ok) return err(request, env, repLimits.reason, 429);
+
+  if (!(await checkGlobalMsgReportLimit(config, token, emu, ns, msgId, now))) {
+    return err(request, env, "global_report_limit", 429);
   }
 
   const report = {
@@ -299,6 +349,21 @@ async function handleReport(request, env) {
   await rtdbRequest(config, dedupPath, "PUT", true, token, emu, ns);
 
   if (isChildSafety) {
+    const trust = reporterTrustForChildSafety(profile, now, config);
+    const queueRes = await rtdbRequest(
+      config,
+      rtdbPath("chat", "internal", "safetyQueue", msgId),
+      "GET",
+      null,
+      token,
+      emu,
+      ns
+    );
+    const prevQueue = queueRes.json && typeof queueRes.json === "object" ? queueRes.json : {};
+    let trustedReporterCount =
+      typeof prevQueue.trustedReporterCount === "number" ? prevQueue.trustedReporterCount : 0;
+    if (trust.fullyTrusted) trustedReporterCount += 1;
+
     const dedupMsg = await rtdbRequest(
       config,
       rtdbPath("chat", "internal", "reportDedup", msgId),
@@ -309,43 +374,27 @@ async function handleReport(request, env) {
       ns
     );
     const distinct = Object.keys(dedupMsg.json || {}).length;
-    const reporterReg = profile.chatRegisteredAt;
-    const reporterAgeMs = reporterReg ? now - reporterReg : 0;
-    const trustedReporter = reporterAgeMs >= config.childSafetyReporterMinMs;
-    const enoughReporters = distinct >= config.childSafetyHideReporterCount;
 
-    if (trustedReporter || enoughReporters) {
-      await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
-      await rtdbRequest(config, `${pathChatMessage(msgId)}/safetyHold`, "PUT", true, token, emu, ns);
-      await rtdbRequest(
-        config,
-        rtdbPath("chat", "internal", "safetyHolds", msgId),
-        "PUT",
-        { at: now, category: REPORT_CATEGORY_CHILD_SAFETY, nextEscalateAt: now + config.safetyQueueEscalateMs },
-        token,
-        emu,
-        ns
-      );
-      await rtdbRequest(config, rtdbPath("chat", "internal", "safetyQueue", msgId), "DELETE", null, token, emu, ns);
-      return json(request, env, { ok: true, safetyHold: true, hidden: true });
-    }
-
-    await rtdbRequest(
+    const harm = await applyImmediateChildHarmResponse({
       config,
-      rtdbPath("chat", "internal", "safetyQueue", msgId),
-      "PUT",
-      {
-        at: now,
-        overdue: false,
-        nextEscalateAt: now + config.safetyQueueEscalateMs,
-        childSafetyReports: distinct,
-        lastCategory: REPORT_CATEGORY_CHILD_SAFETY
-      },
       token,
       emu,
-      ns
-    );
-    return json(request, env, { ok: true, queued: true, safetyHold: false });
+      ns,
+      msgId,
+      now,
+      trigger: "report",
+      trustedReporterCount,
+      childSafetyReportCount: distinct
+    });
+
+    return json(request, env, {
+      ok: true,
+      hidden: harm.hidden,
+      queued: harm.queued,
+      priority: harm.priority,
+      trustedReporter: trust.fullyTrusted,
+      trustedReporterCount
+    });
   }
 
   const countPath = rtdbPath("chat", "internal", "reportCounts", msgId);
@@ -439,7 +488,7 @@ async function handleDeleteMyData(request, env) {
     return err(request, env, "unauthorized", 401);
   }
   assertFirebaseId(auth.uid);
-  const body = await request.json().catch(() => ({}));
+  await request.json().catch(() => ({}));
   const token = await getCachedAdminToken(env);
   const sid = await chatPublicSid(auth.uid, env.SAFE_CHAT_HASH_SALT || "");
   const now = getNow(env);
@@ -452,21 +501,27 @@ async function handleDeleteMyData(request, env) {
     env.FIREBASE_EMULATOR_HOST,
     env.FIREBASE_EMULATOR_NS
   );
-  const startCursor = body.cursor ? String(body.cursor) : cursorRes.json || null;
+  const storedCursor = cursorRes.json != null && cursorRes.json !== "" ? cursorRes.json : null;
 
-  const result = await runUserErasureBatch({
+  let result = await runUserErasureBatch({
     config,
     env,
     token,
     authUid: auth.uid,
     sid,
     now,
-    cursorMsgId: startCursor,
-    budget: config.erasureBatchSize
+    storedCursor,
+    budget: config.erasureMaxSubrequests
   });
 
   if (!result.ok) {
     return err(request, env, result.error, 429);
+  }
+
+  if (env.SAFE_CHAT_INTEGRATION === "1" && result.continueScheduled) {
+    result = await drainErasureInProcess(env, token, auth.uid, sid, result);
+  } else if (result.continueScheduled) {
+    await scheduleErasureContinuation(env, auth.uid);
   }
 
   if (result.complete) {
@@ -476,6 +531,30 @@ async function handleDeleteMyData(request, env) {
   }
 
   return json(request, env, result);
+}
+
+async function handleInternalErasureContinue(request, env) {
+  const secret = env.SAFE_CHAT_INTERNAL_SECRET || "";
+  const hdr = request.headers.get("X-Safe-Chat-Internal") || "";
+  if (!secret || hdr !== secret) {
+    return new Response("forbidden", { status: 403 });
+  }
+  const body = await request.json().catch(() => ({}));
+  try {
+    assertFirebaseId(String(body.uid || ""), "uid");
+  } catch {
+    return new Response("bad uid", { status: 400 });
+  }
+  const out = await continueErasureForUid(env, body.uid);
+  if (out.continueScheduled) {
+    await scheduleErasureContinuation(env, body.uid);
+  }
+  if (out.complete) {
+    try {
+      await limitsStub(env, "/erase-user", { uid: body.uid });
+    } catch (_) {}
+  }
+  return Response.json(out);
 }
 
 async function handleConfig(request, env) {
@@ -666,9 +745,39 @@ async function handleModBan(request, env) {
   }
 }
 
-async function handleModResolveSafety(request, env) {
+async function handleModSafetyQueue(request, env) {
   try {
     const { config, token } = await requireMod(request, env);
+    const res = await rtdbRequest(
+      config,
+      "chat/internal/safetyQueue",
+      "GET",
+      null,
+      token,
+      env.FIREBASE_EMULATOR_HOST,
+      env.FIREBASE_EMULATOR_NS
+    );
+    const entries = Object.entries(res.json || {}).map(([msgId, q]) => ({ msgId, ...q }));
+    entries.sort((a, b) => {
+      const pa = a.priority === "critical" ? 0 : a.priority === "high" ? 1 : 2;
+      const pb = b.priority === "critical" ? 0 : b.priority === "high" ? 1 : 2;
+      if (pa !== pb) return pa - pb;
+      return (b.at || 0) - (a.at || 0);
+    });
+    return json(request, env, { ok: true, queue: entries });
+  } catch (e) {
+    return err(
+      request,
+      env,
+      e.message === "forbidden" ? "forbidden" : "unauthorized",
+      e.message === "forbidden" ? 403 : 401
+    );
+  }
+}
+
+async function handleModResolveSafety(request, env) {
+  try {
+    const { config, token, auth } = await requireMod(request, env);
     const body = await request.json().catch(() => ({}));
     let msgId;
     try {
@@ -678,13 +787,47 @@ async function handleModResolveSafety(request, env) {
     }
     const emu = env.FIREBASE_EMULATOR_HOST;
     const ns = env.FIREBASE_EMULATOR_NS;
+    const now = getNow(env);
+    const action = body.action ? String(body.action).slice(0, 48) : "unknown";
+
+    await rtdbRequest(
+      config,
+      "chat/internal/safetyDecisions",
+      "POST",
+      {
+        msgId,
+        action,
+        at: now,
+        moderatorUid: auth.uid,
+        note: body.note ? String(body.note).slice(0, 512) : null
+      },
+      token,
+      emu,
+      ns
+    );
+
+    if (action === "confirm_legal_hold" || action === "retain_evidence") {
+      await rtdbRequest(config, `${pathChatMessage(msgId)}/safetyHold`, "PUT", true, token, emu, ns);
+      await rtdbRequest(
+        config,
+        rtdbPath("chat", "internal", "safetyHolds", msgId),
+        "PUT",
+        { at: now, category: REPORT_CATEGORY_CHILD_SAFETY, nextEscalateAt: now + config.safetyQueueEscalateMs },
+        token,
+        emu,
+        ns
+      );
+      return json(request, env, { ok: true, safetyHold: true });
+    }
+
     await rtdbRequest(config, `${pathChatMessage(msgId)}/safetyHold`, "DELETE", null, token, emu, ns);
     await rtdbRequest(config, rtdbPath("chat", "internal", "safetyHolds", msgId), "DELETE", null, token, emu, ns);
     await rtdbRequest(config, rtdbPath("chat", "internal", "safetyQueue", msgId), "DELETE", null, token, emu, ns);
     await rtdbRequest(config, rtdbPath("chat", "internal", "erasureDeferred", msgId), "DELETE", null, token, emu, ns);
-    if (body.action === "uphold_delete" || body.action === "approve_erasure") {
+    await rtdbRequest(config, rtdbPath("chat", "internal", "safetyEvidence", msgId), "DELETE", null, token, emu, ns);
+    if (action === "uphold_delete" || action === "approve_erasure") {
       await rtdbRequest(config, pathChatMessage(msgId), "DELETE", null, token, emu, ns);
-    } else if (body.action === "dismiss" || body.action === "retain_evidence") {
+    } else if (action === "dismiss") {
       await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "DELETE", null, token, emu, ns);
     }
     return json(request, env, { ok: true });
@@ -716,12 +859,42 @@ export async function runRetentionJob(env, nowOverride) {
     await limitsStub(env, "/prune", { now, maxAgeMs: config.limitsRetentionMs });
   } catch (_) {}
 
+  const holds = await rtdbRequest(config, "chat/internal/safetyHolds", "GET", null, token, emu, ns);
+  bump();
+  const protectedMsgIds = new Set(Object.keys(holds.json || {}));
+
+  const queue = await rtdbRequest(config, "chat/internal/safetyQueue", "GET", null, token, emu, ns);
+  bump();
+  if (queue.json && typeof queue.json === "object") {
+    for (const msgId of Object.keys(queue.json)) {
+      protectedMsgIds.add(msgId);
+    }
+  }
+
+  const reportsForProtect = await rtdbRequest(config, "chat/reports", "GET", null, token, emu, ns);
+  bump();
+  if (reportsForProtect.json && typeof reportsForProtect.json === "object") {
+    for (const r of Object.values(reportsForProtect.json)) {
+      if (r?.category === REPORT_CATEGORY_CHILD_SAFETY && r?.msgId) {
+        protectedMsgIds.add(r.msgId);
+      }
+    }
+  }
+
+  const evidenceSnap = await rtdbRequest(config, "chat/internal/safetyEvidence", "GET", null, token, emu, ns);
+  bump();
+  if (evidenceSnap.json && typeof evidenceSnap.json === "object") {
+    for (const msgId of Object.keys(evidenceSnap.json)) {
+      protectedMsgIds.add(msgId);
+    }
+  }
+
   const msgs = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
   bump();
   if (msgs.json && typeof msgs.json === "object") {
     for (const [id, m] of Object.entries(msgs.json)) {
       if (subrequests >= budget) break;
-      if (m?.safetyHold) continue;
+      if (m?.safetyHold || protectedMsgIds.has(id)) continue;
       try {
         assertFirebaseId(id);
       } catch {
@@ -734,12 +907,8 @@ export async function runRetentionJob(env, nowOverride) {
     }
   }
 
-  const holds = await rtdbRequest(config, "chat/internal/safetyHolds", "GET", null, token, emu, ns);
-  bump();
-  const heldMsgIds = new Set(Object.keys(holds.json || {}));
+  const heldMsgIds = new Set(protectedMsgIds);
 
-  const queue = await rtdbRequest(config, "chat/internal/safetyQueue", "GET", null, token, emu, ns);
-  bump();
   if (queue.json && typeof queue.json === "object") {
     for (const [msgId, q] of Object.entries(queue.json)) {
       if (subrequests >= budget) break;
@@ -881,7 +1050,10 @@ export default {
       if (url.pathname === "/api/chat/unblock" && request.method === "POST") return handleUnblock(request, env);
       if (url.pathname === "/api/chat/delete-my-data" && request.method === "POST")
         return handleDeleteMyData(request, env);
+      if (url.pathname === "/api/internal/erasure-continue" && request.method === "POST")
+        return handleInternalErasureContinue(request, env);
       if (url.pathname === "/api/mod/reports" && request.method === "GET") return handleModReports(request, env);
+      if (url.pathname === "/api/mod/safety-queue" && request.method === "GET") return handleModSafetyQueue(request, env);
       if (url.pathname === "/api/mod/delete" && request.method === "POST") return handleModDelete(request, env);
       if (url.pathname === "/api/mod/mute" && request.method === "POST") return handleModMute(request, env);
       if (url.pathname === "/api/mod/ban" && request.method === "POST") return handleModBan(request, env);
