@@ -65,7 +65,36 @@ async function nudgeJoystick(page, dx, dz) {
   await page.mouse.up();
 }
 
+async function focusStage(page) {
+  await page.locator("#stage3d").click({ position: { x: 220, y: 280 }, timeout: 5000 }).catch(() => {});
+}
+
+async function wanderMove(page, mobile, ms = 3200) {
+  await focusStage(page);
+  if (mobile) {
+    const joy = page.locator("#touchJoystick");
+    const box = await joy.boundingBox();
+    if (!box) return;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    await page.touchscreen.tap(cx, cy);
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx, cy - 36, { steps: 8 });
+    await sleep(ms);
+    await page.mouse.up();
+    return;
+  }
+  await page.keyboard.down("w");
+  await sleep(ms);
+  await page.keyboard.up("w");
+  await page.keyboard.down("d");
+  await sleep(ms / 2);
+  await page.keyboard.up("d");
+}
+
 async function walkTowardGuide(page, mobile, steps = 90) {
+  await focusStage(page);
   for (let i = 0; i < steps; i++) {
     const nav = await page.evaluate(() => {
       const guide = window.Onboarding?.isActive?.()
@@ -119,8 +148,17 @@ async function advanceStoryDialog(page) {
 }
 
 async function clickNavLocation(page, locId) {
-  const btn = page.locator(`#navQuick button[onclick="goLocation('${locId}')"]`);
-  await btn.click({ timeout: 15000 });
+  const here = await page.evaluate(() => window.me?.location);
+  if (here === locId) return;
+  const quick = page.locator(`#navQuick button[onclick="goLocation('${locId}')"]`);
+  if (await quick.count()) {
+    await quick.first().click({ timeout: 15000 });
+  } else {
+    await page.locator('button[onclick*="openModal(\'mapModal\')"]').click({ timeout: 15000 });
+    await page.waitForSelector("#mapGrid");
+    await page.locator(`#mapGrid button[onclick*="goLocation('${locId}')"]`).click({ timeout: 15000 });
+    await page.locator("#mapModal .close").click({ timeout: 5000 }).catch(() => {});
+  }
   await page.waitForFunction(id => window.me?.location === id, locId, { timeout: 60000 });
 }
 
@@ -130,6 +168,7 @@ module.exports = {
   readDomText,
   findRawKeys,
   pressInteract,
+  wanderMove,
   walkTowardGuide,
   dismissChapterIntroUi,
   dismissHowToUi,

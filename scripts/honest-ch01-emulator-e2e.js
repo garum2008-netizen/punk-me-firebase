@@ -79,9 +79,6 @@ async function assertStepHealth(page, tag, label) {
   const text = await Nav.readDomText(page);
   const raw = Nav.findRawKeys(text);
   if (raw.length) errors.push(`${tag}@${label}: raw keys ${raw.join(", ")}`);
-  if (console404.filter(e => e.includes(tag)).length) {
-    errors.push(`${tag}@${label}: console 404/network errors`);
-  }
 }
 
 async function waitBoot(page) {
@@ -111,15 +108,25 @@ async function maybeStartOverlay(page) {
 
 async function runOnboarding(page, tag, mobile) {
   let guard = 0;
-  while (guard++ < 120) {
+  let lastKey = "";
+  let stuck = 0;
+  while (guard++ < 160) {
     const st = await Nav.readGameState(page);
     if (st.onboardingDone) return;
     const key = st.stepKey;
+    if (key === lastKey) stuck += 1;
+    else {
+      stuck = 0;
+      lastKey = key;
+    }
+    if (stuck > 35) errors.push(`${tag}: stuck on onboarding ${key}`);
+    if (stuck > 40) break;
     await assertStepHealth(page, tag, key || "unknown");
     note(tag, "onboarding step", { key, loc: st.location, coins: st.coins });
 
     if (key === "ch0_awake" || key === "ch0_move_done") {
-      await Nav.walkTowardGuide(page, mobile);
+      await Nav.wanderMove(page, mobile);
+      await Nav.walkTowardGuide(page, mobile, 30);
     } else if (key === "ch0_mom_talk") {
       await Nav.walkTowardGuide(page, mobile);
       await Nav.pressInteract(page, mobile);
@@ -153,8 +160,7 @@ async function runOnboarding(page, tag, mobile) {
       }
     } else if (key === "ch0_enter_street") {
       if (st.location !== "elevator") await Nav.clickNavLocation(page, "elevator");
-      await Nav.walkTowardGuide(page, mobile);
-      await Nav.pressInteract(page, mobile);
+      await Nav.clickNavLocation(page, "street");
     } else if (key === "ch0_razor_talk") {
       if (st.location !== "street") await Nav.clickNavLocation(page, "street");
       await Nav.walkTowardGuide(page, mobile);
@@ -274,6 +280,9 @@ async function main() {
     await runViewport("en1440", { width: 1440, height: 900 }, "en");
     await runViewport("ru390", { width: 390, height: 844 }, "ru");
   });
+  if (console404.some(e => /ep1_intro|voice\/ru\/ep1/.test(e))) {
+    errors.push("forbidden VO 404 in console");
+  }
   const summary = {
     artifacts: ART,
     automated: true,

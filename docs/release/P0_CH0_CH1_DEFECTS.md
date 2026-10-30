@@ -46,4 +46,25 @@ npm run test:p0-first-10min
 npm run test:p1-gameplay-economy
 ```
 
-Артефакты honest e2e: `artifacts/honest-first10-e2e/` или `/opt/cursor/artifacts/honest-first10-e2e/`.
+Артефакты honest e2e: `artifacts/honest-ch01-emulator-e2e/` или `/opt/cursor/artifacts/honest-ch01-emulator-e2e/`.
+
+## R6 branch (`cursor/scenario-preview-r6-d81d`, от `492d464`)
+
+| Пункт P2 R4 | Коммит | Проверка |
+|-------------|--------|----------|
+| Двойной тап «Улица» из кухни | `f867bd6` | `goLocation('street')` цепляет лифт→улица |
+| «Насмешки» до Рейзора | `f867bd6` | `razor_bridge_seen` + gate Mohawk stage1 / proximity |
+| Повтор приветствия Мohawk ~10s | `f867bd6` | `s1ProximityShown` once |
+| Start F5 в ch1 = «глава 0» | `f867bd6` | `ch1_started`, `refreshStartOverlayCopy` on load |
+| «Рейзор: Рейзор:» (stage1 body) | `f867bd6` | убран ручной префикс в `openStage1Dialog` |
+| intro + how-to одновременно | `f867bd6` | chapter intro finish → how-to; блок при active intro |
+| EN how-to в RU | `f867bd6` | `onLanguageChanged` перерисовывает how-to |
+| Язык на char select | `f867bd6` | `#langCorner` скрыт при `#charSelect.active` |
+| Панель Angelina после этапа 1 | `f867bd6` | сброс tier/body при смене `auth.stage` |
+| E — погладить у TV/зеркала | `492d464`+`f867bd6` | `interact-priority` prop steps |
+| Субтитры pointer-events | `492d464` | `.voice-subtitle { pointer-events: none }` |
+| Камера кухни | `f867bd6` | мягче spawn sync в `world3d.mjs` |
+| Ложный +5 / +3 без монет | частично `492d464` | pet toast только при награде; trash 2D — мониторинг |
+| **Честный e2e ch0→ch1** | `9c6d09f`+fixes | `npm run test:honest-ch01-emulator-e2e` (AUTOMATED) |
+
+Smoke `test:honest-first10-e2e` на **`492d464`** — не полный проход (snapshot cheat / 3×E); заменён `test:honest-ch01-emulator-e2e`.
