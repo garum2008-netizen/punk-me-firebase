@@ -70,8 +70,7 @@ export function computeIntrinsicRiskScore({
   subcategory,
   messageText,
   filterHit,
-  authorConfirmedViolations = 0,
-  authorNewAccount = false
+  authorConfirmedViolations = 0
 }) {
   const base = SUBCATEGORY_BASE[subcategory] ?? SUBCATEGORY_BASE.other_child_safety;
   let score = base;
@@ -92,10 +91,6 @@ export function computeIntrinsicRiskScore({
     score += Math.min(20, authorConfirmedViolations * 10);
     signals.push("author_prior_violation");
   }
-  if (authorNewAccount) {
-    score += 8;
-    signals.push("author_new_account");
-  }
 
   return {
     intrinsicScore: score,
@@ -103,6 +98,19 @@ export function computeIntrinsicRiskScore({
     contextHits: context,
     signals
   };
+}
+
+/** Global hide requires an independent signal (CEO proposal — pending owner OD:11/19). */
+export function hasGlobalHideIndependentSignal({
+  filterHit,
+  authorConfirmedViolations,
+  independentReporterCount,
+  distinctClusterCount
+}) {
+  if (filterHit) return true;
+  if (authorConfirmedViolations > 0) return true;
+  if (independentReporterCount >= 2 && distinctClusterCount >= 2) return true;
+  return false;
 }
 
 /** Credibility weights content; never blocks report submission. */
@@ -129,15 +137,16 @@ export function decideChildSafetyAction({
   corroborating,
   credibility,
   reporterBoost,
-  reporterBanned,
   configObj,
-  filterHit
+  filterHit,
+  globalHideSignal
 }) {
   if (filterHit) {
     return {
       hide: true,
       hideBasis: "filter_signal",
       discretionary: false,
+      reporterLocalHide: false,
       effectiveScore: intrinsicScore + reporterBoost,
       intrinsicScore,
       escalationTier: subcategory === "immediate_danger" ? "immediate_danger" : "critical",
@@ -161,19 +170,24 @@ export function decideChildSafetyAction({
   let hide = false;
   let hideBasis = null;
   let discretionary = false;
+  let reporterLocalHide = false;
 
-  if (highTier) {
-    const enoughIntrinsic =
-      intrinsicScore >= highThreshold ||
-      (corroborating && intrinsicScore >= immediateThreshold);
-    if (enoughIntrinsic && !(reporterBanned && !corroborating && intrinsicScore < highThreshold)) {
-      hide = true;
-      hideBasis = "high_tier_risk";
+  const scoreWouldHide = () => {
+    if (highTier) {
+      return (
+        intrinsicScore >= highThreshold ||
+        (corroborating && intrinsicScore >= immediateThreshold)
+      );
     }
-  } else if (intrinsicScore >= otherThreshold || (corroborating && effective >= otherThreshold - 5)) {
+    return intrinsicScore >= otherThreshold || (corroborating && effective >= otherThreshold - 5);
+  };
+
+  if (globalHideSignal && scoreWouldHide()) {
     hide = true;
-    hideBasis = "other_threshold";
-    discretionary = true;
+    hideBasis = highTier ? "high_tier_risk" : "other_threshold";
+    discretionary = !highTier || intrinsicScore < highThreshold;
+  } else if (scoreWouldHide() || immediate || highTier) {
+    reporterLocalHide = true;
   }
 
   let escalationTier = "critical";
@@ -192,6 +206,7 @@ export function decideChildSafetyAction({
     hide,
     hideBasis,
     discretionary,
+    reporterLocalHide,
     effectiveScore: effective,
     intrinsicScore,
     escalationTier,

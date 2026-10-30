@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   computeIntrinsicRiskScore,
   decideChildSafetyAction,
+  hasGlobalHideIndependentSignal,
   reporterBoostFromIndependence
 } from "../workers/safe-chat/src/child-safety-risk.js";
 
@@ -27,14 +28,14 @@ describe("child safety risk scoring", () => {
       corroborating: intrinsic.corroborating,
       credibility: 1,
       reporterBoost: 0,
-      reporterBanned: false,
       configObj: cfg,
-      filterHit: false
+      filterHit: false,
+      globalHideSignal: false
     });
     assert.equal(d.hide, false);
   });
 
-  it("hides grooming when message context corroborates", () => {
+  it("global hide requires independent signal even with grooming context", () => {
     const intrinsic = computeIntrinsicRiskScore({
       subcategory: "grooming",
       messageText: "how old are you? don't tell your mom",
@@ -46,9 +47,29 @@ describe("child safety risk scoring", () => {
       corroborating: intrinsic.corroborating,
       credibility: 0.55,
       reporterBoost: 2,
-      reporterBanned: false,
       configObj: cfg,
+      filterHit: false,
+      globalHideSignal: false
+    });
+    assert.equal(d.hide, false);
+    assert.equal(d.reporterLocalHide, true);
+  });
+
+  it("hides grooming when independent signal present (two clusters)", () => {
+    const intrinsic = computeIntrinsicRiskScore({
+      subcategory: "grooming",
+      messageText: "how old are you? don't tell your mom",
       filterHit: false
+    });
+    const d = decideChildSafetyAction({
+      subcategory: "grooming",
+      intrinsicScore: intrinsic.intrinsicScore,
+      corroborating: intrinsic.corroborating,
+      credibility: 1,
+      reporterBoost: 4,
+      configObj: cfg,
+      filterHit: false,
+      globalHideSignal: true
     });
     assert.equal(d.hide, true);
   });
@@ -60,12 +81,19 @@ describe("child safety risk scoring", () => {
       corroborating: true,
       credibility: 0.2,
       reporterBoost: 0,
-      reporterBanned: true,
       configObj: cfg,
-      filterHit: true
+      filterHit: true,
+      globalHideSignal: true
     });
     assert.equal(d.hide, true);
     assert.equal(d.discretionary, false);
+  });
+
+  it("hasGlobalHideIndependentSignal accepts filter, violations, or two clusters", () => {
+    assert.equal(hasGlobalHideIndependentSignal({ filterHit: true, authorConfirmedViolations: 0, independentReporterCount: 1, distinctClusterCount: 1 }), true);
+    assert.equal(hasGlobalHideIndependentSignal({ filterHit: false, authorConfirmedViolations: 2, independentReporterCount: 1, distinctClusterCount: 1 }), true);
+    assert.equal(hasGlobalHideIndependentSignal({ filterHit: false, authorConfirmedViolations: 0, independentReporterCount: 2, distinctClusterCount: 2 }), true);
+    assert.equal(hasGlobalHideIndependentSignal({ filterHit: false, authorConfirmedViolations: 0, independentReporterCount: 2, distinctClusterCount: 1 }), false);
   });
 
   it("coordinated mass reports add zero reporter boost", () => {

@@ -162,7 +162,7 @@ export async function recordMergedSafetyReport({
         (r.clusterHash === clusterHash || Math.abs((r.reporterRegisteredAt || 0) - (reporterRegisteredAt || 0)) < 3600000)
     );
 
-  const clusters = new Set(reports.map(r => r.clusterHash).filter(Boolean));
+  const clusters = new Set(reports.map(r => r.clusterHash || `reporter:${r.reporterHash}`));
   const coordinated =
     sameSubRecent.length >= 3 &&
     clusters.size <= 1 &&
@@ -183,6 +183,7 @@ export async function recordMergedSafetyReport({
     mergedDuplicate,
     coordinated,
     independentReporterCount: independentHashes.size,
+    distinctClusterCount: clusters.size,
     reportCountInCase: reports.length
   };
 }
@@ -201,7 +202,8 @@ export async function enqueueChildSafetyReview({
   childSafetyReportCount,
   extraQueueFields = {},
   subcategory,
-  riskSnapshot = {}
+  riskSnapshot = {},
+  ctx
 }) {
   const queuePath = rtdbPath("chat", "internal", "safetyQueue", msgId);
   const prevRes = await rtdbRequest(config, queuePath, "GET", null, token, emu, ns);
@@ -241,23 +243,6 @@ export async function enqueueChildSafetyReview({
 
   await rtdbRequest(config, queuePath, "PUT", queueEntry, token, emu, ns);
 
-  let alertResult = null;
-  if (extraQueueFields.moderatorNotify) {
-    const { sendModeratorAlert } = await import("./mod-alert.js");
-    alertResult = await sendModeratorAlert(env, {
-      msgId,
-      subcategory: queueEntry.subcategory,
-      priority: queueEntry.priority,
-      escalationTier: extraQueueFields.escalationTier || queueEntry.escalationTier,
-      trigger: queueEntry.trigger,
-      riskIntrinsic: riskSnapshot.intrinsicScore ?? null
-    });
-    if (alertResult.sent) {
-      queueEntry.alertDeliveredAt = now;
-      await rtdbRequest(config, queuePath, "PUT", { ...queueEntry, alertDeliveredAt: now }, token, emu, ns);
-    }
-  }
-
   const msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
   const snap = msgRes.json
     ? {
@@ -288,7 +273,45 @@ export async function enqueueChildSafetyReview({
     ns
   );
 
-  return { hidden: hideMessage, queued: true, priority, queueEntry };
+  let alertResult = null;
+  if (extraQueueFields.moderatorNotify) {
+    const { sendModeratorAlert } = await import("./mod-alert.js");
+    const payload = {
+      msgId,
+      subcategory: queueEntry.subcategory,
+      priority: queueEntry.priority,
+      escalationTier: extraQueueFields.escalationTier || queueEntry.escalationTier,
+      trigger: queueEntry.trigger,
+      riskIntrinsic: riskSnapshot.intrinsicScore ?? null
+    };
+    const deliver = () => sendModeratorAlert(env, payload, { timeoutMs: 3000 });
+    if (ctx?.waitUntil) {
+      ctx.waitUntil(
+        deliver().then(async alertResultInner => {
+          if (alertResultInner.sent) {
+            await rtdbRequest(
+              config,
+              queuePath,
+              "PUT",
+              { ...queueEntry, alertDeliveredAt: Date.now() },
+              token,
+              emu,
+              ns
+            );
+          }
+        })
+      );
+      alertResult = { sent: false, reason: "scheduled" };
+    } else {
+      alertResult = await deliver();
+      if (alertResult.sent) {
+        queueEntry.alertDeliveredAt = now;
+        await rtdbRequest(config, queuePath, "PUT", { ...queueEntry, alertDeliveredAt: now }, token, emu, ns);
+      }
+    }
+  }
+
+  return { hidden: hideMessage, queued: true, priority, queueEntry, alertResult };
 }
 
 /** Discretionary reporter-triggered auto-hide quota (mandatory risk hides skip this). */

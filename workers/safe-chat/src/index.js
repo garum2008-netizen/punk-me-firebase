@@ -29,9 +29,21 @@ import {
   reporterCredibilityWeight,
   reporterBoostFromIndependence,
   decideChildSafetyAction,
+  hasGlobalHideIndependentSignal,
   messagePassesFilter
 } from "./child-safety-risk.js";
 import { reporterTrustForChildSafety } from "./player-profile.js";
+
+function secretsEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  const enc = new TextEncoder();
+  const aa = enc.encode(a);
+  const bb = enc.encode(b);
+  if (aa.length !== bb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < aa.length; i++) diff |= aa[i] ^ bb[i];
+  return diff === 0;
+}
 
 export { ChatLimitsDO };
 
@@ -105,6 +117,7 @@ async function scheduleRetentionContinuation(env) {
 
 async function drainErasureInProcess(env, token, authUid, sid, firstResult) {
   let result = firstResult;
+  let staleCursorCleared = Boolean(firstResult.staleCursorCleared);
   let guard = 0;
   while (result.continueScheduled && result.cursor && guard < 20) {
     guard += 1;
@@ -118,7 +131,9 @@ async function drainErasureInProcess(env, token, authUid, sid, firstResult) {
       storedCursor: result.cursor,
       budget: loadConfig(env).erasureMaxSubrequests
     });
+    staleCursorCleared = staleCursorCleared || Boolean(result.staleCursorCleared);
   }
+  if (staleCursorCleared) result = { ...result, staleCursorCleared: true };
   return result;
 }
 
@@ -342,7 +357,7 @@ async function handleSend(request, env) {
   return json(request, env, { ok: true, id: msgId });
 }
 
-async function handleReport(request, env) {
+async function handleReport(request, env, ctx) {
   const config = loadConfig(env);
   let auth;
   try {
@@ -429,17 +444,12 @@ async function handleReport(request, env) {
     const authorSid = msgRes.json.sid || null;
     const clusterHash = await clusterHashFromRequest(request, env);
     const authorMeta = await loadAuthorSafetyMeta(config, token, emu, ns, authorSid);
-    const accountAgeMs = profile.chatRegisteredAt ? now - profile.chatRegisteredAt : 0;
-    const authorNew =
-      authorMeta.newAccount ||
-      (msgRes.json.time && now - msgRes.json.time < config.childSafetyReporterMinMs);
     const filterHit = messagePassesFilter(msgRes.json.text || "");
     const intrinsicPack = computeIntrinsicRiskScore({
       subcategory: safetySub,
       messageText: msgRes.json.text || "",
       filterHit,
-      authorConfirmedViolations: authorMeta.confirmedViolations,
-      authorNewAccount: authorNew
+      authorConfirmedViolations: authorMeta.confirmedViolations
     });
 
     const mergeInfo = await recordMergedSafetyReport({
@@ -481,20 +491,27 @@ async function handleReport(request, env) {
           coordinated: mergeInfo.coordinated
         });
 
+    const globalHideSignal = hasGlobalHideIndependentSignal({
+      filterHit,
+      authorConfirmedViolations: authorMeta.confirmedViolations,
+      independentReporterCount: mergeInfo.independentReporterCount,
+      distinctClusterCount: mergeInfo.distinctClusterCount
+    });
+
     let decision = decideChildSafetyAction({
       subcategory: safetySub,
       intrinsicScore,
       corroborating: intrinsicPack.corroborating,
       credibility,
       reporterBoost,
-      reporterBanned: !!modRep.banned,
       configObj: config,
-      filterHit
+      filterHit,
+      globalHideSignal
     });
 
     let hideMessage = decision.hide;
     let hideSkippedReason = null;
-    if (hideMessage && decision.discretionary) {
+    if (hideMessage && !filterHit) {
       const quota = await checkDiscretionaryHideQuota({
         env,
         configObj: config,
@@ -508,6 +525,18 @@ async function handleReport(request, env) {
         hideMessage = false;
         hideSkippedReason = quota.reason;
       }
+    }
+
+    if (decision.reporterLocalHide && !hideMessage) {
+      await rtdbRequest(
+        config,
+        rtdbPath("chatMeta", auth.uid, "reporterSafetyHidden", msgId),
+        "PUT",
+        true,
+        token,
+        emu,
+        ns
+      );
     }
 
     const dedupMsg = await rtdbRequest(
@@ -572,7 +601,8 @@ async function handleReport(request, env) {
         intrinsicScore,
         effectiveScore: decision.effectiveScore,
         hideBasis: hideMessage ? decision.hideBasis : hideSkippedReason || "queued_only"
-      }
+      },
+      ctx
     });
 
     return json(request, env, {
@@ -719,7 +749,7 @@ async function handleDeleteMyData(request, env) {
 async function handleInternalErasureContinue(request, env) {
   const secret = env.SAFE_CHAT_INTERNAL_SECRET || "";
   const hdr = request.headers.get("X-Safe-Chat-Internal") || "";
-  if (!secret || hdr !== secret) {
+  if (!secret || !secretsEqual(hdr, secret)) {
     return new Response("forbidden", { status: 403 });
   }
   const body = await request.json().catch(() => ({}));
@@ -743,7 +773,7 @@ async function handleInternalErasureContinue(request, env) {
 async function handleInternalRetentionContinue(request, env) {
   const secret = env.SAFE_CHAT_INTERNAL_SECRET || "";
   const hdr = request.headers.get("X-Safe-Chat-Internal") || "";
-  if (!secret || hdr !== secret) {
+  if (!secret || !secretsEqual(hdr, secret)) {
     return new Response("forbidden", { status: 403 });
   }
   const out = await runRetentionJob(env);
@@ -1199,6 +1229,42 @@ export async function runRetentionJob(env, nowOverride) {
 
   const evidenceSnap = await rtdbRequest(config, "chat/internal/safetyEvidence", "GET", null, token, emu, ns);
   bump();
+  if (queue.json && typeof queue.json === "object") {
+    for (const [msgId, q] of Object.entries(queue.json)) {
+      if (budgetExceeded) break;
+      try {
+        assertFirebaseId(msgId);
+      } catch {
+        continue;
+      }
+      const ev = evidenceSnap.json?.[msgId];
+      const legalCap = typeof q?.legalHoldUntil === "number" ? q.legalHoldUntil : null;
+      const maxHold = typeof ev?.maxHoldUntil === "number" ? ev.maxHoldUntil : null;
+      const cap =
+        legalCap != null && maxHold != null ? Math.min(legalCap, maxHold) : legalCap ?? maxHold;
+      if (cap != null && now > cap) {
+        await rtdbRequest(
+          config,
+          rtdbPath("chat", "internal", "safetyEvidence", msgId),
+          "DELETE",
+          null,
+          token,
+          emu,
+          ns
+        );
+        bump();
+        await rtdbRequest(config, rtdbPath("chat", "internal", "safetyQueue", msgId), "DELETE", null, token, emu, ns);
+        bump();
+        await rtdbRequest(config, rtdbPath("chat", "internal", "safetyCase", msgId), "DELETE", null, token, emu, ns);
+        bump();
+        await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "DELETE", null, token, emu, ns);
+        bump();
+        delete queue.json[msgId];
+        if (evidenceSnap.json) delete evidenceSnap.json[msgId];
+        protectedMsgIds.delete(msgId);
+      }
+    }
+  }
   if (evidenceSnap.json && typeof evidenceSnap.json === "object") {
     for (const [msgId, ev] of Object.entries(evidenceSnap.json)) {
       if (budgetExceeded) break;
@@ -1206,29 +1272,17 @@ export async function runRetentionJob(env, nowOverride) {
       if (subrequests >= budget) break;
       const maxHold = ev?.maxHoldUntil;
       if (typeof maxHold === "number" && now > maxHold) {
-        const q = await rtdbRequest(
+        await rtdbRequest(
           config,
-          rtdbPath("chat", "internal", "safetyQueue", msgId),
-          "GET",
+          rtdbPath("chat", "internal", "safetyEvidence", msgId),
+          "DELETE",
           null,
           token,
           emu,
           ns
         );
         bump();
-        if (!q.json) {
-          await rtdbRequest(
-            config,
-            rtdbPath("chat", "internal", "safetyEvidence", msgId),
-            "DELETE",
-            null,
-            token,
-            emu,
-            ns
-          );
-          bump();
-          protectedMsgIds.delete(msgId);
-        }
+        protectedMsgIds.delete(msgId);
       }
     }
   }
@@ -1402,7 +1456,7 @@ export default {
       if (url.pathname === "/api/chat/declare-age13" && request.method === "POST")
         return handleDeclareAge13(request, env);
       if (url.pathname === "/api/chat/send" && request.method === "POST") return handleSend(request, env);
-      if (url.pathname === "/api/chat/report" && request.method === "POST") return handleReport(request, env);
+      if (url.pathname === "/api/chat/report" && request.method === "POST") return handleReport(request, env, ctx);
       if (url.pathname === "/api/chat/block" && request.method === "POST") return handleBlock(request, env);
       if (url.pathname === "/api/chat/unblock" && request.method === "POST") return handleUnblock(request, env);
       if (url.pathname === "/api/chat/delete-my-data" && request.method === "POST")
