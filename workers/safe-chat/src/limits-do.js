@@ -52,6 +52,16 @@ export class ChatLimitsDO {
       await this.saveReportState(rep);
       return Response.json({ ok: true });
     }
+    if (request.method === "POST" && url.pathname === "/child-safety-hide-check") {
+      const body = await request.json();
+      const result = await this.checkChildSafetyHide(body);
+      return Response.json(result);
+    }
+    if (request.method === "POST" && url.pathname === "/cluster-hide-check") {
+      const body = await request.json();
+      const result = await this.checkClusterHide(body);
+      return Response.json(result);
+    }
     if (request.method === "POST" && url.pathname === "/schedule-erasure-continue") {
       const body = await request.json();
       const uid = String(body.uid || "");
@@ -70,12 +80,67 @@ export class ChatLimitsDO {
     return (await this.state.storage.get("limits")) || {};
   }
 
+  async saveState(data) {
+    await this.state.storage.put("limits", data);
+  }
+
   async loadReportState() {
     return (await this.state.storage.get("reports")) || {};
   }
 
-  async saveState(data) {
-    await this.state.storage.put("limits", data);
+  async loadChildSafetyHide() {
+    return (await this.state.storage.get("childSafetyHide")) || {};
+  }
+
+  async saveChildSafetyHide(data) {
+    await this.state.storage.put("childSafetyHide", data);
+  }
+
+  async loadClusterHide() {
+    return (await this.state.storage.get("clusterHide")) || {};
+  }
+
+  async saveClusterHide(data) {
+    await this.state.storage.put("clusterHide", data);
+  }
+
+  windowMs24h() {
+    return 24 * 60 * 60 * 1000;
+  }
+
+  async checkChildSafetyHide({ uid, now, quota, bump }) {
+    const data = await this.loadChildSafetyHide();
+    let rec = data[uid] || { windowStart: now, count: 0 };
+    if (now - (rec.windowStart || 0) >= this.windowMs24h()) {
+      rec = { windowStart: now, count: 0 };
+    }
+    if (rec.count >= quota) {
+      return { ok: false, reason: "hide_quota" };
+    }
+    if (bump) {
+      rec.count += 1;
+      data[uid] = rec;
+      await this.saveChildSafetyHide(data);
+    }
+    return { ok: true, remaining: quota - rec.count };
+  }
+
+  async checkClusterHide({ clusterHash, now, cap, bump }) {
+    if (!clusterHash) return { ok: true };
+    const data = await this.loadClusterHide();
+    let rec = data[clusterHash] || { windowStart: now, count: 0 };
+    if (now - (rec.windowStart || 0) >= this.windowMs24h()) {
+      rec = { windowStart: now, count: 0 };
+    }
+    if (rec.count >= cap) {
+      return { ok: false, reason: "cluster_hide_cap" };
+    }
+    if (bump) {
+      rec.count += 1;
+      data[clusterHash] = rec;
+      await this.saveClusterHide(data);
+    }
+    return { ok: true, remaining: cap - rec.count };
   }
 
   async saveReportState(data) {
@@ -141,6 +206,24 @@ export class ChatLimitsDO {
       }
     }
     await this.saveReportState(rep);
-    return { ok: true, removedSend, removedRep };
+    const csh = await this.loadChildSafetyHide();
+    let removedCsh = 0;
+    for (const [uid, rec] of Object.entries(csh)) {
+      if (now - (rec.windowStart || 0) > this.windowMs24h()) {
+        delete csh[uid];
+        removedCsh += 1;
+      }
+    }
+    await this.saveChildSafetyHide(csh);
+    const cl = await this.loadClusterHide();
+    let removedCl = 0;
+    for (const [k, rec] of Object.entries(cl)) {
+      if (now - (rec.windowStart || 0) > this.windowMs24h()) {
+        delete cl[k];
+        removedCl += 1;
+      }
+    }
+    await this.saveClusterHide(cl);
+    return { ok: true, removedSend, removedRep, removedCsh, removedCl };
   }
 }

@@ -6,11 +6,17 @@ import { anonymizeUid, chatPublicSid, rtdbPath, rtdbRequest } from "./rtdb.js";
 import { ChatLimitsDO } from "./limits-do.js";
 import { resolveSendLimits } from "./limits-policy.js";
 import { assertFirebaseId, assertReportHash } from "./ids.js";
-import { loadPlayerProfileForChat, reporterTrustForChildSafety } from "./player-profile.js";
+import { loadPlayerProfileForChat } from "./player-profile.js";
 import { getCachedAdminToken } from "./admin-token.js";
 import { corsHeaders } from "./cors.js";
 import { runUserErasureBatch, continueErasureForUid } from "./erasure.js";
-import { applyImmediateChildHarmResponse, detectChildHarmSignals } from "./child-harm.js";
+import { detectChildHarmSignals } from "./child-harm.js";
+import {
+  enqueueChildSafetyReview,
+  evaluateChildSafetyReportHide,
+  clusterHashFromRequest,
+  penalizeFalseChildSafetyReport
+} from "./child-safety-abuse.js";
 
 export { ChatLimitsDO };
 
@@ -266,14 +272,16 @@ async function handleSend(request, env) {
   if (!push.ok) return err(request, env, "rtdb_write_failed", 502);
   const msgId = push.json?.name || push.json;
   if (detectChildHarmSignals(text)) {
-    await applyImmediateChildHarmResponse({
+    await enqueueChildSafetyReview({
       config,
       token,
       emu: env.FIREBASE_EMULATOR_HOST,
       ns: env.FIREBASE_EMULATOR_NS,
       msgId,
       now,
+      configObj: config,
       trigger: "filter",
+      hideMessage: true,
       trustedReporterCount: 0,
       childSafetyReportCount: 0
     });
@@ -345,11 +353,33 @@ async function handleReport(request, env) {
     category: reportCategory,
     priority: isChildSafety ? "high" : "normal"
   };
-  await rtdbRequest(config, "chat/reports", "POST", report, token, emu, ns);
+  const reportPush = await rtdbRequest(config, "chat/reports", "POST", report, token, emu, ns);
+  const reportId = reportPush.json?.name || reportPush.json;
   await rtdbRequest(config, dedupPath, "PUT", true, token, emu, ns);
 
   if (isChildSafety) {
-    const trust = reporterTrustForChildSafety(profile, now, config);
+    const modRep = await fetchModState(config, env, token, auth.uid);
+    if (modRep.banned) return err(request, env, "banned", 403);
+    if (modRep.muted) return err(request, env, "muted", 403);
+
+    const authorSid = msgRes.json.sid || null;
+    const clusterHash = await clusterHashFromRequest(request, env);
+    const hideEval = await evaluateChildSafetyReportHide({
+      config,
+      env,
+      token,
+      emu,
+      ns,
+      authUid: auth.uid,
+      profile,
+      now,
+      configObj: config,
+      limitsStub,
+      clusterHash,
+      authorSid,
+      reporterHash: reporter
+    });
+
     const queueRes = await rtdbRequest(
       config,
       rtdbPath("chat", "internal", "safetyQueue", msgId),
@@ -361,8 +391,8 @@ async function handleReport(request, env) {
     );
     const prevQueue = queueRes.json && typeof queueRes.json === "object" ? queueRes.json : {};
     let trustedReporterCount =
-      typeof prevQueue.trustedReporterCount === "number" ? prevQueue.trustedReporterCount : 0;
-    if (trust.fullyTrusted) trustedReporterCount += 1;
+      (typeof prevQueue.trustedReporterCount === "number" ? prevQueue.trustedReporterCount : 0) +
+      (hideEval.trustedReporterCount || 0);
 
     const dedupMsg = await rtdbRequest(
       config,
@@ -375,16 +405,37 @@ async function handleReport(request, env) {
     );
     const distinct = Object.keys(dedupMsg.json || {}).length;
 
-    const harm = await applyImmediateChildHarmResponse({
+    if (reportId) {
+      await rtdbRequest(
+        config,
+        rtdbPath("chat", "internal", "reportMeta", reportId),
+        "PUT",
+        { reporterUid: auth.uid, msgId, reporterHash: reporter, at: now, category: reportCategory },
+        token,
+        emu,
+        ns
+      );
+    }
+
+    const extra = {};
+    if (hideEval.possibleBrigading) {
+      extra.possibleBrigading = true;
+      extra.moderatorNotify = true;
+    }
+
+    const harm = await enqueueChildSafetyReview({
       config,
       token,
       emu,
       ns,
       msgId,
       now,
+      configObj: config,
       trigger: "report",
+      hideMessage: hideEval.hideMessage,
       trustedReporterCount,
-      childSafetyReportCount: distinct
+      childSafetyReportCount: distinct,
+      extraQueueFields: extra
     });
 
     return json(request, env, {
@@ -392,8 +443,10 @@ async function handleReport(request, env) {
       hidden: harm.hidden,
       queued: harm.queued,
       priority: harm.priority,
-      trustedReporter: trust.fullyTrusted,
-      trustedReporterCount
+      hideSkippedReason: hideEval.reason,
+      trustedReporter: hideEval.trust?.fullyTrusted,
+      trustedReporterCount,
+      possibleBrigading: hideEval.possibleBrigading || false
     });
   }
 
@@ -805,6 +858,43 @@ async function handleModResolveSafety(request, env) {
       emu,
       ns
     );
+
+    if (action === "restore_visibility") {
+      await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "DELETE", null, token, emu, ns);
+      const q = await rtdbRequest(config, rtdbPath("chat", "internal", "safetyQueue", msgId), "GET", null, token, emu, ns);
+      if (q.json) {
+        await rtdbRequest(
+          config,
+          rtdbPath("chat", "internal", "safetyQueue", msgId),
+          "PUT",
+          { ...q.json, restoredAt: now, restoredBy: auth.uid },
+          token,
+          emu,
+          ns
+        );
+      }
+      return json(request, env, { ok: true, restored: true });
+    }
+
+    if (action === "dismiss" && body.falseReport && body.reportId) {
+      try {
+        assertFirebaseId(String(body.reportId), "reportId");
+      } catch {
+        return err(request, env, "invalid_id");
+      }
+      const meta = await rtdbRequest(
+        config,
+        rtdbPath("chat", "internal", "reportMeta", body.reportId),
+        "GET",
+        null,
+        token,
+        emu,
+        ns
+      );
+      if (meta.json?.reporterUid) {
+        await penalizeFalseChildSafetyReport(config, token, emu, ns, meta.json.reporterUid, now, config);
+      }
+    }
 
     if (action === "confirm_legal_hold" || action === "retain_evidence") {
       await rtdbRequest(config, `${pathChatMessage(msgId)}/safetyHold`, "PUT", true, token, emu, ns);

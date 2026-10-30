@@ -25,9 +25,19 @@ export function loadConfig(env) {
       10
     ),
     childSafetyReporterMinSends: parseInt(env.SAFE_CHAT_CHILD_SAFETY_REPORTER_MIN_SENDS || "5", 10),
-    childSafetyHideTrustedReporterCount: parseInt(env.SAFE_CHAT_CHILD_SAFETY_HIDE_TRUSTED || "2", 10),
-    /** @deprecated unused — hiding requires trusted reporters only */
-    childSafetyHideReporterCount: parseInt(env.SAFE_CHAT_CHILD_SAFETY_HIDE_REPORTERS || "2", 10),
+    childSafetyHideQuotaLow: parseInt(env.SAFE_CHAT_CHILD_SAFETY_HIDE_QUOTA_LOW || "1", 10),
+    childSafetyHideQuotaTrusted: parseInt(env.SAFE_CHAT_CHILD_SAFETY_HIDE_QUOTA_TRUSTED || "3", 10),
+    childSafetyBrigadingLowTrustDistinct: parseInt(env.SAFE_CHAT_CHILD_SAFETY_BRIGADE_DISTINCT || "3", 10),
+    childSafetyBrigadingWindowMs: parseInt(
+      env.SAFE_CHAT_CHILD_SAFETY_BRIGADE_WINDOW_MS || String(60 * 60 * 1000),
+      10
+    ),
+    childSafetyHideDeniedMs: parseInt(
+      env.SAFE_CHAT_CHILD_SAFETY_HIDE_DENIED_MS || String(30 * 24 * 60 * 60 * 1000),
+      10
+    ),
+    childSafetyFalseReportAutoMuteThreshold: parseInt(env.SAFE_CHAT_CHILD_SAFETY_FALSE_MUTE_AT || "3", 10),
+    childSafetyClusterHideCap: parseInt(env.SAFE_CHAT_CHILD_SAFETY_CLUSTER_HIDE_CAP || "5", 10),
     safetyQueueEscalateMs: parseInt(env.SAFE_CHAT_SAFETY_ESCALATE_MS || String(48 * 60 * 60 * 1000), 10),
     safetyEvidenceMaxHoldMs: parseInt(
       env.SAFE_CHAT_SAFETY_EVIDENCE_MAX_MS || String(365 * 24 * 60 * 60 * 1000),
