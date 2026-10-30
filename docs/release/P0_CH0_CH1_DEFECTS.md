@@ -64,7 +64,7 @@ npm run test:p1-gameplay-economy
 | E — погладить у TV/зеркала | `492d464`+`f867bd6` | `interact-priority` prop steps |
 | Субтитры pointer-events | `492d464` | `.voice-subtitle { pointer-events: none }` |
 | Камера кухни | `f867bd6` | мягче spawn sync в `world3d.mjs` |
-| Ложный +5 / +3 без монет | частично `492d464` | pet toast только при награде; trash 2D — мониторинг |
-| **Честный e2e ch0→ch1** | `9c6d09f`+fixes | `npm run test:honest-ch01-emulator-e2e` (AUTOMATED) |
+| Ложный +5 / +3 без монет | `492d464` + `b367a48` | pet toast только при награде; trash toast только при +coins |
+| **Честный e2e ch0→ch1** | `9c6d09f`…`1f4b151` | `npm run test:honest-ch01-emulator-e2e` (AUTOMATED); см. exit code в CI/агенте |
 
 Smoke `test:honest-first10-e2e` на **`492d464`** — не полный проход (snapshot cheat / 3×E); заменён `test:honest-ch01-emulator-e2e`.

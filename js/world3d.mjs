@@ -1304,6 +1304,15 @@ function getNearestNpcId() {
 function getNearPortal() {
   const pl = actors.get("player");
   if (!pl) return null;
+  const obKey = window.Onboarding?.isActive?.() ? window.Onboarding.getCurrentStep?.()?.key : null;
+  if (
+    obKey &&
+    /^(ch0_awake|ch0_move_done|ch0_mom_talk|ch0_pet_shnurok|ch0_avatar_chosen|ch0_interact_done|ch0_journal_open)$/.test(
+      obKey
+    )
+  ) {
+    return null;
+  }
   const portals = PORTALS[currentLoc] || [];
   let best = null;
   let bestD = Infinity;
