@@ -6,14 +6,25 @@ const DB_PORT = 9000;
 export const PROJECT_ID = "punk-me-40605";
 export const DB_NS = `${PROJECT_ID}-default-rtdb`;
 
-export async function authSignUp() {
+export async function authSignUp(opts = {}) {
   const res = await fetch(
     `http://${AUTH_HOST}:${AUTH_PORT}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
   );
   const json = await res.json();
   if (!res.ok || !json.idToken) throw new Error(`signUp failed ${res.status}`);
-  return { idToken: json.idToken, localId: json.localId };
+  const user = { idToken: json.idToken, localId: json.localId };
+  await seedChatPlayer(user, opts);
+  return user;
+}
+
+/** Minimal RTDB player fields required for safe-chat sends in tests. */
+export async function seedChatPlayer(user, opts = {}) {
+  const name = opts.name ?? "Tester";
+  await rtdbOwner(`players/${user.localId}/name`, "PUT", name);
+  await rtdbOwner(`players/${user.localId}/chatAge13DeclaredAt`, "PUT", Date.now() - 1000);
+  if (opts.level != null) await rtdbOwner(`players/${user.localId}/level`, "PUT", opts.level);
+  if (opts.location) await rtdbOwner(`players/${user.localId}/location`, "PUT", opts.location);
 }
 
 export function rtdbUrl(path, token) {

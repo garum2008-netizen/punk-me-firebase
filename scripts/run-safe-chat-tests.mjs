@@ -31,6 +31,10 @@ async function main() {
   console.log("\n=== production config guard (wrangler.toml) ===");
   if (!runNode("test-safe-chat-prod-config.mjs")) process.exit(1);
   if (!runNode("test-safe-chat-free-tier-config.mjs")) process.exit(1);
+  if (!runNode("test-safe-chat-prod-source.mjs")) process.exit(1);
+
+  console.log("\n=== safe-chat security unit tests ===");
+  if (!runNode("safe-chat-security.test.js")) process.exit(1);
 
   console.log("\n=== RTDB rules (emulator) ===");
   let rulesOk = false;

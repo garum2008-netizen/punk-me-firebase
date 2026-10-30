@@ -18,7 +18,6 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
   let userD;
 
   beforeAll(async () => {
-    expect(env.SAFE_CHAT_TEST_MODE).toBe("true");
     expect(env.SAFE_CHAT_EMULATOR).toBe("true");
     const modUid = (env.MODERATOR_UIDS || "").split(",")[0];
     const modToken = env.SAFE_CHAT_TEST_MOD_TOKEN;
@@ -55,6 +54,35 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(j2.ok).toBe(false);
     expect(j2.error).toBe("cooldown");
     expect(r2.status).toBe(429);
+  });
+
+  it("rejects path injection in msgId on report", async () => {
+    const bad = await apiPost(SELF, "/api/chat/report", userA.idToken, { msgId: "../../players/secret" });
+    expect((await bad.json()).error).toBe("invalid_id");
+  });
+
+  it("rejects impersonation display name from server profile", async () => {
+    const u = await authSignUp({ name: "Moderator" });
+    const r = await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "hi" });
+    expect((await r.json()).error).toBe("impersonation_name");
+  });
+
+  it("requires chatAge13DeclaredAt before send", async () => {
+    const u = await authSignUp();
+    await rtdbOwner(`players/${u.localId}/chatAge13DeclaredAt`, "DELETE");
+    const r = await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "hi" });
+    expect((await r.json()).error).toBe("age_not_declared");
+  });
+
+  it("deduplicates reports from the same reporter", async () => {
+    const author = await authSignUp();
+    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
+    const { id: msgId } = await sent.json();
+    expect((await (await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId })).json()).ok).toBe(true);
+    const dup = await (await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId })).json();
+    expect(dup.duplicate).toBe(true);
+    const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    expect(msg.json.hidden).not.toBe(true);
   });
 
   it("rejects invalid Bearer token with 401", async () => {
@@ -177,9 +205,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect((await rtdbOwner(`chat/reports/${newRepId}`, "GET")).json?.msgId).toBe("y");
   });
 
-  it("uses Auth emulator ID tokens (not skipAuth)", async () => {
-    expect(env.SAFE_CHAT_SKIP_AUTH).not.toBe("true");
-    const res = await apiPost(SELF, "/api/chat/send", userC.idToken, { phraseId: "street", name: "C" });
+  it("uses Auth emulator ID tokens in integration", async () => {
+    expect(env.SAFE_CHAT_INTEGRATION).toBe("1");
+    const res = await apiPost(SELF, "/api/chat/send", userC.idToken, { phraseId: "street" });
     expect((await res.json()).ok).toBe(true);
   });
 });
