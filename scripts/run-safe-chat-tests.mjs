@@ -42,6 +42,12 @@ async function main() {
   console.log("\n=== safe-chat child-safety risk scoring ===");
   if (!runNode("safe-chat-child-safety-risk.test.js")) process.exit(1);
 
+  console.log("\n=== safe-chat mod alert hook ===");
+  if (!runNode("safe-chat-mod-alert.test.js")) process.exit(1);
+
+  console.log("\n=== safe-chat cluster IPv6 ===");
+  if (!runNode("safe-chat-cluster-ipv6.test.js")) process.exit(1);
+
   console.log("\n=== RTDB rules (emulator) ===");
   let rulesOk = false;
   await withSafeChatRulesEmulator(() => {

@@ -28,4 +28,5 @@ SAFE_CHAT_CORS_ORIGINS = "https://halloween.punk.contractbot.dk"
 # FIREBASE_SERVICE_ACCOUNT_JSON — Firebase SA with RTDB write (Database Admin)
 # MODERATOR_UIDS — comma-separated Firebase Auth UIDs (owner + mods)
 # SAFE_CHAT_HASH_SALT — HMAC salt for report pseudonymisation
-# Optional: SAFE_CHAT_WEBHOOK_URL — notify owner on new report (not wired by default)
+# Optional: SAFE_CHAT_MOD_ALERT_URL — HTTPS endpoint for immediate-danger alerts (disabled if unset)
+# Optional: SAFE_CHAT_WEBHOOK_URL — legacy alias for mod alert URL
