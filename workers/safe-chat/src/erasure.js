@@ -9,10 +9,6 @@ function pathChatMeta(uid, ...rest) {
   return rtdbPath("chatMeta", uid, ...rest);
 }
 
-function dayKey(ts) {
-  return new Date(ts).toISOString().slice(0, 10);
-}
-
 function isOwnMessage(m, sid, authUid) {
   return m?.sid === sid || m?.uid === authUid;
 }
@@ -26,55 +22,50 @@ function minimizedSnapshot(msg) {
   };
 }
 
-/** Moderator-confirmed holds defer erasure. Child-harm queue/evidence also blocks author erasure until mod resolves. */
-export async function messageErasureBlocked(config, token, emu, ns, msgId, msg) {
+/** One RTDB round-trip per call — caller must bump budget for each request. */
+async function rtdbSpend(config, token, emu, ns, path, method, body, spend) {
+  if (!spend(1)) return { skipped: true, json: null };
+  return rtdbRequest(config, path, method, body, token, emu, ns);
+}
+
+async function loadSafetyBlockCache(config, token, emu, ns, spend) {
+  const holds = await rtdbSpend(config, token, emu, ns, "chat/internal/safetyHolds", "GET", null, spend);
+  const queue = await rtdbSpend(config, token, emu, ns, "chat/internal/safetyQueue", "GET", null, spend);
+  const evidence = await rtdbSpend(config, token, emu, ns, "chat/internal/safetyEvidence", "GET", null, spend);
+  const deferred = await rtdbSpend(config, token, emu, ns, "chat/internal/erasureDeferred", "GET", null, spend);
+
+  const holdIds = new Set(Object.keys(holds.json || {}));
+  const queueChildHarm = new Set();
+  if (queue.json && typeof queue.json === "object") {
+    for (const [id, q] of Object.entries(queue.json)) {
+      if (q?.childHarm) queueChildHarm.add(id);
+    }
+  }
+  const evidenceIds = new Set(Object.keys(evidence.json || {}));
+  const deferredIds = new Set();
+  if (deferred.json && typeof deferred.json === "object") {
+    for (const [id, d] of Object.entries(deferred.json)) {
+      if (d?.status === "erasure_deferred") deferredIds.add(id);
+    }
+  }
+  return { holdIds, queueChildHarm, evidenceIds, deferredIds };
+}
+
+function messageBlockedInCache(msgId, msg, cache) {
   if (msg?.safetyHold) return true;
-  const hold = await rtdbRequest(
-    config,
-    rtdbPath("chat", "internal", "safetyHolds", msgId),
-    "GET",
-    null,
-    token,
-    emu,
-    ns
-  );
-  if (hold.json) return true;
-  const queue = await rtdbRequest(
-    config,
-    rtdbPath("chat", "internal", "safetyQueue", msgId),
-    "GET",
-    null,
-    token,
-    emu,
-    ns
-  );
-  if (queue.json?.childHarm) return true;
-  const evidence = await rtdbRequest(
-    config,
-    rtdbPath("chat", "internal", "safetyEvidence", msgId),
-    "GET",
-    null,
-    token,
-    emu,
-    ns
-  );
-  if (evidence.json) return true;
-  const deferred = await rtdbRequest(
-    config,
-    rtdbPath("chat", "internal", "erasureDeferred", msgId),
-    "GET",
-    null,
-    token,
-    emu,
-    ns
-  );
-  if (deferred.json?.status === "erasure_deferred") return true;
+  if (cache.holdIds.has(msgId)) return true;
+  if (cache.queueChildHarm.has(msgId)) return true;
+  if (cache.evidenceIds.has(msgId)) return true;
+  if (cache.deferredIds.has(msgId)) return true;
   return false;
 }
 
-export async function deferMessageErasure(config, token, emu, ns, msgId, msg, now, configObj) {
-  await rtdbRequest(
+export async function deferMessageErasure(config, token, emu, ns, msgId, msg, now, configObj, spend) {
+  await rtdbSpend(
     config,
+    token,
+    emu,
+    ns,
     rtdbPath("chat", "internal", "erasureDeferred", msgId),
     "PUT",
     {
@@ -84,19 +75,17 @@ export async function deferMessageErasure(config, token, emu, ns, msgId, msg, no
       expiresAt: now + configObj.erasureDeferredTtlMs,
       snapshot: minimizedSnapshot(msg)
     },
-    token,
-    emu,
-    ns
+    spend
   );
 }
 
-async function openCaseMsgIds(config, token, emu, ns) {
+async function openCaseMsgIds(config, token, emu, ns, spend) {
   const ids = new Set();
-  const queue = await rtdbRequest(config, "chat/internal/safetyQueue", "GET", null, token, emu, ns);
+  const queue = await rtdbSpend(config, token, emu, ns, "chat/internal/safetyQueue", "GET", null, spend);
   if (queue.json) Object.keys(queue.json).forEach(k => ids.add(k));
-  const holds = await rtdbRequest(config, "chat/internal/safetyHolds", "GET", null, token, emu, ns);
+  const holds = await rtdbSpend(config, token, emu, ns, "chat/internal/safetyHolds", "GET", null, spend);
   if (holds.json) Object.keys(holds.json).forEach(k => ids.add(k));
-  const reports = await rtdbRequest(config, "chat/reports", "GET", null, token, emu, ns);
+  const reports = await rtdbSpend(config, token, emu, ns, "chat/reports", "GET", null, spend);
   if (reports.json) {
     for (const r of Object.values(reports.json)) {
       if (r?.msgId) ids.add(r.msgId);
@@ -105,13 +94,13 @@ async function openCaseMsgIds(config, token, emu, ns) {
   return ids;
 }
 
-export async function eraseReporterArtifacts(config, token, emu, ns, reporterHash, budget, openCases) {
+export async function eraseReporterArtifacts(config, token, emu, ns, reporterHash, openCases, spend) {
   let used = 0;
-  const reports = await rtdbRequest(config, "chat/reports", "GET", null, token, emu, ns);
+  const reports = await rtdbSpend(config, token, emu, ns, "chat/reports", "GET", null, spend);
+  if (reports.skipped) return { used };
   used += 1;
   if (reports.json && typeof reports.json === "object") {
     for (const [id, r] of Object.entries(reports.json)) {
-      if (used >= budget) break;
       if (r?.reporterHash !== reporterHash) continue;
       if (openCases.has(r?.msgId)) continue;
       try {
@@ -119,15 +108,16 @@ export async function eraseReporterArtifacts(config, token, emu, ns, reporterHas
       } catch {
         continue;
       }
-      await rtdbRequest(config, rtdbPath("chat", "reports", id), "DELETE", null, token, emu, ns);
+      if (!spend(1)) break;
       used += 1;
+      await rtdbRequest(config, rtdbPath("chat", "reports", id), "DELETE", null, token, emu, ns);
     }
   }
-  const dedupRoot = await rtdbRequest(config, "chat/internal/reportDedup", "GET", null, token, emu, ns);
+  const dedupRoot = await rtdbSpend(config, token, emu, ns, "chat/internal/reportDedup", "GET", null, spend);
+  if (dedupRoot.skipped) return { used };
   used += 1;
   if (dedupRoot.json && typeof dedupRoot.json === "object") {
     for (const [msgId, reporters] of Object.entries(dedupRoot.json)) {
-      if (used >= budget) break;
       if (openCases.has(msgId)) continue;
       if (!reporters || typeof reporters !== "object") continue;
       if (!reporters[reporterHash]) continue;
@@ -137,6 +127,8 @@ export async function eraseReporterArtifacts(config, token, emu, ns, reporterHas
       } catch {
         continue;
       }
+      if (!spend(1)) break;
+      used += 1;
       await rtdbRequest(
         config,
         rtdbPath("chat", "internal", "reportDedup", msgId, reporterHash),
@@ -146,14 +138,14 @@ export async function eraseReporterArtifacts(config, token, emu, ns, reporterHas
         emu,
         ns
       );
-      used += 1;
     }
   }
   return { used };
 }
 
-async function countDeletableOwn(config, token, emu, ns, sid, authUid) {
-  const msgs = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
+async function countDeletableOwn(config, token, emu, ns, sid, authUid, cache, spend) {
+  const msgs = await rtdbSpend(config, token, emu, ns, "chat/messages", "GET", null, spend);
+  if (msgs.skipped) return { count: 0, subrequests: 0 };
   let n = 0;
   if (msgs.json && typeof msgs.json === "object") {
     for (const [id, m] of Object.entries(msgs.json)) {
@@ -163,11 +155,11 @@ async function countDeletableOwn(config, token, emu, ns, sid, authUid) {
       } catch {
         continue;
       }
-      if (await messageErasureBlocked(config, token, emu, ns, id, m)) continue;
+      if (messageBlockedInCache(id, m, cache)) continue;
       n += 1;
     }
   }
-  return { count: n, subrequests: 1 };
+  return { count: n, subrequests: 0 };
 }
 
 export async function runUserErasureBatch({
@@ -179,13 +171,20 @@ export async function runUserErasureBatch({
   now,
   storedCursor,
   budget,
-  staleRetry = false
+  staleRetry = false,
+  bypassRateLimit = false
 }) {
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
   let subrequests = 0;
-  const bump = (n = 1) => {
+  let budgetExceeded = false;
+  const spend = (n = 1) => {
+    if (subrequests + n > budget) {
+      budgetExceeded = true;
+      return false;
+    }
     subrequests += n;
+    return true;
   };
 
   let cursorMsgId = null;
@@ -193,30 +192,57 @@ export async function runUserErasureBatch({
     try {
       cursorMsgId = assertFirebaseId(String(storedCursor), "cursor");
     } catch {
-      return { ok: false, error: "invalid_cursor" };
+      return { ok: false, error: "invalid_cursor", subrequests };
     }
   }
 
-  const cursorActive = await rtdbRequest(config, pathChatMeta(authUid, "erasureCursor"), "GET", null, token, emu, ns);
-  bump();
+  const cursorActive = await rtdbSpend(
+    config,
+    token,
+    emu,
+    ns,
+    pathChatMeta(authUid, "erasureCursor"),
+    "GET",
+    null,
+    spend
+  );
   const jobActive = Boolean(cursorActive.json);
 
-  const lastReq = await rtdbRequest(config, pathChatMeta(authUid, "lastErasureRequestAt"), "GET", null, token, emu, ns);
-  bump();
+  const lastReq = await rtdbSpend(
+    config,
+    token,
+    emu,
+    ns,
+    pathChatMeta(authUid, "lastErasureRequestAt"),
+    "GET",
+    null,
+    spend
+  );
   const lastAt = typeof lastReq.json === "number" ? lastReq.json : 0;
-  if (!jobActive && lastAt && now - lastAt < config.erasureMinIntervalMs) {
-    return { ok: false, error: "erasure_rate_limit", retryMs: config.erasureMinIntervalMs - (now - lastAt) };
+  if (!jobActive && !bypassRateLimit && !staleRetry && lastAt && now - lastAt < config.erasureMinIntervalMs) {
+    return {
+      ok: false,
+      error: "erasure_rate_limit",
+      retryMs: config.erasureMinIntervalMs - (now - lastAt),
+      subrequests
+    };
   }
 
   if (!jobActive) {
-    await rtdbRequest(config, pathChatMeta(authUid, "erasureJobStartedAt"), "PUT", now, token, emu, ns);
-    bump();
-    await rtdbRequest(config, pathChatMeta(authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns);
-    bump();
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "erasureJobStartedAt"), "PUT", now, spend);
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "lastErasureRequestAt"), "PUT", now, spend);
   }
 
-  const msgs = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
-  bump();
+  const cache = await loadSafetyBlockCache(config, token, emu, ns, spend);
+  if (budgetExceeded) {
+    return { ok: true, complete: false, continueScheduled: true, subrequests, budgetExceeded: true };
+  }
+
+  const msgs = await rtdbSpend(config, token, emu, ns, "chat/messages", "GET", null, spend);
+  if (msgs.skipped) {
+    return { ok: true, complete: false, continueScheduled: true, subrequests, budgetExceeded: true };
+  }
+
   const entries = Object.entries(msgs.json || {}).sort(([a], [b]) => a.localeCompare(b));
   let deleted = 0;
   const deferred = [];
@@ -224,17 +250,18 @@ export async function runUserErasureBatch({
   let processedAll = true;
   let skipping = Boolean(cursorMsgId);
   let cursorFound = !cursorMsgId;
+  let maxDeletes = config.erasureBatchSize;
 
   for (const [id, m] of entries) {
+    if (budgetExceeded) {
+      nextCursor = nextCursor || id;
+      processedAll = false;
+      break;
+    }
     if (skipping) {
       if (id !== cursorMsgId) continue;
       skipping = false;
       cursorFound = true;
-    }
-    if (subrequests >= budget) {
-      nextCursor = id;
-      processedAll = false;
-      break;
     }
     if (!isOwnMessage(m, sid, authUid)) continue;
     try {
@@ -243,39 +270,44 @@ export async function runUserErasureBatch({
       continue;
     }
 
-    const blocked = await messageErasureBlocked(config, token, emu, ns, id, m);
-    bump(1);
-    if (subrequests >= budget) {
+    if (messageBlockedInCache(id, m, cache)) {
+      await deferMessageErasure(config, token, emu, ns, id, m, now, config, spend);
+      if (budgetExceeded) {
+        nextCursor = id;
+        processedAll = false;
+        break;
+      }
+      deferred.push(id);
+      continue;
+    }
+
+    if (deleted >= maxDeletes) {
       nextCursor = id;
       processedAll = false;
       break;
     }
-    if (blocked) {
-      await deferMessageErasure(config, token, emu, ns, id, m, now, config);
-      bump(1);
-      deferred.push(id);
-      continue;
-    }
 
-    const cur = await rtdbRequest(config, pathChatMessage(id), "GET", null, token, emu, ns);
-    bump(1);
-    if (!cur.json || !isOwnMessage(cur.json, sid, authUid)) continue;
-    if (await messageErasureBlocked(config, token, emu, ns, id, cur.json)) {
-      await deferMessageErasure(config, token, emu, ns, id, cur.json, now, config);
-      bump(1);
-      deferred.push(id);
-      continue;
+    const cur = await rtdbSpend(config, token, emu, ns, pathChatMessage(id), "GET", null, spend);
+    if (cur.skipped) {
+      nextCursor = id;
+      processedAll = false;
+      break;
     }
-    await rtdbRequest(config, pathChatMessage(id), "DELETE", null, token, emu, ns);
-    bump(1);
+    if (!cur.json || !isOwnMessage(cur.json, sid, authUid)) continue;
+
+    await rtdbSpend(config, token, emu, ns, pathChatMessage(id), "DELETE", null, spend);
+    if (budgetExceeded) {
+      nextCursor = id;
+      processedAll = false;
+      break;
+    }
     deleted += 1;
   }
 
   if (cursorMsgId && !cursorFound) {
-    await rtdbRequest(config, pathChatMeta(authUid, "erasureCursor"), "DELETE", null, token, emu, ns);
-    bump();
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "erasureCursor"), "DELETE", null, spend);
     if (!staleRetry) {
-      const retry = await runUserErasureBatch({
+      return runUserErasureBatch({
         config,
         env,
         token,
@@ -284,49 +316,39 @@ export async function runUserErasureBatch({
         now,
         storedCursor: null,
         budget,
-        staleRetry: true
-      });
-      return {
+        staleRetry: true,
+        bypassRateLimit: true
+      }).then(retry => ({
         ...retry,
         subrequests: subrequests + (retry.subrequests || 0),
         staleCursorCleared: true
-      };
+      }));
     }
   }
 
-  const openCases = await openCaseMsgIds(config, token, emu, ns);
-  bump(3);
+  const openCases = await openCaseMsgIds(config, token, emu, ns, spend);
   const reporterHash = assertReportHash(await anonymizeUid(authUid, env.SAFE_CHAT_HASH_SALT || ""));
-  const repBudget = Math.max(0, budget - subrequests);
-  if (repBudget > 2) {
-    const rep = await eraseReporterArtifacts(config, token, emu, ns, reporterHash, repBudget, openCases);
-    subrequests += rep.used;
+  const repBudget = budget - subrequests;
+  if (repBudget > 0 && !budgetExceeded) {
+    await eraseReporterArtifacts(config, token, emu, ns, reporterHash, openCases, spend);
   }
 
-  const remaining = await countDeletableOwn(config, token, emu, ns, sid, authUid);
-  subrequests += remaining.subrequests;
-  const complete = remaining.count === 0 && processedAll && !nextCursor && deferred.length === 0;
+  const remaining = await countDeletableOwn(config, token, emu, ns, sid, authUid, cache, spend);
+  const complete = remaining.count === 0 && processedAll && !nextCursor && deferred.length === 0 && !budgetExceeded;
 
-  if (complete) {
-    await rtdbRequest(config, pathChatMeta(authUid, "blockedSids"), "DELETE", null, token, emu, ns);
-    bump();
-    await rtdbRequest(config, pathChatMeta(authUid, "chatRegisteredAt"), "DELETE", null, token, emu, ns);
-    bump();
-    await rtdbRequest(config, pathChatMeta(authUid, "chatAge13DeclaredAt"), "DELETE", null, token, emu, ns);
-    bump();
-    await rtdbRequest(config, pathChatMeta(authUid, "chatSendCount"), "DELETE", null, token, emu, ns);
-    bump();
-    await rtdbRequest(config, pathChatMeta(authUid, "erasureCursor"), "DELETE", null, token, emu, ns);
-    bump();
-    await rtdbRequest(config, pathChatMeta(authUid, "erasureJobStartedAt"), "DELETE", null, token, emu, ns);
-    bump();
-  } else if (nextCursor) {
+  if (complete && !budgetExceeded) {
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "blockedSids"), "DELETE", null, spend);
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "chatRegisteredAt"), "DELETE", null, spend);
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "chatAge13DeclaredAt"), "DELETE", null, spend);
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "chatSendCount"), "DELETE", null, spend);
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "erasureCursor"), "DELETE", null, spend);
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "erasureJobStartedAt"), "DELETE", null, spend);
+  } else if (nextCursor && !budgetExceeded) {
     const cursorStr = String(nextCursor);
     if (cursorStr.length > config.erasureCursorMaxLen) {
-      return { ok: false, error: "invalid_cursor" };
+      return { ok: false, error: "invalid_cursor", subrequests };
     }
-    await rtdbRequest(config, pathChatMeta(authUid, "erasureCursor"), "PUT", cursorStr, token, emu, ns);
-    bump();
+    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "erasureCursor"), "PUT", cursorStr, spend);
   }
 
   return {
@@ -337,7 +359,9 @@ export async function runUserErasureBatch({
     cursor: complete ? null : nextCursor,
     remainingDeletable: remaining.count,
     subrequests,
-    continueScheduled: !complete
+    continueScheduled: !complete,
+    budgetExceeded,
+    staleCursorCleared: staleRetry ? true : undefined
   };
 }
 

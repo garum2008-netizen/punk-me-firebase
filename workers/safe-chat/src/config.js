@@ -59,8 +59,8 @@ export function loadConfig(env) {
       env.SAFE_CHAT_SAFETY_LEGAL_BASIS ||
       "GDPR Art. 17(3)(f) child protection + DSA Art. 9 illegal content (DRAFT — legal review)",
     globalMsgReportsPerDay: parseInt(env.SAFE_CHAT_GLOBAL_MSG_REPORTS_PER_DAY || "100", 10),
-    erasureMaxSubrequests: parseInt(env.SAFE_CHAT_ERASURE_MAX_SUBREQUESTS || "45", 10),
-    erasureBatchSize: parseInt(env.SAFE_CHAT_ERASURE_BATCH || "40", 10),
+    erasureMaxSubrequests: parseInt(env.SAFE_CHAT_ERASURE_MAX_SUBREQUESTS || "40", 10),
+    erasureBatchSize: parseInt(env.SAFE_CHAT_ERASURE_BATCH || "15", 10),
     erasureMinIntervalMs: parseInt(env.SAFE_CHAT_ERASURE_MIN_INTERVAL_MS || String(60 * 60 * 1000), 10),
     erasureDeferredTtlMs: parseInt(
       env.SAFE_CHAT_ERASURE_DEFERRED_TTL_MS || String(90 * 24 * 60 * 60 * 1000),
