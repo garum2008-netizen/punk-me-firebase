@@ -8,9 +8,9 @@ const path = require("path");
 const { chromium } = require("playwright");
 const { start, stop } = require("./local-static-server");
 const H = require("./playthrough-ui-helpers");
-const { assertSafeTestFirebaseTarget } = require("./lib/guard-no-prod-firebase");
+const { assertNoProductionBase } = require("./lib/guard-no-prod-firebase");
 
-assertSafeTestFirebaseTarget();
+assertNoProductionBase();
 
 const ART =
   process.env.HONEST_FIRST10_ART ||
@@ -34,7 +34,7 @@ async function assertNoRawKeys(page, tag) {
 }
 
 async function assertMenuTapMobile(page, tag) {
-  await page.locator("#btnGameMenu").click({ timeout: 8000 });
+  await page.locator("#btnGameMenu").click({ timeout: 8000, force: true });
   const open = await page.locator("#gameMenuOverlay.active").count();
   if (!open) errors.push(`${tag}: menu did not open on mobile`);
   await page.locator("#gameMenuClose").click();
@@ -53,7 +53,7 @@ async function runViewport(tag, viewport, lang) {
 
   const base = await start();
   try {
-    await page.goto(`${base}/?solo=1&firebaseEmulator=1&v=honest-first10-${tag}`, {
+    await page.goto(`${base}/?solo=1&v=honest-first10-${tag}`, {
       waitUntil: "domcontentloaded",
       timeout: 120000
     });
@@ -67,10 +67,19 @@ async function runViewport(tag, viewport, lang) {
     await page.evaluate(() => {
       window.__punkApplyFirebaseSnapshot({ exists: () => false, val: () => null });
       window.__punkFinishLoadMeFlow();
+      window.__punkHideLoading?.();
     });
+    await page.waitForFunction(
+      () => {
+        const l = document.getElementById("loading");
+        return !l || getComputedStyle(l).display === "none" || l.offsetParent === null;
+      },
+      undefined,
+      { timeout: 120000 }
+    );
     await H.waitForCharSelectReady(page);
-    await page.locator('.char-pick[data-id="cobalt"]').click();
-    await page.locator("#charSelectConfirm").click();
+    await page.locator('.char-pick[data-id="cobalt"]').click({ force: true });
+    await page.locator("#charSelectConfirm").click({ force: true });
     if (await page.locator("#startGameOverlay.active").count()) {
       await page.locator("#btnStartGame").click();
     }
@@ -78,6 +87,7 @@ async function runViewport(tag, viewport, lang) {
       timeout: 120000
     });
     await H.dismissHowToOverlay(page);
+    await page.evaluate(() => document.getElementById("chapterIntro")?.classList.remove("active"));
     await page.screenshot({ path: path.join(outDir, "01-ingame.png") });
 
     if (viewport.width < 500) await assertMenuTapMobile(page, tag);

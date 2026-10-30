@@ -9,6 +9,10 @@ async function sleep(ms) {
 async function waitForCharSelectReady(page, timeout = 120000) {
   await page.waitForFunction(
     () => {
+      const loading = document.getElementById("loading");
+      if (loading && loading.offsetParent !== null && getComputedStyle(loading).display !== "none") {
+        return false;
+      }
       const ov = document.getElementById("charSelect");
       if (!ov?.classList.contains("active")) return false;
       const pick = document.querySelector('.char-pick[data-id="cobalt"]');
