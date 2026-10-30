@@ -22,7 +22,7 @@
   {
     "id": "desktop-chromium-link-email-uid",
     "pass": true,
-    "detail": "{\"ok\":true,\"uid\":\"Qhunst61FUcEbYYyBhvdsxcuf5q2\",\"uidBefore\":\"Qhunst61FUcEbYYyBhvdsxcuf5q2\",\"email\":\"punktest+1792855426067@contractbot.dk\"}"
+    "detail": "{\"ok\":true,\"uid\":\"[REDACTED_UID]\",\"uidBefore\":\"[REDACTED_UID]\",\"email\":\"punktest+[REDACTED]@contractbot.dk\"}"
   },
   {
     "id": "mobile-webkit-reload-coins",
@@ -47,7 +47,7 @@
   {
     "id": "mobile-webkit-link-email-uid",
     "pass": true,
-    "detail": "{\"ok\":true,\"uid\":\"YESbgovn5COZQAJZJBTqKvGS7wB2\",\"uidBefore\":\"YESbgovn5COZQAJZJBTqKvGS7wB2\",\"email\":\"punktest+1792855439297@contractbot.dk\"}"
+    "detail": "{\"ok\":true,\"uid\":\"[REDACTED_UID]\",\"uidBefore\":\"[REDACTED_UID]\",\"email\":\"punktest+[REDACTED]@contractbot.dk\"}"
   },
   {
     "id": "webkit-safari-google-popup",
