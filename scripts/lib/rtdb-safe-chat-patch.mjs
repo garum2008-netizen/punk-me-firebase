@@ -39,21 +39,20 @@ export const CHAT_META_RULES = {
   }
 };
 
-/** Block client writes to chat-only keys still under players/$uid (legacy paths). */
-export const PLAYER_CHAT_DENY_WRITES = {
-  chatRegisteredAt: {
-    ".write": false
-  },
-  chatAge13DeclaredAt: {
-    ".write": false
-  },
-  chatBlocklist: {
-    ".write": false
-  }
-};
+/** Legacy chat keys on players/$uid: cannot add, change, or delete (cascade-safe). */
+export const PLAYER_CHAT_LOCK_VALIDATE = [
+  "chatAge13DeclaredAt",
+  "chatRegisteredAt",
+  "chatBlocklist"
+]
+  .map(
+    f =>
+      `((!newData.hasChild('${f}') && !data.hasChild('${f}')) || (newData.hasChild('${f}') && data.hasChild('${f}') && newData.child('${f}').val() == data.child('${f}').val()))`
+  )
+  .join(" && ");
 
-/** Parent validate: legacy chat keys on players/$uid cannot be added or changed by clients (cascade-safe). */
-export const PLAYER_CHAT_LOCK_VALIDATE = `(!newData.hasChild('chatAge13DeclaredAt') || (data.exists() && newData.child('chatAge13DeclaredAt').val() === data.child('chatAge13DeclaredAt').val())) && (!newData.hasChild('chatRegisteredAt') || (data.exists() && newData.child('chatRegisteredAt').val() === data.child('chatRegisteredAt').val())) && (!newData.hasChild('chatBlocklist') || (data.exists() && newData.child('chatBlocklist').val() === data.child('chatBlocklist').val()))`;
+/** @deprecated child .write:false does not revoke parent grant — kept empty for patch compat */
+export const PLAYER_CHAT_DENY_WRITES = {};
 
 /**
  * @param {object} rulesRoot — parsed database.rules.json `rules` object

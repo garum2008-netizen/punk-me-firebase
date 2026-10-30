@@ -151,6 +151,42 @@ async function run() {
     pass: saveName.status === 200 && saveCoins.status === 200
   });
 
+  await fetchJson(dbUrl(`players/${localId}/chatAge13DeclaredAt`, null, true), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "999"
+  });
+  const delAge = await fetchJson(dbUrl(`players/${localId}/chatAge13DeclaredAt`, idToken), {
+    method: "DELETE"
+  });
+  cases.push({
+    name: "client cannot delete players chatAge13DeclaredAt",
+    pass: delAge.status === 403 || delAge.status === 401
+  });
+
+  const badBlocklist = await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ peer: true, other: true })
+  });
+  cases.push({
+    name: "client cannot alter players chatBlocklist object",
+    pass: badBlocklist.status === 403 || badBlocklist.status === 401
+  });
+
+  await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, null, true), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ peer: true })
+  });
+  const delBlock = await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, idToken), {
+    method: "DELETE"
+  });
+  cases.push({
+    name: "client cannot delete players chatBlocklist",
+    pass: delBlock.status === 403 || delBlock.status === 401
+  });
+
   const writeReport = await fetchJson(dbUrl("chat/reports", idToken), {
     method: "POST",
     headers: { "Content-Type": "application/json" },

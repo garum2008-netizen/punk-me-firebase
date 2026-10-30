@@ -8,7 +8,7 @@
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
         ".write": "auth != null && auth.uid === $uid",
-        ".validate": "(!newData.hasChild('chatAge13DeclaredAt') || (data.exists() && newData.child('chatAge13DeclaredAt').val() === data.child('chatAge13DeclaredAt').val())) && (!newData.hasChild('chatRegisteredAt') || (data.exists() && newData.child('chatRegisteredAt').val() === data.child('chatRegisteredAt').val())) && (!newData.hasChild('chatBlocklist') || (data.exists() && newData.child('chatBlocklist').val() === data.child('chatBlocklist').val()))",
+        ".validate": "((!newData.hasChild('chatAge13DeclaredAt') && !data.hasChild('chatAge13DeclaredAt')) || (newData.hasChild('chatAge13DeclaredAt') && data.hasChild('chatAge13DeclaredAt') && newData.child('chatAge13DeclaredAt').val() == data.child('chatAge13DeclaredAt').val())) && ((!newData.hasChild('chatRegisteredAt') && !data.hasChild('chatRegisteredAt')) || (newData.hasChild('chatRegisteredAt') && data.hasChild('chatRegisteredAt') && newData.child('chatRegisteredAt').val() == data.child('chatRegisteredAt').val())) && ((!newData.hasChild('chatBlocklist') && !data.hasChild('chatBlocklist')) || (newData.hasChild('chatBlocklist') && data.hasChild('chatBlocklist') && newData.child('chatBlocklist').val() == data.child('chatBlocklist').val()))",
         "name": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
         },
@@ -101,15 +101,6 @@
         },
         "linkedAuth": {
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
-        },
-        "chatRegisteredAt": {
-          ".write": false
-        },
-        "chatAge13DeclaredAt": {
-          ".write": false
-        },
-        "chatBlocklist": {
-          ".write": false
         }
       }
     },
