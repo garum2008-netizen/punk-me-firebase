@@ -443,19 +443,22 @@ export function createAudioManager() {
     }
 
     rampDuck(true);
-    const url = resolveLineUrl(job.id, job.lang);
+    const hasManifest = !!(voiceManifest?.lines?.[job.id]);
+    const url = hasManifest ? resolveLineUrl(job.id, job.lang) : null;
     let played = false;
-    try {
-      const buf = await decodeUrl(url);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(channel.speech.gain);
-      src.onended = () => finishSpeechLine(handle, detail);
-      src.start();
-      activeSpeech.audio = src;
-      played = true;
-    } catch (e) {
-      played = false;
+    if (url) {
+      try {
+        const buf = await decodeUrl(url);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(channel.speech.gain);
+        src.onended = () => finishSpeechLine(handle, detail);
+        src.start();
+        activeSpeech.audio = src;
+        played = true;
+      } catch (e) {
+        played = false;
+      }
     }
 
     if (!played && settings.temporaryVoice && job.subtitle && window.speechSynthesis) {

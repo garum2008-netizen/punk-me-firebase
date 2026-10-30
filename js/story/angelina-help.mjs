@@ -139,16 +139,17 @@ export function onAngelinaHelpRequest() {
     return;
   }
   if (nextTier === 4) {
-    if (!step.hint_solution) {
+    const solutionText = L(step.hint_solution || step.hint_exact || step.hint_60s || step.objective);
+    if (!solutionText) {
       renderPanel(t("angelina_no_solution"));
       return;
     }
     showSolutionConfirm(() => {
       track.tier = 4;
       markSeenExplain(help, eid);
-      const txt = L(step.hint_solution);
-      renderPanel(txt);
-      if (step.hint_solution_path) window.Onboarding?.showSolutionPath?.();
+      renderPanel(`${t("angelina_hint_exact")}: ${solutionText}`);
+      window.Onboarding?.showSolutionPath?.();
+      window.StoryEngine?.syncBeacon?.();
       window.saveMe?.();
     });
     return;

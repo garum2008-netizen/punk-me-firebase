@@ -9,7 +9,9 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "room" }),
     hint_nudge: { ru: "Осмотрись вокруг", en: "Look around", da: "Kig rundt" },
     hint_60s: { ru: "Покрути камеру или пройдись", en: "Turn the camera or walk", da: "Drej kameraet eller gå" },
-    hint_exact: { ru: "WASD или стик — сделай несколько шагов", en: "WASD or stick — take a few steps", da: "WASD — tag et par skridt" }
+    hint_exact: { ru: "WASD или стик — сделай несколько шагов", en: "WASD or stick — take a few steps", da: "WASD — tag et par skridt" },
+    hint_solution: { ru: "WASD или стик — сделай несколько шагов", en: "WASD or stick — take a few steps", da: "WASD — tag et par skridt" },
+    hint_solution_path: true
   },
   {
     id: "mom",
@@ -20,7 +22,9 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "room", wx: 8, wz: 42, door: "kitchen" }),
     hint_nudge: { ru: "Мама зовёт", en: "Mom is calling", da: "Mor kalder" },
     hint_60s: { ru: "Дверь на кухню слева", en: "Kitchen door on the left", da: "Køkkendør til venstre" },
-    hint_exact: { ru: "Подойди к двери на кухню и нажми E", en: "Go to the kitchen door and press E", da: "Gå til køkkendøren og tryk E" }
+    hint_exact: { ru: "Подойди к двери на кухню и нажми E", en: "Go to the kitchen door and press E", da: "Gå til køkkendøren og tryk E" },
+    hint_solution: { ru: "Подойди к двери на кухню и нажми E", en: "Go to the kitchen door and press E", da: "Gå til køkkendøren og tryk E" },
+    hint_solution_path: true
   },
   {
     id: "shnurok_intro",
@@ -31,7 +35,9 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "kitchen", wx: 0, wz: 30, bowl: true }),
     hint_nudge: { ru: "Шнурок голоден", en: "Shnurok is hungry", da: "Shnurok er sulten" },
     hint_60s: { ru: "Миска на кухне", en: "Bowl in the kitchen", da: "Skål i køkkenet" },
-    hint_exact: { ru: "Нажми E у миски", en: "Press E at the food bowl", da: "Tryk E ved skålen" }
+    hint_exact: { ru: "Нажми E у миски", en: "Press E at the food bowl", da: "Tryk E ved skålen" },
+    hint_solution: { ru: "Нажми E у миски на кухне", en: "Press E at the bowl in the kitchen", da: "Tryk E ved skålen i køkkenet" },
+    hint_solution_path: true
   },
   {
     id: "journal",
@@ -42,7 +48,9 @@ const ONBOARDING_STEPS = [
     target: () => ({ ui: "journal" }),
     hint_nudge: { ru: "Задание записано", en: "Quest logged", da: "Opgave logget" },
     hint_60s: { ru: "Открой журнал", en: "Open the journal", da: "Åbn journalen" },
-    hint_exact: { ru: "Меню ☰ → журнал или клавиша Esc", en: "Menu ☰ → journal or Esc", da: "Menu ☰ → journal" }
+    hint_exact: { ru: "Меню ☰ → журнал или клавиша Esc", en: "Menu ☰ → journal or Esc", da: "Menu ☰ → journal" },
+    hint_solution: { ru: "Меню ☰ → журнал или клавиша Esc", en: "Menu ☰ → journal or Esc", da: "Menu ☰ → journal" },
+    hint_solution_path: false
   },
   {
     id: "shnurok_play",
@@ -53,7 +61,9 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "room", npcId: "shnurok" }),
     hint_nudge: { ru: "Шнурок хочет играть", en: "Shnurok wants to play", da: "Shnurok vil lege" },
     hint_60s: { ru: "Погладь пса и брось мяч", en: "Pet the dog and throw the ball", da: "Klapp hunden og kast bolden" },
-    hint_exact: { ru: "E у Шнурка: погладить и мяч ×3", en: "E near Shnurok: pet and ball ×3", da: "E ved Shnurok: klap og bold ×3" }
+    hint_exact: { ru: "E у Шнурка: погладить и мяч ×3", en: "E near Shnurok: pet and ball ×3", da: "E ved Shnurok: klap og bold ×3" },
+    hint_solution: { ru: "E у Шнурка: погладить и мяч ×3", en: "E near Shnurok: pet and ball ×3", da: "E ved Shnurok: klap og bold ×3" },
+    hint_solution_path: true
   },
   {
     id: "avatar",
@@ -64,7 +74,9 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "room", wx: 75, wz: 50, mirror: true }),
     hint_nudge: { ru: "Выбери образ", en: "Pick your look", da: "Vælg dit look" },
     hint_60s: { ru: "Зеркало в комнате", en: "Mirror in your room", da: "Spejl på værelset" },
-    hint_exact: { ru: "Подойди к зеркалу и нажми E", en: "Go to the mirror and press E", da: "Gå til spejlet og tryk E" }
+    hint_exact: { ru: "Подойди к зеркалу и нажми E", en: "Go to the mirror and press E", da: "Gå til spejlet og tryk E" },
+    hint_solution: { ru: "Подойди к зеркалу и нажми E", en: "Go to the mirror and press E", da: "Gå til spejlet og tryk E" },
+    hint_solution_path: true
   },
   {
     id: "move",
@@ -88,7 +100,9 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "room" }),
     hint_nudge: { ru: "Попробуй взаимодействие", en: "Try interacting", da: "Prøv at interagere" },
     hint_60s: { ru: "Нажми E рядом с объектом", en: "Press E near an object", da: "Tryk E ved et objekt" },
-    hint_exact: { ru: "E у дивана или телевизора", en: "E at the sofa or TV", da: "E ved sofaen eller TV" }
+    hint_exact: { ru: "E у дивана или телевизора", en: "E at the sofa or TV", da: "E ved sofaen eller TV" },
+    hint_solution: { ru: "E у дивана или телевизора", en: "E at the sofa or TV", da: "E ved sofaen eller TV" },
+    hint_solution_path: true
   },
   {
     id: "house",
@@ -112,7 +126,9 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "elevator", door: "street" }),
     hint_nudge: { ru: "Пора на улицу", en: "Time for the street", da: "Tid til gaden" },
     hint_60s: { ru: "Лифт ведёт вниз", en: "Elevator goes down", da: "Elevatoren går ned" },
-    hint_exact: { ru: "В лифте выбери «Улица»", en: "In the elevator pick Street", da: "Vælg Gade i elevatoren" }
+    hint_exact: { ru: "В лифте выбери «Улица»", en: "In the elevator pick Street", da: "Vælg Gade i elevatoren" },
+    hint_solution: { ru: "В лифте выбери «Улица»", en: "In the elevator pick Street", da: "Vælg Gade i elevatoren" },
+    hint_solution_path: true
   },
   {
     id: "talk_razor",
@@ -123,7 +139,9 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "street", npcId: "razor" }),
     hint_nudge: { ru: "Тебя ждут на улице", en: "They wait outside", da: "De venter ude" },
     hint_60s: { ru: "Рейзор у стены", en: "Razor by the wall", da: "Razor ved muren" },
-    hint_exact: { ru: "Подойди к Рейзору и нажми E", en: "Go to Razor and press E", da: "Gå til Razor og tryk E" }
+    hint_exact: { ru: "Подойди к Рейзору и нажми E", en: "Go to Razor and press E", da: "Gå til Razor og tryk E" },
+    hint_solution: { ru: "Подойди к Рейзору и нажми E", en: "Go to Razor and press E", da: "Gå til Razor og tryk E" },
+    hint_solution_path: true
   }
 ];
 
@@ -273,6 +291,23 @@ function syncGuideTarget() {
 
 function showSolutionPath() {
   syncGuideTarget();
+  const st = currentStep();
+  if (!st || !window.StoryEngine?.setBeacon) return;
+  const tgt = st.target();
+  if (tgt.npcId) {
+    const beacon = tgt.npcId === "mohawk" ? "npc_mohawk_street" : `npc_${tgt.npcId}`;
+    window.StoryEngine.setBeacon(beacon);
+    window.StoryEngine.syncBeacon?.();
+    return;
+  }
+  if (tgt.bowl) {
+    window.StoryEngine.setBeacon("obj_dog_bowl");
+    window.StoryEngine.syncBeacon?.();
+    return;
+  }
+  if (tgt.door === "kitchen") {
+    window.StoryEngine.setBeacon("npc_zoya");
+  }
 }
 
 function onMove(x, y) {
@@ -306,8 +341,12 @@ function showMomSubtitle(line) {
   if (!el) return;
   el.textContent = line;
   el.classList.add("visible");
+  el.dataset.subtitleLockUntil = String(Date.now() + 4800);
   clearTimeout(window._momSubtitleTimer);
-  window._momSubtitleTimer = setTimeout(() => el.classList.remove("visible"), 4200);
+  window._momSubtitleTimer = setTimeout(() => {
+    el.classList.remove("visible");
+    delete el.dataset.subtitleLockUntil;
+  }, 4800);
 }
 
 function onMomTalk() {

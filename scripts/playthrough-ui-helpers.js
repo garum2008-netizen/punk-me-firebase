@@ -6,6 +6,21 @@ async function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+async function waitForCharSelectReady(page, timeout = 120000) {
+  await page.waitForFunction(
+    () => {
+      const ov = document.getElementById("charSelect");
+      if (!ov?.classList.contains("active")) return false;
+      const pick = document.querySelector('.char-pick[data-id="cobalt"]');
+      if (!pick || pick.offsetWidth < 1) return false;
+      const btn = document.getElementById("charSelectConfirm");
+      return btn && !btn.disabled;
+    },
+    undefined,
+    { timeout }
+  );
+}
+
 async function bootSolo(page, base, cacheBust = "playtest-ui", opts = {}) {
   const ep = opts.episodeCapture ? "&episodeCapture=1" : "";
   await page.goto(`${base}/?solo=1${ep}&v=${cacheBust}`, { waitUntil: "domcontentloaded", timeout: 120000 });
@@ -18,7 +33,7 @@ async function bootSolo(page, base, cacheBust = "playtest-ui", opts = {}) {
     window.__punkApplyFirebaseSnapshot({ exists: () => false, val: () => null });
     window.__punkFinishLoadMeFlow();
   });
-  await page.waitForSelector("#charSelectConfirm:not([disabled])", { timeout: 120000 });
+  await waitForCharSelectReady(page);
   await page.evaluate(() => {
     window.__force2dFight = true;
   });
@@ -599,6 +614,7 @@ async function finishInitiationUi(page) {
 
 module.exports = {
   sleep,
+  waitForCharSelectReady,
   bootSolo,
   dismissHowToOverlay,
   pickCobaltUi,

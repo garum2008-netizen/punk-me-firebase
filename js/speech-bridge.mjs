@@ -51,13 +51,20 @@ function markHeard(lineId) {
 
 function subtitleFor(lineId, text, characterId) {
   const sub = text || "";
+  if (!characterId || characterId === "narrator") {
+    if (characterId === "narrator" && typeof window.t === "function") {
+      const name = window.t("narrator_name");
+      if (sub.startsWith(`${name}:`)) return sub;
+      return `${name}: ${sub}`;
+    }
+    return sub;
+  }
+  const cid = String(characterId).replace(/^npc_/, "");
   const name =
-    characterId && characterId !== "narrator" && typeof window.tNpcName === "function"
-      ? window.tNpcName(characterId)
-      : characterId === "narrator" && typeof window.t === "function"
-        ? window.t("narrator_name")
-        : "";
-  return name ? `${name}: ${sub}` : sub;
+    typeof window.tNpcName === "function" ? window.tNpcName(cid) : cid;
+  if (!name || name === `npc_${cid}`) return sub;
+  if (sub.startsWith(`${name}:`) || sub.startsWith(`${name}：`)) return sub;
+  return `${name}: ${sub}`;
 }
 
 export async function initSpeechBridge() {
@@ -66,6 +73,8 @@ export async function initSpeechBridge() {
   am.addEventListener("onLineStart", ev => {
     const sub = document.getElementById("voiceSubtitle");
     if (!sub) return;
+    const lockUntil = Number(sub.dataset.subtitleLockUntil || 0);
+    if (lockUntil && Date.now() < lockUntil) return;
     const text = ev.detail?.subtitle || "";
     sub.textContent = text;
     sub.classList.add("visible");
@@ -75,6 +84,8 @@ export async function initSpeechBridge() {
     if (ev.detail?.id) markHeard(ev.detail.id);
     const sub = document.getElementById("voiceSubtitle");
     if (!sub) return;
+    const lockUntil = Number(sub.dataset.subtitleLockUntil || 0);
+    if (lockUntil && Date.now() < lockUntil) return;
     clearTimeout(sub._hideT);
     sub._hideT = setTimeout(() => sub.classList.remove("visible"), 400);
   });

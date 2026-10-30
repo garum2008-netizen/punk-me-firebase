@@ -240,10 +240,7 @@ function speakStoryLine(speaker, text, lineId) {
     window.SpeechBridge.play({
       lineId,
       text,
-      characterId: cid,
-      subtitle: speaker
-        ? `${typeof window.tNpcName === "function" ? window.tNpcName(cid) : speaker}: ${text}`
-        : text
+      characterId: cid
     });
   } else if (window.Voice) {
     Voice.speakCharacter(cid, text);

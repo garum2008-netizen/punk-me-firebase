@@ -25,6 +25,7 @@ async function boot(page, base) {
     window.__punkApplyFirebaseSnapshot({ exists: () => false, val: () => null });
     window.__punkFinishLoadMeFlow();
   });
+  await H.waitForCharSelectReady(page);
   await page.locator('.char-pick[data-id="cobalt"]').click();
   await page.locator("#charSelectConfirm").click({ timeout: 60000 });
   if (await page.locator("#startGameOverlay.active").count()) {

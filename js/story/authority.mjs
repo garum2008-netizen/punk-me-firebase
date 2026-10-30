@@ -190,7 +190,7 @@ export function getAuthorityObjective(p = me()) {
       title: L(stages[0]?.title),
       objective: L(
         onStreet
-          ? { ru: "Найди Мохока на улице и поговори с ним", en: "Find Mohawk on the street and talk to him", da: "Find Mohawk på gaden og tal med ham" }
+          ? { ru: "Найди Ирокеза на улице и поговори с ним", en: "Find Mohawk on the street and talk to him", da: "Find Mohawk på gaden og tal med ham" }
           : { ru: "Иди на Улицу — банда подкалывает", en: "Go to Gang Street — the gang is teasing", da: "Gå til Bandegaden" }
       ),
       beacon: "npc_mohawk_street"

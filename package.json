@@ -17,6 +17,7 @@
     "test:p1-gameplay-economy": "node scripts/test-p1-gameplay-economy.mjs",
     "test:p0-first-10min": "node scripts/p0-first-10min-playthrough.js",
     "test:newcomer-no-force": "node scripts/newcomer-no-force-playthrough.js",
+    "test:honest-first10-e2e": "node scripts/honest-first10-e2e.mjs",
     "test:rules": "node scripts/run-rules-emulator.js",
     "list:test-artifacts": "node scripts/list-test-artifacts.mjs",
     "generate:voice-audit-samples": "node scripts/generate-voice-audit-samples.mjs",

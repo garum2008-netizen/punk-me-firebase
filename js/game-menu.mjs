@@ -13,6 +13,7 @@ function setStartOverlayVisible(visible) {
   const btn = el("btnStartGame");
   if (!ov) return;
   if (visible) {
+    refreshStartOverlayCopy();
     ov.classList.add("active");
     ov.setAttribute("aria-hidden", "false");
     ov.inert = false;
@@ -26,6 +27,17 @@ function setStartOverlayVisible(visible) {
   }
 }
 
+function refreshStartOverlayCopy() {
+  const body = el("startGameOverlay")?.querySelector("[data-i18n=start_game_body]");
+  if (!body || typeof t !== "function") return;
+  const me = window.me;
+  const inCh1 =
+    me?.onboarding?.done ||
+    (me?.story?.chapter != null && me.story.chapter >= 1) ||
+    me?.story?.flags?.ch1_started;
+  body.textContent = inCh1 ? t("start_game_body_ch1") : t("start_game_body");
+}
+
 function shouldSkipStartOverlay() {
   const me = window.me;
   if (!me) return false;
@@ -37,6 +49,25 @@ function shouldSkipStartOverlay() {
     if (Object.keys(prog).some(k => !k.startsWith("_") && (prog[k] || 0) > 0)) return true;
   }
   return false;
+}
+
+function shouldPlayStartNarrator() {
+  const me = window.me;
+  if (!me?.onboarding || me.onboarding.done) return false;
+  if ((me.onboarding.step || 0) > 0) return false;
+  return true;
+}
+
+function playStartNarrator() {
+  if (!shouldPlayStartNarrator()) return;
+  const line = typeof t === "function" ? t("start_narrator_welcome") : "";
+  if (!line || line === "start_narrator_welcome") return;
+  window.SpeechBridge?.play?.({
+    text: line,
+    characterId: "narrator",
+    lineId: "start_narrator_welcome",
+    subtitle: line
+  });
 }
 
 function renderJournal() {
@@ -93,6 +124,7 @@ export function initGameMenu() {
 function playEp1Line(id, fallbackKey) {
   const am = getAudioManager();
   const subtitle = typeof t === "function" ? t(fallbackKey) : id;
+  if (!subtitle || subtitle === fallbackKey) return;
   am?.playLine?.(id, { subtitle, lang: lang() });
 }
 
@@ -119,8 +151,7 @@ export function showStartGameOverlay(onStart) {
     const am = getAudioManager();
     am?.unlockAudio?.().then(() => {
       am?.setLocationMusic?.(window.me?.location || "room");
-      playEp1Line("ep1_intro_01", "ep1_intro_01");
-      playEp1Line("ep1_intro_02", "ep1_intro_02");
+      playStartNarrator();
     });
     onStart?.();
   };
@@ -131,6 +162,7 @@ export function initStartFlow() {
   window.openGameMenu = openGameMenu;
   window.closeGameMenu = closeGameMenu;
   window.playEpisodeTutorialLine = playTutorialLineForStep;
+  window.refreshStartOverlayCopy = refreshStartOverlayCopy;
   if (window.__playerLoaded && window.me?.characterId && !window.me.tutorial?.episode1Started) {
     showStartGameOverlay(() => {});
   }

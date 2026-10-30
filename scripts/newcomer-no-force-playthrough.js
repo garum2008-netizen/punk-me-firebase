@@ -28,7 +28,7 @@ async function freshBoot(page, base, lang, viewport) {
     window.__punkApplyFirebaseSnapshot({ exists: () => false, val: () => null });
     window.__punkFinishLoadMeFlow();
   });
-  await page.waitForSelector("#charSelectConfirm:not([disabled])", { timeout: 120000 });
+  await H.waitForCharSelectReady(page);
   await page.locator('.char-pick[data-id="cobalt"]').click({ noWaitAfter: true });
   await page.locator("#charSelectConfirm").click({ timeout: 60000, noWaitAfter: true });
   if (await page.locator("#startGameOverlay.active").count()) {
