@@ -1,5 +1,4 @@
 node_modules/
-package-lock.json
 .DS_Store
 qa-out/
 database-debug.log
