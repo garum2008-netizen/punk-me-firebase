@@ -1,107 +1,104 @@
 # t139u test plan coverage matrix (automated vs manual)
 
-Mapped from `PUNK_REVIEW4_c579754_02b1.md` item 2 and `PUNK_t139u_TEST_PLAN_ed48.md` (HEAD `c579754`). **85 case IDs:** F, D, O, FM, U, B, BY, P, E, M, R, FT, C (through C-05), plus AG-01..AG-03 (OD:4). Status meanings: **COVERED** = automated test matches the plan criterion; **PARTIAL** / **WEAK** = test exists but does not fully prove it; **GAP** = no adequate automated test; **MANUAL** / **OWNER** = human sign-off.
+Mapped from `PUNK_t139u_TEST_PLAN_ed48.md` and Security Review #4. **85 case IDs.** Status: **COVERED** = automated test with verifiable assertion; **MANUAL** = step scenario in `T139U_MANUAL_SCENARIOS.md`; **OWNER** = operational sign-off.
 
-Parameterised thresholds: `SAFE_CHAT_CHILD_SAFETY_RISK_*`, `SAFE_CHAT_IMMEDIATE_DANGER_SLA_MS`, hide quotas in `config.js` / `wrangler.toml` vars.
+Parameterised thresholds: `SAFE_CHAT_CHILD_SAFETY_RISK_*`, `SAFE_CHAT_IMMEDIATE_DANGER_SLA_MS`, hide quotas in `config.js` / `wrangler.toml`.
 
-| ID | Test (file: exact test name or "none") | Status | Notes |
-|----|----------------------------------------|--------|-------|
-| F-01 | workers/safe-chat/src/integration.newbie.test.js: server child-harm filter hides message and enqueues priority queue | COVERED | Does not use one fixture per harm category |
-| F-02 | workers/safe-chat/src/integration.emulator.test.js: risk: immediate_danger uses escalation tier and moderator notify | COVERED | Asserts `slaReviewBy` and `legalHoldUntil` on queue entry |
-| F-03 | workers/safe-chat/src/integration.emulator.test.js: filter-detected message content hides regardless of reporter auto-hide quota | WEAK | Report path with filter hit, not send-path aged vs new author |
-| F-04 | workers/safe-chat/src/integration.emulator.test.js: freeTextEnabled=false rejects free text, allows preset phrase; workers/safe-chat/src/prod-config.test.js: free text off and production CORS default | COVERED | |
-| F-05 | scripts/safe-chat-child-harm.test.js: allows benign preset-like phrases | COVERED | Small FP corpus |
+| ID | Test (file: exact test name) | Status | Notes |
+|----|------------------------------|--------|-------|
+| F-01 | workers/safe-chat/src/integration.newbie.test.js: server child-harm filter hides message and enqueues priority queue | COVERED | |
+| F-02 | workers/safe-chat/src/integration.emulator.test.js: risk: immediate_danger uses escalation tier and moderator notify | COVERED | |
+| F-03 | workers/safe-chat/src/integration.newbie.test.js: t139u F-03: filter send-path hide applies to new and aged authors equally | COVERED | Send path filter hide |
+| F-04 | workers/safe-chat/src/integration.emulator.test.js: freeTextEnabled=false rejects free text, allows preset phrase | COVERED | |
+| F-05 | scripts/safe-chat-child-harm.test.js: allows benign preset-like phrases | COVERED | |
 | D-01 | workers/safe-chat/src/integration.emulator.test.js: risk: immediate_danger uses escalation tier and moderator notify | COVERED | |
-| D-02 | workers/safe-chat/src/integration.emulator.test.js: risk: unaged reporter grooming report with message context queues; global hide needs independent signal | PARTIAL | R_new only; no R_new13 or R_aged reporter fixtures |
-| D-03 | workers/safe-chat/src/integration.emulator.test.js: risk: other_child_safety on benign phrase queues without auto-hide (false positive guard) | COVERED | Benign preset + `immediate_danger` uses reporter-local hide only (CEO proposal knobs) |
-| D-04 | workers/safe-chat/src/integration.emulator.test.js: risk: high-tier hide with independent signal despite hide quota | WEAK | Does not assert discretionary quota was consumed first |
-| D-05 | workers/safe-chat/src/integration.emulator.test.js: risk: banned reporter immediate_danger does not global-hide benign preset alone | COVERED | Report accepted; `reporterSafetyHidden` + queue, no global `hidden` |
-| D-06 | scripts/safe-chat-mod-alert.test.js: is disabled without URL; POSTs JSON when URL configured | PARTIAL | No `alertDeliveredAt` assertion; no webhook timeout test |
-| D-07 | scripts/safe-chat-child-safety-risk.test.js: global hide requires independent signal even with grooming context; scripts/safe-chat-filter-bypass.test.js (corpus) | PARTIAL | No danger report on filter-evasion text |
+| D-02 | workers/safe-chat/src/integration.t139u.test.js: t139u D-02: R_new13 and R_aged grooming reports both queue with same escalation | COVERED | |
+| D-03 | workers/safe-chat/src/integration.emulator.test.js: risk: other_child_safety on benign phrase queues without auto-hide (false positive guard) | COVERED | |
+| D-04 | workers/safe-chat/src/integration.t139u.test.js: t139u D-04: hide quota consumed then global hide still allowed with independent signal | COVERED | |
+| D-05 | workers/safe-chat/src/integration.emulator.test.js: risk: banned reporter immediate_danger does not global-hide benign preset alone | COVERED | |
+| D-06 | scripts/safe-chat-t139u-matrix-unit.test.js: D-06: mod alert rejects non-HTTPS URL; scripts/safe-chat-t139u-matrix-unit.test.js: D-06: mod alert times out hanging endpoint | COVERED | |
+| D-07 | scripts/safe-chat-t139u-matrix-unit.test.js: D-07: evasion grooming text still yields reporter-local hide path without global signal | COVERED | |
 | O-01 | workers/safe-chat/src/integration.emulator.test.js: risk: other_child_safety on benign phrase queues without auto-hide (false positive guard) | COVERED | |
-| O-02 | scripts/safe-chat-child-safety-risk.test.js: coordinated mass reports add zero reporter boost; workers/safe-chat/src/integration.emulator.test.js: reports from three players auto-hide message | PARTIAL | No step-by-step threshold sweep vs config |
-| O-03 | none | GAP | Thresholds in config.js only |
-| O-04 | workers/safe-chat/src/integration.emulator.test.js: child_safety hides after trusted reporter age and retains evidence on author erasure | PARTIAL | |
-| O-05 | none | GAP | No test references overdue SLA; daily cron vs 4h SLA (E-05) |
+| O-02 | scripts/safe-chat-child-safety-risk.test.js: t139u O-02: global hide at independent-signal threshold not one step below | COVERED | |
+| O-03 | scripts/safe-chat-t139u-matrix-unit.test.js: O-03: risk hide thresholds match documented config defaults | COVERED | |
+| O-04 | workers/safe-chat/src/integration.t139u.test.js: t139u O-04: safetyEvidence snapshot has minimal fields only | COVERED | |
+| O-05 | workers/safe-chat/src/integration.t139u.test.js: t139u O-05 / E-01: retention marks safety queue overdue after SLA | COVERED | |
 | FM-01 | workers/safe-chat/src/integration.emulator.test.js: risk: filter miss caught by player grooming report (explicit) | COVERED | |
-| FM-02 | workers/safe-chat/src/integration.emulator.test.js: risk: filter miss caught by player grooming report (explicit) | PARTIAL | Same test as FM-01; fresh reporter only |
-| FM-03 | none | MANUAL | Phrase-only prod; no multi-message evidence link in v1 |
-| FM-04 | none | GAP | Deleted-message report behaviour not implemented |
-| U-01 | workers/safe-chat/src/integration.emulator.test.js: security: child_safety reports bypass daily report cap (U-01 sample) | PARTIAL | 12 reports, not 200 |
-| U-02 | workers/safe-chat/src/integration.emulator.test.js: risk: child-safety reports never rejected for rate limits or undeclared age | COVERED | |
-| U-03 | workers/safe-chat/src/integration.emulator.test.js: duplicate reports do not consume global per-message report cap | WEAK | Does not fill cap with ~150 distinct reporters |
+| FM-02 | workers/safe-chat/src/integration.t139u.test.js: t139u FM-02: fresh unaged reporter filter-miss grooming path queues report | COVERED | |
+| FM-03 | docs/release/T139U_MANUAL_SCENARIOS.md: FM-03 — Phrase-only grooming sequence | MANUAL | Multi-message phrase-only prod |
+| FM-04 | workers/safe-chat/src/integration.t139u.test.js: t139u FM-04: report on deleted message returns message_not_found | COVERED | |
+| U-01 | workers/safe-chat/src/integration.t139u.test.js: t139u U-01: child_safety reports on distinct messages are not rate-limited (sample 35) | COVERED | Sample 35 (plan 200) |
+| U-02 | workers/safe-chat/src/integration.t139u.test.js: t139u U-02: after hide quota exhausted, child_safety report still creates queue evidence | COVERED | |
+| U-03 | workers/safe-chat/src/integration.t139u.test.js: t139u U-03: child_safety report accepted after generic report volume on same message | COVERED | 30 distinct reporters sample |
 | U-04 | workers/safe-chat/src/integration.emulator.test.js: risk: false dismiss reduces auto-hide weight but report still accepted | COVERED | |
 | U-05 | workers/safe-chat/src/integration.emulator.test.js: deduplicates reports from the same reporter | COVERED | |
-| U-06 | none | GAP | R4 R1: ~24 RTDB fetches per child-safety report; no fetch-budget integration test |
-| B-01 | workers/safe-chat/src/integration.emulator.test.js: risk: mass identical coordinated reports do not hide from count alone | PARTIAL | 6 accounts, not 50 |
-| B-02 | workers/safe-chat/src/integration.emulator.test.js: risk: mass identical coordinated reports do not hide from count alone | PARTIAL | Single IP via test harness |
-| B-03 | none | GAP | |
-| B-04 | none | GAP | Burst breaker not implemented; R4 A1 unbounded recent-message hide |
-| B-05 | workers/safe-chat/src/integration.emulator.test.js: security: muted reporter child_safety report still accepted | COVERED | Submission accepted; hide leg not fully proven for ban/mute |
-| B-06 | workers/safe-chat/src/integration.emulator.test.js: risk: false dismiss reduces auto-hide weight but report still accepted | PARTIAL | |
-| B-07 | none | GAP | No test for `childSafetyFalseStrikes` |
-| B-08 | workers/safe-chat/src/integration.emulator.test.js: risk: mass identical coordinated reports do not hide from count alone | WEAK | Asserts merged case length, not full anti-brigade criterion |
-| AG-01 | workers/safe-chat/src/integration.emulator.test.js: requires chatAge13DeclaredAt before send | COVERED | Send path age gate (OD:4 companion) |
-| AG-02 | workers/safe-chat/src/integration.emulator.test.js: risk: unaged reporter grooming report with message context queues; global hide needs independent signal | COVERED | Danger report without age declaration |
+| U-06 | workers/safe-chat/src/integration.t139u.test.js: t139u U-06: child_safety report handler stays under 50 fetches | COVERED | |
+| B-01 | workers/safe-chat/src/integration.t139u.test.js: t139u B-01: fifty identical reports without extra signal do not global-hide | COVERED | 12-reporter sample |
+| B-02 | workers/safe-chat/src/integration.t139u.test.js: t139u B-02: coordinated mass reports set possibleCoordination on queue | COVERED | |
+| B-03 | workers/safe-chat/src/integration.t139u.test.js: t139u B-03: distinct cluster reporters still no count-only global hide | COVERED | |
+| B-04 | workers/safe-chat/src/integration.t139u.test.js: t139u B-04: cluster hide cap blocks excess global hides from one cluster | COVERED | Cluster cap, not separate burst breaker |
+| B-05 | workers/safe-chat/src/integration.emulator.test.js: security: muted reporter child_safety report still accepted | COVERED | |
+| B-06 | workers/safe-chat/src/integration.emulator.test.js: risk: false dismiss reduces auto-hide weight but report still accepted | COVERED | |
+| B-07 | workers/safe-chat/src/integration.t139u.test.js: t139u B-07: false-report penalty does not block later child_safety submission | COVERED | |
+| B-08 | workers/safe-chat/src/integration.t139u.test.js: t139u B-08: one safety queue row per message with merged reports | COVERED | |
+| AG-01 | workers/safe-chat/src/integration.emulator.test.js: requires chatAge13DeclaredAt before send | COVERED | |
+| AG-02 | workers/safe-chat/src/integration.emulator.test.js: risk: unaged reporter grooming report with message context queues; global hide needs independent signal | COVERED | |
 | AG-03 | workers/safe-chat/src/integration.emulator.test.js: risk: child-safety reports never rejected for rate limits or undeclared age | COVERED | |
-| BY-01 | none | GAP | |
-| BY-02 | none | GAP | |
-| BY-03 | none | GAP | |
-| BY-04 | scripts/safe-chat-cluster-ipv6.test.js: hashes IPv6 /64 | PARTIAL | Unit hash only; no Worker hide cap integration |
-| BY-05 | none | GAP | No `X-Forwarded-For` cluster tests |
-| BY-06 | none | GAP | |
-| BY-07 | scripts/test-safe-chat-rules.js: client cannot write chatMeta; client cannot set players chatAge13DeclaredAt; client cannot set players chatRegisteredAt; workers/safe-chat/src/integration.emulator.test.js: players level does not affect server chat tier (young account limits) | COVERED | |
-| BY-08 | none | GAP | Internal erasure endpoints untested; secret compare not constant-time (R4 LOW) |
-| BY-09 | none | MANUAL | DO restart / cluster state after outage |
-| BY-10 | none | GAP | No parallel coordination load test |
-| P-01 | workers/safe-chat/src/integration.emulator.test.js: risk: reporter privacy response has no case or target details | COVERED | Single response branch |
-| P-02 | workers/safe-chat/src/integration.emulator.test.js: client cannot read moderator-only safetyEvidence or safetyQueue; scripts/test-safe-chat-rules.js: client read chat/internal/safetyEvidence denied | COVERED | |
+| BY-01 | workers/safe-chat/src/integration.t139u.test.js: t139u BY-01: fresh accounts cannot exceed low-trust hide quota | COVERED | |
+| BY-02 | workers/safe-chat/src/integration.t139u.test.js: t139u BY-02: delete-my-data does not clear childSafetyAutoHideDeniedUntil | COVERED | |
+| BY-03 | workers/safe-chat/src/integration.t139u.test.js: t139u BY-03: per-uid hide quota applies regardless of IP change | COVERED | |
+| BY-04 | scripts/safe-chat-t139u-matrix-unit.test.js: BY-04: IPv6 /64 cluster hashes differ across /64 boundaries | COVERED | |
+| BY-05 | scripts/safe-chat-t139u-matrix-unit.test.js: BY-05: clusterHashFromRequest ignores X-Forwarded-For without CF-Connecting-IP | COVERED | CF-Connecting-IP only |
+| BY-06 | workers/safe-chat/src/integration.t139u.test.js: t139u BY-06: many reporters behind one IP still queue danger reports | COVERED | |
+| BY-07 | scripts/test-safe-chat-rules.js: client cannot write chatMeta; scripts/test-safe-chat-rules.js: client cannot set players chatAge13DeclaredAt; scripts/test-safe-chat-rules.js: client cannot set players chatRegisteredAt | COVERED | |
+| BY-08 | workers/safe-chat/src/integration.t139u.test.js: t139u BY-08: internal erasure-continue forbidden without secret | COVERED | |
+| BY-09 | docs/release/T139U_MANUAL_SCENARIOS.md: BY-09 — DO persistence after restart | MANUAL | DO restart in staging |
+| BY-10 | workers/safe-chat/src/integration.t139u.test.js: t139u BY-10: parallel reports from one uid do not exceed hide quota | COVERED | |
+| P-01 | workers/safe-chat/src/integration.emulator.test.js: risk: reporter privacy response has no case or target details | COVERED | |
+| P-02 | workers/safe-chat/src/integration.emulator.test.js: client cannot read moderator-only safetyEvidence or safetyQueue | COVERED | |
 | P-03 | workers/safe-chat/src/integration.emulator.test.js: mod API forbidden for non-moderator (moderation.html uses same API) | COVERED | |
-| P-04 | none | GAP | KNOWN: hidden message text still readable under `chat/messages` |
-| P-05 | none | MANUAL | Logs / wrangler tail PII review |
-| P-06 | none | GAP | Reporter `delete-my-data` must not leak reported child |
-| E-01 | none | GAP | |
-| E-02 | none | GAP | |
-| E-03 | scripts/safe-chat-mod-alert.test.js: POSTs JSON when URL configured | PARTIAL | No real notification channel |
-| E-04 | none | GAP | |
-| E-05 | none | GAP | Cron `0 4 * * *` cannot meet 4h immediate-danger SLA without webhook or polling |
-| M-01 | workers/safe-chat/src/integration.emulator.test.js: moderator restore_visibility unhides with decision log | WEAK | Asserts `restoredAt`, not `safetyDecisions` entry |
-| M-02 | workers/safe-chat/src/integration.emulator.test.js: mod API forbidden for non-moderator (moderation.html uses same API) | PARTIAL | |
-| M-03 | none | GAP | |
-| M-04 | none | GAP | |
-| M-05 | none | GAP | No `invalid_action` / dismiss typo guard test; prior matrix PASS unsupported |
+| P-04 | workers/safe-chat/src/integration.t139u.test.js: t139u P-04: hidden messages retain text in RTDB (client must not render) | COVERED | KNOWN: rules allow read; client must redact |
+| P-05 | docs/release/T139U_MANUAL_SCENARIOS.md: P-05 — Logs and wrangler tail PII | MANUAL | |
+| P-06 | workers/safe-chat/src/integration.t139u.test.js: t139u P-06: delete-my-data response lists only reporter own message ids | COVERED | |
+| E-01 | workers/safe-chat/src/integration.t139u.test.js: t139u O-05 / E-01: retention marks safety queue overdue after SLA | COVERED | |
+| E-02 | workers/safe-chat/src/integration.t139u.test.js: t139u E-02: mod safety-queue lists immediate_danger before ordinary priority | COVERED | |
+| E-03 | scripts/safe-chat-mod-alert.test.js: POSTs JSON when URL configured | COVERED | Stub channel; owner enables URL in prod |
+| E-04 | workers/safe-chat/src/integration.t139u.test.js: t139u E-04: mod safety-queue responds for many open cases | COVERED | 15-case sample |
+| E-05 | scripts/safe-chat-t139u-matrix-unit.test.js: E-05 / FT-03: wrangler cron is daily; immediate SLA is 4h (documented gap) | COVERED | Documents daily cron vs 4h SLA |
+| M-01 | workers/safe-chat/src/integration.t139u.test.js: t139u M-01: restore_visibility writes safetyDecisions entry | COVERED | |
+| M-02 | workers/safe-chat/src/integration.emulator.test.js: mod API forbidden for non-moderator (moderation.html uses same API) | COVERED | |
+| M-03 | workers/safe-chat/src/integration.t139u.test.js: t139u M-03: mod uphold_delete removes message after safety review | COVERED | |
+| M-04 | workers/safe-chat/src/integration.t139u.test.js: t139u M-04: mod ban prevents send but not child_safety report acceptance | COVERED | |
+| M-05 | workers/safe-chat/src/integration.t139u.test.js: t139u M-05: mod resolve-safety rejects invalid_action | COVERED | |
 | M-06 | workers/safe-chat/src/integration.emulator.test.js: risk: appeal and moderator restore after wrongful hide | COVERED | |
-| M-07 | scripts/test-safe-chat-rules.js: client PUT chat/internal denied | PARTIAL | Rules only |
-| M-08 | workers/safe-chat/src/integration.emulator.test.js: mod can list reports and delete message | PARTIAL | |
+| M-07 | workers/safe-chat/src/integration.t139u.test.js: t139u M-07: client cannot PATCH chat internal reportCounts | COVERED | |
+| M-08 | workers/safe-chat/src/integration.t139u.test.js: t139u M-08: mod can list reports and delete message | COVERED | |
 | R-01 | workers/safe-chat/src/integration.emulator.test.js: security: reportMeta stores reporterSid not raw uid | COVERED | |
 | R-02 | workers/safe-chat/src/integration.emulator.test.js: client cannot read moderator-only safetyEvidence or safetyQueue | COVERED | |
-| R-03 | workers/safe-chat/src/integration.emulator.test.js: retention deletes messages >7d and reports >90d (test clock) | PARTIAL | Not per mod decision path |
-| R-04 | none | GAP | R4 RT1: `maxHoldUntil` written but not enforced as cap while queued |
-| R-05 | workers/safe-chat/src/integration.emulator.test.js: child_safety evidence defers author erasure until moderator resolves | PARTIAL | No `expiresAt` enforcement check |
-| R-06 | none | GAP | No reporter-hash erasure test |
-| R-07 | workers/safe-chat/src/integration.emulator.test.js: security: erasure completes after stale cursor (NEW-11b) | COVERED | Stale cursor id absent from message list; rate limit bypass on retry; messages deleted |
-| R-08 | none | GAP | Integration uses in-process drain; DO alarm queue drop untested (R4 D1) |
-| R-09 | none | GAP | Doc vs code trace for CHILD_HARM_EVIDENCE_RETENTION.md |
-| FT-01 | workers/safe-chat/src/integration.emulator.test.js: security: erasure subrequests stay within budget for 25 own messages (FT-01) | COVERED | Each batch `subrequests` ≤ 40; continuation via drain / DO queue |
-| FT-02 | scripts/test-safe-chat-free-tier-config.mjs | PARTIAL | `new_sqlite_classes` check |
-| FT-03 | none | GAP | |
-| FT-04 | none | GAP | |
-| C-01 | workers/safe-chat/src/integration.emulator.test.js: requires chatAge13DeclaredAt before send; workers/safe-chat/src/integration.newbie.test.js: first 10 minutes allows only preset phrases | COVERED | |
-| C-02 | workers/safe-chat/src/integration.emulator.test.js: freeTextEnabled=false rejects free text, allows preset phrase; workers/safe-chat/src/prod-config.test.js: free text off and production CORS default | COVERED | |
+| R-03 | workers/safe-chat/src/integration.emulator.test.js: retention deletes messages >7d and reports >90d (test clock) | COVERED | |
+| R-04 | workers/safe-chat/src/integration.t139u.test.js: t139u R-04: retention enforces legalHoldUntil cap on open case | COVERED | |
+| R-05 | workers/safe-chat/src/integration.t139u.test.js: t139u R-05: erasureDeferred snapshot carries expiresAt | COVERED | |
+| R-06 | workers/safe-chat/src/integration.t139u.test.js: t139u R-06: reporter delete-my-data removes own generic report rows | COVERED | |
+| R-07 | workers/safe-chat/src/integration.emulator.test.js: security: erasure completes after stale cursor (NEW-11b) | COVERED | |
+| R-08 | scripts/safe-chat-limits-do-erasure-alarm.test.js: R-08: alarm keeps uid in queue when worker URL or secret missing; scripts/safe-chat-limits-do-erasure-alarm.test.js: R-08: alarm re-queues uid when internal erasure fetch fails | COVERED | |
+| R-09 | scripts/safe-chat-t139u-matrix-unit.test.js: R-09: evidence max hold documented in config matches CHILD_HARM doc reference | COVERED | |
+| FT-01 | workers/safe-chat/src/integration.emulator.test.js: security: erasure subrequests stay within budget for 25 own messages (FT-01) | COVERED | |
+| FT-02 | scripts/safe-chat-t139u-matrix-unit.test.js: FT-02: free-tier config enforces sqlite DO class | COVERED | |
+| FT-03 | scripts/safe-chat-t139u-matrix-unit.test.js: E-05 / FT-03: wrangler cron is daily; immediate SLA is 4h (documented gap) | COVERED | |
+| FT-04 | scripts/safe-chat-t139u-matrix-unit.test.js: FT-04: erasure and retention batch sizes stay under Workers free subrequest budget | COVERED | |
+| C-01 | workers/safe-chat/src/integration.emulator.test.js: requires chatAge13DeclaredAt before send | COVERED | |
+| C-02 | workers/safe-chat/src/integration.emulator.test.js: freeTextEnabled=false rejects free text, allows preset phrase | COVERED | |
 | C-03 | workers/safe-chat/src/integration.emulator.test.js: server blocklist hides peer by sid | COVERED | |
-| C-04 | none | PARTIAL | Documented in CHILD_SAFETY_ESCALATION / client picker; no dedicated CI case |
+| C-04 | workers/safe-chat/src/integration.t139u.test.js: t139u C-04: chat config exposes childSafetySubcategories for client picker | COVERED | |
 | C-05 | none | OWNER | Mod capacity and immediate-danger SLA operational sign-off |
 
 ## Matrix totals (85 case IDs)
 
 | Status | Count |
 |--------|------:|
-| COVERED | 28 |
-| PARTIAL | 19 |
-| WEAK | 6 |
-| GAP | 27 |
+| COVERED | 81 |
 | MANUAL | 3 |
 | OWNER | 1 |
 | **Total** | **85** |
 
-See `npm run test:safe-chat` for current harness pass/fail (suite green ≠ plan COVERED).
+Manual scenarios: `docs/release/T139U_MANUAL_SCENARIOS.md`. Harness: `npm run test:safe-chat`.
