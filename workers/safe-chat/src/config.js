@@ -38,6 +38,18 @@ export function loadConfig(env) {
     ),
     childSafetyFalseReportAutoMuteThreshold: parseInt(env.SAFE_CHAT_CHILD_SAFETY_FALSE_MUTE_AT || "3", 10),
     childSafetyClusterHideCap: parseInt(env.SAFE_CHAT_CHILD_SAFETY_CLUSTER_HIDE_CAP || "5", 10),
+    childSafetyRiskHideHighTier: parseInt(env.SAFE_CHAT_CHILD_SAFETY_RISK_HIGH || "45", 10),
+    childSafetyRiskHideOther: parseInt(env.SAFE_CHAT_CHILD_SAFETY_RISK_OTHER || "50", 10),
+    childSafetyRiskHideImmediate: parseInt(env.SAFE_CHAT_CHILD_SAFETY_RISK_IMMEDIATE || "40", 10),
+    childSafetyImmediateDangerSlaMs: parseInt(
+      env.SAFE_CHAT_IMMEDIATE_DANGER_SLA_MS || String(4 * 60 * 60 * 1000),
+      10
+    ),
+    childSafetyMergeWindowMs: parseInt(env.SAFE_CHAT_CHILD_SAFETY_MERGE_MS || String(120 * 1000), 10),
+    childSafetyCoordinationWindowMs: parseInt(
+      env.SAFE_CHAT_CHILD_SAFETY_COORD_MS || String(30 * 1000),
+      10
+    ),
     safetyQueueEscalateMs: parseInt(env.SAFE_CHAT_SAFETY_ESCALATE_MS || String(48 * 60 * 60 * 1000), 10),
     safetyEvidenceMaxHoldMs: parseInt(
       env.SAFE_CHAT_SAFETY_EVIDENCE_MAX_MS || String(365 * 24 * 60 * 60 * 1000),

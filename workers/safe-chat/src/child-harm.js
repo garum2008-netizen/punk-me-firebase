@@ -1,4 +1,4 @@
-import { collapseSpacedLetters, normalizeAsciiProfanity, stripInvisible } from "./filter.js";
+import { normalizeHarm } from "./child-harm-context.js";
 
 /** Draft pattern set — lawyer review before expanding. */
 const CHILD_HARM_STEMS = [
@@ -16,13 +16,6 @@ const CHILD_HARM_STEMS = [
   "cp link",
   "underage pic"
 ];
-
-function normalizeHarm(raw) {
-  let s = stripInvisible(String(raw || ""));
-  s = collapseSpacedLetters(s);
-  s = normalizeAsciiProfanity(s);
-  return s.replace(/\s+/g, " ").trim();
-}
 
 export function detectChildHarmSignals(text) {
   const n = normalizeHarm(text);
