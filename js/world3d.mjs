@@ -1620,8 +1620,16 @@ function init(h) {
     if (e.target !== canvas) return;
     api.updateDecorGhostFromEvent?.(e);
   });
-  initControls3D(canvas, delta => { cameraYaw += delta; });
-  initTouchControls({ onCameraOrbit: delta => { cameraYaw += delta; } });
+  initControls3D(canvas, delta => {
+    cameraYaw += delta;
+    window.Onboarding?.onCameraOrbit?.(delta);
+  });
+  initTouchControls({
+    onCameraOrbit: delta => {
+      cameraYaw += delta;
+      window.Onboarding?.onCameraOrbit?.(delta);
+    }
+  });
   window.addEventListener("resize", resize);
   document.body.classList.add("mode-world3d");
 

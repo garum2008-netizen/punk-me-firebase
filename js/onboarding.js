@@ -320,6 +320,14 @@ function onMove(x, y) {
   }
 }
 
+function onCameraOrbit(deltaRad) {
+  const st = currentStep();
+  if (!st) return;
+  if (st.key !== "ch0_awake" && st.key !== "ch0_move_done") return;
+  const acc = (window.me._onboardLookRad = (window.me._onboardLookRad || 0) + Math.abs(deltaRad || 0));
+  if (acc > 0.28) bump(st.key, 1);
+}
+
 function onEnterLocation(loc) {
   const st = currentStep();
   if (!st) return;
@@ -450,6 +458,7 @@ window.Onboarding = {
   syncGuideTarget,
   showSolutionPath,
   onMove,
+  onCameraOrbit,
   onEnterLocation,
   onMomTalk,
   onFeedBowl,

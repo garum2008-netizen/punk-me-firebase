@@ -179,9 +179,9 @@ async function runOnboarding(page, tag, mobile) {
     note(tag, "onboarding step", { key, loc: st.location, coins: st.coins });
 
     if (key === "ch0_awake" || key === "ch0_move_done") {
-      await Nav.ensureOverlaysClear(page);
       await Nav.waitGameplayUnblocked(page);
       await Nav.wanderMove(page, mobile);
+      await Nav.orbitLook(page);
       await Nav.walkTowardGuide(page, mobile, 40);
     } else if (key === "ch0_mom_talk") {
       await Nav.walkTowardGuide(page, mobile);
