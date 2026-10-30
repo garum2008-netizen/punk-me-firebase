@@ -17,5 +17,5 @@
 | [EFFORT_PLAN.md](./EFFORT_PLAN.md) | P0–P3 stack, testing order |
 | [OWNER_QUESTIONS.md](./OWNER_QUESTIONS.md) | Legacy Q1–Q16 detail (see **OWNER_DECISIONS** for t138u) |
 
-**Branch:** `cursor/redesign-docs-main-d81d` (docs-only from `main`) · **no deploy**, **no game code**.  
+**Branch:** `cursor/redesign-docs-main-d81d` · **Draft PR #51** (docs-only from `main`) · **no deploy**, **no game code**.  
 **Testing:** internal QA first → controlled child tests with Owner parental consent.

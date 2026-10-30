@@ -57,4 +57,4 @@ Everything else in the table below is **options + agent recommendation** and/or 
 
 ## Supersedes
 
-Detail for Q1–Q16: [`OWNER_QUESTIONS.md`](./OWNER_QUESTIONS.md). **Decision register for the docs-only redesign Draft PR (branch `cursor/redesign-docs-main-d81d`).** Owner marks **Decision:** `D# = ?` in PR comments.
+Detail for Q1–Q16: [`OWNER_QUESTIONS.md`](./OWNER_QUESTIONS.md). **Decision register for Draft PR #51** (`cursor/redesign-docs-main-d81d`, docs-only from `main`). PR #50 superseded for review.
