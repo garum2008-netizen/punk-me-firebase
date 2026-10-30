@@ -46,6 +46,33 @@ Docs (Oct 2026): [Workers pricing/limits](https://developers.cloudflare.com/work
 
 No Firebase Blaze, no paid moderation APIs.
 
+**Over-limit behaviour (Free):** Worker and DO return **429 / errors** (`cooldown`, `daily_limit`); Cloudflare does **not** auto-upgrade the account to paid tiers. Client shows **«Сообщение не отправлено»** / phrase-only UI when `SAFE_CHAT_FREE_TEXT=false`.
+
+## P0 owner checklist (10 points) — PASS/FAIL
+
+| # | Requirement | Result | Commit(s) | Automated test |
+|---|-------------|--------|-----------|----------------|
+| 1 | Free storage: `new_sqlite_classes` only; no paid bindings | **PASS** | `fc9a88d`, `983262d` | `test-safe-chat-prod-config.mjs`, `test-safe-chat-free-tier-config.mjs` |
+| 2 | Document Free limits; no silent billing | **PASS** | `fc9a88d`, `ac65902`, this doc | Review table above; limits in `config.js` / `wrangler.toml` |
+| 3 | Server-only chat; RTDB client writes denied; invalid JWT rejected | **PASS** | `fc9a88d`, `64fb469` | `test-safe-chat-rules.js`, `integration.emulator.test.js` (401) |
+| 4 | Filter RU/UK/EN/DA + bypass corpus (leet, ZW, homoglyphs, links, PII) | **PASS** | `f3b4f06`, `983262d` | `safe-chat-filter.test.js`, `safe-chat-filter-bypass.test.js` |
+| 5 | Spam limits, new-player restrictions, reports/mute/ban, child_safety | **PASS** | `ac65902`, `66cd7d7`, `5d4875a`, `fc9a88d` | `safe-chat-limits-policy.test.js`, `integration.emulator.test.js`, `integration.newbie.test.js` |
+| 6 | Mod API server auth (not UI-only) | **PASS** | `fc9a88d` | `integration.emulator.test.js` (`/api/mod/*` 403) |
+| 7 | Retention 7d / 90d; backup/log notes; safetyHold exception | **PASS** | `66cd7d7`, `0a4b0fb` | `integration.emulator.test.js` (`runRetentionJob`, child_safety hold) |
+| 8 | GDPR/DSA review drafts (no compliance claim) | **PASS** | `0a4b0fb` | Manual owner review of `GDPR_DSA_REVIEW.md`, `CHAT_RULES.md`, `CHAT_PRIVACY.md` |
+| 9 | Integration tests + `wrangler deploy --dry-run` | **PASS** | `983262d`, `64fb469` | `npm run test:safe-chat` |
+| 10 | This QA report + Free config summary | **PASS** | HEAD doc commit | Owner reads PR #46 + this file |
+
+## Rebase vs PR #45 (`cursor/prod-security-hotfix-d81d`)
+
+**Not merged.** Expected conflict in `database.rules.json`:
+
+- **`chat` subtree:** PR #45 keeps client push to `chat/$msgId`; PR #46 replaces with `chat/messages` + `.write: false` (server-only). **Keep PR #46 chat block** when rebasing after #45 merges.
+- **`players/$uid`:** PR #45 adds premium/entitlements/qa guards; PR #46 adds `chatBlocklist` / `chatRegisteredAt`. Merge both sides manually.
+- **`presence.$location.read`:** aligned to `auth != null` in commit `4695759` (same intent as #45).
+
+Run after #45 lands: `git fetch origin cursor/prod-security-hotfix-d81d && git rebase origin/cursor/prod-security-hotfix-d81d` and resolve `database.rules.json` as above.
+
 ## Secrets (owner sets at GO — **not done in this PR**)
 
 ```bash
