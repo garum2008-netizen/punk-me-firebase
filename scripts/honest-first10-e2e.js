@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * Honest first-10-min smoke (AUTOMATED): player input only — no window.Onboarding.* cheats.
- * Viewports 1440 + 390, emulator blocked prod via local-static-server guard.
+ * AUTOMATED smoke only — NOT full ch0→ch1. See test:honest-ch01-emulator-e2e.
  */
 const fs = require("fs");
 const path = require("path");
