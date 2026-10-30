@@ -330,6 +330,19 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 }
 .chat-body { display: block; }
 .chat-messages { height: 88px; overflow-y: auto; font-size: 12px; margin-bottom: 6px; }
+.chat-phrase-row {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; max-height: 52px; overflow-y: auto;
+}
+.chat-phrase-btn {
+  font-size: 10px; padding: 3px 6px; border-radius: 8px; border: 1px solid rgba(255,0,255,.35);
+  background: rgba(20,8,32,.85); color: #f4f0ff; cursor: pointer;
+}
+.chat-line { display: flex; align-items: flex-start; gap: 4px; }
+.chat-line-body { flex: 1; }
+.chat-report-btn, .chat-block-btn {
+  font-size: 9px; padding: 0 4px; min-width: 18px; border: none; background: transparent;
+  color: rgba(255,180,255,.75); cursor: pointer;
+}
 .chat input {
   width: 100%; padding: 7px; border: none; border-radius: 8px;
   background: #1a0a2e; color: #fff;
