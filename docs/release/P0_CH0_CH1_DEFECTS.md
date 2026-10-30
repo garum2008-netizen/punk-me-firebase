@@ -66,5 +66,6 @@ npm run test:p1-gameplay-economy
 | Камера кухни | `f867bd6` | мягче spawn sync в `world3d.mjs` |
 | Ложный +5 / +3 без монет | `492d464` + `b367a48` | pet toast только при награде; trash toast только при +coins |
 | **Честный e2e ch0→ch1** | `9c6d09f`…`1f4b151` | `npm run test:honest-ch01-emulator-e2e` (AUTOMATED); см. exit code в CI/агенте |
+| **Human phone playtest kit** | `docs/release/PLAYTEST_NEW_PLAYER_PHONE.md` | **не выполнялся** — только инструкция для живого теста |
 
 Smoke `test:honest-first10-e2e` на **`492d464`** — не полный проход (snapshot cheat / 3×E); заменён `test:honest-ch01-emulator-e2e`.
