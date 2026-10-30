@@ -8,6 +8,7 @@
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
         ".write": "auth != null && auth.uid === $uid",
+        ".validate": "(!newData.hasChild('chatAge13DeclaredAt') || (data.exists() && newData.child('chatAge13DeclaredAt').val() === data.child('chatAge13DeclaredAt').val())) && (!newData.hasChild('chatRegisteredAt') || (data.exists() && newData.child('chatRegisteredAt').val() === data.child('chatRegisteredAt').val())) && (!newData.hasChild('chatBlocklist') || (data.exists() && newData.child('chatBlocklist').val() === data.child('chatBlocklist').val()))",
         "name": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
         },
@@ -100,6 +101,15 @@
         },
         "linkedAuth": {
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
+        "chatRegisteredAt": {
+          ".write": false
+        },
+        "chatAge13DeclaredAt": {
+          ".write": false
+        },
+        "chatBlocklist": {
+          ".write": false
         }
       }
     },
@@ -122,10 +132,29 @@
       }
     },
     "chat": {
-      ".read": true,
-      "$msgId": {
-        ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 280",
-        ".validate": "newData.hasChildren(['uid', 'name', 'text', 'time']) && newData.child('name').isString() && newData.child('name').val().length <= 64"
+      "messages": {
+        ".read": "auth != null",
+        ".write": false,
+        "$msgId": {
+          ".read": "auth != null",
+          ".write": false
+        }
+      },
+      "reports": {
+        ".read": false,
+        ".write": false
+      },
+      "modState": {
+        ".read": false,
+        ".write": false,
+        "$uid": {
+          ".read": false,
+          ".write": false
+        }
+      },
+      "internal": {
+        ".read": false,
+        ".write": false
       }
     },
     "buildings": {
@@ -135,6 +164,12 @@
           ".write": "auth != null && ((!data.exists() && newData.child('owner').val() === auth.uid) || (data.exists() && data.child('owner').val() === auth.uid) || auth.token.admin === true)",
           ".validate": "newData.hasChildren(['type', 'x', 'y', 'owner']) && newData.child('type').isString() && (newData.child('owner').val() === auth.uid || auth.token.admin === true)"
         }
+      }
+    },
+    "chatMeta": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
       }
     }
   }

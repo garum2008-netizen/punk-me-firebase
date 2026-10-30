@@ -1,9 +1,9 @@
 /**
- * Safe-chat RTDB overlay on top of PR #45 hotfix (MINIMAL_CHAT_FOR_CLIENT).
- * Clients may read messages when authenticated; only the Worker (admin SDK / SA) writes.
+ * Safe-chat RTDB overlay (apply on PR #45 baseline or live export via build-safe-chat-rules.mjs).
+ * Clients: chat read auth-only, no client writes. Chat trust fields live under chatMeta (server-only).
  */
 
-/** Replaces legacy chat/$msgId client-write tree from main / hotfix repo file. */
+/** Server-only chat subtree — replaces legacy chat/$msgId client writes. */
 export const SAFE_CHAT_RTDB = {
   messages: {
     ".read": "auth != null",
@@ -31,19 +31,29 @@ export const SAFE_CHAT_RTDB = {
   }
 };
 
-export const PLAYER_SAFE_CHAT_FIELDS = {
-  chatBlocklist: {
-    ".validate": "true"
-  },
-  chatRegisteredAt: {
-    ".validate":
-      "!newData.exists() || (newData.isNumber() && newData.val() > 0 && (!data.exists() || newData.val() === data.val()))"
-  },
-  chatAge13DeclaredAt: {
+/** Per-user chat state — Worker (admin SDK) writes only. */
+export const CHAT_META_RULES = {
+  $uid: {
     ".read": "auth != null && auth.uid === $uid",
     ".write": false
   }
 };
+
+/** Block client writes to chat-only keys still under players/$uid (legacy paths). */
+export const PLAYER_CHAT_DENY_WRITES = {
+  chatRegisteredAt: {
+    ".write": false
+  },
+  chatAge13DeclaredAt: {
+    ".write": false
+  },
+  chatBlocklist: {
+    ".write": false
+  }
+};
+
+/** Parent validate: legacy chat keys on players/$uid cannot be added or changed by clients (cascade-safe). */
+export const PLAYER_CHAT_LOCK_VALIDATE = `(!newData.hasChild('chatAge13DeclaredAt') || (data.exists() && newData.child('chatAge13DeclaredAt').val() === data.child('chatAge13DeclaredAt').val())) && (!newData.hasChild('chatRegisteredAt') || (data.exists() && newData.child('chatRegisteredAt').val() === data.child('chatRegisteredAt').val())) && (!newData.hasChild('chatBlocklist') || (data.exists() && newData.child('chatBlocklist').val() === data.child('chatBlocklist').val()))`;
 
 /**
  * @param {object} rulesRoot — parsed database.rules.json `rules` object
@@ -51,26 +61,25 @@ export const PLAYER_SAFE_CHAT_FIELDS = {
 export function applySafeChatPatch(rulesRoot) {
   const out = JSON.parse(JSON.stringify(rulesRoot));
   out.chat = JSON.parse(JSON.stringify(SAFE_CHAT_RTDB));
+  out.chatMeta = JSON.parse(JSON.stringify(CHAT_META_RULES));
   const uid = out.players?.["$uid"] ?? {};
-  for (const [k, v] of Object.entries(PLAYER_SAFE_CHAT_FIELDS)) {
-    if (!uid[k]) uid[k] = v;
+  for (const [k, v] of Object.entries(PLAYER_CHAT_DENY_WRITES)) {
+    uid[k] = { ...(uid[k] || {}), ...v };
   }
+  const prevValidate = uid[".validate"];
+  uid[".validate"] = prevValidate
+    ? `(${prevValidate}) && (${PLAYER_CHAT_LOCK_VALIDATE})`
+    : PLAYER_CHAT_LOCK_VALIDATE;
   out.players["$uid"] = uid;
   return out;
 }
 
-/** Human-readable delta vs PR #45 MINIMAL_CHAT_FOR_CLIENT */
 export const SAFE_CHAT_RULES_DELTA_MD = `
-### RTDB chat rules: changes on top of PR #45
+### RTDB safe-chat overlay
 
-PR #45 (\`MINIMAL_CHAT_FOR_CLIENT\` in \`scripts/lib/rtdb-hotfix-patch.mjs\`) allows:
-- \`chat\` read when \`auth != null\`
-- \`chat/$msgId\` create when \`auth.uid === newData.uid\` (client push)
+- **chat/** — \`messages\` read \`auth != null\`; all writes **denied** (Worker uses admin SDK).
+- **chatMeta/$uid** — read owner only; **write denied** (age declaration, registration, blocklist, limit snapshots).
+- **players/$uid** — validate locks **chatRegisteredAt**, **chatAge13DeclaredAt**, **chatBlocklist** (immutable by owner; chat trust data under **chatMeta**).
 
-This PR **replaces** the \`chat\` subtree with:
-- \`chat/messages\` — read \`auth != null\`, **write denied** for all clients
-- \`chat/reports\`, \`chat/modState\`, \`chat/internal\` — no client read/write
-- Player profile fields \`chatBlocklist\`, \`chatRegisteredAt\` (user-owned blocklist + one-time registration timestamp)
-
-Legacy path \`chat/$msgId\` is removed in the repo rules file; production still has old messages until migration (optional one-time script — **not run in this PR**).
+Apply on PR #45 baseline or live export: \`node scripts/build-safe-chat-rules.mjs --write path/to/database.rules.json\`.
 `.trim();

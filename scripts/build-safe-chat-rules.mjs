@@ -20,7 +20,7 @@ console.log(SAFE_CHAT_RULES_DELTA_MD);
 console.log("\n### Apply order (owner, no auto-deploy in PR)\n");
 console.log("1. Deploy **PR #45** hotfix rules to RTDB (or merge hotfix branch rules as baseline).");
 console.log("2. Run this script on the **live-exported** `database.rules.json` backup, review diff.");
-console.log("3. Merge **PR #46** chat overlay (`applySafeChatPatch`) — replaces `chat/*` client-write with server-only `chat/messages`.");
+console.log("3. Merge **PR #46** — `database.rules.json` in-repo matches `applySafeChatPatch` (overlay script still used for live-export refresh).");
 console.log("4. Publish merged rules once; deploy Worker + secrets; enable `__PUNK_SAFE_CHAT_URL` on site.\n");
 
 if (write) {
