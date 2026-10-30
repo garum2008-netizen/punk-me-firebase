@@ -84,17 +84,13 @@ async function nudgeJoystick(page, dx, dz) {
 
 async function focusStage(page) {
   await waitGameplayUnblocked(page);
-  const canvas = page.locator("#stage3d canvas");
-  if (await canvas.count()) {
-    await canvas.click({ position: { x: 120, y: 160 }, timeout: 8000 }).catch(() => {});
-  } else {
-    await page.locator("#stage3d").click({ position: { x: 220, y: 280 }, timeout: 5000 }).catch(() => {});
-  }
+  const canvas = page.locator("#stage3d");
+  await canvas.click({ position: { x: 120, y: 160 }, timeout: 8000 }).catch(() => {});
 }
 
 async function orbitLook(page) {
   await focusStage(page);
-  const canvas = page.locator("#stage3d canvas");
+  const canvas = page.locator("#stage3d");
   const box = await canvas.boundingBox();
   if (!box) return;
   const cx = box.x + box.width * 0.55;
