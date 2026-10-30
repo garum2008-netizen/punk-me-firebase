@@ -6,6 +6,7 @@
  */
 const fs = require("fs");
 const path = require("path");
+const net = require("net");
 const { spawn } = require("child_process");
 const { chromium } = require("playwright");
 const { start, stop } = require("./local-static-server");
@@ -45,9 +46,22 @@ async function waitEmulatorsReady(proc) {
         proc.stdout.off("data", onData);
         resolve();
       }
+      if (/port taken|already in use|EADDRINUSE/i.test(s)) {
+        clearTimeout(t);
+        proc.stdout.off("data", onData);
+        reject(new Error("emulator port taken"));
+      }
     };
     proc.stdout.on("data", onData);
-    proc.stderr.on("data", d => process.stderr.write(d));
+    proc.stderr.on("data", d => {
+      process.stderr.write(d);
+      const s = d.toString();
+      if (/port taken|already in use|EADDRINUSE/i.test(s)) {
+        clearTimeout(t);
+        proc.stdout.off("data", onData);
+        reject(new Error("emulator port taken"));
+      }
+    });
     proc.on("exit", c => {
       clearTimeout(t);
       reject(new Error(`emulator exit ${c}`));
@@ -55,23 +69,49 @@ async function waitEmulatorsReady(proc) {
   });
 }
 
+function portFree(port) {
+  return new Promise(resolve => {
+    const srv = net.createServer();
+    srv.once("error", () => resolve(false));
+    srv.once("listening", () => srv.close(() => resolve(true)));
+    srv.listen(port, "127.0.0.1");
+  });
+}
+
 async function withEmulators(run) {
   if (process.env.FIREBASE_EMULATOR === "1") return run(null);
-  const proc = spawn(
-    "npx",
-    ["firebase", "emulators:start", "--only", "auth,database", "--project", PROJECT],
-    { cwd: path.join(__dirname, ".."), stdio: "pipe" }
-  );
-  await waitEmulatorsReady(proc);
+  const canStart = await portFree(9099);
+  let proc = null;
+  if (canStart) {
+    proc = spawn(
+      "npx",
+      ["firebase", "emulators:start", "--only", "auth,database", "--project", PROJECT],
+      { cwd: path.join(__dirname, ".."), stdio: "pipe" }
+    );
+    try {
+      await waitEmulatorsReady(proc);
+    } catch (e) {
+      try {
+        proc.kill("SIGKILL");
+      } catch (_) {}
+      proc = null;
+      if (!String(e.message || e).includes("port")) throw e;
+      note("emulator", "reusing existing suite on 9099/9000");
+    }
+  } else {
+    note("emulator", "reusing existing suite on 9099/9000");
+  }
   process.env.FIREBASE_EMULATOR = "1";
   process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
   process.env.FIREBASE_DATABASE_EMULATOR_HOST = "127.0.0.1:9000";
   try {
     return await run(proc);
   } finally {
-    try {
-      proc.kill("SIGKILL");
-    } catch (_) {}
+    if (proc) {
+      try {
+        proc.kill("SIGKILL");
+      } catch (_) {}
+    }
   }
 }
 
@@ -96,14 +136,28 @@ async function waitBoot(page) {
 }
 
 async function pickCharacter(page) {
-  await page.waitForSelector("#charSelect.active", { timeout: 180000 });
+  await page.waitForFunction(
+    () => {
+      const ov = document.getElementById("charSelect");
+      const btn = document.getElementById("charSelectConfirm");
+      return ov?.classList.contains("active") && btn && !btn.disabled;
+    },
+    undefined,
+    { timeout: 180000 }
+  );
   await page.locator('.char-pick[data-id="cobalt"]').click({ timeout: 30000 });
   await page.locator("#charSelectConfirm").click({ timeout: 30000 });
 }
 
 async function maybeStartOverlay(page) {
   const start = page.locator("#startGameOverlay.active #btnStartGame");
-  if (await start.count()) await start.click({ timeout: 15000 });
+  if (await start.count()) {
+    await start.click({ timeout: 15000 });
+    await page.waitForFunction(() => window.me?.tutorial?.episode1Started === true, undefined, {
+      timeout: 30000
+    });
+  }
+  await Nav.waitGameplayUnblocked(page, 20000);
 }
 
 async function runOnboarding(page, tag, mobile) {
@@ -125,8 +179,11 @@ async function runOnboarding(page, tag, mobile) {
     note(tag, "onboarding step", { key, loc: st.location, coins: st.coins });
 
     if (key === "ch0_awake" || key === "ch0_move_done") {
+      await Nav.dismissChapterIntroUi(page);
+      await Nav.dismissHowToUi(page);
+      await Nav.waitGameplayUnblocked(page);
       await Nav.wanderMove(page, mobile);
-      await Nav.walkTowardGuide(page, mobile, 30);
+      await Nav.walkTowardGuide(page, mobile, 40);
     } else if (key === "ch0_mom_talk") {
       await Nav.walkTowardGuide(page, mobile);
       await Nav.pressInteract(page, mobile);
@@ -136,7 +193,8 @@ async function runOnboarding(page, tag, mobile) {
       await Nav.pressInteract(page, mobile);
     } else if (key === "ch0_journal_open") {
       await page.locator("#btnGameMenu").click({ timeout: 8000 });
-      await page.locator("#gameMenuClose").click({ timeout: 8000 });
+      await Nav.sleep(600);
+      await page.locator("#gameMenuClose").click({ timeout: 8000 }).catch(() => {});
     } else if (key === "ch0_pet_shnurok") {
       if (st.location !== "room") await Nav.clickNavLocation(page, "room");
       for (let i = 0; i < 6; i++) {

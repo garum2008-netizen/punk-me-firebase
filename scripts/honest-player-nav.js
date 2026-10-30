@@ -4,6 +4,23 @@ async function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+async function waitGameplayUnblocked(page, timeoutMs = 12000) {
+  await page
+    .waitForFunction(
+      () => {
+        if (document.body?.dataset?.gamePaused === "1") return false;
+        if (document.querySelector("#startGameOverlay.active")) return false;
+        if (document.querySelector("#gameMenuOverlay.active")) return false;
+        if (document.querySelector("#howToOverlay.active")) return false;
+        if (document.querySelector("#chapterIntro.active")) return false;
+        return document.body.classList.contains("mode-world3d");
+      },
+      undefined,
+      { timeout: timeoutMs }
+    )
+    .catch(() => {});
+}
+
 async function readGameState(page) {
   return page.evaluate(() => ({
     stepKey: window.Onboarding?.getCurrentStep?.()?.key || null,
@@ -66,10 +83,31 @@ async function nudgeJoystick(page, dx, dz) {
 }
 
 async function focusStage(page) {
-  await page.locator("#stage3d").click({ position: { x: 220, y: 280 }, timeout: 5000 }).catch(() => {});
+  await waitGameplayUnblocked(page);
+  const canvas = page.locator("#stage3d canvas");
+  if (await canvas.count()) {
+    await canvas.click({ position: { x: 120, y: 160 }, timeout: 8000 }).catch(() => {});
+  } else {
+    await page.locator("#stage3d").click({ position: { x: 220, y: 280 }, timeout: 5000 }).catch(() => {});
+  }
 }
 
-async function wanderMove(page, mobile, ms = 3200) {
+async function orbitLook(page) {
+  await focusStage(page);
+  const canvas = page.locator("#stage3d canvas");
+  const box = await canvas.boundingBox();
+  if (!box) return;
+  const cx = box.x + box.width * 0.55;
+  const cy = box.y + box.height * 0.45;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(cx + 90, cy, { steps: 8 });
+  await sleep(180);
+  await page.mouse.up({ button: "right" });
+}
+
+async function wanderMove(page, mobile, ms = 4200) {
+  await waitGameplayUnblocked(page);
   await focusStage(page);
   if (mobile) {
     const joy = page.locator("#touchJoystick");
@@ -80,7 +118,7 @@ async function wanderMove(page, mobile, ms = 3200) {
     await page.touchscreen.tap(cx, cy);
     await page.mouse.move(cx, cy);
     await page.mouse.down();
-    await page.mouse.move(cx, cy - 36, { steps: 8 });
+    await page.mouse.move(cx, cy - 40, { steps: 10 });
     await sleep(ms);
     await page.mouse.up();
     return;
@@ -88,9 +126,10 @@ async function wanderMove(page, mobile, ms = 3200) {
   await page.keyboard.down("w");
   await sleep(ms);
   await page.keyboard.up("w");
-  await page.keyboard.down("d");
-  await sleep(ms / 2);
-  await page.keyboard.up("d");
+  await page.keyboard.down("a");
+  await sleep(Math.round(ms / 2));
+  await page.keyboard.up("a");
+  await orbitLook(page);
 }
 
 async function walkTowardGuide(page, mobile, steps = 90) {
@@ -148,6 +187,7 @@ async function advanceStoryDialog(page) {
 }
 
 async function clickNavLocation(page, locId) {
+  await waitGameplayUnblocked(page);
   const here = await page.evaluate(() => window.me?.location);
   if (here === locId) return;
   const quick = page.locator(`#navQuick button[onclick="goLocation('${locId}')"]`);
@@ -155,11 +195,11 @@ async function clickNavLocation(page, locId) {
     await quick.first().click({ timeout: 15000 });
   } else {
     await page.locator('button[onclick*="openModal(\'mapModal\')"]').click({ timeout: 15000 });
-    await page.waitForSelector("#mapGrid");
+    await page.waitForSelector("#mapGrid", { timeout: 15000 });
     await page.locator(`#mapGrid button[onclick*="goLocation('${locId}')"]`).click({ timeout: 15000 });
     await page.locator("#mapModal .close").click({ timeout: 5000 }).catch(() => {});
   }
-  await page.waitForFunction(id => window.me?.location === id, locId, { timeout: 60000 });
+  await page.waitForFunction(id => window.me?.location === id, locId, { timeout: 90000 });
 }
 
 module.exports = {
@@ -173,5 +213,7 @@ module.exports = {
   dismissChapterIntroUi,
   dismissHowToUi,
   advanceStoryDialog,
-  clickNavLocation
+  clickNavLocation,
+  waitGameplayUnblocked,
+  orbitLook
 };
