@@ -109,7 +109,7 @@
           ".validate": "data.exists() && newData.val() == data.val()"
         },
         "chatBlocklist": {
-          ".validate": "!data.exists() || !newData.exists() || newData.val() == data.val()",
+          ".validate": "(!data.exists() || !newData.exists() || newData.val() == data.val()) && (!newData.exists() || newData.hasChildren())",
           "$peer": {
             ".write": "newData.exists()",
             ".validate": "data.exists() && newData.val() == data.val()"

@@ -188,12 +188,14 @@ Chat messages expose **`sid`** (HMAC of uid) and a **filtered display name**, no
 
 ## Risk-based child safety (Owner t139u)
 
-| Subcategory | Intrinsic base | Mandatory hide when |
-|-------------|----------------|---------------------|
-| Filter `detectChildHarmSignals` | +50 | Always (send path) |
-| `immediate_danger` | 38 | Corroboration + threshold, or filter hit; immediate SLA queue |
-| `sexual_exploitation`, `grooming`, `violence_threat` | 30–34 | Category + message context / author history / filter (not reporter count) |
-| `other_child_safety` | 12 | Effective score ≥ 50 (or corroboration band); discretionary quota may apply |
+**Global hide (CEO proposal — pending Inna OD:11/19, not owner-approved):** configured in `child-safety-risk.js` / `config.js`. A message is hidden for everyone only when there is an **independent signal**: filter child-harm hit, author confirmed violation history, or **two reporters from distinct clusters** (cluster HMAC or distinct reporter hashes when IP is absent). Otherwise the report is queued (urgent when applicable) and the message is hidden **only for that reporter** via `chatMeta/{uid}/reporterSafetyHidden/{msgId}`. Message age is **not** a risk signal. Hide quota and cluster cap apply to all non-filter global hides, including `immediate_danger`.
+
+| Subcategory | Intrinsic base | Global hide when |
+|-------------|----------------|------------------|
+| Filter `detectChildHarmSignals` | +50 | Always (filter mandatory path; quota skipped) |
+| `immediate_danger` | 38 | Independent signal + threshold; else reporter-local hide + immediate queue |
+| `sexual_exploitation`, `grooming`, `violence_threat` | 30–34 | Independent signal + score threshold |
+| `other_child_safety` | 12 | Independent signal + effective score ≥ threshold |
 
 | Control | Behavior |
 |---------|----------|
@@ -220,7 +222,10 @@ Full t139u case map: `docs/release/T139U_TEST_PLAN_MATRIX.md`.
 | IPv6 cluster /64 HMAC | `ipv6ClusterHash` | `safe-chat-cluster-ipv6.test.js` |
 | Mod alert | `SAFE_CHAT_MOD_ALERT_URL` POST hook | `safe-chat-mod-alert.test.js` |
 | reportMeta PII | `reporterSid` only | integration security test |
-| Erasure stale cursor | Clear + one retry | integration NEW-11b |
+| Erasure stale cursor | Clear + retry bypasses rate limit; `staleCursorCleared` preserved in drain | integration NEW-11b |
+| Erasure subrequests | Honest per-fetch budget ≤40; safety block cache | integration FT-01 (25 msgs) |
+| Global hide abuse (R4 H-2) | Independent-signal gate + reporter-local hide | D-03, D-05 integration |
+| legalHoldUntil / maxHoldUntil | Retention expires queue + evidence | integration R-04 |
 | DO erasure queue | `erasureContinueQueue` | limits-do unit |
 | Evidence lifetime | `maxHoldUntil` enforced in retention | R-04 partial |
 | P0-bl / P0-objpeer / P0-node | `database.rules.json` + rules script | 25+ rules PASS |

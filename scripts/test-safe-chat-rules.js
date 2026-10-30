@@ -277,6 +277,31 @@ async function run() {
     pass: objPatch.status === 200
   });
 
+  const blankUser = await signUp();
+  const createBlockX = await fetchJson(dbUrl(`players/${blankUser.localId}/chatBlocklist`, blankUser.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify("x")
+  });
+  cases.push({
+    name: "LOW R4-L2: client cannot create chatBlocklist as primitive string",
+    pass: createBlockX.status === 403 || createBlockX.status === 401
+  });
+
+  const fullPutBlock = await fetchJson(dbUrl(`players/${objPeerId}`, objToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Obj",
+      coins: 3,
+      chatBlocklist: { peerObj: true }
+    })
+  });
+  cases.push({
+    name: "LOW R4-L1: full player PUT carrying chatBlocklist denied (client uses PATCH without chat keys)",
+    pass: fullPutBlock.status === 403 || fullPutBlock.status === 401
+  });
+
   await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, null, true), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

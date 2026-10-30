@@ -7,15 +7,15 @@ Parameterised thresholds: `SAFE_CHAT_CHILD_SAFETY_RISK_*`, `SAFE_CHAT_IMMEDIATE_
 | ID | Test (file: exact test name or "none") | Status | Notes |
 |----|----------------------------------------|--------|-------|
 | F-01 | workers/safe-chat/src/integration.newbie.test.js: server child-harm filter hides message and enqueues priority queue | COVERED | Does not use one fixture per harm category |
-| F-02 | none | GAP | No test asserts `slaReviewBy` or `legalHoldUntil`; prior matrix PASS claim unsupported |
-| F-03 | workers/safe-chat/src/integration.emulator.test.js: filter-detected message content hides regardless of reporter auto-hide quota | WEAK | Uses report path, not send-path filter hide for aged vs new author |
+| F-02 | workers/safe-chat/src/integration.emulator.test.js: risk: immediate_danger uses escalation tier and moderator notify | COVERED | Asserts `slaReviewBy` and `legalHoldUntil` on queue entry |
+| F-03 | workers/safe-chat/src/integration.emulator.test.js: filter-detected message content hides regardless of reporter auto-hide quota | WEAK | Report path with filter hit, not send-path aged vs new author |
 | F-04 | workers/safe-chat/src/integration.emulator.test.js: freeTextEnabled=false rejects free text, allows preset phrase; workers/safe-chat/src/prod-config.test.js: free text off and production CORS default | COVERED | |
 | F-05 | scripts/safe-chat-child-harm.test.js: allows benign preset-like phrases | COVERED | Small FP corpus |
 | D-01 | workers/safe-chat/src/integration.emulator.test.js: risk: immediate_danger uses escalation tier and moderator notify | COVERED | |
 | D-02 | workers/safe-chat/src/integration.emulator.test.js: risk: unaged reporter grooming report with message context queues; global hide needs independent signal | PARTIAL | R_new only; no R_new13 or R_aged reporter fixtures |
-| D-03 | workers/safe-chat/src/integration.emulator.test.js: risk: other_child_safety on benign phrase queues without auto-hide (false positive guard) | WEAK | Not high-tier category; R4 scratch A1: `immediate_danger` can hide with no corroboration (H-2) |
+| D-03 | workers/safe-chat/src/integration.emulator.test.js: risk: other_child_safety on benign phrase queues without auto-hide (false positive guard) | COVERED | Benign preset + `immediate_danger` uses reporter-local hide only (CEO proposal knobs) |
 | D-04 | workers/safe-chat/src/integration.emulator.test.js: risk: high-tier hide with independent signal despite hide quota | WEAK | Does not assert discretionary quota was consumed first |
-| D-05 | workers/safe-chat/src/integration.emulator.test.js: risk: banned reporter immediate_danger does not global-hide benign preset alone | WEAK | R4 A2: banned + `immediate_danger` can hide (H-2) |
+| D-05 | workers/safe-chat/src/integration.emulator.test.js: risk: banned reporter immediate_danger does not global-hide benign preset alone | COVERED | Report accepted; `reporterSafetyHidden` + queue, no global `hidden` |
 | D-06 | scripts/safe-chat-mod-alert.test.js: is disabled without URL; POSTs JSON when URL configured | PARTIAL | No `alertDeliveredAt` assertion; no webhook timeout test |
 | D-07 | scripts/safe-chat-child-safety-risk.test.js: global hide requires independent signal even with grooming context; scripts/safe-chat-filter-bypass.test.js (corpus) | PARTIAL | No danger report on filter-evasion text |
 | O-01 | workers/safe-chat/src/integration.emulator.test.js: risk: other_child_safety on benign phrase queues without auto-hide (false positive guard) | COVERED | |
@@ -79,10 +79,10 @@ Parameterised thresholds: `SAFE_CHAT_CHILD_SAFETY_RISK_*`, `SAFE_CHAT_IMMEDIATE_
 | R-04 | none | GAP | R4 RT1: `maxHoldUntil` written but not enforced as cap while queued |
 | R-05 | workers/safe-chat/src/integration.emulator.test.js: child_safety evidence defers author erasure until moderator resolves | PARTIAL | No `expiresAt` enforcement check |
 | R-06 | none | GAP | No reporter-hash erasure test |
-| R-07 | workers/safe-chat/src/integration.emulator.test.js: security: erasure completes after stale cursor (NEW-11b) | WEAK | Cursor not truly stale; assertion tautological; R4 E1 |
+| R-07 | workers/safe-chat/src/integration.emulator.test.js: security: erasure completes after stale cursor (NEW-11b) | COVERED | Stale cursor id absent from message list; rate limit bypass on retry; messages deleted |
 | R-08 | none | GAP | Integration uses in-process drain; DO alarm queue drop untested (R4 D1) |
 | R-09 | none | GAP | Doc vs code trace for CHILD_HARM_EVIDENCE_RETENTION.md |
-| FT-01 | workers/safe-chat/src/prod-config.test.js: free text off and production CORS default; scripts/test-safe-chat-prod-config.mjs | GAP | R4 E2: erasure exceeds 50 subrequests (~4+ own messages) |
+| FT-01 | workers/safe-chat/src/integration.emulator.test.js: security: erasure subrequests stay within budget for 25 own messages (FT-01) | COVERED | Each batch `subrequests` ≤ 40; continuation via drain / DO queue |
 | FT-02 | scripts/test-safe-chat-free-tier-config.mjs | PARTIAL | `new_sqlite_classes` check |
 | FT-03 | none | GAP | |
 | FT-04 | none | GAP | |
@@ -96,10 +96,10 @@ Parameterised thresholds: `SAFE_CHAT_CHILD_SAFETY_RISK_*`, `SAFE_CHAT_IMMEDIATE_
 
 | Status | Count |
 |--------|------:|
-| COVERED | 23 |
+| COVERED | 28 |
 | PARTIAL | 19 |
-| WEAK | 8 |
-| GAP | 31 |
+| WEAK | 6 |
+| GAP | 27 |
 | MANUAL | 3 |
 | OWNER | 1 |
 | **Total** | **85** |
