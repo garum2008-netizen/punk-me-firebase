@@ -22,6 +22,17 @@ export class ChatLimitsDO {
       const result = await this.pruneStale(body);
       return Response.json(result);
     }
+    if (request.method === "POST" && url.pathname === "/erase-user") {
+      const body = await request.json();
+      const uid = String(body.uid || "");
+      const send = await this.loadState();
+      delete send[uid];
+      await this.saveState(send);
+      const rep = await this.loadReportState();
+      delete rep[uid];
+      await this.saveReportState(rep);
+      return Response.json({ ok: true });
+    }
     return new Response("not found", { status: 404 });
   }
 

@@ -60,12 +60,8 @@ export async function loadPlayerProfileForChat(config, env, token, uid) {
       : typeof p.chatRegisteredAt === "number" && p.chatRegisteredAt > 0
         ? p.chatRegisteredAt
         : null;
-  const rateLimitLevel =
-    typeof meta.rateLimitLevel === "number" ? meta.rateLimitLevel : typeof p.level === "number" ? p.level : null;
-  const rawPlayerLevel = typeof p.level === "number" ? p.level : null;
-  const level = rateLimitLevel;
   const blockedSids =
     meta.blockedSids && typeof meta.blockedSids === "object" ? { ...meta.blockedSids } : {};
 
-  return { name, loc, chatAge13DeclaredAt, chatRegisteredAt, level, rawPlayerLevel, blockedSids };
+  return { name, loc, chatAge13DeclaredAt, chatRegisteredAt, blockedSids };
 }

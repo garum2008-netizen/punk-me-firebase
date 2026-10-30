@@ -20,6 +20,15 @@ export function loadConfig(env) {
     lowLevelThreshold: parseInt(env.SAFE_CHAT_LOW_LEVEL_THRESHOLD || "3", 10),
     lowLevelDailyLimit: parseInt(env.SAFE_CHAT_LOW_LEVEL_DAILY_LIMIT || "25", 10),
     lowLevelCooldownMs: parseInt(env.SAFE_CHAT_LOW_LEVEL_COOLDOWN_MS || "4000", 10),
+    childSafetyReporterMinMs: parseInt(
+      env.SAFE_CHAT_CHILD_SAFETY_REPORTER_MIN_MS || String(24 * 60 * 60 * 1000),
+      10
+    ),
+    childSafetyHideReporterCount: parseInt(env.SAFE_CHAT_CHILD_SAFETY_HIDE_REPORTERS || "2", 10),
+    safetyQueueEscalateMs: parseInt(env.SAFE_CHAT_SAFETY_ESCALATE_MS || String(48 * 60 * 60 * 1000), 10),
+    globalMsgReportsPerDay: parseInt(env.SAFE_CHAT_GLOBAL_MSG_REPORTS_PER_DAY || "100", 10),
+    erasureBatchSize: parseInt(env.SAFE_CHAT_ERASURE_BATCH || "40", 10),
+    erasureMinIntervalMs: parseInt(env.SAFE_CHAT_ERASURE_MIN_INTERVAL_MS || String(60 * 60 * 1000), 10),
     msgRetentionMs: 7 * 24 * 60 * 60 * 1000,
     reportRetentionMs: 90 * 24 * 60 * 60 * 1000,
     modStateRetentionMs: 90 * 24 * 60 * 60 * 1000,
