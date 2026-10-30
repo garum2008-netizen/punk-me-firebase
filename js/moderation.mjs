@@ -8,16 +8,20 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 
+/** Set after Worker deploy (owner GO). Not read from localStorage or query params. */
+const PUNK_SAFE_CHAT_WORKER_URL = "";
+
 firebase.initializeApp(FIREBASE_CONFIG);
 
 function workerBase() {
-  const stored = localStorage.getItem("punk_safe_chat_worker") || "";
-  return (window.__PUNK_SAFE_CHAT_URL || stored || "").replace(/\/$/, "");
+  const u = window.__PUNK_SAFE_CHAT_URL || PUNK_SAFE_CHAT_WORKER_URL;
+  return (u || "").replace(/\/$/, "");
 }
 
 async function modFetch(path) {
   const user = firebase.auth().currentUser;
   if (!user) throw new Error("Sign in first");
+  if (!workerBase()) throw new Error("Worker URL not configured");
   const token = await user.getIdToken();
   const res = await fetch(`${workerBase()}${path}`, {
     headers: { Authorization: `Bearer ${token}` }
@@ -30,6 +34,7 @@ async function modFetch(path) {
 async function modPost(path, body) {
   const user = firebase.auth().currentUser;
   if (!user) throw new Error("Sign in first");
+  if (!workerBase()) throw new Error("Worker URL not configured");
   const token = await user.getIdToken();
   const res = await fetch(`${workerBase()}${path}`, {
     method: "POST",
@@ -40,11 +45,6 @@ async function modPost(path, body) {
   if (!res.ok) throw new Error(json.error || res.status);
   return json;
 }
-
-document.getElementById("saveUrl")?.addEventListener("click", () => {
-  const v = document.getElementById("workerUrl")?.value?.trim();
-  if (v) localStorage.setItem("punk_safe_chat_worker", v);
-});
 
 document.getElementById("loadReports")?.addEventListener("click", async () => {
   const out = document.getElementById("out");
@@ -63,7 +63,11 @@ firebase.auth().onAuthStateChanged(user => {
       out.textContent = "Auth failed: " + err.message;
     });
   } else {
-    out.textContent = "Signed in as " + user.uid + ". Load reports when Worker URL is set.";
+    out.textContent =
+      "Signed in as " +
+      user.uid +
+      ". Worker: " +
+      (workerBase() || "(set PUNK_SAFE_CHAT_WORKER_URL / __PUNK_SAFE_CHAT_URL)");
   }
 });
 
