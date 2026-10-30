@@ -5,8 +5,8 @@
 ## Triggers
 
 - In-game report category **`child_safety`** (UI: harm to a child / threat / grooming).
-- Worker immediately **hides** the message, sets **`safetyHold`**, and flags the report **`priority: high`**.
-- Content on **`safetyHold`** is **excluded** from 7-day message retention and linked reports from 90-day purge until a moderator resolves the hold.
+- Worker immediately **hides** the message and sets **`safetyHold`**, and flags the report **`priority: high`**. This is **not** silent removal: the message stays in RTDB (hidden + on hold) until a moderator runs **`POST /api/mod/resolve-safety`** (`dismiss` or `uphold_delete`). Auto retention **skips** `safetyHold` messages and linked reports until resolved.
+- **Rationale:** one `child_safety` report is treated as urgent triage (minimize exposure time) while preserving evidence for moderator review — not “hide-and-forget”.
 
 ## Moderator steps (draft)
 

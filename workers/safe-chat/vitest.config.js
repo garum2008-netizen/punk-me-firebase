@@ -9,7 +9,8 @@ const newbie = process.env.SAFE_CHAT_INTEGRATION_NEWBIE === "1";
 export default defineWorkersConfig({
   resolve: {
     alias: {
-      [path.resolve(__dirname, "src/auth-prod.js")]: path.resolve(__dirname, "src/auth.integration.js")
+      [path.resolve(__dirname, "src/auth-prod.js")]: path.resolve(__dirname, "src/auth.integration.js"),
+      [path.resolve(__dirname, "src/admin-token.js")]: path.resolve(__dirname, "src/admin-token.integration.js")
     }
   },
   test: {

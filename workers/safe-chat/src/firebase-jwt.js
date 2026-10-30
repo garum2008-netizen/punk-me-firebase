@@ -47,7 +47,7 @@ export async function verifyFirebaseIdToken(idToken, projectId) {
   const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, sig, data);
   if (!ok) throw new Error("bad signature");
   const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && payload.exp < now) throw new Error("expired");
+  if (!payload.exp || payload.exp < now) throw new Error("expired");
   if (payload.iat && payload.iat > now + 60) throw new Error("future iat");
   const iss = `https://securetoken.google.com/${projectId}`;
   if (payload.iss !== iss) throw new Error("iss mismatch");

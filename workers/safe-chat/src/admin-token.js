@@ -3,9 +3,6 @@ import { getServiceAccountAccessToken } from "./rtdb.js";
 let cached = { token: null, expSec: 0 };
 
 export async function getCachedAdminToken(env) {
-  if (env.SAFE_CHAT_EMULATOR === "true" && !env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-    return "owner";
-  }
   if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     throw new Error("missing FIREBASE_SERVICE_ACCOUNT_JSON");
   }
