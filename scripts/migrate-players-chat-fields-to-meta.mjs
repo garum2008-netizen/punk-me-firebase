@@ -1,44 +1,97 @@
 #!/usr/bin/env node
 /**
- * Copy legacy chat fields from players/$uid to chatMeta/$uid (admin SDK paths only).
+ * Lossless migration: players/{uid} chat fields -> chatMeta/{uid}.
+ * Maps legacy chatBlocklist uid keys to blockedSids via chatPublicSid (requires salt).
  *
- * DEFAULT: dry-run. Pass --write only after owner review. NEVER run against production without GO.
- * Touches ONLY: chatAge13DeclaredAt, chatRegisteredAt, chatBlocklist (players + chatMeta).
- * Does not modify or delete any other game data.
+ * DEFAULT: dry-run. --write requires --export and FIREBASE_DATABASE_URL + credentials (owner GO).
  */
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createHmac } from "node:crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
 const args = process.argv.slice(2);
 const write = args.includes("--write");
-const input =
-  args.find(a => a.endsWith(".json") && !a.startsWith("--")) ||
-  path.join(root, "database.rules.json");
+const exportPath = args.find(a => a.endsWith(".json") && !a.startsWith("--"));
+const salt = process.env.SAFE_CHAT_HASH_SALT || process.env.MIGRATE_CHAT_HASH_SALT || "";
 
-console.log("migrate-players-chat-fields-to-meta");
-console.log(`Mode: ${write ? "WRITE (destructive on RTDB when executed with credentials)" : "DRY-RUN"}`);
-console.log("This script only plans copies for chatAge13DeclaredAt, chatRegisteredAt, chatBlocklist.");
-console.log("Owner must run against staging/export with Firebase Admin — not wired to live prod in CI.\n");
+function chatPublicSid(uid, hashSalt) {
+  const h = createHmac("sha256", hashSalt || "migrate-dry-run-salt");
+  h.update(`chat:uid:${uid}`);
+  return h.digest("hex").slice(0, 32);
+}
 
-if (!fs.existsSync(input)) {
-  console.error(`Missing input ${input}`);
+function planForPlayer(uid, player) {
+  const ops = [];
+  if (typeof player.chatAge13DeclaredAt === "number" && player.chatAge13DeclaredAt > 0) {
+    ops.push({
+      op: "PUT",
+      path: `chatMeta/${uid}/chatAge13DeclaredAt`,
+      value: player.chatAge13DeclaredAt
+    });
+  }
+  if (typeof player.chatRegisteredAt === "number" && player.chatRegisteredAt > 0) {
+    ops.push({
+      op: "PUT",
+      path: `chatMeta/${uid}/chatRegisteredAt`,
+      value: player.chatRegisteredAt
+    });
+  }
+  const bl = player.chatBlocklist;
+  if (bl && typeof bl === "object" && !Array.isArray(bl)) {
+    const blockedSids = {};
+    for (const key of Object.keys(bl)) {
+      if (bl[key]) blockedSids[chatPublicSid(key, salt)] = true;
+    }
+    if (Object.keys(blockedSids).length) {
+      ops.push({ op: "PUT", path: `chatMeta/${uid}/blockedSids`, value: blockedSids });
+    }
+  }
+  return ops;
+}
+
+function loadExport(file) {
+  const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (raw.players && typeof raw.players === "object") return raw.players;
+  return raw;
+}
+
+async function main() {
+  console.log("migrate-players-chat-fields-to-meta (lossless plan)");
+  console.log(`Mode: ${write ? "WRITE" : "DRY-RUN"}`);
+  if (!salt) {
+    console.warn("WARN: SAFE_CHAT_HASH_SALT unset — blockedSids mapping uses dry-run placeholder salt.");
+  }
+  if (!exportPath) {
+    console.log("Usage: node scripts/migrate-players-chat-fields-to-meta.mjs [--write] export.json");
+    console.log("Dry-run: 0 RTDB writes.");
+    process.exit(0);
+  }
+  const players = loadExport(exportPath);
+  let totalOps = 0;
+  for (const [uid, player] of Object.entries(players)) {
+    if (!player || typeof player !== "object") continue;
+    const ops = planForPlayer(uid, player);
+    if (!ops.length) continue;
+    console.log(`\n${uid}:`);
+    for (const o of ops) {
+      console.log(`  ${o.op} ${o.path}`);
+      totalOps += 1;
+    }
+  }
+  console.log(`\nPlanned ${totalOps} chatMeta writes across ${Object.keys(players).length} uids.`);
+  if (write) {
+    console.error("Refusing --write without owner RTDB admin wiring in this stub run.");
+    console.error("Apply planned PUTs via Firebase Admin or owner tooling after GO.");
+    process.exit(2);
+  }
+  console.log("Dry-run complete.");
+}
+
+main().catch(e => {
+  console.error(e);
   process.exit(1);
-}
-
-console.log("Plan per uid (when players node contains legacy chat keys):");
-console.log("  1) PUT chatMeta/{uid}/chatAge13DeclaredAt <= players value (if number)");
-console.log("  2) PUT chatMeta/{uid}/chatRegisteredAt <= players value (if number)");
-console.log("  3) PUT chatMeta/{uid}/blockedSids <= players.chatBlocklist keys (if object)");
-console.log("  4) OPTIONAL owner step: DELETE legacy keys under players/{uid} after verification");
-console.log("\nNo file changes in dry-run. Implement RTDB export scan before production GO.");
-
-if (write) {
-  console.error("Refusing --write without FIREBASE_SERVICE_ACCOUNT_JSON and explicit export path (owner tooling).");
-  process.exit(2);
-}
-
-console.log("\nDry-run complete (0 RTDB writes).");
+});
