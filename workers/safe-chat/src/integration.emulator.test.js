@@ -61,15 +61,30 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect((await bad.json()).error).toBe("invalid_id");
   });
 
+  it("rejects profanity or PII in display name from server profile", async () => {
+    const u = await authSignUp({ name: "email me at test@example.com" });
+    const r = await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "hi" });
+    expect((await r.json()).error).toBe("bad_display_name");
+  });
+
   it("rejects impersonation display name from server profile", async () => {
     const u = await authSignUp({ name: "Moderator" });
     const r = await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "hi" });
     expect((await r.json()).error).toBe("impersonation_name");
   });
 
+  it("messages store public sid not raw uid", async () => {
+    const u = await authSignUp();
+    const sent = await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "hi" });
+    const { id: msgId } = await sent.json();
+    const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    expect(msg.json.sid).toMatch(/^[a-f0-9]{32}$/);
+    expect(msg.json.uid).toBeUndefined();
+  });
+
   it("requires chatAge13DeclaredAt before send", async () => {
     const u = await authSignUp();
-    await rtdbOwner(`players/${u.localId}/chatAge13DeclaredAt`, "DELETE");
+    await rtdbOwner(`chatMeta/${u.localId}/chatAge13DeclaredAt`, "DELETE");
     const r = await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "hi" });
     expect((await r.json()).error).toBe("age_not_declared");
   });
@@ -162,23 +177,31 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(gone.json).toBeNull();
   });
 
-  it("client blocklist hides peer in UI logic", async () => {
-    const blocklist = { [userB.localId]: true };
-    expect(isBlocked(blocklist, userB.localId)).toBe(true);
-    expect(isBlocked(blocklist, userC.localId)).toBe(false);
+  it("server blocklist hides peer by sid", async () => {
+    const author = await authSignUp();
+    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" });
+    const { id: msgId } = await sent.json();
+    const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    const sid = msg.json.sid;
+    const block = await apiPost(SELF, "/api/chat/block", userA.idToken, { msgId });
+    expect((await block.json()).ok).toBe(true);
+    const cfg = await apiGet(SELF, "/api/chat/config", userA.idToken);
+    const cfgJson = await cfg.json();
+    expect(cfgJson.blockedSids).toContain(sid);
+    expect(isBlocked(Object.fromEntries(cfgJson.blockedSids.map(s => [s, true])), sid)).toBe(true);
   });
 
   it("retention deletes messages >7d and reports >90d (test clock)", async () => {
     const now = 2_000_000_000_000;
     const oldMsg = await rtdbOwner("chat/messages", "POST", {
-      uid: "old",
+      sid: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       name: "O",
       text: "old",
       time: now - 8 * 24 * 60 * 60 * 1000
     });
     const oldMsgId = oldMsg.json?.name;
     const freshMsg = await rtdbOwner("chat/messages", "POST", {
-      uid: "new",
+      sid: "cccccccccccccccccccccccccccccccc",
       name: "N",
       text: "new",
       time: now - 1 * 24 * 60 * 60 * 1000
@@ -219,7 +242,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("daily limit (DO)", () => {
       expect(env.SAFE_CHAT_DAILY_LIMIT).toBe("2");
       const u = await authSignUp();
       const mature = Date.now() - 10 * 24 * 60 * 60 * 1000;
-      await rtdbOwner(`players/${u.localId}/chatRegisteredAt`, "PUT", mature);
+      await rtdbOwner(`chatMeta/${u.localId}/chatRegisteredAt`, "PUT", mature);
       await rtdbOwner(`players/${u.localId}/level`, "PUT", 5);
       const wait = () => new Promise(r => setTimeout(r, 3100));
       expect((await (await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "gg", name: "D" })).json()).ok).toBe(

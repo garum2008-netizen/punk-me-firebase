@@ -22,7 +22,8 @@ export async function authSignUp(opts = {}) {
 export async function seedChatPlayer(user, opts = {}) {
   const name = opts.name ?? "Tester";
   await rtdbOwner(`players/${user.localId}/name`, "PUT", name);
-  await rtdbOwner(`players/${user.localId}/chatAge13DeclaredAt`, "PUT", Date.now() - 1000);
+  const declaredAt = Date.now() - 1000;
+  await rtdbOwner(`chatMeta/${user.localId}/chatAge13DeclaredAt`, "PUT", declaredAt);
   if (opts.level != null) await rtdbOwner(`players/${user.localId}/level`, "PUT", opts.level);
   if (opts.location) await rtdbOwner(`players/${user.localId}/location`, "PUT", opts.location);
 }
@@ -67,6 +68,6 @@ export async function apiGet(SELF, path, idToken) {
   });
 }
 
-export function isBlocked(blocklist, uid) {
-  return Boolean(blocklist?.[uid]);
+export function isBlocked(blocklist, sid) {
+  return Boolean(blocklist?.[sid]);
 }

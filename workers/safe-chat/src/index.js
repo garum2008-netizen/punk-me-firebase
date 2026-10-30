@@ -2,7 +2,7 @@ import { loadConfig, REPORT_CATEGORY_CHILD_SAFETY } from "./config.js";
 import { verifyRequestAuth, isModerator } from "./auth-prod.js";
 import { filterMessage } from "./filter.js";
 import { PHRASES, phraseText } from "./phrases.js";
-import { anonymizeUid, rtdbPath, rtdbRequest } from "./rtdb.js";
+import { anonymizeUid, chatPublicSid, rtdbPath, rtdbRequest } from "./rtdb.js";
 import { ChatLimitsDO } from "./limits-do.js";
 import { resolveSendLimits } from "./limits-policy.js";
 import { assertFirebaseId, assertReportHash } from "./ids.js";
@@ -37,6 +37,10 @@ function pathChatMessage(msgId) {
 
 function pathPlayer(uid, ...rest) {
   return rtdbPath("players", uid, ...rest);
+}
+
+function pathChatMeta(uid, ...rest) {
+  return rtdbPath("chatMeta", uid, ...rest);
 }
 
 function pathModState(uid, ...rest) {
@@ -107,7 +111,7 @@ async function handleDeclareAge13(request, env) {
   const now = getNow(env);
   await rtdbRequest(
     config,
-    pathPlayer(auth.uid, "chatAge13DeclaredAt"),
+    pathChatMeta(auth.uid, "chatAge13DeclaredAt"),
     "PUT",
     now,
     token,
@@ -115,6 +119,18 @@ async function handleDeclareAge13(request, env) {
     env.FIREBASE_EMULATOR_NS
   );
   return json(request, env, { ok: true, declaredAt: now });
+}
+
+async function ensureRateLimitLevel(config, env, token, uid, rawPlayerLevel) {
+  if (typeof rawPlayerLevel !== "number") return null;
+  const path = pathChatMeta(uid, "rateLimitLevel");
+  const emu = env.FIREBASE_EMULATOR_HOST;
+  const ns = env.FIREBASE_EMULATOR_NS;
+  const cur = await rtdbRequest(config, path, "GET", null, token, emu, ns);
+  if (typeof cur.json === "number") return cur.json;
+  const snap = Math.min(rawPlayerLevel, 9999);
+  await rtdbRequest(config, path, "PUT", snap, token, emu, ns);
+  return snap;
 }
 
 async function handleSend(request, env) {
@@ -135,7 +151,9 @@ async function handleSend(request, env) {
   try {
     profile = await loadPlayerProfileForChat(config, env, token, auth.uid);
   } catch (e) {
-    if (e.message === "impersonation_name") return err(request, env, "impersonation_name");
+    if (e.message === "impersonation_name" || e.message === "bad_display_name") {
+      return err(request, env, e.message === "bad_display_name" ? "bad_display_name" : "impersonation_name");
+    }
     throw e;
   }
   if (!requireAgeDeclared(profile)) {
@@ -171,15 +189,18 @@ async function handleSend(request, env) {
 
   const now = getNow(env);
   const accountAgeMs = profile.chatRegisteredAt ? now - profile.chatRegisteredAt : config.youngAccountMs + 1;
+  const limitLevel = await ensureRateLimitLevel(config, env, token, auth.uid, profile.rawPlayerLevel);
   const sendLimits = resolveSendLimits(config, {
     accountAgeMs,
-    playerLevel: profile.level
+    playerLevel: limitLevel ?? profile.level
   });
   const limits = await checkSendLimits(env, auth.uid, sendLimits);
   if (!limits.ok) return err(request, env, limits.reason, 429);
 
+  const salt = env.SAFE_CHAT_HASH_SALT || "";
+  const sid = await chatPublicSid(auth.uid, salt);
   const msg = {
-    uid: auth.uid,
+    sid,
     name: profile.name,
     text,
     time: now,
@@ -201,7 +222,7 @@ async function handleSend(request, env) {
 }
 
 async function ensureRegisteredAt(config, env, token, uid) {
-  const path = pathPlayer(uid, "chatRegisteredAt");
+  const path = pathChatMeta(uid, "chatRegisteredAt");
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
   const cur = await rtdbRequest(config, path, "GET", null, token, emu, ns);
@@ -235,7 +256,9 @@ async function handleReport(request, env) {
   try {
     profile = await loadPlayerProfileForChat(config, env, token, auth.uid);
   } catch (e) {
-    if (e.message === "impersonation_name") return err(request, env, "impersonation_name");
+    if (e.message === "impersonation_name" || e.message === "bad_display_name") {
+      return err(request, env, e.message === "bad_display_name" ? "bad_display_name" : "impersonation_name");
+    }
     throw e;
   }
   if (!requireAgeDeclared(profile)) {
@@ -263,7 +286,7 @@ async function handleReport(request, env) {
     msgId,
     time: getNow(env),
     reporterHash: reporter,
-    msgUidHash: assertReportHash(await anonymizeUid(msgRes.json.uid || "", salt)),
+    msgUidHash: assertReportHash(msgRes.json.sid || msgRes.json.uid || ""),
     category: reportCategory,
     priority: isChildSafety ? "high" : "normal"
   };
@@ -297,15 +320,137 @@ async function handleReport(request, env) {
   return json(request, env, { ok: true });
 }
 
+async function handleBlock(request, env) {
+  const config = loadConfig(env);
+  let auth;
+  try {
+    auth = await verifyRequestAuth(request, config, env);
+  } catch {
+    return err(request, env, "unauthorized", 401);
+  }
+  assertFirebaseId(auth.uid);
+  const body = await request.json().catch(() => ({}));
+  const token = await getCachedAdminToken(env);
+  const mySid = await chatPublicSid(auth.uid, env.SAFE_CHAT_HASH_SALT || "");
+  let targetSid = body.sid ? String(body.sid).slice(0, 32) : null;
+  if (body.msgId) {
+    let msgId;
+    try {
+      msgId = assertFirebaseId(body.msgId, "msgId");
+    } catch {
+      return err(request, env, "invalid_id");
+    }
+    const msgRes = await rtdbRequest(
+      config,
+      pathChatMessage(msgId),
+      "GET",
+      null,
+      token,
+      env.FIREBASE_EMULATOR_HOST,
+      env.FIREBASE_EMULATOR_NS
+    );
+    targetSid = msgRes.json?.sid || null;
+  }
+  if (!targetSid || !/^[a-f0-9]{32}$/.test(targetSid)) return err(request, env, "invalid_sid");
+  if (targetSid === mySid) return err(request, env, "cannot_block_self");
+  await rtdbRequest(
+    config,
+    pathChatMeta(auth.uid, "blockedSids", targetSid),
+    "PUT",
+    true,
+    token,
+    env.FIREBASE_EMULATOR_HOST,
+    env.FIREBASE_EMULATOR_NS
+  );
+  return json(request, env, { ok: true, sid: targetSid });
+}
+
+async function handleUnblock(request, env) {
+  const config = loadConfig(env);
+  let auth;
+  try {
+    auth = await verifyRequestAuth(request, config, env);
+  } catch {
+    return err(request, env, "unauthorized", 401);
+  }
+  assertFirebaseId(auth.uid);
+  const body = await request.json().catch(() => ({}));
+  const targetSid = body.sid ? String(body.sid).slice(0, 32) : null;
+  if (!targetSid || !/^[a-f0-9]{32}$/.test(targetSid)) return err(request, env, "invalid_sid");
+  const token = await getCachedAdminToken(env);
+  await rtdbRequest(
+    config,
+    pathChatMeta(auth.uid, "blockedSids", targetSid),
+    "DELETE",
+    null,
+    token,
+    env.FIREBASE_EMULATOR_HOST,
+    env.FIREBASE_EMULATOR_NS
+  );
+  return json(request, env, { ok: true });
+}
+
+async function handleDeleteMyData(request, env) {
+  const config = loadConfig(env);
+  let auth;
+  try {
+    auth = await verifyRequestAuth(request, config, env);
+  } catch {
+    return err(request, env, "unauthorized", 401);
+  }
+  assertFirebaseId(auth.uid);
+  const token = await getCachedAdminToken(env);
+  const emu = env.FIREBASE_EMULATOR_HOST;
+  const ns = env.FIREBASE_EMULATOR_NS;
+  const sid = await chatPublicSid(auth.uid, env.SAFE_CHAT_HASH_SALT || "");
+
+  const msgs = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
+  if (msgs.json && typeof msgs.json === "object") {
+    for (const [id, m] of Object.entries(msgs.json)) {
+      if (m?.sid !== sid && m?.uid !== auth.uid) continue;
+      try {
+        assertFirebaseId(id);
+      } catch {
+        continue;
+      }
+      await rtdbRequest(config, pathChatMessage(id), "DELETE", null, token, emu, ns);
+    }
+  }
+
+  await rtdbRequest(config, pathChatMeta(auth.uid), "DELETE", null, token, emu, ns);
+  await rtdbRequest(config, pathPlayer(auth.uid, "chatAge13DeclaredAt"), "DELETE", null, token, emu, ns);
+  await rtdbRequest(config, pathPlayer(auth.uid, "chatRegisteredAt"), "DELETE", null, token, emu, ns);
+
+  return json(request, env, { ok: true });
+}
+
 async function handleConfig(request, env) {
   const config = loadConfig(env);
-  return json(request, env, {
+  const base = {
     ok: true,
     freeTextEnabled: config.freeTextEnabled,
     phrases: PHRASES.map(p => ({ id: p.id, text: p })),
     maxLen: config.msgMaxLen,
     cooldownMs: config.cooldownMs
-  });
+  };
+  const authHeader = request.headers.get("Authorization") || "";
+  if (!/^Bearer\s+/i.test(authHeader)) {
+    return json(request, env, base);
+  }
+  try {
+    const auth = await verifyRequestAuth(request, config, env);
+    assertFirebaseId(auth.uid);
+    const token = await getCachedAdminToken(env);
+    const profile = await loadPlayerProfileForChat(config, env, token, auth.uid);
+    const salt = env.SAFE_CHAT_HASH_SALT || "";
+    base.mySid = await chatPublicSid(auth.uid, salt);
+    base.blockedSids = Object.entries(profile.blockedSids || {})
+      .filter(([, v]) => v)
+      .map(([k]) => k);
+  } catch (_) {
+    /* public portion still returned */
+  }
+  return json(request, env, base);
 }
 
 async function requireMod(request, env) {
@@ -398,7 +543,12 @@ async function handleModMute(request, env) {
         env.FIREBASE_EMULATOR_NS
       );
     } else {
-      const until = durationMs ? getNow(env) + durationMs : null;
+      const d = Number(durationMs);
+      const maxMs = 30 * 24 * 60 * 60 * 1000;
+      if (!Number.isFinite(d) || d < 60_000 || d > maxMs) {
+        return err(request, env, "invalid_mute_duration");
+      }
+      const until = getNow(env) + d;
       await rtdbRequest(
         config,
         pathModState(uid, "mute"),
@@ -550,6 +700,34 @@ export async function runRetentionJob(env, nowOverride) {
     }
   }
 
+  const activeReportMsgIds = new Set();
+  const reportsAfter = await rtdbRequest(config, "chat/reports", "GET", null, token, emu, ns);
+  bump();
+  if (reportsAfter.json && typeof reportsAfter.json === "object") {
+    for (const r of Object.values(reportsAfter.json)) {
+      if (r?.msgId) activeReportMsgIds.add(r.msgId);
+    }
+  }
+
+  const dedupRoot = await rtdbRequest(config, "chat/internal/reportDedup", "GET", null, token, emu, ns);
+  bump();
+  if (dedupRoot.json && typeof dedupRoot.json === "object") {
+    for (const msgId of Object.keys(dedupRoot.json)) {
+      if (subrequests >= budget) break;
+      if (heldMsgIds.has(msgId)) continue;
+      if (activeReportMsgIds.has(msgId)) continue;
+      try {
+        assertFirebaseId(msgId);
+      } catch {
+        continue;
+      }
+      await rtdbRequest(config, rtdbPath("chat", "internal", "reportDedup", msgId), "DELETE", null, token, emu, ns);
+      bump();
+      await rtdbRequest(config, rtdbPath("chat", "internal", "reportCounts", msgId), "DELETE", null, token, emu, ns);
+      bump();
+    }
+  }
+
   const modState = await rtdbRequest(config, "chat/modState", "GET", null, token, emu, ns);
   bump();
   if (modState.json && typeof modState.json === "object") {
@@ -588,6 +766,10 @@ export default {
         return handleDeclareAge13(request, env);
       if (url.pathname === "/api/chat/send" && request.method === "POST") return handleSend(request, env);
       if (url.pathname === "/api/chat/report" && request.method === "POST") return handleReport(request, env);
+      if (url.pathname === "/api/chat/block" && request.method === "POST") return handleBlock(request, env);
+      if (url.pathname === "/api/chat/unblock" && request.method === "POST") return handleUnblock(request, env);
+      if (url.pathname === "/api/chat/delete-my-data" && request.method === "POST")
+        return handleDeleteMyData(request, env);
       if (url.pathname === "/api/mod/reports" && request.method === "GET") return handleModReports(request, env);
       if (url.pathname === "/api/mod/delete" && request.method === "POST") return handleModDelete(request, env);
       if (url.pathname === "/api/mod/mute" && request.method === "POST") return handleModMute(request, env);

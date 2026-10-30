@@ -115,3 +115,8 @@ export async function anonymizeUid(uid, salt) {
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(s));
   return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
+
+/** Public chat pseudonym for a Firebase uid (distinct from report-only hashes). */
+export async function chatPublicSid(uid, salt) {
+  return anonymizeUid(`chat:${uid}`, salt);
+}
