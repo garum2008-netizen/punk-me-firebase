@@ -397,7 +397,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
     await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
-    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "grooming" });
+    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json.hidden).toBe(true);
     await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, { msgId, action: "restore_visibility" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json.hidden).not.toBe(true);
@@ -429,12 +429,15 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
     await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "other_child_safety" });
+    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "other_child_safety" }, { "CF-Connecting-IP": "203.0.113.22" });
     const cap = 1_000_000;
     await rtdbOwner(`chat/internal/safetyQueue/${msgId}/legalHoldUntil`, "PUT", cap);
     await rtdbOwner(`chat/internal/safetyEvidence/${msgId}/maxHoldUntil`, "PUT", cap);
     await runRetentionToCompletion(env, cap + 86400000);
-    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json).toBeNull();
-    expect((await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET")).json).toBeNull();
+    const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
+    expect(q.json?.overdue).toBe(true);
+    expect(q.json?.evidenceHoldExpiredAt).toBeTruthy();
+    expect((await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET")).json?.access).toBe("moderator_only");
   });
 
   it("retention keeps child_safety queued message past msg retention", async () => {
@@ -448,7 +451,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await rtdbOwner(`chat/internal/safetyQueue/${msgId}/legalHoldUntil`, "PUT", now + 365 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chat/messages/${msgId}/time`, "PUT", now - 8 * 24 * 60 * 60 * 1000);
     await runRetentionToCompletion({ ...env, SAFE_CHAT_TEST_NOW_MS: String(now) }, now);
-    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.text).toBeTruthy();
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).toBeTruthy();
+    const ev = await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET");
+    expect(ev.json?.snapshot?.text?.length).toBeGreaterThan(0);
   });
 
   it("duplicate reports do not consume global per-message report cap", async () => {
@@ -492,7 +497,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
     const fresh = await authSignUp();
     await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId, category: "grooming" });
-    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "grooming" });
+    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
     const del = await apiPost(SELF, "/api/chat/delete-my-data", author.idToken, {});
     const dj = await del.json();
     expect(dj.ok).toBe(true);
@@ -514,7 +519,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       msgId,
       category: "grooming"
     });
-    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "grooming" });
+    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
     expect((await rep.json()).received).toBe(true);
     const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     expect(msg.json.hidden).toBe(true);
@@ -625,8 +630,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     });
     const newRepId = newRep.json?.name;
 
-    const testEnv = { ...env, SAFE_CHAT_TEST_NOW_MS: String(now) };
-    await runRetentionToCompletion(testEnv, now);
+    const testEnv = { ...env, SAFE_CHAT_TEST_NOW_MS: String(now), SAFE_CHAT_RETENTION_BATCH: "200" };
+    for (let i = 0; i < 40; i++) {
+      await runRetentionJob(testEnv, now);
+      const oldGone = !(await rtdbOwner(`chat/messages/${oldMsgId}`, "GET")).json;
+      const repGone = !(await rtdbOwner(`chat/reports/${oldRepId}`, "GET")).json;
+      if (oldGone && repGone) break;
+    }
 
     expect((await rtdbOwner(`chat/messages/${oldMsgId}`, "GET")).json).toBeNull();
     expect((await rtdbOwner(`chat/messages/${freshId}`, "GET")).json?.text).toBe("new");

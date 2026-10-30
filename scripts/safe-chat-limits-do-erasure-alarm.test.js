@@ -65,6 +65,33 @@ test("R-08: alarm re-queues uid when internal erasure fetch fails", async () => 
   }
 });
 
+test("R-08: alarm re-queues uid when internal erasure fetch returns HTTP 500", async () => {
+  const storage = new MemStorage();
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("err", { status: 500 });
+  try {
+    const doObj = new ChatLimitsDO(
+      { storage },
+      { SAFE_CHAT_WORKER_URL: "https://worker.example", SAFE_CHAT_INTERNAL_SECRET: "s3cret" }
+    );
+    await scheduleUid(doObj, "userD");
+    await doObj.alarm();
+    const queue = (await storage.get("erasureContinueQueue")) || [];
+    assert.deepEqual(queue, ["userD"]);
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
+});
+
+test("R-08: alarm uses backoff when URL missing (no tight 750ms loop)", async () => {
+  const storage = new MemStorage();
+  const doObj = new ChatLimitsDO({ storage }, { SAFE_CHAT_WORKER_URL: "", SAFE_CHAT_INTERNAL_SECRET: "" });
+  await scheduleUid(doObj, "userE");
+  await doObj.alarm();
+  const backoff = await storage.get("erasureAlarmBackoffMs");
+  assert.ok(typeof backoff === "number" && backoff >= 60_000);
+});
+
 test("R-08: alarm shifts uid only after successful erasure continue fetch", async () => {
   const storage = new MemStorage();
   let hit = 0;
@@ -73,7 +100,7 @@ test("R-08: alarm shifts uid only after successful erasure continue fetch", asyn
     hit += 1;
     assert.match(String(url), /erasure-continue/);
     assert.equal(init.method, "POST");
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    return new Response(JSON.stringify({ ok: true, complete: true }), { status: 200 });
   };
   try {
     const doObj = new ChatLimitsDO(

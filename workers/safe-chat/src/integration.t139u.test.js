@@ -257,7 +257,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const cap = Date.now() + 1000;
     await rtdbOwner(`chat/internal/safetyQueue/${msgId}/legalHoldUntil`, "PUT", cap);
     await runRetentionToCompletion(env, cap + 5000);
-    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json).toBeNull();
+    const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
+    expect(q.json?.overdue).toBe(true);
+    expect(q.json?.evidenceHoldExpiredAt).toBeTruthy();
   });
 
   it("t139u R-06: reporter delete-my-data removes own generic report rows", async () => {

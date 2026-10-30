@@ -28,12 +28,12 @@ test("O-03: risk hide thresholds match documented config defaults", () => {
   assert.equal(cfg.childSafetyClusterHideCap, 5);
 });
 
-test("E-05 / FT-03: wrangler cron is daily; immediate SLA is 4h (documented gap)", () => {
+test("E-05 / FT-03: SLA overdue cron runs every 15 minutes; immediate SLA remains config", () => {
   const wrangler = fs.readFileSync(path.join(root, "workers/safe-chat/wrangler.toml"), "utf8");
-  assert.match(wrangler, /crons\s*=\s*\[\s*"0 4 \* \* \*"\s*\]/);
+  assert.match(wrangler, /\*\/15 \* \* \* \*/);
+  assert.match(wrangler, /0 4 \* \* \*/);
   const cfg = loadConfig({});
   assert.equal(cfg.childSafetyImmediateDangerSlaMs, 4 * 60 * 60 * 1000);
-  assert.ok(cfg.childSafetyImmediateDangerSlaMs < 24 * 60 * 60 * 1000);
 });
 
 test("FT-04: erasure and retention batch sizes stay under Workers free subrequest budget", () => {
@@ -49,10 +49,12 @@ test("R-09: evidence max hold documented in config matches CHILD_HARM doc refere
   assert.match(doc, /maxHoldUntil|safetyEvidenceMaxHoldMs/i);
 });
 
-test("BY-05: clusterHashFromRequest ignores X-Forwarded-For without CF-Connecting-IP", async () => {
+test("BY-05: missing CF-Connecting-IP uses shared unknown cluster bucket", async () => {
   const req = new Request("http://x", { headers: { "X-Forwarded-For": "198.51.100.1, 10.0.0.1" } });
   const h = await clusterHashFromRequest(req, { SAFE_CHAT_HASH_SALT: "unit-test-salt" });
-  assert.equal(h, null);
+  assert.ok(h && /^[a-f0-9]{32}$/.test(h));
+  const h2 = await clusterHashFromRequest(new Request("http://x"), { SAFE_CHAT_HASH_SALT: "unit-test-salt" });
+  assert.equal(h, h2);
 });
 
 test("BY-05: clusterHashFromRequest uses CF-Connecting-IP when present", async () => {

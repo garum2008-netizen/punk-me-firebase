@@ -119,7 +119,7 @@ async function drainErasureInProcess(env, token, authUid, sid, firstResult) {
   let result = firstResult;
   let staleCursorCleared = Boolean(firstResult.staleCursorCleared);
   let guard = 0;
-  while (result.continueScheduled && result.cursor && guard < 20) {
+  while (result.continueScheduled && guard < 40) {
     guard += 1;
     result = await runUserErasureBatch({
       config: loadConfig(env),
@@ -129,7 +129,8 @@ async function drainErasureInProcess(env, token, authUid, sid, firstResult) {
       sid,
       now: getNow(env),
       storedCursor: result.cursor,
-      budget: loadConfig(env).erasureMaxSubrequests
+      budget: loadConfig(env).erasureMaxSubrequests,
+      bypassRateLimit: true
     });
     staleCursorCleared = staleCursorCleared || Boolean(result.staleCursorCleared);
   }
@@ -1098,6 +1099,27 @@ async function handleModResolveSafety(request, env) {
 
     if (action === "restore_visibility") {
       await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "DELETE", null, token, emu, ns);
+      const ev = await rtdbRequest(
+        config,
+        rtdbPath("chat", "internal", "safetyEvidence", msgId),
+        "GET",
+        null,
+        token,
+        emu,
+        ns
+      );
+      if (ev.json?.snapshot?.text) {
+        await rtdbRequest(
+          config,
+          `${pathChatMessage(msgId)}/text`,
+          "PUT",
+          String(ev.json.snapshot.text).slice(0, 512),
+          token,
+          emu,
+          ns
+        );
+        await rtdbRequest(config, `${pathChatMessage(msgId)}/textRedacted`, "DELETE", null, token, emu, ns);
+      }
       const q = await rtdbRequest(config, rtdbPath("chat", "internal", "safetyQueue", msgId), "GET", null, token, emu, ns);
       if (q.json) {
         await rtdbRequest(
@@ -1194,6 +1216,38 @@ async function handleModResolveSafety(request, env) {
   }
 }
 
+export async function runSlaOverdueJob(env, nowOverride) {
+  const config = loadConfig(env);
+  const token = await getCachedAdminToken(env);
+  const emu = env.FIREBASE_EMULATOR_HOST;
+  const ns = env.FIREBASE_EMULATOR_NS;
+  const now = nowOverride ?? getNow(env);
+  const queue = await rtdbRequest(config, "chat/internal/safetyQueue", "GET", null, token, emu, ns);
+  if (!queue.json || typeof queue.json !== "object") return { ok: true, marked: 0 };
+  let marked = 0;
+  for (const [msgId, q] of Object.entries(queue.json)) {
+    try {
+      assertFirebaseId(msgId);
+    } catch {
+      continue;
+    }
+    const sla = typeof q?.slaReviewBy === "number" ? q.slaReviewBy : q?.nextEscalateAt;
+    if (typeof sla !== "number" || now < sla) continue;
+    if (q.overdue) continue;
+    await rtdbRequest(
+      config,
+      rtdbPath("chat", "internal", "safetyQueue", msgId),
+      "PUT",
+      { ...q, overdue: true, nextEscalateAt: now + config.safetyQueueEscalateMs },
+      token,
+      emu,
+      ns
+    );
+    marked += 1;
+  }
+  return { ok: true, marked };
+}
+
 export async function runRetentionJob(env, nowOverride) {
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
@@ -1227,6 +1281,25 @@ export async function runRetentionJob(env, nowOverride) {
 
   /* Child-safety report rows alone do not extend message lifetime; queue/holds/evidence do. */
 
+  const msgsEarly = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
+  bump();
+  if (msgsEarly.json && typeof msgsEarly.json === "object") {
+    for (const [id, m] of Object.entries(msgsEarly.json)) {
+      if (budgetExceeded) break;
+      if (subrequests >= budget) break;
+      if (m?.safetyHold || protectedMsgIds.has(id)) continue;
+      try {
+        assertFirebaseId(id);
+      } catch {
+        continue;
+      }
+      if (m?.time && now - m.time > config.msgRetentionMs) {
+        await rtdbRequest(config, pathChatMessage(id), "DELETE", null, token, emu, ns);
+        bump();
+      }
+    }
+  }
+
   const evidenceSnap = await rtdbRequest(config, "chat/internal/safetyEvidence", "GET", null, token, emu, ns);
   bump();
   if (queue.json && typeof queue.json === "object") {
@@ -1242,26 +1315,38 @@ export async function runRetentionJob(env, nowOverride) {
       const maxHold = typeof ev?.maxHoldUntil === "number" ? ev.maxHoldUntil : null;
       const cap =
         legalCap != null && maxHold != null ? Math.min(legalCap, maxHold) : legalCap ?? maxHold;
-      if (cap != null && now > cap) {
+      if (cap != null && now > cap && !q?.modResolvedAt) {
         await rtdbRequest(
           config,
-          rtdbPath("chat", "internal", "safetyEvidence", msgId),
-          "DELETE",
-          null,
+          "chat/internal/safetyDecisions",
+          "POST",
+          {
+            msgId,
+            action: "evidence_hold_expired",
+            at: now,
+            moderatorUid: null,
+            note: "Automatic escalation: legal/max hold reached without moderator decision"
+          },
           token,
           emu,
           ns
         );
         bump();
-        await rtdbRequest(config, rtdbPath("chat", "internal", "safetyQueue", msgId), "DELETE", null, token, emu, ns);
+        await rtdbRequest(
+          config,
+          rtdbPath("chat", "internal", "safetyQueue", msgId),
+          "PUT",
+          {
+            ...q,
+            overdue: true,
+            evidenceHoldExpiredAt: now,
+            nextEscalateAt: now + config.safetyQueueEscalateMs
+          },
+          token,
+          emu,
+          ns
+        );
         bump();
-        await rtdbRequest(config, rtdbPath("chat", "internal", "safetyCase", msgId), "DELETE", null, token, emu, ns);
-        bump();
-        await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "DELETE", null, token, emu, ns);
-        bump();
-        delete queue.json[msgId];
-        if (evidenceSnap.json) delete evidenceSnap.json[msgId];
-        protectedMsgIds.delete(msgId);
       }
     }
   }
@@ -1271,37 +1356,36 @@ export async function runRetentionJob(env, nowOverride) {
       protectedMsgIds.add(msgId);
       if (subrequests >= budget) break;
       const maxHold = ev?.maxHoldUntil;
-      if (typeof maxHold === "number" && now > maxHold) {
+      if (typeof maxHold === "number" && now > maxHold && !ev?.modReleasedAt) {
         await rtdbRequest(
           config,
-          rtdbPath("chat", "internal", "safetyEvidence", msgId),
-          "DELETE",
-          null,
+          "chat/internal/safetyDecisions",
+          "POST",
+          {
+            msgId,
+            action: "evidence_max_hold_expired",
+            at: now,
+            moderatorUid: null,
+            note: "Automatic escalation: evidence maxHoldUntil reached"
+          },
           token,
           emu,
           ns
         );
         bump();
-        protectedMsgIds.delete(msgId);
-      }
-    }
-  }
-
-  const msgs = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
-  bump();
-  if (msgs.json && typeof msgs.json === "object") {
-    for (const [id, m] of Object.entries(msgs.json)) {
-      if (budgetExceeded) break;
-      if (subrequests >= budget) break;
-      if (m?.safetyHold || protectedMsgIds.has(id)) continue;
-      try {
-        assertFirebaseId(id);
-      } catch {
-        continue;
-      }
-      if (m?.time && now - m.time > config.msgRetentionMs) {
-        await rtdbRequest(config, pathChatMessage(id), "DELETE", null, token, emu, ns);
-        bump();
+        const q = queue.json?.[msgId];
+        if (q) {
+          await rtdbRequest(
+            config,
+            rtdbPath("chat", "internal", "safetyQueue", msgId),
+            "PUT",
+            { ...q, overdue: true, evidenceHoldExpiredAt: now },
+            token,
+            emu,
+            ns
+          );
+          bump();
+        }
       }
     }
   }
@@ -1483,6 +1567,9 @@ export default {
     }
   },
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runRetentionJob(env));
+    ctx.waitUntil(runSlaOverdueJob(env));
+    if (event.cron === "0 4 * * *") {
+      ctx.waitUntil(runRetentionJob(env));
+    }
   }
 };

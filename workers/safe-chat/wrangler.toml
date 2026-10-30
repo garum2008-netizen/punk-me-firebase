@@ -14,7 +14,7 @@ tag = "v1"
 new_sqlite_classes = ["ChatLimitsDO"]
 
 [triggers]
-crons = ["0 4 * * *"]
+crons = ["*/15 * * * *", "0 4 * * *"]
 
 [vars]
 FIREBASE_PROJECT_ID = "punk-me-40605"

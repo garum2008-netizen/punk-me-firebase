@@ -28,13 +28,19 @@ function chatPublicSid(uid, hashSalt) {
 function planForPlayer(uid, player, existingMeta = {}) {
   const ops = [];
   if (typeof player.chatAge13DeclaredAt === "number" && player.chatAge13DeclaredAt > 0) {
-    const cur = existingMeta.chatAge13DeclaredAt;
-    if (cur == null || player.chatAge13DeclaredAt !== cur) {
-      ops.push({
-        op: "PUT",
-        path: `chatMeta/${uid}/chatAge13DeclaredAt`,
-        value: player.chatAge13DeclaredAt
-      });
+    const nowMs = Date.now();
+    if (player.chatAge13DeclaredAt > nowMs + 60_000) {
+      /* reject forged future legacy dates */
+    } else {
+      const cur = typeof existingMeta.chatAge13DeclaredAt === "number" ? existingMeta.chatAge13DeclaredAt : 0;
+      const merged = Math.max(cur, player.chatAge13DeclaredAt);
+      if (merged !== cur) {
+        ops.push({
+          op: "PUT",
+          path: `chatMeta/${uid}/chatAge13DeclaredAt`,
+          value: merged
+        });
+      }
     }
   }
   if (typeof player.chatRegisteredAt === "number" && player.chatRegisteredAt > 0) {
@@ -98,6 +104,17 @@ async function main() {
   if (!salt) {
     console.error("FATAL: SAFE_CHAT_HASH_SALT (or MIGRATE_CHAT_HASH_SALT) is required.");
     process.exit(1);
+  }
+  if (write) {
+    const emulator = Boolean(process.env.FIREBASE_EMULATOR_HOST);
+    const prodOk =
+      process.env.MIGRATE_ALLOW_PROD === "owner-go" && args.includes("--i-understand-prod");
+    if (!emulator && !prodOk) {
+      console.error(
+        "FATAL: --write requires FIREBASE_EMULATOR_HOST (emulator) OR MIGRATE_ALLOW_PROD=owner-go with --i-understand-prod (owner GO only; agents must not use prod)."
+      );
+      process.exit(1);
+    }
   }
   if (!exportPath) {
     console.log("Usage: node scripts/migrate-players-chat-fields-to-meta.mjs [--write] export.json");

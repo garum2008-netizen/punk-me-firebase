@@ -54,6 +54,9 @@ async function main() {
   console.log("\n=== safe-chat t139u matrix unit tests ===");
   if (!runNode("safe-chat-t139u-matrix-unit.test.js")) process.exit(1);
 
+  console.log("\n=== safe-chat BY-09 DO restart (executable) ===");
+  if (!runNode("safe-chat-by09-do-restart.test.js")) process.exit(1);
+
   console.log("\n=== RTDB rules (emulator) ===");
   let rulesOk = false;
   await withSafeChatRulesEmulator(() => {
@@ -99,6 +102,14 @@ async function main() {
     integrationOk = r2.status === 0;
   });
   if (!integrationOk) process.exit(1);
+
+  console.log("\n=== mutation guard (protective mechanisms) ===");
+  const mut = spawnSync2("node", [path.join(__dirname, "safe-chat-mutation-check.mjs")], {
+    cwd: root,
+    stdio: "inherit",
+    env: process.env
+  });
+  if (mut.status !== 0) process.exit(1);
 
   console.log("\n=== wrangler deploy --dry-run (no publish) ===");
   const dry = spawnSync2("npx", ["wrangler", "deploy", "--dry-run"], {

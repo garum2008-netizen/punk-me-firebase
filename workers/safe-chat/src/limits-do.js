@@ -5,6 +5,26 @@ export class ChatLimitsDO {
     this.env = env;
   }
 
+  async nextAlarmDelayMs() {
+    const key = "erasureAlarmBackoffMs";
+    const prev = (await this.state.storage.get(key)) || 60_000;
+    const next = Math.min(prev * 2, 15 * 60 * 1000);
+    await this.state.storage.put(key, next);
+    return prev;
+  }
+
+  async resetAlarmBackoff() {
+    await this.state.storage.put("erasureAlarmBackoffMs", 60_000);
+  }
+
+  async scheduleAlarmSoon(delayMs = 750) {
+    const existing = await this.state.storage.getAlarm();
+    const at = Date.now() + delayMs;
+    if (!existing || existing > at + 5000) {
+      await this.state.storage.setAlarm(at);
+    }
+  }
+
   async alarm() {
     const base = (this.env.SAFE_CHAT_WORKER_URL || "").replace(/\/$/, "");
     const secret = this.env.SAFE_CHAT_INTERNAL_SECRET || "";
@@ -13,12 +33,12 @@ export class ChatLimitsDO {
     const retentionPending = await this.state.storage.get("retentionContinuePending");
     if (retentionPending) {
       if (!canCall) {
-        await this.state.storage.setAlarm(Date.now() + 750);
+        await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
         return;
       }
       await this.state.storage.put("retentionContinuePending", false);
       try {
-        await fetch(`${base}/api/internal/retention-continue`, {
+        const res = await fetch(`${base}/api/internal/retention-continue`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -26,6 +46,11 @@ export class ChatLimitsDO {
           },
           body: "{}"
         });
+        if (!res.ok) {
+          await this.state.storage.put("retentionContinuePending", true);
+        } else {
+          await this.resetAlarmBackoff();
+        }
       } catch (_) {
         await this.state.storage.put("retentionContinuePending", true);
       }
@@ -35,17 +60,18 @@ export class ChatLimitsDO {
     const uid = queue[0];
     if (!uid) {
       const stillRetention = await this.state.storage.get("retentionContinuePending");
-      if (stillRetention) await this.state.storage.setAlarm(Date.now() + 750);
+      if (stillRetention) await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
       return;
     }
     if (!canCall) {
-      await this.state.storage.setAlarm(Date.now() + 750);
+      await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
       return;
     }
     queue.shift();
     await this.state.storage.put("erasureContinueQueue", queue);
+    let requeue = false;
     try {
-      await fetch(`${base}/api/internal/erasure-continue`, {
+      const res = await fetch(`${base}/api/internal/erasure-continue`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -53,13 +79,25 @@ export class ChatLimitsDO {
         },
         body: JSON.stringify({ uid })
       });
+      if (!res.ok) {
+        requeue = true;
+      } else {
+        const body = await res.json().catch(() => ({}));
+        if (body.complete === false || body.continueScheduled === true) {
+          requeue = true;
+        } else {
+          await this.resetAlarmBackoff();
+        }
+      }
     } catch (_) {
-      if (!queue.includes(uid)) queue.unshift(uid);
-      await this.state.storage.put("erasureContinueQueue", queue);
+      requeue = true;
     }
+    if (requeue && !queue.includes(uid)) queue.unshift(uid);
+    if (requeue) await this.state.storage.put("erasureContinueQueue", queue);
+
     const pendingAfter = await this.state.storage.get("retentionContinuePending");
     if (queue.length > 0 || pendingAfter) {
-      await this.state.storage.setAlarm(Date.now() + 750);
+      await this.scheduleAlarmSoon(requeue ? 750 : 750);
     }
   }
 
@@ -108,18 +146,12 @@ export class ChatLimitsDO {
       const queue = (await this.state.storage.get("erasureContinueQueue")) || [];
       if (!queue.includes(uid)) queue.push(uid);
       await this.state.storage.put("erasureContinueQueue", queue);
-      const existing = await this.state.storage.getAlarm();
-      if (!existing) {
-        await this.state.storage.setAlarm(Date.now() + 750);
-      }
+      await this.scheduleAlarmSoon(750);
       return Response.json({ ok: true, queued: queue.length });
     }
     if (request.method === "POST" && url.pathname === "/schedule-retention-continue") {
       await this.state.storage.put("retentionContinuePending", true);
-      const existing = await this.state.storage.getAlarm();
-      if (!existing) {
-        await this.state.storage.setAlarm(Date.now() + 750);
-      }
+      await this.scheduleAlarmSoon(750);
       return Response.json({ ok: true });
     }
     return new Response("not found", { status: 404 });
@@ -158,6 +190,7 @@ export class ChatLimitsDO {
   }
 
   async checkChildSafetyHide({ uid, now, quota, bump }) {
+    if (this.env.SAFE_CHAT_TEST_DISABLE_HIDE_QUOTA === "1") return { ok: true };
     const data = await this.loadChildSafetyHide();
     let rec = data[uid] || { windowStart: now, count: 0 };
     if (now - (rec.windowStart || 0) >= this.windowMs24h()) {
@@ -175,7 +208,8 @@ export class ChatLimitsDO {
   }
 
   async checkClusterHide({ clusterHash, now, cap, bump }) {
-    if (!clusterHash) return { ok: true };
+    if (this.env.SAFE_CHAT_TEST_DISABLE_CLUSTER_CAP === "1") return { ok: true };
+    if (!clusterHash) return { ok: false, reason: "cluster_required" };
     const data = await this.loadClusterHide();
     let rec = data[clusterHash] || { windowStart: now, count: 0 };
     if (now - (rec.windowStart || 0) >= this.windowMs24h()) {

@@ -48,11 +48,13 @@ export async function ipv6ClusterHash(ip, salt) {
   return hmacHex(prefix, salt);
 }
 
+export const MISSING_CF_CLUSTER_LABEL = "__missing_cf_connecting_ip__";
+
 export async function clusterHashFromRequest(request, env) {
   const salt = env.SAFE_CHAT_CLUSTER_SALT || env.SAFE_CHAT_HASH_SALT || "";
   const cf = request.headers.get("CF-Connecting-IP")?.trim();
-  if (!cf) return null;
-  const ip = cf;
+  const ip = cf || MISSING_CF_CLUSTER_LABEL;
+  if (ip === MISSING_CF_CLUSTER_LABEL) return hmacHex(MISSING_CF_CLUSTER_LABEL, salt);
   if (ip.includes(":")) return ipv6ClusterHash(ip, salt);
   return ipv4ClusterHash(ip, salt);
 }
@@ -209,7 +211,22 @@ export async function enqueueChildSafetyReview({
   const prevRes = await rtdbRequest(config, queuePath, "GET", null, token, emu, ns);
   const prev = prevRes.json && typeof prevRes.json === "object" ? prevRes.json : {};
 
-  const legalHoldUntil = now + configObj.safetyEvidenceMaxHoldMs;
+  const prevEvRes = await rtdbRequest(
+    config,
+    rtdbPath("chat", "internal", "safetyEvidence", msgId),
+    "GET",
+    null,
+    token,
+    emu,
+    ns
+  );
+  const prevEv = prevEvRes.json && typeof prevEvRes.json === "object" ? prevEvRes.json : {};
+  const newHoldEnd = now + configObj.safetyEvidenceMaxHoldMs;
+  const legalHoldUntil = Math.max(
+    typeof prev.legalHoldUntil === "number" ? prev.legalHoldUntil : 0,
+    typeof prevEv.maxHoldUntil === "number" ? prevEv.maxHoldUntil : 0,
+    newHoldEnd
+  );
   const priority = extraQueueFields.queuePriority || prev.queuePriority || "critical";
   const slaMs = extraQueueFields.slaReviewByMs ?? configObj.safetyQueueEscalateMs;
 
@@ -236,13 +253,6 @@ export async function enqueueChildSafetyReview({
     hideBasis: riskSnapshot.hideBasis ?? prev.hideBasis ?? null
   };
 
-  if (hideMessage) {
-    await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
-    queueEntry.hiddenAt = queueEntry.hiddenAt || now;
-  }
-
-  await rtdbRequest(config, queuePath, "PUT", queueEntry, token, emu, ns);
-
   const msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
   const snap = msgRes.json
     ? {
@@ -253,16 +263,32 @@ export async function enqueueChildSafetyReview({
       }
     : null;
 
+  if (hideMessage) {
+    await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
+    if (snap?.text) {
+      await rtdbRequest(config, `${pathChatMessage(msgId)}/text`, "DELETE", null, token, emu, ns);
+      await rtdbRequest(config, `${pathChatMessage(msgId)}/textRedacted`, "PUT", true, token, emu, ns);
+    }
+    queueEntry.hiddenAt = queueEntry.hiddenAt || now;
+  }
+
+  await rtdbRequest(config, queuePath, "PUT", queueEntry, token, emu, ns);
+
+  const maxHoldUntil = Math.max(
+    typeof prevEv.maxHoldUntil === "number" ? prevEv.maxHoldUntil : 0,
+    legalHoldUntil
+  );
+
   await rtdbRequest(
     config,
     rtdbPath("chat", "internal", "safetyEvidence", msgId),
     "PUT",
     {
-      capturedAt: now,
+      capturedAt: prevEv.capturedAt || now,
       trigger: queueEntry.trigger,
       subcategory: queueEntry.subcategory,
       legalBasis: configObj.safetyEvidenceLegalBasis,
-      maxHoldUntil: legalHoldUntil,
+      maxHoldUntil,
       access: "moderator_only",
       snapshot: snap,
       riskIntrinsic: riskSnapshot.intrinsicScore ?? null,
@@ -288,17 +314,14 @@ export async function enqueueChildSafetyReview({
     if (ctx?.waitUntil) {
       ctx.waitUntil(
         deliver().then(async alertResultInner => {
-          if (alertResultInner.sent) {
-            await rtdbRequest(
-              config,
-              queuePath,
-              "PUT",
-              { ...queueEntry, alertDeliveredAt: Date.now() },
-              token,
-              emu,
-              ns
-            );
-          }
+          const patch = alertResultInner.sent
+            ? { ...queueEntry, alertDeliveredAt: Date.now() }
+            : {
+                ...queueEntry,
+                alertFailedAt: Date.now(),
+                alertFailReason: alertResultInner.reason || "unknown"
+              };
+          await rtdbRequest(config, queuePath, "PUT", patch, token, emu, ns);
         })
       );
       alertResult = { sent: false, reason: "scheduled" };
@@ -307,6 +330,20 @@ export async function enqueueChildSafetyReview({
       if (alertResult.sent) {
         queueEntry.alertDeliveredAt = now;
         await rtdbRequest(config, queuePath, "PUT", { ...queueEntry, alertDeliveredAt: now }, token, emu, ns);
+      } else {
+        await rtdbRequest(
+          config,
+          queuePath,
+          "PUT",
+          {
+            ...queueEntry,
+            alertFailedAt: now,
+            alertFailReason: alertResult.reason || "unknown"
+          },
+          token,
+          emu,
+          ns
+        );
       }
     }
   }
