@@ -1,7 +1,7 @@
 # Effort plan — My Life, My Story (Owner priorities t137u)
 
 **Branch:** `cursor/redesign-angel-city-d81d` (docs); implementation follows Owner decisions.  
-**First checkpoint:** **one fully playable, quality-voiced Chapter 1** (“New Girl in Town”).  
+**First checkpoint:** **playable vertical slice** (`VERTICAL_SLICE_PLAN.md`) — life ch1 with temp VO, not docs-only.  
 **Not claimed:** prototype, video, QA sign-off, any user test sessions.
 
 ---
@@ -53,7 +53,7 @@ flowchart TB
 | Clothes shop + outfit mission | 1 | First 3–5 min beat |
 | Cafe + work minigame | 1 | Currency loop |
 | 3–5 NPCs + dialogues ch1 | 1.5 | `CH1_DIALOGUES.md` |
-| Currency + UI “Angel Coins” | 0.5 | After Q4 |
+| Currency + UI монеты | 0.5 | After **D4** |
 | Story missions + journal card | 1 | Next achievable goal |
 | Angelina mentor (lead/hint/VO hooks) | 2 | Blocked on Q5 avatar |
 | NarratorDirector key beats | 1 | No long tutorial |
@@ -106,18 +106,25 @@ Ch1 script ~600–900 words → plan **$1.5k–4k** human buyout range for narra
 
 ---
 
-## Phase 1 docs status (Draft PR #50)
+## Phase 1 docs status (Draft PR #50, t138u)
 
 | Deliverable | File | Status |
 |-------------|------|--------|
 | Audit | `AUDIT_CURRENT_BUILD.md` | ✅ |
-| GDD | `GDD.md` | ✅ updated t137u |
-| Season 1 | `SEASON1_SCRIPT.md` | ✅ 5 Owner chapter titles |
-| Ch1 dialogues | `CH1_DIALOGUES.md` | ✅ New Girl in Town |
-| Owner questions | `OWNER_QUESTIONS.md` | ✅ + Q14–16 |
-| Effort | this file | ✅ P0–P3 stack |
+| GDD + acceptance | `GDD.md` §15 | ✅ t138u |
+| Season map | `SEASON1_SCRIPT.md` | ✅ canon-mapped |
+| Ch1 script + ids | `CH1_DIALOGUES.md` | ✅ |
+| Owner decisions | `OWNER_DECISIONS.md` | ✅ |
+| Keep/improve/replace | `KEEP_IMPROVE_REPLACE.md` | ✅ |
+| Voice stages | `VOICE_OPTIONS.md` | ✅ |
+| Quality benchmark | `QUALITY_BENCHMARK.md` | ✅ |
+| Vertical slice plan | `VERTICAL_SLICE_PLAN.md` | ✅ |
+| Owner questions (detail) | `OWNER_QUESTIONS.md` | ✅ |
+| Effort | this file | ✅ |
 
-Deliverables 4–5 (voiced prototype, gameplay video): **not started**.
+**Checkpoint (implementation):** voiced playable ch1 per `VERTICAL_SLICE_PLAN.md` — **not started** in code.
+
+**Testing order (t138u):** internal QA → minors with **`PARENTAL_CONSENT_PLAYTEST.md`** (r6) — agents run neither child sessions nor claim CEO phone pass.
 
 ---
 

@@ -2,6 +2,7 @@
 
 **Baseline:** `cursor/scenario-preview-r6-d81d` @ `b4ea4c7` (`GAME_VERSION`: `story-preview-p0-r4` in `js/game.js`).  
 **Scope:** honest inventory for redesign Phase 1 — **not** a pass/fail for CEO re-QA on `492d464`.  
+**t138u:** ORIGINAL LOCK — audit describes **gaps vs life-sim direction**, not permission to drop ch0/currency/canon.  
 **Method:** code + assets + playable systems on r6; AUTOMATED e2e in progress, **human phone kit** not executed (`docs/release/PLAYTEST_NEW_PLAYER_PHONE.md`).
 
 ---

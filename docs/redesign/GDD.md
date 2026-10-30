@@ -1,9 +1,10 @@
 # GDD — PUNK ME ANGEL: My Life, My Story (Phase 1 architecture)
 
-**Working title (Owner t137u):** **PUNK ME ANGEL — My Life, My Story** = **Life Simulator + Mystery Story**.  
-**Status:** design only (no implementation in Phase 1 doc pass).  
+**Working title (Owner t137u):** **PUNK ME ANGEL — My Life, My Story** = **Life Simulator + Mystery Story**. **“Angel City”** = working title only (t138u).  
+**Status:** design only (no implementation in this doc pass).  
 **Baseline code reuse:** r6 @ `b4ea4c7`.  
-**Owner directives:** t135u + **t137u** (2026-10-30) — not “walk around and change clothes only”; a **living story** where the player builds a life and uncovers the city’s secret.
+**ORIGINAL LOCK (t138u):** Keep approved **story, characters, locations, currency, chapter 0**; concept **develops** the existing game — see [`OWNER_DECISIONS.md`](./OWNER_DECISIONS.md).  
+**Owner directives:** t137u concept mapped onto canon; **t138u overrides** where they conflict.
 
 ---
 
@@ -75,10 +76,10 @@ flowchart LR
 | Orient | See Mission N, reward preview, marker on Angelina/target | `story-goal-hud`, beacons, host AI state |
 | Act | Walk, interact, dialogue | `world3d`, interact priority, dialogue runtime |
 | Beat | Trigger `NarratorEvent` | Event bus (new), cooldown table |
-| Resolve | Coins/XP/item/unlock | `story-save-schema`, `balance.json` (Angel Coins rename TBD — see OWNER_QUESTIONS) |
+| Resolve | Coins/XP/item/unlock | `story-save-schema`, `balance.json` (**монеты** / `me.coins` — LOCK) |
 | Persist | Autosave on beat | existing `saveMe()` |
 
-**First session (3–5 min target):** Mission «Выбери образ» → meet Angelina → follow → **first Angel Coins** — **no** 14-step House 13 tutorial (`onboarding.js` replaced in MVP — Owner Q3).
+**First life-sim session (3–5 min after ch0):** outfit → meet Angelina → follow → **first монеты reward** — **does not replace** `q_ch0_newbie` (`onboarding.js` **Keep** until **D3** Owner GO).
 
 ---
 
@@ -194,7 +195,7 @@ flowchart LR
 | `#storyGoalBar` | One line objective + progress | **Reuse** |
 | `#questBox` / game menu journal | Step list + rewards | **Reuse** |
 | 3D beacon | Arrow + ring | **Reuse** `quest-markers.mjs` |
-| Mission card (new) | “Mission 1 — Follow Angelina · Reward: 100 Angel Coins” | **New** HUD component |
+| Mission card (new) | “Mission 1 — Follow Angelina · Reward: 100 монеты” | **New** HUD component |
 | Next action verb | “Иди за Ангелиной” / “Нажми E у двери” | Pull from `angelina-guide` + onboarding hint keys |
 
 ---
@@ -203,7 +204,7 @@ flowchart LR
 
 | System | Current | Target |
 |--------|---------|--------|
-| Currency | `me.coins` (монеты) | **Angel Coins** cosmetic rename + icon (Owner) |
+| Currency | `me.coins` (монеты) | **Keep** field; optional UI rename only after **D4** |
 | XP / level | `sqrt` level from XP | KEEP; tie to “life milestones” |
 | Achievements | none | **New** `story.achievements[]` + toast + journal tab |
 | Location unlock | `story-spine.mjs` | KEEP; map Angel City districts |
@@ -263,13 +264,13 @@ flowchart LR
 |------|-------|--------|---------|
 | `world3d.mjs` | ✓ locomotion, portals | host NPC follow | Angel City geometry |
 | `story-engine.mjs` | ✓ quests/dialogues | narrator events | — |
-| `onboarding.js` | step machine | — | ch1 content → Angel City |
+| `onboarding.js` | step machine | life quest hints after ch0 | **Keep** ch0 content (LOCK) |
 | `chapter-intro.mjs` | slide UI | cinematic flag | arrival cinematic |
 | `speech-bridge.mjs` | ✓ | human asset paths | — |
 | `audio-manager.mjs` | ✓ channels | new music beds | rock tracks retired |
 | `angelina-*` | ✓ tiers | host AI | 3D avatar |
 | `i18n.js` | ✓ | uk completeness | — |
-| `game.js` economy | ✓ | Angel Coins UI | — |
+| `game.js` economy | ✓ | Reward UX (монеты) | — |
 | Chat | — | — | phrase picker |
 | Achievements | — | — | new module |
 
@@ -277,17 +278,53 @@ flowchart LR
 
 ## 13. Canon relationship
 
-This GDD describes **Owner’s new product direction**. Existing Tykvograd canon (House 13, Bell, three endings) remains documented in `STORY_ENDINGS_TZ_2026-10-25.md` and `QUEST_TABLE.md`. **Do not merge timelines without Owner decision** — see `OWNER_QUESTIONS.md`.
+This GDD **extends** the approved Tykvograd product (House 13, ch0, Bell, three endings). Life-sim + mystery layers sit **on top** after Owner resolves [`OWNER_DECISIONS.md`](./OWNER_DECISIONS.md). **Do not** replace `QUEST_TABLE.md` main line without GO.
 
 ---
 
-## 14. Deliverables trace (directive Phase 1)
+## 14. Deliverables trace (t138u)
 
-| # | Deliverable | This doc set |
-|---|-------------|--------------|
+| # | Deliverable | File |
+|---|-------------|------|
 | 1 | Audit | `AUDIT_CURRENT_BUILD.md` |
-| 2 | GDD | this file |
-| 3 | Season script + ch1 dialogues | `SEASON1_SCRIPT.md`, `CH1_DIALOGUES.md` |
-| 6 (partial) | Effort plan | `EFFORT_PLAN.md` |
+| 2 | GDD + acceptance matrix | this file §15 |
+| 3 | Season map (not replacement) | `SEASON1_SCRIPT.md` |
+| 4 | Ch1 script + trigger ids | `CH1_DIALOGUES.md` |
+| 5 | Keep / improve / replace | `KEEP_IMPROVE_REPLACE.md` |
+| 6 | Owner decisions | `OWNER_DECISIONS.md` |
+| 7 | Voice stages | `VOICE_OPTIONS.md` |
+| 8 | Quality benchmark | `QUALITY_BENCHMARK.md` |
+| 9 | Vertical slice plan | `VERTICAL_SLICE_PLAN.md` |
+| 10 | Effort | `EFFORT_PLAN.md` |
 
-Items 4–5 (voiced prototype, gameplay video) are **implementation Phase 2+**, not claimed here.
+**Checkpoint:** playable ch1 slice per `VERTICAL_SLICE_PLAN.md` — not this doc PR alone.
+
+---
+
+## 15. Requirements matrix — implementation + measurable acceptance
+
+Each row must pass **internal QA on agreed target devices** (§11) before vertical slice sign-off.
+
+| GDD element | Technical implementation | Measurable acceptance |
+|-------------|-------------------------|------------------------|
+| **Seven life systems** | Extend `quests.json` + district flags; reuse shop/jobs/build (`game.js`, `gameplay-v21.mjs`) | P1 slice implements **home, style, work (cafe), friends, city (1 district)**; school/reputation stubs documented; player completes **≥ 1** verb per system in ch1 life quest |
+| **Dual loop (story + daily)** | `#storyGoalBar` + mission card reads active `q_life_*` step | **≥ 1** visible “next goal” line at all times during life quest; player can idle **60 s** without crash; optional explore does not block save |
+| **3–5 min fun** | Step order: outfit → Angelina → reward within `q_life_ch1_settle` | Internal QA median **≤ 5 min** from life quest start to first **монеты** reward (n≥3 runs) |
+| **Narrated Gameplay** | New `NarratorDirector` + `data/story/narrator-events.json`; triggers from quest steps / interact | **≥ 5** distinct `narr_ch1_*` events fire once each per playthrough; cooldown **≥ 40 s** between non-critical lines; `skipIfFlag` prevents repeats |
+| **Angelina mentor** | Extend `angelina-help.mjs` / host lead mode; portrait until ICE | Lead mode: player reaches beacons **without** tier-4 hint in **≥ 80%** of internal QA runs; **≥ 3** Angelina spoken lines in ch1 with subtitles |
+| **Dialogues + choices** | `dialogues.json` trees; `story-engine.mjs` effects | **≥ 3** dialogues with **≥ 2** choices each; all choices apply flag or `flavorOnly: true` validated in CI |
+| **Choice consequences** | `story.flags` / `story.lifeFlags` | **≥ 1** flag set in ch1 changes dialogue or journal text later in same quest (e.g. `mystery_open` → Mira line variant) |
+| **Navigation / goals unaided** | Beacons `quest-markers.mjs`, one verb hints | Internal QA: **100%** testers reach each step goal **without** console/cheats; **0** soft-lock **> 3 min** on a step |
+| **Progress persist** | `saveMe()` on beat; Firebase `players/{uid}` | Exit tab + re-open within 24 h restores step, flags, **монеты** total ± last reward; automated test asserts field equality |
+| **Voice + subtitles** | `speech-bridge.mjs`, `#voiceSubtitle`, Stage 1 TTS mp3 | Every ch1 `voiceId` plays; subtitle visible within **500 ms** of audio start; mute setting silences VO but keeps subtitles |
+| **Currency** | `me.coins`, grant keys on steps | Rewards match script totals ±0; UI shows **монеты** unless **D4-A** approved |
+| **Chapter 0 (LOCK)** | `onboarding.js`, `q_ch0_newbie` | Regression: ch0 completable to `reward_ch0_complete` with **no** life quest forced mid-flow |
+| **Quest journal** | `#questBox`, journal entry on mystery | Journal lists life quest steps; completion writes human-readable entry «Первое послание» |
+| **Cafe work** | Minigame hook 3 orders | **≥ 1** successful order grants coins; fail allows retry with tier-2 hint only |
+| **Home decorate** | 3 snap slots | Place bed/desk/lamp → step complete flag; **≥ 3** placements required |
+| **Style outfit** | Mirror / kiosk 3 presets | One outfit flag set; mirror skippable if kiosk done |
+| **Audio mix** | `audio-manager.mjs` duck | VO active → music reduced measurable in QA checklist (see `QUALITY_BENCHMARK.md`) |
+| **Mobile perf** | `mobileQuality`, touch controls | **≥ 30 FPS** home, **≥ 24 FPS** cafe (10 s sample) on target phones |
+| **Child safety (P2 design)** | Phrase chat spec, parental toggles | Not required for slice pass; documented in §10 |
+| **Monetization (P3)** | None in slice | **0** payment UI in vertical slice build |
+| **Testing process** | CI smoke + internal QA | Automated **`test:life-ch1-smoke`** green; then human phone QA; minors only after consent (**D18**) |

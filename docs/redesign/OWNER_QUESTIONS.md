@@ -1,5 +1,6 @@
-# Owner decisions — canon vs Angel City redesign
+# Owner decisions — canon vs Life Story concept
 
+**Superseded for decisions by:** [`OWNER_DECISIONS.md`](./OWNER_DECISIONS.md) (**t138u** register with recommendations).  
 **Rule:** design agents **do not** silently replace approved canon. Each item needs Owner choice before implementation.
 
 ---

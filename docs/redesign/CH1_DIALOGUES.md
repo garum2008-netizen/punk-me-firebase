@@ -1,78 +1,104 @@
-# Chapter 1 — New Girl in Town (dialogue script, RU)
+# Chapter 1 — New Girl in Town (life layer script, RU)
 
-**Chapter (Owner t137u):** **New Girl in Town** / «Новенькая в городе».  
-**Scope:** Season 1 Chapter 1 — first **10 minutes** guided onboarding (Owner t135u + t137u: outfit, Angelina, first reward, **no long tutorial**).  
-**Languages in shipping:** RU master; EN/DA/UK localisation follows this script (not written here).  
-**Speakers:** `narrator`, `angelina`, `npc_*`, `ui` (mission toasts).  
-**Format:** `→` player choice; `[flag]` consequence.
+**Owner title:** **New Girl in Town** — journal **neutral RU** «Новенький в городе» (**D6**).  
+**Gate (recommended):** starts after **`q_ch0_newbie`** / `onboarding.done` — quest **`q_life_ch1_settle`**. Does **not** replace House 13 wake-up (**ORIGINAL LOCK**).  
+**Setting copy:** “город” / Tykvograd — **not** a separate Angel City map unless **D1** approved.  
+**Currency UI:** **монеты** (`me.coins`).  
+**Languages:** RU master; EN/DA/UK follow these ids.
 
-**Canon note:** This script implements **Angel City** onboarding. It does **not** automatically replace `q_ch0_newbie` / House 13 until Owner resolves `OWNER_QUESTIONS.md`.
+**Speakers:** `narrator`, `angelina`, `npc_mira`, `ui`.
 
 ---
 
-## 0:00–2:00 — Arrival in Angel City
+## Narrator trigger registry (exact ids)
 
-### Cinematic (skippable after 5s)
+| Trigger ID | When (quest step / event) | Cooldown group | Sets flag |
+|------------|---------------------------|----------------|-----------|
+| `narr_ch1_metaphor_01` | `q_life_ch1_settle:step_outfit_start` | `narrator_main` | `narr_ch1_metaphor_01_heard` |
+| `narr_ch1_street_01` | `q_life_ch1_settle:follow_angelina` (enter follow mode) | `narrator_main` (+40s) | `narr_ch1_street_01_heard` |
+| `narr_ch1_home_01` | `q_life_ch1_settle:decorate_done` | `narrator_main` | `narr_ch1_home_01_heard` |
+| `narr_ch1_cafe_01` | Cafe: first order success | `narrator_main` | `narr_ch1_cafe_01_heard` |
+| `narr_ch1_mystery_01` | `q_life_ch1_settle:message_read` | `narrator_main` | `narr_ch1_mystery_01_heard` |
+| `narr_ch1_close_01` | Quest complete (critical priority) | — | `narr_ch1_close_01_heard` |
 
-**[VIDEO]** Train/car arrival, skyline “Angel City”, soft ambient (no rock).
+**Acceptance:** ≥ **5** of the above fire in one playthrough (all **6** in golden path).
 
-**Narrator** (verbatim Owner example):
+---
 
-> «Каждая история начинается с выбора. Сегодня ты приезжаешь в Angel City — город, где даже маленькое решение может изменить твою судьбу».
+## Dialogue trees (interactive)
 
-**[UI] Mission 1:** «Следуй за Ангелиной» · Награда: **100 Angel Coins**
+| Dialogue id | Choices | Consequence flag |
+|-------------|---------|------------------|
+| `dlg_ch1_outfit` | 3 outfit styles | `outfit_calm` / `outfit_bright` / `outfit_bold` |
+| `dlg_s1_mira_intro` | 3 greet lines | `rel_mira:warm` / `shy` / `curious` |
+| `dlg_ch1_mystery_trust` | 3 trust lines | `mystery_secret` / `mystery_open` / `mystery_trust_angelina` |
 
-**Angelina** (verbatim Owner example):
+**Delayed consequence:** `mystery_open` → Mira line variant on **`q_life_ch2_dream:step_mira_revisit`** (stub text in data).
+
+---
+
+## Player actions & mission map
+
+| Mission | Player action | Quest step id | Reward (монеты) |
+|---------|---------------|---------------|-----------------|
+| M0 | Interact kiosk/mirror — pick outfit | `step_outfit` | +25 on confirm |
+| M1 | Follow Angelina beacon | `follow_angelina` | +100 on arrive room door |
+| M2 | Place bed, desk, lamp | `decorate` | +50 on `decorate_done` |
+| M3 | Talk Mira (`dlg_s1_mira_intro`) | `meet_mira` | +30 |
+| M4 | Complete cafe shift (3 orders) | `cafe_shift` | +50 |
+| M5 | Read note + `dlg_ch1_mystery_trust` | `message_read` | achievement flag only |
+
+---
+
+## Script body (lines tied to triggers)
+
+### M0 — Outfit (`narr_ch1_metaphor_01` on step start)
+
+**Narrator:**
+
+> «Каждая история начинается с выбора. Сегодня ты делаешь первый шаг в своём городе — даже маленькое решение может изменить твою судьбу».
+
+**UI:** Mission «Выбери образ» · +25 монеты
+
+**dlg_ch1_outfit** → flags as table above.
+
+---
+
+### M1 — Follow Angelina
+
+**Angelina:**
 
 > «Привет! Я Ангелина. Давай сначала найдём тебе комнату. А потом я покажу одно место, о котором почти никто не знает».
 
-**Angelina** (follow-up):
-
 > «Я пойду рядом. Просто иди за мной — увидишь стрелку на земле».
 
-**[GAMEPLAY]** Lead mode: beacon on Angelina; no combat; blocked portals.
+**[GAMEPLAY]** Lead mode · blocked unrelated portals during step.
 
-**Narrator** (cooldown group `narrator_main`, +40s after previous):
+**`narr_ch1_street_01`:**
 
 > «Город шумит, но у каждого здесь есть свой угол. Сегодня — твой».
 
 ---
 
-## 2:00–5:00 — My first room
+### M2 — Room (`narr_ch1_home_01` after decorate)
 
 **Angelina:**
 
 > «Вот эта дверь — твоя комната. Зайди внутрь. Сначала выбери, как ты хочешь выглядеть — это важно».
 
-**[INTERACT] Mirror / wardrobe**
-
-**UI:** «Выбери образ» (3 outfits: casual / sporty / bold — cosmetic only)
-
-→ **«Спокойный стиль»** → `[flag:outfit_calm]` + toast «Образ сохранён»  
-→ **«Яркий стиль»** → `[flag:outfit_bright]`  
-→ **«Смелый стиль»** → `[flag:outfit_bold]`
-
-**Angelina:**
-
 > «Класс. Теперь расставим пару вещей — так комната станет твоей».
 
-**[INTERACT]** Place furniture (3 slots: bed / desk / lamp — snap grid)
-
-**Narrator:**
+**Narrator (`narr_ch1_home_01`):**
 
 > «Дом — это не стены. Это то, что ты оставляешь после себя каждый день».
 
-**[UI] Mission 2 complete:** «Обустрой комнату» · +**50 Angel Coins**
-
-**Angelina** (short):
+**Angelina:**
 
 > «Нравится? Пойдём познакомлю тебя с одним человеком. Но сначала — кафе. Там всё просто, обещаю».
 
 ---
 
-## 5:00–8:00 — First friends + cafe
-
-**[LOCATION]** Cafe exterior (new district or retagged `city` interior)
+### M3–M4 — Mira & cafe
 
 **Angelina:**
 
@@ -80,100 +106,75 @@
 
 **npc_mira:**
 
-> «О, привет! Angelina говорила, что кто-то новенький приедет. Ты уже нашёл комнату?»
+> «О, привет! Angelina говорила, что кто-то новенький появится. Ты уже обустроил комнату?»
+
+**dlg_s1_mira_intro:**
 
 → **«Да, уже обустроил»** → `[rel_mira:warm]` · Angelina: «Видишь? Улыбка — уже полдела.»  
 → **«Пока только чемодан»** → `[rel_mira:shy]` · Angelina: «Нормально. Главное — не молчи слишком долго.»  
-→ **«А ты давно знаешь Angel City?»** → `[rel_mira:curious]` · unlock lore line (no spoils)
+→ **«А ты давно здесь живёшь?»** → `[rel_mira:curious]`
 
 **Angelina:**
 
 > «Хочешь подработать? Одна короткая смена — и тебе хватит на мелочи в городе».
 
-**[MINIGAME]** Cafe shift: 3 orders, timer generous; fail = Angelina tier-2 hint (not game over)
+**`narr_ch1_cafe_01`** (first order success):
 
-**Narrator** (on first successful order):
-
-> «Первые монеты в новом городе всегда пахнут кофе и нервами. Это нормально».
-
-**[UI] Mission 3–4:** «Познакомься» + «Смена в кафе» · +**80 Angel Coins** total segment
-
-**Angelina** (after shift):
-
-> «Ты справился. Пойдём на улицу — хочу кое-что проверить».
+> «Первые монеты в новом месте всегда пахнут кофе и нервами. Это нормально».
 
 ---
 
-## 8:00–10:00 — First mystery
-
-**[LOCATION]** Quiet alley / bench (marker)
+### M5 — Mystery
 
 **Angelina:**
 
 > «Стой. Вот на скамейке… это не моё. Открой — но не пугайся».
 
-**[INTERACT]** Letter / phone notification prop
-
-**Narrator:**
+**`narr_ch1_mystery_01`:**
 
 > «Иногда город говорит первым. Вопрос — готов ли ты слушать».
 
-**[UI] Text on screen (message):**
+**UI message:**
 
-> «Тот звон, что ты слышал при въезде, — не погода. Не показывай это Мире. — ?»
+> «Тот звук, что ты слышал у ворот, — не погода. Не показывай это Мире. — ?»
 
-**Angelina** (choice):
+**dlg_ch1_mystery_trust** (Angelina):
 
 > «Это странно. Что сделаем?»
 
-→ **«Спрятать и подумать»** → `[flag:mystery_secret]` · «Окей. Я помогу, но без геройства.»  
-→ **«Сразу спросить у Миры»** → `[flag:mystery_open]` · Mira later line distrust (ch2 hook)  
-→ **«Показать Angelina всё»** → `[flag:mystery_trust_angelina]` · +affinity Angelina
+→ **«Спрятать и подумать»** → `[flag:mystery_secret]`  
+→ **«Спрятать и спросить у Миры позже»** → `[flag:mystery_open]` *(later distrust)*  
+→ **«Рассказать Angelina всё»** → `[flag:mystery_trust_angelina]`
 
-**Narrator** (chapter end stinger):
+**`narr_ch1_close_01`:**
 
-> «Глава первая заканчивается не точкой, а вопросом. Angel City помнит тех, кто выбирает».
+> «Глава первая заканчивается не точкой, а вопросом. Город помнит тех, кто выбирает».
 
-**[UI] Chapter 1 complete · Cliffhanger:** Season thread `s1_mystery_sender` opened  
-**Save:** autosave + journal entry «Первое послание»
+**Save:** autosave · journal «Первое послание» · `s1_mystery_sender` open.
 
 ---
 
-## Angelina hint lines (tier fallback, ch1)
+## Angelina tier fallback (ch1)
 
-| Tier | RU line |
-|------|---------|
+| Tier | RU |
+|------|-----|
 | 1 | «Посмотри на стрелку — туда.» |
 | 2 | «Подойди ближе и нажми E (или кнопку руки).» |
 | 3 | «Сначала комната, потом кафе. Я жду у двери.» |
-| 4 | «Иди прямо к метке “Зеркало”, выбери образ, потом поставь кровать.» |
+| 4 | «Иди к метке “Зеркало”, выбери образ, поставь кровать.» |
 
 ---
 
-## VO / subtitle notes
+## VO / avatar
 
-- Narrator: adult professional voice; pace slow; pauses marked in studio direction (Phase 2).
-- Angelina: teen voice; **simple sentences**; max ~12 words per hint (Owner).
-- All lines require `voiceId` + subtitle sync in `data/audio/voice-lines.json` when implemented.
-- **3D Angelina avatar:** lip-sync when ICE-approved model exists; until then portrait + subtitles only.
-
----
-
-## Data hooks (for implementation Phase 2)
-
-| Beat | Suggested quest step id |
-|------|-------------------------|
-| Follow | `q_s1_ch1_arrival:follow` |
-| Room outfit | `q_s1_ch1_room:outfit` |
-| Furniture | `q_s1_ch1_room:decorate` |
-| Mira dialogue | `dlg_s1_mira_intro` |
-| Cafe shift | `q_s1_ch1_cafe:shift` |
-| Message | `q_s1_ch1_mystery:read` |
+- `voiceId` = `{trigger_or_dialogue_id}_{lang}` in `voice-lines.json`.
+- **Angelina 3D:** requirements only — **no final model** (ICE, **D15**).
+- Stage 1 temp TTS / Stage 2 actors: `VOICE_OPTIONS.md`.
 
 ---
 
-## Explicit non-goals in this script
+## Explicit non-goals
 
-- No Razor initiation, no cemetery, no duel (Tykvograd ch1) unless Owner merges arcs.
-- No free-text chat with Mira — only choices above.
-- No claim that this script is recorded or playable yet.
+- Does not remove Razor, cemetery, duels from canon routes.
+- No free-text chat — choices only.
+- Not claimed playable in this doc PR.
