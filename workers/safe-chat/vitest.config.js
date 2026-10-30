@@ -1,9 +1,17 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const integration = process.env.SAFE_CHAT_INTEGRATION === "1";
 const newbie = process.env.SAFE_CHAT_INTEGRATION_NEWBIE === "1";
 
 export default defineWorkersConfig({
+  resolve: {
+    alias: {
+      [path.resolve(__dirname, "src/auth-prod.js")]: path.resolve(__dirname, "src/auth.integration.js")
+    }
+  },
   test: {
     fileParallelism: false,
     testTimeout: integration ? 30000 : 10000,
@@ -17,7 +25,6 @@ export default defineWorkersConfig({
         wrangler: { configPath: "./wrangler.toml" },
         miniflare: {
           bindings: {
-            SAFE_CHAT_TEST_MODE: integration ? "true" : "false",
             SAFE_CHAT_EMULATOR: integration ? "true" : "false",
             FIREBASE_EMULATOR_HOST: "127.0.0.1",
             FIREBASE_EMULATOR_NS: "punk-me-40605-default-rtdb",
@@ -26,9 +33,10 @@ export default defineWorkersConfig({
             SAFE_CHAT_DAILY_LIMIT: integration ? "2" : "80",
             SAFE_CHAT_REPORT_AUTO_HIDE: "3",
             SAFE_CHAT_FREE_TEXT: newbie ? "true" : "false",
-            SAFE_CHAT_SKIP_AUTH: "false",
             SAFE_CHAT_INTEGRATION: integration ? "1" : "0",
-            SAFE_CHAT_TEST_MOD_TOKEN: process.env.SAFE_CHAT_TEST_MOD_TOKEN || ""
+            SAFE_CHAT_TEST_MOD_TOKEN: process.env.SAFE_CHAT_TEST_MOD_TOKEN || "",
+            SAFE_CHAT_HASH_SALT: "vitest-local-salt-do-not-use-in-prod",
+            SAFE_CHAT_CORS_ORIGINS: "https://halloween.punk.contractbot.dk,http://127.0.0.1"
           }
         }
       }

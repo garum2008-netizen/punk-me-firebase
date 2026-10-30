@@ -13,12 +13,12 @@ const cases = [
     pass: !wranglerToml.includes("SAFE_CHAT_TEST_MODE")
   },
   {
-    name: "wrangler.toml SAFE_CHAT_SKIP_AUTH is false",
-    pass: /SAFE_CHAT_SKIP_AUTH\s*=\s*["']false["']/i.test(wranglerToml)
+    name: "wrangler.toml has no SAFE_CHAT_SKIP_AUTH",
+    pass: !wranglerToml.includes("SAFE_CHAT_SKIP_AUTH")
   },
   {
-    name: "loadConfig testMode false without test flag",
-    pass: loadConfig({ SAFE_CHAT_SKIP_AUTH: "false" }).testMode === false
+    name: "loadConfig freeText false by default",
+    pass: loadConfig({}).freeTextEnabled === false
   },
   {
     name: "wrangler.toml uses new_sqlite_classes for ChatLimitsDO",

@@ -19,13 +19,13 @@ crons = ["0 4 * * *"]
 [vars]
 FIREBASE_PROJECT_ID = "punk-me-40605"
 FIREBASE_DATABASE_URL = "https://punk-me-40605-default-rtdb.europe-west1.firebasedatabase.app"
-# Set to "true" only in local emulator tests (wrangler dev / vitest).
-SAFE_CHAT_SKIP_AUTH = "false"
 SAFE_CHAT_FREE_TEXT = "false"
 SAFE_CHAT_DAILY_LIMIT = "80"
 SAFE_CHAT_REPORT_AUTO_HIDE = "3"
+SAFE_CHAT_CORS_ORIGINS = "https://halloween.punk.contractbot.dk"
 
 # Secrets (set via `wrangler secret put`, never commit):
 # FIREBASE_SERVICE_ACCOUNT_JSON — Firebase SA with RTDB write (Database Admin)
 # MODERATOR_UIDS — comma-separated Firebase Auth UIDs (owner + mods)
+# SAFE_CHAT_HASH_SALT — HMAC salt for report pseudonymisation
 # Optional: SAFE_CHAT_WEBHOOK_URL — notify owner on new report (not wired by default)
