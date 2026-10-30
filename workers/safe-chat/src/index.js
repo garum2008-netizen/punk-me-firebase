@@ -13,10 +13,25 @@ import { runUserErasureBatch, continueErasureForUid } from "./erasure.js";
 import { detectChildHarmSignals } from "./child-harm.js";
 import {
   enqueueChildSafetyReview,
-  evaluateChildSafetyReportHide,
   clusterHashFromRequest,
-  penalizeFalseChildSafetyReport
+  penalizeFalseChildSafetyReport,
+  recordMergedSafetyReport,
+  loadAuthorSafetyMeta,
+  checkDiscretionaryHideQuota,
+  CHILD_SAFETY_REPORT_RECEIVED,
+  loadReporterAutoHideDenied
 } from "./child-safety-abuse.js";
+import {
+  CHILD_SAFETY_SUBCATEGORIES,
+  normalizeChildSafetySubcategory,
+  isChildSafetyReport,
+  computeIntrinsicRiskScore,
+  reporterCredibilityWeight,
+  reporterBoostFromIndependence,
+  decideChildSafetyAction,
+  messagePassesFilter
+} from "./child-safety-risk.js";
+import { reporterTrustForChildSafety } from "./player-profile.js";
 
 export { ChatLimitsDO };
 
@@ -282,8 +297,19 @@ async function handleSend(request, env) {
       configObj: config,
       trigger: "filter",
       hideMessage: true,
-      trustedReporterCount: 0,
-      childSafetyReportCount: 0
+      childSafetyReportCount: 0,
+      subcategory: "immediate_danger",
+      extraQueueFields: {
+        escalationTier: "immediate_danger",
+        queuePriority: "immediate_danger",
+        moderatorNotify: true,
+        slaReviewByMs: config.childSafetyImmediateDangerSlaMs
+      },
+      riskSnapshot: {
+        intrinsicScore: 88,
+        effectiveScore: 88,
+        hideBasis: "filter_child_harm"
+      }
     });
   }
   await bumpChatSendCount(config, env, token, auth.uid);
@@ -307,7 +333,8 @@ async function handleReport(request, env) {
     return err(request, env, "invalid_id");
   }
   const reportCategory = body.category ? String(body.category).slice(0, 32) : "generic";
-  const isChildSafety = reportCategory === REPORT_CATEGORY_CHILD_SAFETY;
+  const safetySub = normalizeChildSafetySubcategory(reportCategory, body.subcategory);
+  const isChildSafety = isChildSafetyReport(reportCategory, body.subcategory);
 
   const token = await getCachedAdminToken(env);
   let profile;
@@ -319,7 +346,7 @@ async function handleReport(request, env) {
     }
     throw e;
   }
-  if (!requireAgeDeclared(profile)) {
+  if (!isChildSafety && !requireAgeDeclared(profile)) {
     return err(request, env, "age_not_declared", 403);
   }
 
@@ -335,14 +362,17 @@ async function handleReport(request, env) {
   const dedupPath = rtdbPath("chat", "internal", "reportDedup", msgId, reporter);
   const existing = await rtdbRequest(config, dedupPath, "GET", null, token, emu, ns);
   if (existing.json) {
+    if (isChildSafety) return json(request, env, { ...CHILD_SAFETY_REPORT_RECEIVED, duplicate: true });
     return json(request, env, { ok: true, duplicate: true });
   }
 
-  const repLimits = await checkReportLimits(env, auth.uid, config);
-  if (!repLimits.ok) return err(request, env, repLimits.reason, 429);
+  if (!isChildSafety) {
+    const repLimits = await checkReportLimits(env, auth.uid, config);
+    if (!repLimits.ok) return err(request, env, repLimits.reason, 429);
 
-  if (!(await checkGlobalMsgReportLimit(config, token, emu, ns, msgId, now))) {
-    return err(request, env, "global_report_limit", 429);
+    if (!(await checkGlobalMsgReportLimit(config, token, emu, ns, msgId, now))) {
+      return err(request, env, "global_report_limit", 429);
+    }
   }
 
   const report = {
@@ -350,7 +380,8 @@ async function handleReport(request, env) {
     time: getNow(env),
     reporterHash: reporter,
     msgUidHash: assertReportHash(msgRes.json.sid || msgRes.json.uid || ""),
-    category: reportCategory,
+    category: isChildSafety ? safetySub : reportCategory,
+    subcategory: isChildSafety ? safetySub : null,
     priority: isChildSafety ? "high" : "normal"
   };
   const reportPush = await rtdbRequest(config, "chat/reports", "POST", report, token, emu, ns);
@@ -359,40 +390,87 @@ async function handleReport(request, env) {
 
   if (isChildSafety) {
     const modRep = await fetchModState(config, env, token, auth.uid);
-    if (modRep.banned) return err(request, env, "banned", 403);
-    if (modRep.muted) return err(request, env, "muted", 403);
-
     const authorSid = msgRes.json.sid || null;
     const clusterHash = await clusterHashFromRequest(request, env);
-    const hideEval = await evaluateChildSafetyReportHide({
+    const authorMeta = await loadAuthorSafetyMeta(config, token, emu, ns, authorSid);
+    const accountAgeMs = profile.chatRegisteredAt ? now - profile.chatRegisteredAt : 0;
+    const authorNew =
+      authorMeta.newAccount ||
+      (msgRes.json.time && now - msgRes.json.time < config.childSafetyReporterMinMs);
+    const filterHit = messagePassesFilter(msgRes.json.text || "");
+    const intrinsicPack = computeIntrinsicRiskScore({
+      subcategory: safetySub,
+      messageText: msgRes.json.text || "",
+      filterHit,
+      authorConfirmedViolations: authorMeta.confirmedViolations,
+      authorNewAccount: authorNew
+    });
+
+    const mergeInfo = await recordMergedSafetyReport({
       config,
-      env,
       token,
       emu,
       ns,
-      authUid: auth.uid,
-      profile,
-      now,
-      configObj: config,
-      limitsStub,
+      msgId,
+      subcategory: safetySub,
+      reporterHash: reporter,
       clusterHash,
-      authorSid,
-      reporterHash: reporter
+      reporterRegisteredAt: profile.chatRegisteredAt,
+      now,
+      configObj: config
     });
 
-    const queueRes = await rtdbRequest(
-      config,
-      rtdbPath("chat", "internal", "safetyQueue", msgId),
-      "GET",
-      null,
-      token,
-      emu,
-      ns
-    );
-    const prevQueue = queueRes.json && typeof queueRes.json === "object" ? queueRes.json : {};
-    let trustedReporterCount =
-      (typeof prevQueue.trustedReporterCount === "number" ? prevQueue.trustedReporterCount : 0) +
-      (hideEval.trustedReporterCount || 0);
+    let intrinsicScore = intrinsicPack.intrinsicScore;
+    if (mergeInfo.mergedDuplicate) {
+      intrinsicScore = Math.min(intrinsicScore, intrinsicPack.intrinsicScore - 5);
+    }
+
+    const trust = reporterTrustForChildSafety(profile, now, config);
+    const autoHideDenied = await loadReporterAutoHideDenied(config, token, emu, ns, auth.uid);
+    const credibility = reporterCredibilityWeight({
+      fullyTrusted: trust.fullyTrusted,
+      ageDeclared: !!profile.chatAge13DeclaredAt,
+      banned: !!modRep.banned,
+      muted: !!modRep.muted,
+      autoHideDenied: autoHideDenied && now < autoHideDenied
+    });
+
+    const reporterBoost = mergeInfo.coordinated
+      ? 0
+      : reporterBoostFromIndependence({
+          credibility,
+          independentReporterCount: mergeInfo.independentReporterCount,
+          coordinated: mergeInfo.coordinated
+        });
+
+    let decision = decideChildSafetyAction({
+      subcategory: safetySub,
+      intrinsicScore,
+      corroborating: intrinsicPack.corroborating,
+      credibility,
+      reporterBoost,
+      reporterBanned: !!modRep.banned,
+      configObj: config,
+      filterHit
+    });
+
+    let hideMessage = decision.hide;
+    let hideSkippedReason = null;
+    if (hideMessage && decision.discretionary) {
+      const quota = await checkDiscretionaryHideQuota({
+        env,
+        configObj: config,
+        limitsStub,
+        authUid: auth.uid,
+        profile,
+        now,
+        clusterHash
+      });
+      if (!quota.ok) {
+        hideMessage = false;
+        hideSkippedReason = quota.reason;
+      }
+    }
 
     const dedupMsg = await rtdbRequest(
       config,
@@ -410,20 +488,32 @@ async function handleReport(request, env) {
         config,
         rtdbPath("chat", "internal", "reportMeta", reportId),
         "PUT",
-        { reporterUid: auth.uid, msgId, reporterHash: reporter, at: now, category: reportCategory },
+        {
+          reporterUid: auth.uid,
+          msgId,
+          reporterHash: reporter,
+          at: now,
+          category: safetySub,
+          subcategory: safetySub,
+          intrinsicScore,
+          effectiveScore: decision.effectiveScore
+        },
         token,
         emu,
         ns
       );
     }
 
-    const extra = {};
-    if (hideEval.possibleBrigading) {
-      extra.possibleBrigading = true;
-      extra.moderatorNotify = true;
-    }
+    const extra = {
+      escalationTier: decision.escalationTier,
+      queuePriority: decision.queuePriority,
+      moderatorNotify: decision.moderatorNotify,
+      slaReviewByMs: decision.slaReviewByMs,
+      possibleCoordination: mergeInfo.coordinated,
+      mergedMassReport: mergeInfo.mergedDuplicate
+    };
 
-    const harm = await enqueueChildSafetyReview({
+    await enqueueChildSafetyReview({
       config,
       token,
       emu,
@@ -432,21 +522,19 @@ async function handleReport(request, env) {
       now,
       configObj: config,
       trigger: "report",
-      hideMessage: hideEval.hideMessage,
-      trustedReporterCount,
+      hideMessage,
       childSafetyReportCount: distinct,
-      extraQueueFields: extra
+      subcategory: safetySub,
+      extraQueueFields: extra,
+      riskSnapshot: {
+        intrinsicScore,
+        effectiveScore: decision.effectiveScore,
+        hideBasis: hideMessage ? decision.hideBasis : hideSkippedReason || "queued_only"
+      }
     });
 
     return json(request, env, {
-      ok: true,
-      hidden: harm.hidden,
-      queued: harm.queued,
-      priority: harm.priority,
-      hideSkippedReason: hideEval.reason,
-      trustedReporter: hideEval.trust?.fullyTrusted,
-      trustedReporterCount,
-      possibleBrigading: hideEval.possibleBrigading || false
+      ...CHILD_SAFETY_REPORT_RECEIVED
     });
   }
 
@@ -617,7 +705,8 @@ async function handleConfig(request, env) {
     freeTextEnabled: config.freeTextEnabled,
     phrases: PHRASES.map(p => ({ id: p.id, text: p })),
     maxLen: config.msgMaxLen,
-    cooldownMs: config.cooldownMs
+    cooldownMs: config.cooldownMs,
+    childSafetySubcategories: CHILD_SAFETY_SUBCATEGORIES
   };
   const authHeader = request.headers.get("Authorization") || "";
   if (!/^Bearer\s+/i.test(authHeader)) {
@@ -828,6 +917,58 @@ async function handleModSafetyQueue(request, env) {
   }
 }
 
+async function handleAppealHide(request, env) {
+  const config = loadConfig(env);
+  let auth;
+  try {
+    auth = await verifyRequestAuth(request, config, env);
+  } catch {
+    return err(request, env, "unauthorized", 401);
+  }
+  assertFirebaseId(auth.uid);
+  const body = await request.json().catch(() => ({}));
+  let msgId;
+  try {
+    msgId = assertFirebaseId(body.msgId, "msgId");
+  } catch {
+    return err(request, env, "invalid_id");
+  }
+  const token = await getCachedAdminToken(env);
+  const emu = env.FIREBASE_EMULATOR_HOST;
+  const ns = env.FIREBASE_EMULATOR_NS;
+  const now = getNow(env);
+  await rtdbRequest(
+    config,
+    rtdbPath("chat", "internal", "safetyAppeals"),
+    "POST",
+    {
+      msgId,
+      appellantUid: auth.uid,
+      at: now,
+      status: "open",
+      reasonCode: body.reasonCode ? String(body.reasonCode).slice(0, 48) : "wrongful_hide"
+    },
+    token,
+    emu,
+    ns
+  );
+  await rtdbRequest(
+    config,
+    "chat/internal/safetyDecisions",
+    "POST",
+    {
+      msgId,
+      action: "appeal_submitted",
+      at: now,
+      appellantUid: auth.uid
+    },
+    token,
+    emu,
+    ns
+  );
+  return json(request, env, { ...CHILD_SAFETY_REPORT_RECEIVED });
+}
+
 async function handleModResolveSafety(request, env) {
   try {
     const { config, token, auth } = await requireMod(request, env);
@@ -916,6 +1057,23 @@ async function handleModResolveSafety(request, env) {
     await rtdbRequest(config, rtdbPath("chat", "internal", "erasureDeferred", msgId), "DELETE", null, token, emu, ns);
     await rtdbRequest(config, rtdbPath("chat", "internal", "safetyEvidence", msgId), "DELETE", null, token, emu, ns);
     if (action === "uphold_delete" || action === "approve_erasure") {
+      const msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
+      const sid = msgRes.json?.sid;
+      if (sid) {
+        const aPath = rtdbPath("chat", "internal", "authorSafety", sid);
+        const aCur = await rtdbRequest(config, aPath, "GET", null, token, emu, ns);
+        const prev = aCur.json && typeof aCur.json === "object" ? aCur.json : {};
+        const confirmedViolations = (prev.confirmedViolations || 0) + 1;
+        await rtdbRequest(
+          config,
+          aPath,
+          "PUT",
+          { ...prev, confirmedViolations, lastViolationAt: now },
+          token,
+          emu,
+          ns
+        );
+      }
       await rtdbRequest(config, pathChatMessage(msgId), "DELETE", null, token, emu, ns);
     } else if (action === "dismiss") {
       await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "DELETE", null, token, emu, ns);
@@ -965,7 +1123,10 @@ export async function runRetentionJob(env, nowOverride) {
   bump();
   if (reportsForProtect.json && typeof reportsForProtect.json === "object") {
     for (const r of Object.values(reportsForProtect.json)) {
-      if (r?.category === REPORT_CATEGORY_CHILD_SAFETY && r?.msgId) {
+      const cat = r?.category;
+      const isSafety =
+        (cat && (CHILD_SAFETY_SUBCATEGORIES.includes(cat) || cat === REPORT_CATEGORY_CHILD_SAFETY)) && r?.msgId;
+      if (isSafety) {
         protectedMsgIds.add(r.msgId);
       }
     }
@@ -1140,6 +1301,8 @@ export default {
       if (url.pathname === "/api/chat/unblock" && request.method === "POST") return handleUnblock(request, env);
       if (url.pathname === "/api/chat/delete-my-data" && request.method === "POST")
         return handleDeleteMyData(request, env);
+      if (url.pathname === "/api/chat/appeal-hide" && request.method === "POST")
+        return handleAppealHide(request, env);
       if (url.pathname === "/api/internal/erasure-continue" && request.method === "POST")
         return handleInternalErasureContinue(request, env);
       if (url.pathname === "/api/mod/reports" && request.method === "GET") return handleModReports(request, env);

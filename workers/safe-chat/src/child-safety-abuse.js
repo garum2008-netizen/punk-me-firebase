@@ -36,17 +36,37 @@ export async function clusterHashFromRequest(request, env) {
   return ipv4ClusterHash(ip, salt);
 }
 
-export async function loadReporterHideDenied(config, token, emu, ns, uid) {
-  const snap = await rtdbRequest(config, rtdbPath("chatMeta", uid, "childSafetyHideDeniedUntil"), "GET", null, token, emu, ns);
-  const until = typeof snap.json === "number" ? snap.json : 0;
+export async function loadReporterAutoHideDenied(config, token, emu, ns, uid) {
+  const snap = await rtdbRequest(
+    config,
+    rtdbPath("chatMeta", uid, "childSafetyAutoHideDeniedUntil"),
+    "GET",
+    null,
+    token,
+    emu,
+    ns
+  );
+  const legacy = await rtdbRequest(
+    config,
+    rtdbPath("chatMeta", uid, "childSafetyHideDeniedUntil"),
+    "GET",
+    null,
+    token,
+    emu,
+    ns
+  );
+  const until =
+    (typeof snap.json === "number" ? snap.json : 0) ||
+    (typeof legacy.json === "number" ? legacy.json : 0);
   return until;
 }
 
+/** After mod false-report review: reduces auto-hide weight only; reporting always allowed. */
 export async function penalizeFalseChildSafetyReport(config, token, emu, ns, reporterUid, now, configObj) {
   const denyUntil = now + configObj.childSafetyHideDeniedMs;
   await rtdbRequest(
     config,
-    rtdbPath("chatMeta", reporterUid, "childSafetyHideDeniedUntil"),
+    rtdbPath("chatMeta", reporterUid, "childSafetyAutoHideDeniedUntil"),
     "PUT",
     denyUntil,
     token,
@@ -72,31 +92,83 @@ export async function penalizeFalseChildSafetyReport(config, token, emu, ns, rep
     emu,
     ns
   );
-  if (strikes >= configObj.childSafetyFalseReportAutoMuteThreshold) {
-    await rtdbRequest(
-      config,
-      rtdbPath("chat", "modState", reporterUid, "mute"),
-      "PUT",
-      { until: now + 365 * 24 * 60 * 60 * 1000, reason: "child_safety_false_reports", pendingModReview: true },
-      token,
-      emu,
-      ns
-    );
-  }
   return { denyUntil, strikes };
 }
 
-async function recordAuthorLowTrustHide(config, token, emu, ns, authorSid, reporterHash, now, configObj) {
-  if (!authorSid || !reporterHash) return { possibleBrigading: false };
-  const path = rtdbPath("chat", "internal", "authorHideSignals", authorSid);
+export async function loadAuthorSafetyMeta(config, token, emu, ns, authorSid) {
+  if (!authorSid) return { confirmedViolations: 0, newAccount: false };
+  const path = rtdbPath("chat", "internal", "authorSafety", authorSid);
   const cur = await rtdbRequest(config, path, "GET", null, token, emu, ns);
-  const prev = cur.json && typeof cur.json === "object" ? cur.json : { events: [] };
-  const windowMs = configObj.childSafetyBrigadingWindowMs;
-  const events = (Array.isArray(prev.events) ? prev.events : []).filter(e => now - (e.at || 0) <= windowMs);
-  events.push({ at: now, reporterHash, lowTrust: true });
-  const distinct = new Set(events.map(e => e.reporterHash)).size;
-  await rtdbRequest(config, path, "PUT", { events }, token, emu, ns);
-  return { possibleBrigading: distinct > configObj.childSafetyBrigadingLowTrustDistinct };
+  const o = cur.json && typeof cur.json === "object" ? cur.json : {};
+  return {
+    confirmedViolations: typeof o.confirmedViolations === "number" ? o.confirmedViolations : 0,
+    newAccount: Boolean(o.newAccount)
+  };
+}
+
+/**
+ * Merge mass identical subcategory reports into one case signal (no extra intrinsic risk from count).
+ */
+export async function recordMergedSafetyReport({
+  config,
+  token,
+  emu,
+  ns,
+  msgId,
+  subcategory,
+  reporterHash,
+  clusterHash,
+  reporterRegisteredAt,
+  now,
+  configObj
+}) {
+  const path = rtdbPath("chat", "internal", "safetyCase", msgId);
+  const cur = await rtdbRequest(config, path, "GET", null, token, emu, ns);
+  const prev = cur.json && typeof cur.json === "object" ? cur.json : { reports: [] };
+  const windowMs = configObj.childSafetyMergeWindowMs;
+  const coordMs = configObj.childSafetyCoordinationWindowMs;
+  const reports = (Array.isArray(prev.reports) ? prev.reports : []).filter(r => now - (r.at || 0) <= windowMs);
+  reports.push({
+    at: now,
+    subcategory,
+    reporterHash,
+    clusterHash: clusterHash || null,
+    reporterRegisteredAt: reporterRegisteredAt || null
+  });
+
+  const sameSubRecent = reports.filter(r => r.subcategory === subcategory);
+  const mergedDuplicate =
+    sameSubRecent.length > 1 &&
+    sameSubRecent.some(
+      (r, i) =>
+        i < sameSubRecent.length - 1 &&
+        Math.abs(r.at - now) <= coordMs &&
+        (r.clusterHash === clusterHash || Math.abs((r.reporterRegisteredAt || 0) - (reporterRegisteredAt || 0)) < 3600000)
+    );
+
+  const clusters = new Set(reports.map(r => r.clusterHash).filter(Boolean));
+  const coordinated =
+    sameSubRecent.length >= 3 &&
+    clusters.size <= 1 &&
+    sameSubRecent.every(r => now - r.at <= coordMs);
+
+  const independentHashes = new Set(reports.map(r => r.reporterHash));
+  await rtdbRequest(
+    config,
+    path,
+    "PUT",
+    { reports, lastSubcategory: subcategory, updatedAt: now },
+    token,
+    emu,
+    ns
+  );
+
+  return {
+    mergedDuplicate,
+    coordinated,
+    independentReporterCount: independentHashes.size,
+    reportCountInCase: reports.length
+  };
 }
 
 export async function enqueueChildSafetyReview({
@@ -109,32 +181,40 @@ export async function enqueueChildSafetyReview({
   configObj,
   trigger,
   hideMessage,
-  trustedReporterCount,
   childSafetyReportCount,
-  extraQueueFields = {}
+  extraQueueFields = {},
+  subcategory,
+  riskSnapshot = {}
 }) {
   const queuePath = rtdbPath("chat", "internal", "safetyQueue", msgId);
   const prevRes = await rtdbRequest(config, queuePath, "GET", null, token, emu, ns);
   const prev = prevRes.json && typeof prevRes.json === "object" ? prevRes.json : {};
 
   const legalHoldUntil = now + configObj.safetyEvidenceMaxHoldMs;
+  const priority = extraQueueFields.queuePriority || prev.queuePriority || "critical";
+  const slaMs = extraQueueFields.slaReviewByMs ?? configObj.safetyQueueEscalateMs;
+
   const queueEntry = {
     ...prev,
     ...extraQueueFields,
     at: prev.at || now,
     hiddenAt: hideMessage || prev.hiddenAt ? prev.hiddenAt || now : prev.hiddenAt || null,
-    priority: "critical",
+    priority,
+    queuePriority: priority,
     childHarm: true,
     trigger: trigger === "filter" ? "filter" : "report",
     category: REPORT_CATEGORY_CHILD_SAFETY,
+    subcategory: subcategory || prev.subcategory || "other_child_safety",
     overdue: false,
-    nextEscalateAt: now + configObj.safetyQueueEscalateMs,
+    nextEscalateAt: now + slaMs,
     childSafetyReports: childSafetyReportCount,
-    trustedReporterCount,
     legalBasis: configObj.safetyEvidenceLegalBasis,
     legalHoldUntil,
     access: "moderator_only",
-    slaReviewBy: now + configObj.safetyQueueEscalateMs
+    slaReviewBy: now + slaMs,
+    riskScore: riskSnapshot.effectiveScore ?? prev.riskScore ?? null,
+    intrinsicRisk: riskSnapshot.intrinsicScore ?? prev.intrinsicRisk ?? null,
+    hideBasis: riskSnapshot.hideBasis ?? prev.hideBasis ?? null
   };
 
   if (hideMessage) {
@@ -161,43 +241,33 @@ export async function enqueueChildSafetyReview({
     {
       capturedAt: now,
       trigger: queueEntry.trigger,
+      subcategory: queueEntry.subcategory,
       legalBasis: configObj.safetyEvidenceLegalBasis,
       maxHoldUntil: legalHoldUntil,
       access: "moderator_only",
-      snapshot: snap
+      snapshot: snap,
+      riskIntrinsic: riskSnapshot.intrinsicScore ?? null,
+      riskEffective: riskSnapshot.effectiveScore ?? null
     },
     token,
     emu,
     ns
   );
 
-  return { hidden: hideMessage, queued: true, priority: "critical", queueEntry };
+  return { hidden: hideMessage, queued: true, priority, queueEntry };
 }
 
-/**
- * Evaluate whether this reporter may hide on a child_safety report (queue always allowed separately).
- */
-export async function evaluateChildSafetyReportHide({
-  config,
+/** Discretionary reporter-triggered auto-hide quota (mandatory risk hides skip this). */
+export async function checkDiscretionaryHideQuota({
   env,
-  token,
-  emu,
-  ns,
+  configObj,
+  limitsStub,
   authUid,
   profile,
   now,
-  configObj,
-  limitsStub,
-  clusterHash,
-  authorSid,
-  reporterHash
+  clusterHash
 }) {
   const trust = reporterTrustForChildSafety(profile, now, configObj);
-  const deniedUntil = await loadReporterHideDenied(config, token, emu, ns, authUid);
-  if (deniedUntil && now < deniedUntil) {
-    return { hideMessage: false, reason: "hide_denied_reputation", trust, trustedReporterCount: 0 };
-  }
-
   const quota = trust.fullyTrusted
     ? configObj.childSafetyHideQuotaTrusted
     : configObj.childSafetyHideQuotaLow;
@@ -208,9 +278,7 @@ export async function evaluateChildSafetyReportHide({
     quota,
     bump: false
   });
-  if (!hideCheck.ok) {
-    return { hideMessage: false, reason: hideCheck.reason || "hide_quota", trust, trustedReporterCount: 0 };
-  }
+  if (!hideCheck.ok) return { ok: false, reason: hideCheck.reason || "hide_quota" };
 
   if (clusterHash) {
     const clusterCheck = await limitsStub(env, "/cluster-hide-check", {
@@ -219,9 +287,7 @@ export async function evaluateChildSafetyReportHide({
       cap: configObj.childSafetyClusterHideCap,
       bump: false
     });
-    if (!clusterCheck.ok) {
-      return { hideMessage: false, reason: "cluster_hide_cap", trust, trustedReporterCount: 0 };
-    }
+    if (!clusterCheck.ok) return { ok: false, reason: "cluster_hide_cap" };
   }
 
   const bumpHide = await limitsStub(env, "/child-safety-hide-check", {
@@ -230,9 +296,7 @@ export async function evaluateChildSafetyReportHide({
     quota,
     bump: true
   });
-  if (!bumpHide.ok) {
-    return { hideMessage: false, reason: bumpHide.reason || "hide_quota", trust, trustedReporterCount: 0 };
-  }
+  if (!bumpHide.ok) return { ok: false, reason: bumpHide.reason || "hide_quota" };
 
   if (clusterHash) {
     const bumpCluster = await limitsStub(env, "/cluster-hide-check", {
@@ -241,22 +305,14 @@ export async function evaluateChildSafetyReportHide({
       cap: configObj.childSafetyClusterHideCap,
       bump: true
     });
-    if (!bumpCluster.ok) {
-      return { hideMessage: false, reason: "cluster_hide_cap", trust, trustedReporterCount: 0 };
-    }
+    if (!bumpCluster.ok) return { ok: false, reason: "cluster_hide_cap" };
   }
 
-  let brigading = { possibleBrigading: false };
-  if (!trust.fullyTrusted && authorSid) {
-    brigading = await recordAuthorLowTrustHide(config, token, emu, ns, authorSid, reporterHash, now, configObj);
-  }
-
-  const trustedReporterCount = trust.fullyTrusted ? 1 : 0;
-  return {
-    hideMessage: true,
-    reason: null,
-    trust,
-    trustedReporterCount,
-    possibleBrigading: brigading.possibleBrigading
-  };
+  return { ok: true };
 }
+
+export const CHILD_SAFETY_REPORT_RECEIVED = {
+  ok: true,
+  received: true,
+  messageKey: "thanks_received"
+};
