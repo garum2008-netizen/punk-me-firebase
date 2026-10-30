@@ -972,10 +972,12 @@ function init() {
     hasDog,
     onPetDog: opts => petDog(true, opts),
     onTrashKick: () => {
-      if (!isOwner) me.coins += 5;
+      if (isOwner) return;
+      const before = me.coins;
+      me.coins += 5;
       me.xp += 2;
       saveMe();
-      toast(t("trash_coins"));
+      if (me.coins > before) toast(t("trash_coins"));
       document.getElementById("coins").textContent = formatCoinsDisplay();
     },
     onCatPet: () => toast(t("cat_hiss"))

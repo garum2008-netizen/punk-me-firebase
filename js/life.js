@@ -7,6 +7,7 @@ const LifeEngine = (() => {
   let dog = null;
   let cats = [];
   let lastT = 0;
+  let trashKickAt = 0;
   let playerStillMs = 0;
   let lastPx = 0;
   let lastPy = 0;
@@ -124,6 +125,9 @@ const LifeEngine = (() => {
       if (s.type === "trash") {
         el.onclick = (e) => {
           e.stopPropagation();
+          const now = Date.now();
+          if (now - trashKickAt < 900) return;
+          trashKickAt = now;
           el.classList.add("rustle");
           setTimeout(() => el.classList.remove("rustle"), 600);
           hooks.onTrashKick?.();
