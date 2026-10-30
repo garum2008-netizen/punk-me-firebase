@@ -5,21 +5,36 @@
 ## Triggers
 
 - In-game report category **`child_safety`** (UI: harm to a child / threat / grooming).
-- Every **`child_safety`** report is stored with **`priority: high`** and appears in the mod queue.
-- **Instant hide + `safetyHold`** applies only if the reporter’s server **`chatMeta.chatRegisteredAt`** age is at least **24 hours** (configurable) **or** at least **two** distinct reporters have reported the same `msgId`.
-- A **new anonymous reporter alone** does **not** hide the message; it is listed under **`chat/internal/safetyQueue/{msgId}`** until a moderator acts or the hide threshold is met.
-- **`safetyHold`** and **queue** entries escalate on cron (`overdue` flag, extended deadline); **reports are never auto-deleted** while queued or held.
-- Erasure requests defer deletion of held/queued messages to **`chat/internal/erasureDeferred`** (see `ERASURE_AND_LEGAL_HOLD.md`).
+- Server-side **`detectChildHarmSignals`** on outbound message text (see `child-harm.js`).
+
+## Immediate response (owner requirement)
+
+Every **`child_safety`** report or filter hit:
+
+1. **Hides the message immediately** (`hidden: true`) — no waiting for reporter trust.  
+2. Enqueues **`chat/internal/safetyQueue/{msgId}`** with **`priority: critical`**.  
+3. Stores a moderator-only evidence snapshot at **`chat/internal/safetyEvidence/{msgId}`**.
+
+Reports are stored with **`priority: high`** in `chat/reports`. Moderators list the priority queue via **`GET /api/mod/safety-queue`**.
+
+## Trust / Sybil (erasure & sanctions only)
+
+Server **`chatMeta.chatRegisteredAt`** and **`chatSendCount`** determine **`trustedReporterCount`** on the queue entry. Low-trust reporters **still trigger immediate hide**. Trust affects whether automated **sanctions** may run in future and informs **erasure deferral** policy — not public visibility.
+
+## Retention & erasure
+
+- **Retention** skips child-harm queued / evidence messages until moderator resolution (see `CHILD_HARM_EVIDENCE_RETENTION.md`).  
+- **Author erasure** defers deletion while **`childHarm`** queue or **`safetyEvidence`** exists; moderator **`resolve-safety`** clears or upholds.
 
 ## Moderator steps (draft)
 
-1. Open mod API / `moderation.html` — high-priority reports listed first.
-2. Preserve evidence: do not rely on auto-delete; export RTDB snapshot if needed *(owner process)*.
-3. Assess severity: false alarm → `POST /api/mod/resolve-safety` with `action: "dismiss"` (unhide if appropriate).
-4. Confirmed violation → mute/ban author; `action: "uphold_delete"` or manual delete; document internally.
-5. If credible threat to a minor: **escalate to owner** for legal/parent contact — *(add national hotline / authority contacts before publish)*.
+1. Open mod API / `moderation.html` — **`/api/mod/safety-queue`** first (critical priority).  
+2. Preserve evidence: export RTDB snapshot if needed *(owner process)*.  
+3. False alarm → `action: "dismiss"`.  
+4. Confirmed violation → mute/ban author; `action: "uphold_delete"` or `confirm_legal_hold`.  
+5. Credible threat to a minor → **escalate to owner** *(add hotline / authority contacts before publish)*.
 
 ## Not in scope of this PR
 
-- Automated NCMEC / police reporting APIs (paid / legal sign-off).
+- Automated NCMEC / police reporting APIs.  
 - Age verification for free-text chat (`SAFE_CHAT_FREE_TEXT=false` remains default).

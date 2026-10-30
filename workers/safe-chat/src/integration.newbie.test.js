@@ -17,4 +17,18 @@ describe.skipIf(env.SAFE_CHAT_FREE_TEXT !== "true")("newbie free-text window (fr
     const phrase = await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "hi", name: "N" });
     expect((await phrase.json()).ok).toBe(true);
   });
+
+  it("server child-harm filter hides message and enqueues priority queue", async () => {
+    const u = await authSignUp();
+    const mature = Date.now() - 11 * 60 * 1000;
+    await rtdbOwner(`chatMeta/${u.localId}/chatRegisteredAt`, "PUT", mature);
+    const sent = await apiPost(SELF, "/api/chat/send", u.idToken, { text: "I will hurt the kid", name: "N" });
+    const { id: msgId } = await sent.json();
+    expect(msgId).toBeTruthy();
+    const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    expect(msg.json.hidden).toBe(true);
+    const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
+    expect(q.json?.priority).toBe("critical");
+    expect(q.json?.trigger).toBe("filter");
+  });
 });

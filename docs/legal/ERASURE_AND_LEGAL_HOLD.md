@@ -9,11 +9,15 @@ Erasure under Art. 17(1) does **not** apply when processing is necessary for:
 - **(e)** establishment, exercise or defence of **legal claims**; or  
 - **(f)** other important grounds of public interest, including **child protection**.
 
-When a message is subject to an active **`safetyHold`**, **`safetyQueue`** review, or **`erasure_deferred`** moderator hold, the Worker **does not delete** that content in response to a user erasure request. Instead it records:
+Author erasure defers deletion while **`childHarm`** queue entries or **`safetyEvidence`** snapshots exist (immediate hide does not require moderator hold). Moderator **`resolve-safety`** clears or upholds.
 
-- `chat/internal/erasureDeferred/{msgId}` with `status: "erasure_deferred"`, reason, timestamp, and a snapshot of the message for moderators.
+`chat/internal/erasureDeferred/{msgId}` stores a **minimized snapshot** (no raw reporter uid) with **`expiresAt`** for moderator review; stale entries should be escalated or cleared by moderators.
 
-The API response lists **`erasureDeferred`** message ids so the requester knows erasure was **partially deferred**, not silently ignored.
+The API response lists **`erasureDeferred`** message ids when a **`safetyHold`** blocks deletion.
+
+## Batching and rate limits
+
+Large erasure jobs run in batches bounded by **`SAFE_CHAT_ERASURE_MAX_SUBREQUESTS`** (default 45). The Worker **ignores client-supplied cursors**; continuation uses server **`erasureCursor`** only. Incomplete jobs schedule **Durable Object alarms** to call `/api/internal/erasure-continue`. Partial completion is reported honestly (`complete: false`, `cursor` set). **`/erase-user` on the limits DO runs only when `complete: true`.**
 
 ## Moderator resolution
 
@@ -24,11 +28,9 @@ Moderators use `POST /api/mod/resolve-safety` (see `CHILD_SAFETY_ESCALATION.md`)
 | `retain_evidence` / `dismiss` | Clear hold flags; keep message visible if appropriate |
 | `uphold_delete` / `approve_erasure` | Delete message and clear deferred/hold records after review |
 
-Deferred erasure does **not** auto-delete reports or queue entries; retention skips held/queued items until resolved.
+Deferred erasure does **not** auto-delete reports or queue entries; retention skips held/queued child_safety evidence until resolved.
 
-## Batching and rate limits
-
-Large erasure jobs run in batches (`SAFE_CHAT_ERASURE_BATCH`, default 40 subrequests) with `cursor` continuation and a per-user minimum interval. Partial completion is reported honestly (`complete: false`, `cursor` set).
+Reporter-owned **`chat/reports`** rows are **not deleted** while the message remains in **`safetyQueue`** or **`safetyHolds`** (open case).
 
 ## Related docs
 

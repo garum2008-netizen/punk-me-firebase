@@ -151,6 +151,46 @@ async function run() {
     pass: saveName.status === 200 && saveCoins.status === 200
   });
 
+  await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, null, true), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ peerSid: true })
+  });
+  await fetchJson(dbUrl(`players/${localId}/chatAge13DeclaredAt`, null, true), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "999"
+  });
+  const legacyCoinsPut = await fetchJson(dbUrl(`players/${localId}/coins`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "42"
+  });
+  const legacyCoinsPatch = await fetchJson(dbUrl(`players/${localId}`, idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coins: 43 })
+  });
+  const legacyNamePut = await fetchJson(dbUrl(`players/${localId}/name`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify("LegacyHero")
+  });
+  const playerSnap = await fetchJson(dbUrl(`players/${localId}`, idToken));
+  const fullSave = await fetchJson(dbUrl(`players/${localId}`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...(playerSnap.json || {}), coins: 44 })
+  });
+  cases.push({
+    name: "legacy chatBlocklist object + age does not block coins/name/full save",
+    pass:
+      legacyCoinsPut.status === 200 &&
+      legacyCoinsPatch.status === 200 &&
+      legacyNamePut.status === 200 &&
+      fullSave.status === 200
+  });
+
   await fetchJson(dbUrl(`players/${localId}/chatAge13DeclaredAt`, null, true), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -164,13 +204,13 @@ async function run() {
     pass: delAge.status === 403 || delAge.status === 401
   });
 
-  const badBlocklist = await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, idToken), {
+  const badBlocklist = await fetchJson(dbUrl(`players/${localId}/chatBlocklist/extra`, idToken), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ peer: true, other: true })
+    body: "true"
   });
   cases.push({
-    name: "client cannot alter players chatBlocklist object",
+    name: "client cannot write players chatBlocklist children",
     pass: badBlocklist.status === 403 || badBlocklist.status === 401
   });
 
@@ -185,6 +225,12 @@ async function run() {
   cases.push({
     name: "client cannot delete players chatBlocklist",
     pass: delBlock.status === 403 || delBlock.status === 401
+  });
+
+  const delPlayer = await fetchJson(dbUrl(`players/${localId}`, idToken), { method: "DELETE" });
+  cases.push({
+    name: "whole players node delete allowed (legacy chat keys removed with node)",
+    pass: delPlayer.status === 200
   });
 
   const writeReport = await fetchJson(dbUrl("chat/reports", idToken), {
@@ -215,6 +261,12 @@ async function run() {
   cases.push({
     name: "client PUT chat/internal denied",
     pass: writeInternal.status === 403 || writeInternal.status === 401
+  });
+
+  const readEvidence = await fetchJson(dbUrl("chat/internal/safetyEvidence", idToken));
+  cases.push({
+    name: "client read chat/internal/safetyEvidence denied",
+    pass: readEvidence.status === 401 || readEvidence.status === 403
   });
 
   let failed = 0;

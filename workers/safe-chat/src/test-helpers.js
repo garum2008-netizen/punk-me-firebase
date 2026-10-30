@@ -28,15 +28,31 @@ export async function seedChatPlayer(user, opts = {}) {
   if (opts.location) await rtdbOwner(`players/${user.localId}/location`, "PUT", opts.location);
 }
 
+export async function rtdbOwner(path, method, body) {
+  const url = `http://${DB_HOST}:${DB_PORT}/${path.replace(/^\//, "")}.json?ns=${encodeURIComponent(DB_NS)}&access_token=owner`;
+  const res = await fetch(url, {
+    method,
+    headers: body !== undefined ? { "Content-Type": "application/json" } : {},
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  const text = await res.text();
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = text;
+  }
+  return { status: res.status, json, ok: res.ok };
+}
+
 export function rtdbUrl(path, token) {
   const q = new URLSearchParams({ ns: DB_NS });
   if (token) q.set("auth", token);
   return `http://${DB_HOST}:${DB_PORT}/${path.replace(/^\//, "")}.json?${q}`;
 }
 
-export async function rtdbOwner(path, method, body) {
-  const url = `http://${DB_HOST}:${DB_PORT}/${path.replace(/^\//, "")}.json?ns=${encodeURIComponent(DB_NS)}&access_token=owner`;
-  const res = await fetch(url, {
+export async function rtdbAuth(path, method, idToken, body) {
+  const res = await fetch(rtdbUrl(path, idToken), {
     method,
     headers: body !== undefined ? { "Content-Type": "application/json" } : {},
     body: body !== undefined ? JSON.stringify(body) : undefined
