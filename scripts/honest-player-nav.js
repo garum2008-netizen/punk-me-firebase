@@ -49,6 +49,19 @@ function findRawKeys(text) {
   return [...new Set((text.match(/\b(ep1_[a-z0-9_]+|npc_[a-z]+:)\b/gi) || []))];
 }
 
+async function walkUntilRoomMomDoor(page, mobile) {
+  await focusStage(page);
+  for (let i = 0; i < 140; i++) {
+    const ok = await page.evaluate(
+      () => window.me?.location === "room" && window.me.x < 22 && window.me.y < 55
+    );
+    if (ok) return true;
+    await walkTowardGuide(page, mobile, 2);
+    await sleep(120);
+  }
+  return false;
+}
+
 async function pressInteract(page, mobile) {
   if (mobile) await page.locator("#touchInteract").click({ timeout: 8000 });
   else await page.keyboard.press("e");
@@ -240,5 +253,6 @@ module.exports = {
   clickNavLocation,
   waitGameplayUnblocked,
   orbitLook,
-  ensureOverlaysClear
+  ensureOverlaysClear,
+  walkUntilRoomMomDoor
 };

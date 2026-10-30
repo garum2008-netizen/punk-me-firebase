@@ -184,9 +184,11 @@ async function runOnboarding(page, tag, mobile) {
       await Nav.orbitLook(page);
     } else if (key === "ch0_mom_talk") {
       if (st.location !== "room") await Nav.clickNavLocation(page, "room");
-      await Nav.walkTowardGuide(page, mobile, 110);
-      await Nav.pressInteract(page, mobile);
-      await Nav.sleep(1100);
+      await Nav.walkUntilRoomMomDoor(page, mobile);
+      for (let i = 0; i < 4; i++) {
+        await Nav.pressInteract(page, mobile);
+        await Nav.sleep(600);
+      }
     } else if (key === "ch0_feed_bowl") {
       if (st.location !== "kitchen") await Nav.clickNavLocation(page, "kitchen");
       await Nav.walkTowardGuide(page, mobile);
