@@ -5,6 +5,25 @@ export class ChatLimitsDO {
     this.env = env;
   }
 
+  async alarm() {
+    const uid = await this.state.storage.get("erasureContinueUid");
+    await this.state.storage.delete("erasureContinueUid");
+    if (!uid) return;
+    const base = (this.env.SAFE_CHAT_WORKER_URL || "").replace(/\/$/, "");
+    const secret = this.env.SAFE_CHAT_INTERNAL_SECRET || "";
+    if (!base || !secret) return;
+    try {
+      await fetch(`${base}/api/internal/erasure-continue`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Safe-Chat-Internal": secret
+        },
+        body: JSON.stringify({ uid })
+      });
+    } catch (_) {}
+  }
+
   async fetch(request) {
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/check") {
@@ -31,6 +50,17 @@ export class ChatLimitsDO {
       const rep = await this.loadReportState();
       delete rep[uid];
       await this.saveReportState(rep);
+      return Response.json({ ok: true });
+    }
+    if (request.method === "POST" && url.pathname === "/schedule-erasure-continue") {
+      const body = await request.json();
+      const uid = String(body.uid || "");
+      if (!uid) return Response.json({ ok: false }, { status: 400 });
+      await this.state.storage.put("erasureContinueUid", uid);
+      const existing = await this.state.storage.getAlarm();
+      if (!existing) {
+        await this.state.storage.setAlarm(Date.now() + 750);
+      }
       return Response.json({ ok: true });
     }
     return new Response("not found", { status: 404 });

@@ -49,19 +49,23 @@ export async function loadPlayerProfileForChat(config, env, token, uid) {
   }
 
   const chatAge13DeclaredAt =
-    typeof meta.chatAge13DeclaredAt === "number" && meta.chatAge13DeclaredAt > 0
-      ? meta.chatAge13DeclaredAt
-      : typeof p.chatAge13DeclaredAt === "number" && p.chatAge13DeclaredAt > 0
-        ? p.chatAge13DeclaredAt
-        : null;
+    typeof meta.chatAge13DeclaredAt === "number" && meta.chatAge13DeclaredAt > 0 ? meta.chatAge13DeclaredAt : null;
   const chatRegisteredAt =
-    typeof meta.chatRegisteredAt === "number" && meta.chatRegisteredAt > 0
-      ? meta.chatRegisteredAt
-      : typeof p.chatRegisteredAt === "number" && p.chatRegisteredAt > 0
-        ? p.chatRegisteredAt
-        : null;
+    typeof meta.chatRegisteredAt === "number" && meta.chatRegisteredAt > 0 ? meta.chatRegisteredAt : null;
+  const chatSendCount =
+    typeof meta.chatSendCount === "number" && meta.chatSendCount >= 0 ? meta.chatSendCount : 0;
   const blockedSids =
     meta.blockedSids && typeof meta.blockedSids === "object" ? { ...meta.blockedSids } : {};
 
-  return { name, loc, chatAge13DeclaredAt, chatRegisteredAt, blockedSids };
+  return { name, loc, chatAge13DeclaredAt, chatRegisteredAt, chatSendCount, blockedSids };
+}
+
+/** Server-only trust signal for child_safety (never reads players/* chat fields). */
+export function reporterTrustForChildSafety(profile, now, config) {
+  const reg = profile.chatRegisteredAt;
+  const sends = profile.chatSendCount ?? 0;
+  const ageMs = reg ? now - reg : 0;
+  const fullyTrusted =
+    ageMs >= config.childSafetyReporterMinMs && sends >= config.childSafetyReporterMinSends;
+  return { fullyTrusted, ageMs, sends, weight: fullyTrusted ? 1 : 0 };
 }

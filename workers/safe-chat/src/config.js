@@ -24,11 +24,27 @@ export function loadConfig(env) {
       env.SAFE_CHAT_CHILD_SAFETY_REPORTER_MIN_MS || String(24 * 60 * 60 * 1000),
       10
     ),
+    childSafetyReporterMinSends: parseInt(env.SAFE_CHAT_CHILD_SAFETY_REPORTER_MIN_SENDS || "5", 10),
+    childSafetyHideTrustedReporterCount: parseInt(env.SAFE_CHAT_CHILD_SAFETY_HIDE_TRUSTED || "2", 10),
+    /** @deprecated unused — hiding requires trusted reporters only */
     childSafetyHideReporterCount: parseInt(env.SAFE_CHAT_CHILD_SAFETY_HIDE_REPORTERS || "2", 10),
     safetyQueueEscalateMs: parseInt(env.SAFE_CHAT_SAFETY_ESCALATE_MS || String(48 * 60 * 60 * 1000), 10),
+    safetyEvidenceMaxHoldMs: parseInt(
+      env.SAFE_CHAT_SAFETY_EVIDENCE_MAX_MS || String(365 * 24 * 60 * 60 * 1000),
+      10
+    ),
+    safetyEvidenceLegalBasis:
+      env.SAFE_CHAT_SAFETY_LEGAL_BASIS ||
+      "GDPR Art. 17(3)(f) child protection + DSA Art. 9 illegal content (DRAFT — legal review)",
     globalMsgReportsPerDay: parseInt(env.SAFE_CHAT_GLOBAL_MSG_REPORTS_PER_DAY || "100", 10),
+    erasureMaxSubrequests: parseInt(env.SAFE_CHAT_ERASURE_MAX_SUBREQUESTS || "45", 10),
     erasureBatchSize: parseInt(env.SAFE_CHAT_ERASURE_BATCH || "40", 10),
     erasureMinIntervalMs: parseInt(env.SAFE_CHAT_ERASURE_MIN_INTERVAL_MS || String(60 * 60 * 1000), 10),
+    erasureDeferredTtlMs: parseInt(
+      env.SAFE_CHAT_ERASURE_DEFERRED_TTL_MS || String(90 * 24 * 60 * 60 * 1000),
+      10
+    ),
+    erasureCursorMaxLen: parseInt(env.SAFE_CHAT_ERASURE_CURSOR_MAX_LEN || "128", 10),
     msgRetentionMs: 7 * 24 * 60 * 60 * 1000,
     reportRetentionMs: 90 * 24 * 60 * 60 * 1000,
     modStateRetentionMs: 90 * 24 * 60 * 60 * 1000,
