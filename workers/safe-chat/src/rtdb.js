@@ -1,3 +1,5 @@
+import { assertFirebaseId } from "./ids.js";
+
 function base64urlBytes(bytes) {
   let bin = "";
   const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -57,10 +59,27 @@ export function rtdbBaseUrl(config, emulatorHost) {
   return config.databaseUrl.replace(/\/$/, "");
 }
 
+/** Build path with validated, encoded segments (prevents path traversal). */
+export function rtdbPath(...segments) {
+  return segments.map(seg => {
+    assertFirebaseId(seg);
+    return encodeURIComponent(seg);
+  }).join("/");
+}
+
 export async function rtdbRequest(config, path, method, body, accessToken, emulatorHost, ns) {
   const base = rtdbBaseUrl(config, emulatorHost);
   const cleanPath = path.replace(/^\//, "");
-  let url = `${base}/${cleanPath}.json`;
+  const parts = cleanPath.split("/");
+  for (const part of parts) {
+    if (part === "" || part === "." || part === "..") {
+      throw new Error("invalid_rtdb_path");
+    }
+    if (decodeURIComponent(part) !== part && !/%[0-9A-Fa-f]{2}/.test(part)) {
+      /* already encoded segment from rtdbPath */
+    }
+  }
+  let url = `${base}/${cleanPath.split("/").map(p => encodeURIComponent(decodeURIComponent(p))).join("/")}.json`;
   const params = new URLSearchParams();
   if (accessToken) params.set("access_token", accessToken);
   if (emulatorHost && ns) params.set("ns", ns);
@@ -81,7 +100,18 @@ export async function rtdbRequest(config, path, method, body, accessToken, emula
   return { status: res.status, json, ok: res.ok };
 }
 
-export async function anonymizeUid(uid) {
-  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(uid));
-  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+export async function anonymizeUid(uid, salt) {
+  const s = String(uid || "");
+  if (!salt) {
+    throw new Error("missing SAFE_CHAT_HASH_SALT");
+  }
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(salt),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(s));
+  return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
