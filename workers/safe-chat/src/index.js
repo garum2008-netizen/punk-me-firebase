@@ -10,6 +10,7 @@ import { loadPlayerProfileForChat } from "./player-profile.js";
 import { getCachedAdminToken } from "./admin-token.js";
 import { corsHeaders } from "./cors.js";
 import { runUserErasureBatch, continueErasureForUid } from "./erasure.js";
+import { testMutationDisables } from "./test-mutation-flags.js";
 import { detectChildHarmSignals } from "./child-harm.js";
 import {
   enqueueChildSafetyReview,
@@ -464,7 +465,8 @@ async function handleReport(request, env, ctx) {
       clusterHash,
       reporterRegisteredAt: profile.chatRegisteredAt,
       now,
-      configObj: config
+      configObj: config,
+      env
     });
 
     let intrinsicScore = intrinsicPack.intrinsicScore;
@@ -492,12 +494,14 @@ async function handleReport(request, env, ctx) {
           coordinated: mergeInfo.coordinated
         });
 
-    const globalHideSignal = hasGlobalHideIndependentSignal({
-      filterHit,
-      authorConfirmedViolations: authorMeta.confirmedViolations,
-      independentReporterCount: mergeInfo.independentReporterCount,
-      distinctClusterCount: mergeInfo.distinctClusterCount
-    });
+    const globalHideSignal = testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_GLOBAL_HIDE_GATE")
+      ? true
+      : hasGlobalHideIndependentSignal({
+          filterHit,
+          authorConfirmedViolations: authorMeta.confirmedViolations,
+          independentReporterCount: mergeInfo.independentReporterCount,
+          distinctClusterCount: mergeInfo.distinctClusterCount
+        });
 
     let decision = decideChildSafetyAction({
       subcategory: safetySub,
@@ -607,7 +611,14 @@ async function handleReport(request, env, ctx) {
     });
 
     return json(request, env, {
-      ...CHILD_SAFETY_REPORT_RECEIVED
+      ...CHILD_SAFETY_REPORT_RECEIVED,
+      ...(testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_REPORTER_PRIVACY")
+        ? {
+            msgId,
+            queuePriority: decision.queuePriority,
+            escalationTier: decision.escalationTier
+          }
+        : {})
     });
   }
 
@@ -973,6 +984,13 @@ async function handleModBan(request, env) {
   }
 }
 
+function safetyQueuePriorityRank(p) {
+  if (p === "immediate_danger") return 0;
+  if (p === "critical") return 1;
+  if (p === "high") return 2;
+  return 3;
+}
+
 async function handleModSafetyQueue(request, env) {
   try {
     const { config, token } = await requireMod(request, env);
@@ -987,8 +1005,8 @@ async function handleModSafetyQueue(request, env) {
     );
     const entries = Object.entries(res.json || {}).map(([msgId, q]) => ({ msgId, ...q }));
     entries.sort((a, b) => {
-      const pa = a.priority === "critical" ? 0 : a.priority === "high" ? 1 : 2;
-      const pb = b.priority === "critical" ? 0 : b.priority === "high" ? 1 : 2;
+      const pa = safetyQueuePriorityRank(a.priority || a.queuePriority);
+      const pb = safetyQueuePriorityRank(b.priority || b.queuePriority);
       if (pa !== pb) return pa - pb;
       return (b.at || 0) - (a.at || 0);
     });
@@ -1151,7 +1169,7 @@ async function handleModResolveSafety(request, env) {
         ns
       );
       if (meta.json?.reporterHash) {
-        await penalizeFalseChildSafetyReport(config, token, emu, ns, meta.json.reporterHash, now, config);
+        await penalizeFalseChildSafetyReport(config, token, emu, ns, meta.json.reporterHash, now, config, env);
       }
       await rtdbRequest(
         config,
@@ -1300,6 +1318,25 @@ export async function runRetentionJob(env, nowOverride) {
     }
   }
 
+  const reportsEarly = await rtdbRequest(config, "chat/reports", "GET", null, token, emu, ns);
+  bump();
+  if (reportsEarly.json && typeof reportsEarly.json === "object") {
+    for (const [id, r] of Object.entries(reportsEarly.json)) {
+      if (budgetExceeded) break;
+      if (subrequests >= budget) break;
+      if (protectedMsgIds.has(r?.msgId)) continue;
+      if (r?.time && now - r.time > config.reportRetentionMs) {
+        try {
+          assertFirebaseId(id);
+        } catch {
+          continue;
+        }
+        await rtdbRequest(config, rtdbPath("chat", "reports", id), "DELETE", null, token, emu, ns);
+        bump();
+      }
+    }
+  }
+
   const evidenceSnap = await rtdbRequest(config, "chat/internal/safetyEvidence", "GET", null, token, emu, ns);
   bump();
   if (queue.json && typeof queue.json === "object") {
@@ -1315,7 +1352,12 @@ export async function runRetentionJob(env, nowOverride) {
       const maxHold = typeof ev?.maxHoldUntil === "number" ? ev.maxHoldUntil : null;
       const cap =
         legalCap != null && maxHold != null ? Math.min(legalCap, maxHold) : legalCap ?? maxHold;
-      if (cap != null && now > cap && !q?.modResolvedAt) {
+      if (
+        !testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_MAX_HOLD_ESCALATION") &&
+        cap != null &&
+        now > cap &&
+        !q?.modResolvedAt
+      ) {
         await rtdbRequest(
           config,
           "chat/internal/safetyDecisions",
@@ -1356,7 +1398,12 @@ export async function runRetentionJob(env, nowOverride) {
       protectedMsgIds.add(msgId);
       if (subrequests >= budget) break;
       const maxHold = ev?.maxHoldUntil;
-      if (typeof maxHold === "number" && now > maxHold && !ev?.modReleasedAt) {
+      if (
+        !testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_MAX_HOLD_ESCALATION") &&
+        typeof maxHold === "number" &&
+        now > maxHold &&
+        !ev?.modReleasedAt
+      ) {
         await rtdbRequest(
           config,
           "chat/internal/safetyDecisions",
@@ -1446,25 +1493,6 @@ export async function runRetentionJob(env, nowOverride) {
           emu,
           ns
         );
-        bump();
-      }
-    }
-  }
-
-  const reports = await rtdbRequest(config, "chat/reports", "GET", null, token, emu, ns);
-  bump();
-  if (reports.json && typeof reports.json === "object") {
-    for (const [id, r] of Object.entries(reports.json)) {
-      if (budgetExceeded) break;
-      if (subrequests >= budget) break;
-      if (heldMsgIds.has(r?.msgId)) continue;
-      if (r?.time && now - r.time > config.reportRetentionMs) {
-        try {
-          assertFirebaseId(id);
-        } catch {
-          continue;
-        }
-        await rtdbRequest(config, rtdbPath("chat", "reports", id), "DELETE", null, token, emu, ns);
         bump();
       }
     }

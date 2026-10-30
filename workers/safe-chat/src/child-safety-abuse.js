@@ -1,6 +1,7 @@
 import { REPORT_CATEGORY_CHILD_SAFETY } from "./config.js";
 import { rtdbPath, rtdbRequest } from "./rtdb.js";
 import { reporterTrustForChildSafety } from "./player-profile.js";
+import { testMutationDisables } from "./test-mutation-flags.js";
 
 function pathChatMessage(msgId) {
   return rtdbPath("chat", "messages", msgId);
@@ -97,7 +98,10 @@ export async function loadReporterAutoHideDenied(config, token, emu, ns, uid, re
 }
 
 /** After mod false-report review: reduces auto-hide weight only; reporting always allowed. */
-export async function penalizeFalseChildSafetyReport(config, token, emu, ns, reporterHash, now, configObj) {
+export async function penalizeFalseChildSafetyReport(config, token, emu, ns, reporterHash, now, configObj, env = {}) {
+  if (testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_FALSE_REPORT_PENALTY")) {
+    return { denyUntil: 0, strikes: 0 };
+  }
   const denyUntil = now + configObj.childSafetyHideDeniedMs;
   if (reporterHash) {
     await rtdbRequest(
@@ -138,7 +142,8 @@ export async function recordMergedSafetyReport({
   clusterHash,
   reporterRegisteredAt,
   now,
-  configObj
+  configObj,
+  env = {}
 }) {
   const path = rtdbPath("chat", "internal", "safetyCase", msgId);
   const cur = await rtdbRequest(config, path, "GET", null, token, emu, ns);
@@ -165,10 +170,13 @@ export async function recordMergedSafetyReport({
     );
 
   const clusters = new Set(reports.map(r => r.clusterHash || `reporter:${r.reporterHash}`));
-  const coordinated =
+  const coordinatedRaw =
     sameSubRecent.length >= 3 &&
     clusters.size <= 1 &&
     sameSubRecent.every(r => now - r.at <= coordMs);
+  const coordinated = testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_BRIGADING")
+    ? false
+    : coordinatedRaw;
 
   const independentHashes = new Set(reports.map(r => r.reporterHash));
   await rtdbRequest(
@@ -265,7 +273,7 @@ export async function enqueueChildSafetyReview({
 
   if (hideMessage) {
     await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
-    if (snap?.text) {
+    if (snap?.text && !testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_P04_REDACTION")) {
       await rtdbRequest(config, `${pathChatMessage(msgId)}/text`, "DELETE", null, token, emu, ns);
       await rtdbRequest(config, `${pathChatMessage(msgId)}/textRedacted`, "PUT", true, token, emu, ns);
     }

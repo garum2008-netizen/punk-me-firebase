@@ -1,4 +1,7 @@
+import { productionEnvMustNotEnableTestMutationFlags } from "./test-mutation-flags.js";
+
 export function loadConfig(env) {
+  productionEnvMustNotEnableTestMutationFlags(env || {});
   const corsRaw = env.SAFE_CHAT_CORS_ORIGINS || "https://halloween.punk.contractbot.dk";
   const corsOrigins = corsRaw
     .split(",")

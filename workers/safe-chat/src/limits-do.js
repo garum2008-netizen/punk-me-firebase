@@ -1,4 +1,6 @@
 /** SQLite-backed DO; uses synchronous KV storage API (storage.get/put). */
+import { testMutationDisables } from "./test-mutation-flags.js";
+
 export class ChatLimitsDO {
   constructor(state, env) {
     this.state = state;
@@ -190,7 +192,7 @@ export class ChatLimitsDO {
   }
 
   async checkChildSafetyHide({ uid, now, quota, bump }) {
-    if (this.env.SAFE_CHAT_TEST_DISABLE_HIDE_QUOTA === "1") return { ok: true };
+    if (testMutationDisables(this.env, "SAFE_CHAT_TEST_DISABLE_HIDE_QUOTA")) return { ok: true };
     const data = await this.loadChildSafetyHide();
     let rec = data[uid] || { windowStart: now, count: 0 };
     if (now - (rec.windowStart || 0) >= this.windowMs24h()) {
@@ -208,7 +210,7 @@ export class ChatLimitsDO {
   }
 
   async checkClusterHide({ clusterHash, now, cap, bump }) {
-    if (this.env.SAFE_CHAT_TEST_DISABLE_CLUSTER_CAP === "1") return { ok: true };
+    if (testMutationDisables(this.env, "SAFE_CHAT_TEST_DISABLE_CLUSTER_CAP")) return { ok: true };
     if (!clusterHash) return { ok: false, reason: "cluster_required" };
     const data = await this.loadClusterHide();
     let rec = data[clusterHash] || { windowStart: now, count: 0 };

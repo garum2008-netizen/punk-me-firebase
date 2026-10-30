@@ -1,5 +1,6 @@
 import { assertFirebaseId, assertReportHash } from "./ids.js";
 import { anonymizeUid, rtdbPath, rtdbRequest } from "./rtdb.js";
+import { testMutationDisables } from "./test-mutation-flags.js";
 
 function pathChatMessage(msgId) {
   return rtdbPath("chat", "messages", msgId);
@@ -175,6 +176,10 @@ export async function runUserErasureBatch({
   let subrequests = 0;
   let budgetExceeded = false;
   const spend = (n = 1) => {
+    if (testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_ERASURE_BUDGET")) {
+      subrequests += n;
+      return true;
+    }
     if (subrequests + n > budget) {
       budgetExceeded = true;
       return false;

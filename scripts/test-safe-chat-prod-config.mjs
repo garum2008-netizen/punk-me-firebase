@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "../workers/safe-chat/src/config.js";
+import { TEST_MUTATION_DISABLE_ENV_KEYS } from "../workers/safe-chat/src/test-mutation-flags.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const wranglerToml = fs.readFileSync(path.join(__dirname, "../workers/safe-chat/wrangler.toml"), "utf8");
@@ -27,7 +28,11 @@ const cases = [
   {
     name: "wrangler.toml has no new_classes (KV-backed) migration",
     pass: !/^\s*new_classes\s*=/m.test(wranglerToml)
-  }
+  },
+  ...TEST_MUTATION_DISABLE_ENV_KEYS.map(key => ({
+    name: `wrangler.toml has no ${key}`,
+    pass: !wranglerToml.includes(key)
+  }))
 ];
 
 let failed = 0;

@@ -194,6 +194,17 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(Math.max(...peaks, j.subrequests || 0)).toBeLessThanOrEqual(40);
   });
 
+  it("t139u D-07: evasion grooming on worker path yields reporter-local hide without global hide", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom meet me alone");
+    const rep = await authSignUp();
+    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
+    expect((await rtdbOwner(`chatMeta/${rep.localId}/reporterSafetyHidden/${msgId}`, "GET")).json).toBe(true);
+    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.subcategory).toBe("grooming");
+  });
+
   it("risk: other_child_safety on benign phrase queues without auto-hide (false positive guard)", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();

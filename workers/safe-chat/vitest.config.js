@@ -1,10 +1,15 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
+import { TEST_MUTATION_DISABLE_ENV_KEYS } from "./src/test-mutation-flags.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const integration = process.env.SAFE_CHAT_INTEGRATION === "1";
 const newbie = process.env.SAFE_CHAT_INTEGRATION_NEWBIE === "1";
+
+const mutationBindings = Object.fromEntries(
+  TEST_MUTATION_DISABLE_ENV_KEYS.map(key => [key, process.env[key] || ""])
+);
 
 export default defineWorkersConfig({
   resolve: {
@@ -49,7 +54,8 @@ export default defineWorkersConfig({
             SAFE_CHAT_YOUNG_COOLDOWN_MS: integration ? "0" : "5000",
             SAFE_CHAT_CHILD_SAFETY_REPORTER_MIN_MS: integration ? String(24 * 60 * 60 * 1000) : String(24 * 60 * 60 * 1000),
             SAFE_CHAT_CHILD_SAFETY_CLUSTER_HIDE_CAP: integration ? "3" : "5",
-            SAFE_CHAT_RETENTION_BATCH: integration ? "120" : "45"
+            SAFE_CHAT_RETENTION_BATCH: integration ? "120" : "45",
+            ...mutationBindings
           }
         }
       }
