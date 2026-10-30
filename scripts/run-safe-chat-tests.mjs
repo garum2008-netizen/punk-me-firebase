@@ -18,14 +18,19 @@ function runNode(script, args = []) {
 }
 
 async function main() {
-  console.log("=== safe-chat filter unit tests ===");
+  console.log("\n=== safe-chat filter unit tests ===");
   if (!runNode("safe-chat-filter.test.js")) process.exit(1);
+  if (!runNode("safe-chat-filter-bypass.test.js")) process.exit(1);
+
+  console.log("\n=== safe-chat limits policy ===");
+  if (!runNode("safe-chat-limits-policy.test.js")) process.exit(1);
 
   console.log("\n=== safe-chat worker unit (limits DO) ===");
   if (!runNode("safe-chat-worker-logic.test.js")) process.exit(1);
 
   console.log("\n=== production config guard (wrangler.toml) ===");
   if (!runNode("test-safe-chat-prod-config.mjs")) process.exit(1);
+  if (!runNode("test-safe-chat-free-tier-config.mjs")) process.exit(1);
 
   console.log("\n=== RTDB rules (emulator) ===");
   let rulesOk = false;
