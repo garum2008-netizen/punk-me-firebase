@@ -5,8 +5,11 @@
 ## Triggers
 
 - In-game report category **`child_safety`** (UI: harm to a child / threat / grooming).
-- Worker immediately **hides** the message and sets **`safetyHold`**, and flags the report **`priority: high`**. This is **not** silent removal: the message stays in RTDB (hidden + on hold) until a moderator runs **`POST /api/mod/resolve-safety`** (`dismiss` or `uphold_delete`). Auto retention **skips** `safetyHold` messages and linked reports until resolved.
-- **Rationale:** one `child_safety` report is treated as urgent triage (minimize exposure time) while preserving evidence for moderator review — not “hide-and-forget”.
+- Every **`child_safety`** report is stored with **`priority: high`** and appears in the mod queue.
+- **Instant hide + `safetyHold`** applies only if the reporter’s server **`chatMeta.chatRegisteredAt`** age is at least **24 hours** (configurable) **or** at least **two** distinct reporters have reported the same `msgId`.
+- A **new anonymous reporter alone** does **not** hide the message; it is listed under **`chat/internal/safetyQueue/{msgId}`** until a moderator acts or the hide threshold is met.
+- **`safetyHold`** and **queue** entries escalate on cron (`overdue` flag, extended deadline); **reports are never auto-deleted** while queued or held.
+- Erasure requests defer deletion of held/queued messages to **`chat/internal/erasureDeferred`** (see `ERASURE_AND_LEGAL_HOLD.md`).
 
 ## Moderator steps (draft)
 

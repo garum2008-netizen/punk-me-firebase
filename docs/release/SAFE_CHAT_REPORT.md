@@ -152,6 +152,23 @@ This runs: filter unit tests → RTDB rules on Firebase emulators → wrangler/m
 
 **Owner Gmail (unchanged per owner approval):** `js/game.js:11`, `scripts/set-admin-claim.mjs:11`, `docs/release/RULES_PUBLISH_CHECKLIST.md:47`, `scripts/rules-deploy-snapshots/repo-main-7ee242b.json:6,9,32`, `scripts/test-deploy-order-safety.js:254`.
 
+### Residual linkability (sid)
+
+Chat messages expose **`sid`** (HMAC of uid) and a **filtered display name**, not the raw Firebase uid. **`sid` is never written to `publicProfiles` or `presence`** in this PR (those nodes remain PR #45 / owner scope).
+
+**Residual (LOW–MEDIUM):** `publicProfiles` and `presence` remain world-readable with client-chosen **names**. If a display name is unique, a reader could associate a `sid` in chat with the same name elsewhere. Mitigation path: restrict profile/presence reads (PR #45) or use non-reversible chat-only display labels.
+
+## Delta cedae9a remediation map
+
+| Item | Fix | Commit |
+|------|-----|--------|
+| NEW-7 HIGH erasure vs safetyHold | `erasureDeferred` + batch delete-my-data | see git log |
+| NEW-9 erasure scale | batch cursor, rate limit, reporter cleanup | see git log |
+| (c) level tier | account-age-only limits; `chatRegisteredAt` on every send | see git log |
+| (d) child_safety abuse | queue + trusted reporter / 2-reporter hide | see git log |
+| (b) field delete | parent validate blocks deletion | see git log |
+| NEW-10 blocklist save | validate uses `==` for objects | see git log |
+
 ## Remaining risks
 
 - Open-source wordlist is not complete; evasion possible → reports + mod tools.
