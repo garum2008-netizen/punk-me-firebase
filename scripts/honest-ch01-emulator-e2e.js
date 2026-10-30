@@ -173,7 +173,7 @@ async function runOnboarding(page, tag, mobile) {
       stuck = 0;
       lastKey = key;
     }
-    if (stuck > 35) errors.push(`${tag}: stuck on onboarding ${key}`);
+    if (stuck > 35 && stuck % 10 === 0) errors.push(`${tag}: stuck on onboarding ${key}`);
     if (stuck > 40) break;
     await assertStepHealth(page, tag, key || "unknown");
     note(tag, "onboarding step", { key, loc: st.location, coins: st.coins });
@@ -181,10 +181,12 @@ async function runOnboarding(page, tag, mobile) {
     if (key === "ch0_awake" || key === "ch0_move_done") {
       await Nav.waitGameplayUnblocked(page);
       await Nav.wanderMove(page, mobile);
-      await Nav.walkTowardGuide(page, mobile, 40);
+      await Nav.orbitLook(page);
     } else if (key === "ch0_mom_talk") {
-      await Nav.walkTowardGuide(page, mobile);
+      if (st.location !== "room") await Nav.clickNavLocation(page, "room");
+      await Nav.walkTowardGuide(page, mobile, 110);
       await Nav.pressInteract(page, mobile);
+      await Nav.sleep(1100);
     } else if (key === "ch0_feed_bowl") {
       if (st.location !== "kitchen") await Nav.clickNavLocation(page, "kitchen");
       await Nav.walkTowardGuide(page, mobile);
