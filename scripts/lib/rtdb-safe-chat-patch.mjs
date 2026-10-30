@@ -38,6 +38,10 @@ export const PLAYER_SAFE_CHAT_FIELDS = {
   chatRegisteredAt: {
     ".validate":
       "!newData.exists() || (newData.isNumber() && newData.val() > 0 && (!data.exists() || newData.val() === data.val()))"
+  },
+  chatAge13DeclaredAt: {
+    ".read": "auth != null && auth.uid === $uid",
+    ".write": false
   }
 };
 
