@@ -1,9 +1,10 @@
-import { loadConfig } from "./config.js";
+import { loadConfig, REPORT_CATEGORY_CHILD_SAFETY } from "./config.js";
 import { verifyRequestAuth, isModerator } from "./auth.js";
 import { filterMessage } from "./filter.js";
 import { PHRASES, phraseText } from "./phrases.js";
 import { anonymizeUid, getServiceAccountAccessToken, rtdbRequest } from "./rtdb.js";
 import { ChatLimitsDO } from "./limits-do.js";
+import { resolveSendLimits } from "./limits-policy.js";
 
 export { ChatLimitsDO };
 
@@ -37,7 +38,7 @@ async function getAdminToken(env) {
   return getServiceAccountAccessToken(env.FIREBASE_SERVICE_ACCOUNT_JSON);
 }
 
-async function checkLimits(env, uid, config) {
+async function checkLimits(env, uid, limits) {
   const id = env.CHAT_LIMITS.idFromName("global");
   const stub = env.CHAT_LIMITS.get(id);
   const res = await stub.fetch(
@@ -46,12 +47,23 @@ async function checkLimits(env, uid, config) {
       body: JSON.stringify({
         uid,
         now: getNow(env),
-        cooldownMs: config.cooldownMs,
-        dailyLimit: config.dailyLimit
+        cooldownMs: limits.cooldownMs,
+        dailyLimit: limits.dailyLimit
       })
     })
   );
   return res.json();
+}
+
+async function fetchPlayerChatContext(config, env, token, uid) {
+  const emu = env.FIREBASE_EMULATOR_HOST;
+  const ns = env.FIREBASE_EMULATOR_NS;
+  const now = getNow(env);
+  const regRes = await rtdbRequest(config, `players/${uid}/chatRegisteredAt`, "GET", null, token, emu, ns);
+  const levelRes = await rtdbRequest(config, `players/${uid}/level`, "GET", null, token, emu, ns);
+  const registeredAt = typeof regRes.json === "number" ? regRes.json : now;
+  const playerLevel = typeof levelRes.json === "number" ? levelRes.json : null;
+  return { accountAgeMs: now - registeredAt, playerLevel };
 }
 
 async function fetchModState(config, env, token, uid) {
@@ -99,7 +111,9 @@ async function handleSend(request, env) {
     text = filtered.text;
   }
 
-  const limits = await checkLimits(env, auth.uid, config);
+  const ctx = await fetchPlayerChatContext(config, env, token, auth.uid);
+  const sendLimits = resolveSendLimits(config, ctx);
+  const limits = await checkLimits(env, auth.uid, sendLimits);
   if (!limits.ok) return err(limits.reason, 429);
 
   const msg = {
@@ -143,8 +157,11 @@ async function handleReport(request, env) {
   } catch {
     return err("unauthorized", 401);
   }
-  const { msgId } = await request.json().catch(() => ({}));
+  const body = await request.json().catch(() => ({}));
+  const { msgId, category } = body;
   if (!msgId) return err("missing_msg_id");
+  const reportCategory = category ? String(category).slice(0, 32) : "generic";
+  const isChildSafety = reportCategory === REPORT_CATEGORY_CHILD_SAFETY;
   const token = await getAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
@@ -157,9 +174,26 @@ async function handleReport(request, env) {
     msgId,
     time: getNow(env),
     reporterHash: reporter,
-    msgUidHash: await anonymizeUid(msgRes.json.uid || "")
+    msgUidHash: await anonymizeUid(msgRes.json.uid || ""),
+    category: reportCategory,
+    priority: isChildSafety ? "high" : "normal"
   };
   await rtdbRequest(config, "chat/reports", "POST", report, token, emu, ns);
+
+  if (isChildSafety) {
+    await rtdbRequest(config, `chat/messages/${msgId}/hidden`, "PUT", true, token, emu, ns);
+    await rtdbRequest(config, `chat/messages/${msgId}/safetyHold`, "PUT", true, token, emu, ns);
+    await rtdbRequest(
+      config,
+      `chat/internal/safetyHolds/${msgId}`,
+      "PUT",
+      { at: getNow(env), category: REPORT_CATEGORY_CHILD_SAFETY },
+      token,
+      emu,
+      ns
+    );
+    return json({ ok: true, safetyHold: true });
+  }
 
   const countPath = `chat/internal/reportCounts/${msgId}`;
   const countRes = await rtdbRequest(config, countPath, "GET", null, token, emu, ns);
@@ -211,7 +245,14 @@ async function handleModReports(request, env) {
       env.FIREBASE_EMULATOR_HOST,
       env.FIREBASE_EMULATOR_NS
     );
-    return json({ ok: true, reports: res.json || {} });
+    const entries = Object.entries(res.json || {}).map(([id, r]) => ({ id, ...r }));
+    entries.sort((a, b) => {
+      const pa = a.priority === "high" ? 0 : 1;
+      const pb = b.priority === "high" ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return (b.time || 0) - (a.time || 0);
+    });
+    return json({ ok: true, reports: entries });
   } catch (e) {
     return err(e.message === "forbidden" ? "forbidden" : "unauthorized", e.message === "forbidden" ? 403 : 401);
   }
@@ -302,6 +343,26 @@ async function handleModBan(request, env) {
   }
 }
 
+async function handleModResolveSafety(request, env) {
+  try {
+    const { config, token } = await requireMod(request, env);
+    const { msgId, action } = await request.json().catch(() => ({}));
+    if (!msgId) return err("missing_msg_id");
+    const emu = env.FIREBASE_EMULATOR_HOST;
+    const ns = env.FIREBASE_EMULATOR_NS;
+    await rtdbRequest(config, `chat/messages/${msgId}/safetyHold`, "DELETE", null, token, emu, ns);
+    await rtdbRequest(config, `chat/internal/safetyHolds/${msgId}`, "DELETE", null, token, emu, ns);
+    if (action === "uphold_delete") {
+      await rtdbRequest(config, `chat/messages/${msgId}`, "DELETE", null, token, emu, ns);
+    } else if (action === "dismiss") {
+      await rtdbRequest(config, `chat/messages/${msgId}/hidden`, "DELETE", null, token, emu, ns);
+    }
+    return json({ ok: true });
+  } catch (e) {
+    return err(e.message === "forbidden" ? "forbidden" : "unauthorized", e.message === "forbidden" ? 403 : 401);
+  }
+}
+
 export async function runRetentionJob(env, nowOverride) {
   const config = loadConfig(env);
   const token = await getAdminToken(env);
@@ -312,14 +373,18 @@ export async function runRetentionJob(env, nowOverride) {
   const msgs = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
   if (msgs.json && typeof msgs.json === "object") {
     for (const [id, m] of Object.entries(msgs.json)) {
+      if (m?.safetyHold) continue;
       if (m?.time && now - m.time > config.msgRetentionMs) {
         await rtdbRequest(config, `chat/messages/${id}`, "DELETE", null, token, emu, ns);
       }
     }
   }
+  const holds = await rtdbRequest(config, "chat/internal/safetyHolds", "GET", null, token, emu, ns);
+  const heldMsgIds = new Set(Object.keys(holds.json || {}));
   const reports = await rtdbRequest(config, "chat/reports", "GET", null, token, emu, ns);
   if (reports.json && typeof reports.json === "object") {
     for (const [id, r] of Object.entries(reports.json)) {
+      if (heldMsgIds.has(r?.msgId)) continue;
       if (r?.time && now - r.time > config.reportRetentionMs) {
         await rtdbRequest(config, `chat/reports/${id}`, "DELETE", null, token, emu, ns);
       }
@@ -339,6 +404,8 @@ export default {
       if (url.pathname === "/api/mod/delete" && request.method === "POST") return handleModDelete(request, env);
       if (url.pathname === "/api/mod/mute" && request.method === "POST") return handleModMute(request, env);
       if (url.pathname === "/api/mod/ban" && request.method === "POST") return handleModBan(request, env);
+      if (url.pathname === "/api/mod/resolve-safety" && request.method === "POST")
+        return handleModResolveSafety(request, env);
       return err("not_found", 404);
     } catch (e) {
       return err("server_error", 500);
