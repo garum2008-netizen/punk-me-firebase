@@ -45,3 +45,19 @@ export const EMAIL_PATTERN = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 
 export const PHONE_PATTERN =
   /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3,4}[\s.-]?\d{2,4}[\s.-]?\d{2,4}/;
+
+/** Obfuscated email (at/dot tokens, spaced) */
+export const EMAIL_OBFUSCATED_PATTERN =
+  /\b[a-z0-9._%+-]+\s*(?:\[at\]|@|\(at\)|\bat\b)\s*[a-z0-9._%-]+\s*(?:\[dot\]|\.|\(dot\)|\bdot\b)\s*[a-z]{2,}\b/i;
+
+/** Social handles (@user) */
+export const SOCIAL_HANDLE_PATTERN = /(?:^|\s)@[a-z0-9_]{2,32}\b/i;
+
+/** PII / grooming solicitation (not exhaustive) */
+export const PII_PATTERNS = [
+  /(?:мне|мені)\s+\d{1,2}\s*(?:год|лет|років)/i,
+  /\b(?:mi|jeg|i'?m|je\s+bent)\s+\d{1,2}\s*(?:year|år|old|yo)\b/i,
+  /\b(?:школ|school|skole|klasse|classroom)\b/i,
+  /\b(?:гroom|grooming|сына|дочь|daughter|son|child|ребён|minor|несоверш|under\s*18)\b/i,
+  /\b(?:send\s+nudes?|сиськ|гол(?:ая|ий)|nøgen|nude)\b/i
+];
