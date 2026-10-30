@@ -23,6 +23,12 @@ export function playChapterIntro(opts = {}) {
     return;
   }
   shown = true;
+  const startOv = document.getElementById("startGameOverlay");
+  if (startOv) {
+    startOv.classList.remove("active");
+    startOv.setAttribute("aria-hidden", "true");
+    startOv.inert = true;
+  }
   const root = document.getElementById("chapterIntro");
   if (!root) {
     opts.onDone?.();

@@ -878,7 +878,7 @@ html.episode-capture .btn-account { display: none !important; }
   position: fixed; inset: 0; z-index: 120; display: none; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.82);
 }
-.chapter-intro.active { display: flex; }
+.chapter-intro.active { display: flex; z-index: 195; }
 .chapter-intro-panel {
   max-width: min(520px, 94vw); padding: 20px 22px; border-radius: 18px;
   background: linear-gradient(145deg, #1a0a30, #0d0618); border: 2px solid #0ff;

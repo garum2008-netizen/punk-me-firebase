@@ -162,10 +162,16 @@ async function walkTowardGuide(page, mobile, steps = 90) {
 }
 
 async function dismissChapterIntroUi(page) {
-  for (let i = 0; i < 8; i++) {
-    const intro = page.locator("#chapterIntro.active .chapter-intro-next, #chapterIntro.active .chapter-intro-skip");
+  for (let i = 0; i < 10; i++) {
+    const intro = page.locator("#chapterIntro.active");
     if (!(await intro.count())) break;
-    await intro.first().click({ timeout: 5000 });
+    const skip = page.locator("#chapterIntro.active .chapter-intro-skip");
+    const next = page.locator("#chapterIntro.active .chapter-intro-next");
+    if (await skip.count()) {
+      await skip.click({ timeout: 15000 });
+    } else if (await next.count()) {
+      await next.click({ timeout: 15000 });
+    } else break;
     await sleep(350);
   }
 }
@@ -179,6 +185,13 @@ async function dismissHowToUi(page) {
 
 async function ensureOverlaysClear(page) {
   for (let i = 0; i < 28; i++) {
+    const start = page.locator("#startGameOverlay.active #btnStartGame");
+    if (await start.count()) {
+      await start.click({ timeout: 12000 });
+      await page
+        .waitForFunction(() => window.me?.tutorial?.episode1Started === true, undefined, { timeout: 20000 })
+        .catch(() => {});
+    }
     await dismissChapterIntroUi(page);
     await dismissHowToUi(page);
     const blocked = await page.evaluate(() => ({
