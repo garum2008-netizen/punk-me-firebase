@@ -6,31 +6,44 @@ export class ChatLimitsDO {
   }
 
   async alarm() {
-    const retentionPending = await this.state.storage.get("retentionContinuePending");
-    if (retentionPending) {
-      await this.state.storage.put("retentionContinuePending", false);
-      const base = (this.env.SAFE_CHAT_WORKER_URL || "").replace(/\/$/, "");
-      const secret = this.env.SAFE_CHAT_INTERNAL_SECRET || "";
-      if (base && secret) {
-        try {
-          await fetch(`${base}/api/internal/retention-continue`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Safe-Chat-Internal": secret
-            },
-            body: "{}"
-          });
-        } catch (_) {}
-      }
-    }
-    const queue = (await this.state.storage.get("erasureContinueQueue")) || [];
-    const uid = queue.shift();
-    await this.state.storage.put("erasureContinueQueue", queue);
-    if (!uid) return;
     const base = (this.env.SAFE_CHAT_WORKER_URL || "").replace(/\/$/, "");
     const secret = this.env.SAFE_CHAT_INTERNAL_SECRET || "";
-    if (!base || !secret) return;
+    const canCall = Boolean(base && secret);
+
+    const retentionPending = await this.state.storage.get("retentionContinuePending");
+    if (retentionPending) {
+      if (!canCall) {
+        await this.state.storage.setAlarm(Date.now() + 750);
+        return;
+      }
+      await this.state.storage.put("retentionContinuePending", false);
+      try {
+        await fetch(`${base}/api/internal/retention-continue`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Safe-Chat-Internal": secret
+          },
+          body: "{}"
+        });
+      } catch (_) {
+        await this.state.storage.put("retentionContinuePending", true);
+      }
+    }
+
+    const queue = (await this.state.storage.get("erasureContinueQueue")) || [];
+    const uid = queue[0];
+    if (!uid) {
+      const stillRetention = await this.state.storage.get("retentionContinuePending");
+      if (stillRetention) await this.state.storage.setAlarm(Date.now() + 750);
+      return;
+    }
+    if (!canCall) {
+      await this.state.storage.setAlarm(Date.now() + 750);
+      return;
+    }
+    queue.shift();
+    await this.state.storage.put("erasureContinueQueue", queue);
     try {
       await fetch(`${base}/api/internal/erasure-continue`, {
         method: "POST",
@@ -40,14 +53,13 @@ export class ChatLimitsDO {
         },
         body: JSON.stringify({ uid })
       });
-    } catch (_) {}
-    if (queue.length > 0) {
+    } catch (_) {
+      if (!queue.includes(uid)) queue.unshift(uid);
+      await this.state.storage.put("erasureContinueQueue", queue);
+    }
+    const pendingAfter = await this.state.storage.get("retentionContinuePending");
+    if (queue.length > 0 || pendingAfter) {
       await this.state.storage.setAlarm(Date.now() + 750);
-    } else {
-      const stillRetention = await this.state.storage.get("retentionContinuePending");
-      if (stillRetention) {
-        await this.state.storage.setAlarm(Date.now() + 750);
-      }
     }
   }
 
