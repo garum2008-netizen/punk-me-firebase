@@ -8,9 +8,10 @@
 |------|--------|-----------|---------|
 | Chat message text, display name, Firebase UID, timestamp, optional location id | Firebase RTDB `chat/messages` | 7 days (cron cleanup) | Gang chat |
 | Report records (message id, hashed reporter id, hashed author id, time) | `chat/reports` | 90 days | Moderation / DSA |
-| Mute/ban flags | `chat/modState` | Until lifted | Safety |
-| Per-player block list | `players/{uid}/chatBlocklist` | Until user removes | User preference |
-| Rate-limit counters | Cloudflare Durable Object | Rolling / daily | Anti-spam |
+| Mute/ban flags | `chat/modState` | 90 days after lift/expiry (cron) | Safety |
+| Report dedup keys / counts | `chat/internal/*` | Purged with reports (90d) or on message delete | Anti-abuse |
+| Age declaration timestamp | `players/{uid}/chatAge13DeclaredAt` | While account exists (server-written only) | 13+ gate evidence |
+| Rate-limit counters | Cloudflare Durable Object (`ChatLimitsDO`) | ~30 days idle prune (cron) | Anti-spam |
 
 We **do not** store email or IP in chat message records. Firebase Auth processes sign-in separately (see main `privacy.html`).
 

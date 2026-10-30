@@ -21,9 +21,29 @@ PR #45 adds `MINIMAL_CHAT_FOR_CLIENT` (auth read + client push on `chat/$msgId`)
 
 Presence / players rules from PR #45 are **not modified** except optional fields `chatBlocklist`, `chatRegisteredAt` on `players/$uid`.
 
-### Test-only auth (`SAFE_CHAT_TEST_MODE`)
+### Integration auth (not in production bundle)
 
-Integration tests set `SAFE_CHAT_TEST_MODE=true` **only** in `vitest.config.js` miniflare bindings (never in `wrangler.toml`). In that mode the Worker validates **real Auth emulator ID tokens** via `accounts:lookup` (not `SAFE_CHAT_SKIP_AUTH`). Guarded by `scripts/test-safe-chat-prod-config.mjs` + `src/prod-config.test.js`.
+Production Worker imports `auth-prod.js` (JWKS only). Vitest aliases `auth-prod.js` → `auth.integration.js` (Auth emulator lookup when `SAFE_CHAT_INTEGRATION=1`). Guarded by `scripts/test-safe-chat-prod-source.mjs` + `test-safe-chat-prod-config.mjs` (no `SAFE_CHAT_SKIP_AUTH` / `SAFE_CHAT_TEST_MODE` in `wrangler.toml`).
+
+## Security Governor review (30.10.2026) — remediation
+
+**Reviewed baseline:** `fc9a88d` (FAIL). **This branch head:** see git; re-run review after merge.
+
+| Finding | Sev | Fix | Commit | Test |
+|---------|-----|-----|--------|------|
+| HIGH-1 Free text via `name`/`loc`; impersonation | HIGH | Profile `name`/`loc` from RTDB; phrase-only when `FREE_TEXT=false`; block mod/admin names | `dd72de7` | `integration.emulator.test.js`, `safe-chat-security.test.js` |
+| HIGH-2 RTDB path injection via `msgId` | HIGH | `assertFirebaseId` + encoded segments | `ad6c09c` | `safe-chat-security.test.js`, integration invalid `msgId` |
+| HIGH-3 No server 13+ gate | HIGH | `chatAge13DeclaredAt` write=false; `/api/chat/declare-age13`; check before send/report | `95f91f1` | integration `age_not_declared` |
+| MEDIUM Report spam / no dedup | MEDIUM | Per-reporter dedup + report daily DO limit | `b45934f` | integration dedup test |
+| MEDIUM Auth bypass flags in prod | MEDIUM | Remove skip-auth; split auth.integration for vitest | `85ce923` | `test-safe-chat-prod-source.mjs` |
+| MEDIUM DO / retention gaps | MEDIUM | DO prune; batched cron (~45 subrequests); modState TTL | `b45934f` | `runRetentionJob` integration |
+| LOW CORS `*` | LOW | Allowlist `SAFE_CHAT_CORS_ORIGINS` | `e481400` | prod config / manual |
+| LOW Weak report hash | LOW | HMAC-SHA256 with `SAFE_CHAT_HASH_SALT` secret | `e481400` | integration reports (vitest salt) |
+| LOW Mod Worker URL from storage | LOW | `PUNK_SAFE_CHAT_WORKER_URL` constant in `moderation.mjs` | `e481400` | code review |
+
+**PR base:** `main` (branch rebased; merge-base `450d6da`). **Rules apply order:** `node scripts/build-safe-chat-rules.mjs` (overlay on PR #45 or live export — **do not merge #45 automatically**).
+
+**Public repo PII:** separate Draft PR masks QA emails — see `cursor/mask-qa-emails-3dff`. Git history still contains old emails until owner chooses history rewrite (not done here).
 
 ## Free tier choices (Cloudflare)
 
@@ -79,6 +99,7 @@ Run after #45 lands: `git fetch origin cursor/prod-security-hotfix-d81d && git r
 cd workers/safe-chat
 wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON
 wrangler secret put MODERATOR_UIDS
+wrangler secret put SAFE_CHAT_HASH_SALT
 ```
 
 ## Run automated tests (no prod)
@@ -99,8 +120,7 @@ This runs: filter unit tests → RTDB rules on Firebase emulators → wrangler/m
 | RTDB: client cannot POST `chat/messages` / legacy `chat/` | `scripts/test-safe-chat-rules.js` + Auth+DB emulator | **PASS** (auto) |
 | RTDB: client cannot POST `chat/reports`, PUT `modState/mute`, PUT `internal` | same | **PASS** (auto) |
 | RTDB: auth read `chat/messages`; `chatBlocklist` self-write | same | **PASS** (auto) |
-| `wrangler.toml` has no `SAFE_CHAT_TEST_MODE` / `SKIP_AUTH` false | `scripts/test-safe-chat-prod-config.mjs` | **PASS** (auto) |
-| `wrangler.toml` uses `new_sqlite_classes`, not `new_classes` | same | **PASS** (auto) |
+| `wrangler.toml` has no test-auth vars; uses `new_sqlite_classes` | `scripts/test-safe-chat-prod-config.mjs` | **PASS** (auto) |
 | `wrangler deploy --dry-run` packages Worker + SQLite DO migration | local CLI (no publish) | **PASS** (auto, see CI log in PR) |
 | Worker `/api/chat/config` smoke | vitest miniflare | **PASS** (auto) |
 | `freeTextEnabled=false` rejects free text, allows phrase | `integration.emulator.test.js` + emulators | **PASS** (auto) |
