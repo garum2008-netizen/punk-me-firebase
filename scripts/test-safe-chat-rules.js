@@ -178,9 +178,9 @@ async function run() {
   });
   const playerSnap = await fetchJson(dbUrl(`players/${localId}`, idToken));
   const fullSave = await fetchJson(dbUrl(`players/${localId}`, idToken), {
-    method: "PUT",
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...(playerSnap.json || {}), coins: 44 })
+    body: JSON.stringify({ coins: 44 })
   });
   cases.push({
     name: "legacy chatBlocklist object + age does not block coins/name/full save",
@@ -217,6 +217,69 @@ async function run() {
   await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, null, true), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ peerA: true, peerB: true })
+  });
+  const delOnePeer = await fetchJson(dbUrl(`players/${localId}/chatBlocklist/peerA`, idToken), {
+    method: "DELETE"
+  });
+  cases.push({
+    name: "P0-bl: client cannot delete one chatBlocklist peer while another remains",
+    pass: delOnePeer.status === 403 || delOnePeer.status === 401
+  });
+  const replacePrimitive = await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify("x")
+  });
+  cases.push({
+    name: "P0-bl: client cannot replace chatBlocklist object with primitive",
+    pass: replacePrimitive.status === 403 || replacePrimitive.status === 401
+  });
+  const subsetBlock = await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ peerB: true })
+  });
+  cases.push({
+    name: "P0-bl: client cannot PUT chatBlocklist subset (drop peer)",
+    pass: subsetBlock.status === 403 || subsetBlock.status === 401
+  });
+  const snapBlock = await fetchJson(dbUrl(`players/${localId}`, idToken));
+  const dropPeerFullSave = await fetchJson(dbUrl(`players/${localId}`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...(snapBlock.json || {}), chatBlocklist: { peerB: true } })
+  });
+  cases.push({
+    name: "P0-bl: full player save cannot drop chatBlocklist peer",
+    pass: dropPeerFullSave.status === 403 || dropPeerFullSave.status === 401
+  });
+
+  const objUser = await signUp();
+  const objPeerId = objUser.localId;
+  const objToken = objUser.idToken;
+  await fetchJson(dbUrl(`players/${objPeerId}`, null, true), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Obj",
+      coins: 1,
+      chatBlocklist: { peerObj: true }
+    })
+  });
+  const objPatch = await fetchJson(dbUrl(`players/${objPeerId}`, objToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coins: 2 })
+  });
+  cases.push({
+    name: "P0-objpeer: save with legacy object map peer (boolean value) succeeds",
+    pass: objPatch.status === 200
+  });
+
+  await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, null, true), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ peer: true })
   });
   const delBlock = await fetchJson(dbUrl(`players/${localId}/chatBlocklist`, idToken), {
@@ -229,8 +292,17 @@ async function run() {
 
   const delPlayer = await fetchJson(dbUrl(`players/${localId}`, idToken), { method: "DELETE" });
   cases.push({
-    name: "whole players node delete allowed (legacy chat keys removed with node)",
+    name: "P0-node: whole players node delete allowed (accepted residual: chat keys removed with node)",
     pass: delPlayer.status === 200
+  });
+  const regAfterDel = await fetchJson(dbUrl(`players/${localId}/chatRegisteredAt`, idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: "1"
+  });
+  cases.push({
+    name: "P0-node: client cannot recreate players chatRegisteredAt after whole-node delete",
+    pass: regAfterDel.status === 403 || regAfterDel.status === 401
   });
 
   const writeReport = await fetchJson(dbUrl("chat/reports", idToken), {
