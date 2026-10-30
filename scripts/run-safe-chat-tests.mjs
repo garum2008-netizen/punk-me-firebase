@@ -39,6 +39,9 @@ async function main() {
   console.log("\n=== safe-chat child-harm detection ===");
   if (!runNode("safe-chat-child-harm.test.js")) process.exit(1);
 
+  console.log("\n=== safe-chat child-safety risk scoring ===");
+  if (!runNode("safe-chat-child-safety-risk.test.js")) process.exit(1);
+
   console.log("\n=== RTDB rules (emulator) ===");
   let rulesOk = false;
   await withSafeChatRulesEmulator(() => {

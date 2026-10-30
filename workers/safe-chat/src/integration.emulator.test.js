@@ -113,113 +113,172 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect((await res.json()).error).toBe("unauthorized");
   });
 
-  it("fresh anon child_safety hides once then second report queues without hide", async () => {
+  it("risk: other_child_safety on benign phrase queues without auto-hide (false positive guard)", async () => {
     const author = await authSignUp();
-    const sent1 = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
-    const { id: msgId1 } = await sent1.json();
-    await waitSendCooldown();
-    const sent2 = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" });
-    const { id: msgId2 } = await sent2.json();
-    expect(msgId2).toBeTruthy();
-    const fresh = await authSignUp();
-    await apiPost(SELF, "/api/chat/declare-age13", fresh.idToken, { confirmed: true });
-    const r1 = await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId: msgId1, category: "child_safety" });
-    expect((await r1.json()).hidden).toBe(true);
-    const r2 = await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId: msgId2, category: "child_safety" });
-    const j2 = await r2.json();
-    expect(j2.ok).toBe(true);
-    expect(j2.hidden).toBe(false);
-    expect(j2.hideSkippedReason).toBe("hide_quota");
-    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId2}`, "GET")).json?.priority).toBe("critical");
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const rep = await authSignUp();
+    const r = await apiPost(SELF, "/api/chat/report", rep.idToken, {
+      msgId,
+      category: "other_child_safety"
+    });
+    const j = await r.json();
+    expect(j.received).toBe(true);
+    expect(j.hidden).toBeUndefined();
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
+    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.subcategory).toBe("other_child_safety");
   });
 
-  it("banned or age-undeclared reporter cannot child_safety hide", async () => {
+  it("risk: unaged reporter grooming report with message context still hides", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const sid = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid;
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you? don't tell your mom");
+    const rep = await authSignUp();
+    await rtdbOwner(`chatMeta/${rep.localId}/chatAge13DeclaredAt`, "DELETE");
+    const r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    expect((await r.json()).received).toBe(true);
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
+    expect(sid).toBeTruthy();
+  });
+
+  it("risk: filter miss caught by player grooming report (explicit)", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "send pics on telegram meet me alone");
+    expect(detectChildHarmSignals("send pics on telegram meet me alone")).toBe(false);
+    const rep = await authSignUp();
+    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
+  });
+
+  it("risk: banned reporter submission accepted but cannot alone auto-hide benign message", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const banned = await authSignUp();
+    await apiPost(SELF, "/api/mod/ban", mod.idToken, { uid: banned.localId });
+    const r = await apiPost(SELF, "/api/chat/report", banned.idToken, { msgId, category: "other_child_safety" });
+    expect((await r.json()).received).toBe(true);
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
+    await apiPost(SELF, "/api/mod/ban", mod.idToken, { uid: banned.localId, lift: true });
+  });
+
+  it("risk: child-safety reports never rejected for rate limits or undeclared age", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
     const noAge = await authSignUp();
     await rtdbOwner(`chatMeta/${noAge.localId}/chatAge13DeclaredAt`, "DELETE");
-    expect((await (await apiPost(SELF, "/api/chat/report", noAge.idToken, { msgId, category: "child_safety" })).json()).error).toBe(
-      "age_not_declared"
-    );
-    const banned = await authSignUp();
-    await apiPost(SELF, "/api/mod/ban", mod.idToken, { uid: banned.localId });
-    const br = await apiPost(SELF, "/api/chat/report", banned.idToken, { msgId, category: "child_safety" });
-    expect((await br.json()).error).toBe("banned");
-    await apiPost(SELF, "/api/mod/ban", mod.idToken, { uid: banned.localId, lift: true });
+    for (let i = 0; i < 5; i++) {
+      const rr = await apiPost(SELF, "/api/chat/report", noAge.idToken, {
+        msgId,
+        category: "other_child_safety"
+      });
+      expect((await rr.json()).received).toBe(true);
+    }
   });
 
-  it("moderator false dismiss removes reporter hide power for 30 days", async () => {
+  it("risk: mass identical coordinated reports do not hide from count alone", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const ip = "198.51.100.10";
+    const hdr = { "CF-Connecting-IP": ip };
+    for (let i = 0; i < 6; i++) {
+      const r = await authSignUp();
+      const reg = Date.now() - 5000;
+      await rtdbOwner(`chatMeta/${r.localId}/chatRegisteredAt`, "PUT", reg);
+      await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "other_child_safety" }, hdr);
+    }
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
+    expect((await rtdbOwner(`chat/internal/safetyCase/${msgId}`, "GET")).json?.reports?.length).toBeGreaterThan(3);
+  });
+
+  it("risk: high-tier hide bypasses discretionary hide quota", async () => {
     const author = await authSignUp();
     const { id: msgId1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
     await waitSendCooldown();
     const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
-    expect(msgId2).toBeTruthy();
     const rep = await authSignUp();
-    const r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId1, category: "child_safety" });
-    expect((await r.json()).hidden).toBe(true);
+    await rtdbOwner(`chat/messages/${msgId1}/text`, "PUT", "how old are you");
+    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId1, category: "other_child_safety" });
+    await rtdbOwner(`chat/messages/${msgId2}/text`, "PUT", "don't tell mom meet me alone");
+    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId2, category: "grooming" });
+    expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).toBe(true);
+  });
+
+  it("risk: reporter privacy response has no case or target details", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const r = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "violence_threat" });
+    const j = await r.json();
+    expect(j.messageKey).toBe("thanks_received");
+    expect(j.hidden).toBeUndefined();
+    expect(j.msgId).toBeUndefined();
+    expect(j.evidence).toBeUndefined();
+    expect(j.priority).toBeUndefined();
+  });
+
+  it("risk: immediate_danger uses escalation tier and moderator notify", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "I will hurt the kid now");
+    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "immediate_danger" });
+    const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
+    expect(q.json?.escalationTier).toBe("immediate_danger");
+    expect(q.json?.moderatorNotify).toBe(true);
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
+  });
+
+  it("risk: false dismiss reduces auto-hide weight but report still accepted", async () => {
+    const author = await authSignUp();
+    const { id: msgId1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    await waitSendCooldown();
+    const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const rep = await authSignUp();
+    await rtdbOwner(`chat/messages/${msgId1}/text`, "PUT", "how old are you secret");
+    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId1, category: "grooming" });
     const reports = await rtdbOwner("chat/reports", "GET");
     const reportId = Object.entries(reports.json || {}).find(([, v]) => v?.msgId === msgId1)?.[0];
-    expect(reportId).toBeTruthy();
-    const dismiss = await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, {
+    await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, {
       msgId: msgId1,
       action: "dismiss",
       falseReport: true,
       reportId
     });
-    expect((await dismiss.json()).ok).toBe(true);
-    const r2 = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId2, category: "child_safety" });
-    const j2 = await r2.json();
-    expect(j2.hidden).toBe(false);
-    expect(j2.hideSkippedReason).toBe("hide_denied_reputation");
+    await rtdbOwner(`chat/messages/${msgId2}/text`, "PUT", "thanks");
+    const r2 = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId2, category: "other_child_safety" });
+    expect((await r2.json()).received).toBe(true);
+    expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).not.toBe(true);
   });
 
-  it("flags possible brigading after many low-trust hides on same author", async () => {
+  it("risk: appeal and moderator restore after wrongful hide", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    expect(msgId).toBeTruthy();
-    for (let i = 0; i < 4; i++) {
-      const r = await authSignUp();
-      await apiPost(SELF, "/api/chat/declare-age13", r.idToken, { confirmed: true });
-      await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "child_safety" });
-    }
-    const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
-    expect(q.json?.possibleBrigading).toBe(true);
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
+    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
+    await apiPost(SELF, "/api/chat/appeal-hide", author.idToken, { msgId, reasonCode: "wrongful_hide" });
+    await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, { msgId, action: "restore_visibility" });
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
   });
 
-  it("cluster hide cap limits hides from same IP prefix", async () => {
-    const ip = "203.0.113.50";
-    const hdr = { "CF-Connecting-IP": ip };
-    const msgIds = [];
-    for (let i = 0; i < 3; i++) {
-      const a = await authSignUp();
-      const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
-      msgIds.push({ msgId, reporter: await authSignUp() });
-    }
-    for (let i = 0; i < 3; i++) {
-      const { msgId, reporter } = msgIds[i];
-      await apiPost(SELF, "/api/chat/declare-age13", reporter.idToken, { confirmed: true });
-      await apiPost(SELF, "/api/chat/report", reporter.idToken, { msgId, category: "child_safety" }, hdr);
-    }
-    const extraAuthor = await authSignUp();
-    const extraMsg = await (await apiPost(SELF, "/api/chat/send", extraAuthor.idToken, { phraseId: "gg" })).json();
-    const extraRep = await authSignUp();
-    await apiPost(SELF, "/api/chat/declare-age13", extraRep.idToken, { confirmed: true });
-    const cap = await apiPost(
-      SELF,
-      "/api/chat/report",
-      extraRep.idToken,
-      { msgId: extraMsg.id, category: "child_safety" },
-      hdr
-    );
-    const cj = await cap.json();
-    expect(cj.hidden).toBe(false);
-    expect(cj.hideSkippedReason).toBe("cluster_hide_cap");
+  it("filter-detected message content hides regardless of reporter auto-hide quota", async () => {
+    const author = await authSignUp();
+    const { id: msgId1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    await waitSendCooldown();
+    const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const rep = await authSignUp();
+    await rtdbOwner(`chat/messages/${msgId1}/text`, "PUT", "kill the kid");
+    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId1, category: "other_child_safety" });
+    await rtdbOwner(`chat/messages/${msgId2}/text`, "PUT", "kill the kid");
+    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId2, category: "other_child_safety" });
+    expect((await rtdbOwner(`chat/messages/${msgId1}`, "GET")).json?.hidden).toBe(true);
+    expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).toBe(true);
   });
 
   it("moderator restore_visibility unhides with decision log", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "child_safety" });
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
+    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json.hidden).toBe(true);
     await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, { msgId, action: "restore_visibility" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json.hidden).not.toBe(true);
@@ -230,7 +289,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const author = await authSignUp();
     const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
     const { id: msgId } = await sent.json();
-    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "child_safety" });
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
+    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
     const ev = await rtdbAuth(`chat/internal/safetyEvidence/${msgId}`, "GET", userA.idToken);
     expect(ev.status === 401 || ev.status === 403).toBe(true);
     const q = await rtdbAuth("chat/internal/safetyQueue", "GET", userA.idToken);
@@ -252,7 +312,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const { id: msgId } = await sent.json();
     const fresh = await authSignUp();
     await apiPost(SELF, "/api/chat/declare-age13", fresh.idToken, { confirmed: true });
-    await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId, category: "child_safety" });
+    await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId, category: "other_child_safety" });
     const now = 2_000_000_000_000;
     await rtdbOwner(`chat/messages/${msgId}/time`, "PUT", now - 8 * 24 * 60 * 60 * 1000);
     await runRetentionJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(now) }, now);
@@ -269,10 +329,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     }
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 20);
-    const trusted = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "child_safety" });
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
+    const trusted = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
     const tj = await trusted.json();
     expect(tj.global_report_limit).toBeUndefined();
-    expect(tj.ok).toBe(true);
+    expect(tj.received).toBe(true);
   });
 
   it("bogus client erasure cursor cannot force complete or bypass rate limit", async () => {
@@ -296,9 +357,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const author = await authSignUp();
     const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
     const { id: msgId } = await sent.json();
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
     const fresh = await authSignUp();
-    await apiPost(SELF, "/api/chat/declare-age13", fresh.idToken, { confirmed: true });
-    await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId, category: "child_safety" });
+    await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId, category: "grooming" });
     const del = await apiPost(SELF, "/api/chat/delete-my-data", author.idToken, {});
     const dj = await del.json();
     expect(dj.ok).toBe(true);
@@ -315,11 +376,12 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const mature = Date.now() - 2 * 24 * 60 * 60 * 1000;
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", mature);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 10);
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
     const rep = await apiPost(SELF, "/api/chat/report", userB.idToken, {
       msgId,
-      category: "child_safety"
+      category: "grooming"
     });
-    expect((await rep.json()).hidden).toBe(true);
+    expect((await rep.json()).received).toBe(true);
     const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     expect(msg.json.hidden).toBe(true);
 

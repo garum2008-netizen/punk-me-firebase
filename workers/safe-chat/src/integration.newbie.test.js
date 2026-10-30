@@ -28,7 +28,7 @@ describe.skipIf(env.SAFE_CHAT_FREE_TEXT !== "true")("newbie free-text window (fr
     const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     expect(msg.json.hidden).toBe(true);
     const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
-    expect(q.json?.priority).toBe("critical");
+    expect(q.json?.priority).toBe("immediate_danger");
     expect(q.json?.trigger).toBe("filter");
   });
 });
