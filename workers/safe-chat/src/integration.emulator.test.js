@@ -8,6 +8,7 @@ import {
   rtdbOwner,
   rtdbAuth,
   isBlocked,
+  waitSendCooldown,
   PROJECT_ID
 } from "./test-helpers.js";
 import { detectChildHarmSignals } from "./child-harm.js";
@@ -112,45 +113,117 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect((await res.json()).error).toBe("unauthorized");
   });
 
-  it("child_safety from fresh reporter hides immediately and enqueues critical priority", async () => {
+  it("fresh anon child_safety hides once then second report queues without hide", async () => {
     const author = await authSignUp();
-    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
-    const { id: msgId } = await sent.json();
+    const sent1 = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
+    const { id: msgId1 } = await sent1.json();
+    await waitSendCooldown();
+    const sent2 = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" });
+    const { id: msgId2 } = await sent2.json();
+    expect(msgId2).toBeTruthy();
     const fresh = await authSignUp();
     await apiPost(SELF, "/api/chat/declare-age13", fresh.idToken, { confirmed: true });
-    const rep = await apiPost(SELF, "/api/chat/report", fresh.idToken, {
-      msgId,
-      category: "child_safety"
-    });
-    const body = await rep.json();
-    expect(body.ok).toBe(true);
-    expect(body.hidden).toBe(true);
-    expect(body.priority).toBe("critical");
-    expect(body.trustedReporterCount).toBe(0);
-    const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
-    expect(msg.json.hidden).toBe(true);
-    const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
-    expect(q.json?.priority).toBe("critical");
-    expect(q.json?.childHarm).toBe(true);
+    const r1 = await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId: msgId1, category: "child_safety" });
+    expect((await r1.json()).hidden).toBe(true);
+    const r2 = await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId: msgId2, category: "child_safety" });
+    const j2 = await r2.json();
+    expect(j2.ok).toBe(true);
+    expect(j2.hidden).toBe(false);
+    expect(j2.hideSkippedReason).toBe("hide_quota");
+    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId2}`, "GET")).json?.priority).toBe("critical");
   });
 
-  it("low-trust reporters still hide; trust count does not block immediate hide", async () => {
+  it("banned or age-undeclared reporter cannot child_safety hide", async () => {
     const author = await authSignUp();
-    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
-    const { id: msgId } = await sent.json();
-    const anon1 = await authSignUp();
-    const anon2 = await authSignUp();
-    await apiPost(SELF, "/api/chat/declare-age13", anon1.idToken, { confirmed: true });
-    await apiPost(SELF, "/api/chat/declare-age13", anon2.idToken, { confirmed: true });
-    expect((await (await apiPost(SELF, "/api/chat/report", anon1.idToken, { msgId, category: "child_safety" })).json()).hidden).toBe(
-      true
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const noAge = await authSignUp();
+    await rtdbOwner(`chatMeta/${noAge.localId}/chatAge13DeclaredAt`, "DELETE");
+    expect((await (await apiPost(SELF, "/api/chat/report", noAge.idToken, { msgId, category: "child_safety" })).json()).error).toBe(
+      "age_not_declared"
     );
-    expect((await (await apiPost(SELF, "/api/chat/report", anon2.idToken, { msgId, category: "child_safety" })).json()).hidden).toBe(
-      true
-    );
+    const banned = await authSignUp();
+    await apiPost(SELF, "/api/mod/ban", mod.idToken, { uid: banned.localId });
+    const br = await apiPost(SELF, "/api/chat/report", banned.idToken, { msgId, category: "child_safety" });
+    expect((await br.json()).error).toBe("banned");
+    await apiPost(SELF, "/api/mod/ban", mod.idToken, { uid: banned.localId, lift: true });
+  });
+
+  it("moderator false dismiss removes reporter hide power for 30 days", async () => {
+    const author = await authSignUp();
+    const { id: msgId1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    await waitSendCooldown();
+    const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    expect(msgId2).toBeTruthy();
+    const rep = await authSignUp();
+    const r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId1, category: "child_safety" });
+    expect((await r.json()).hidden).toBe(true);
+    const reports = await rtdbOwner("chat/reports", "GET");
+    const reportId = Object.entries(reports.json || {}).find(([, v]) => v?.msgId === msgId1)?.[0];
+    expect(reportId).toBeTruthy();
+    const dismiss = await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, {
+      msgId: msgId1,
+      action: "dismiss",
+      falseReport: true,
+      reportId
+    });
+    expect((await dismiss.json()).ok).toBe(true);
+    const r2 = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId2, category: "child_safety" });
+    const j2 = await r2.json();
+    expect(j2.hidden).toBe(false);
+    expect(j2.hideSkippedReason).toBe("hide_denied_reputation");
+  });
+
+  it("flags possible brigading after many low-trust hides on same author", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    expect(msgId).toBeTruthy();
+    for (let i = 0; i < 4; i++) {
+      const r = await authSignUp();
+      await apiPost(SELF, "/api/chat/declare-age13", r.idToken, { confirmed: true });
+      await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "child_safety" });
+    }
     const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
-    expect(q.json?.trustedReporterCount).toBe(0);
+    expect(q.json?.possibleBrigading).toBe(true);
+  });
+
+  it("cluster hide cap limits hides from same IP prefix", async () => {
+    const ip = "203.0.113.50";
+    const hdr = { "CF-Connecting-IP": ip };
+    const msgIds = [];
+    for (let i = 0; i < 3; i++) {
+      const a = await authSignUp();
+      const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
+      msgIds.push({ msgId, reporter: await authSignUp() });
+    }
+    for (let i = 0; i < 3; i++) {
+      const { msgId, reporter } = msgIds[i];
+      await apiPost(SELF, "/api/chat/declare-age13", reporter.idToken, { confirmed: true });
+      await apiPost(SELF, "/api/chat/report", reporter.idToken, { msgId, category: "child_safety" }, hdr);
+    }
+    const extraAuthor = await authSignUp();
+    const extraMsg = await (await apiPost(SELF, "/api/chat/send", extraAuthor.idToken, { phraseId: "gg" })).json();
+    const extraRep = await authSignUp();
+    await apiPost(SELF, "/api/chat/declare-age13", extraRep.idToken, { confirmed: true });
+    const cap = await apiPost(
+      SELF,
+      "/api/chat/report",
+      extraRep.idToken,
+      { msgId: extraMsg.id, category: "child_safety" },
+      hdr
+    );
+    const cj = await cap.json();
+    expect(cj.hidden).toBe(false);
+    expect(cj.hideSkippedReason).toBe("cluster_hide_cap");
+  });
+
+  it("moderator restore_visibility unhides with decision log", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "child_safety" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json.hidden).toBe(true);
+    await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, { msgId, action: "restore_visibility" });
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json.hidden).not.toBe(true);
+    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.restoredAt).toBeTruthy();
   });
 
   it("client cannot read moderator-only safetyEvidence or safetyQueue", async () => {

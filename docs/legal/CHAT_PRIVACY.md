@@ -1,36 +1,23 @@
-# Safe chat — privacy supplement (DRAFT)
+# Chat privacy (DRAFT — legal review)
 
-> **Draft for legal review by owner (Inna). Not published automatically.**
+## Sybil / cluster rate-limiting (legitimate interest)
 
-## What we store
+To reduce coordinated **`child_safety`** report abuse while keeping **immediate hide** for genuine filter-detected harm, the safe-chat Worker may derive a **pseudonymous cluster id** from the client IP:
 
-| Data | Where | Retention | Purpose |
-|------|--------|-----------|---------|
-| Chat message text, display name, Firebase UID, timestamp, optional location id | Firebase RTDB `chat/messages` | 7 days (cron cleanup) | Gang chat |
-| Report records (message id, hashed reporter id, hashed author id, time) | `chat/reports` | 90 days | Moderation / DSA |
-| Mute/ban flags | `chat/modState` | 90 days after lift/expiry (cron) | Safety |
-| Report dedup keys / counts | `chat/internal/*` | Purged with reports (90d) or on message delete | Anti-abuse |
-| Age declaration timestamp | `players/{uid}/chatAge13DeclaredAt` | While account exists (server-written only) | 13+ gate evidence |
-| Rate-limit counters | Cloudflare Durable Object (`ChatLimitsDO`) | ~30 days idle prune (cron) | Anti-spam |
+- Source header: `CF-Connecting-IP` (or `X-Forwarded-For` first hop in tests).
+- Processing: IPv4 **/24 prefix** only → HMAC-SHA256 with **`SAFE_CHAT_CLUSTER_SALT`** (or `SAFE_CHAT_HASH_SALT` fallback).
+- Storage: **Cloudflare Durable Object** (`ChatLimitsDO`) counters only — **no raw IP** in RTDB.
+- Retention: rolling **24 hours**, then pruned by the limits DO `/prune` job.
+- Purpose: cap **child_safety hides per cluster per 24h** (`SAFE_CHAT_CHILD_SAFETY_CLUSTER_HIDE_CAP`, default 5).
 
-We **do not** store email or IP in chat message records. Firebase Auth processes sign-in separately (see main `privacy.html`).
+Legal basis (draft): **legitimate interest** (GDPR Art. 6(1)(f)) to protect users from censorship-by-spam while meeting child-protection hide obligations. DPIA and counsel review required before production.
 
-## Backups and logs (analysis draft)
+## What we do not store in RTDB
 
-| Location | May contain chat data? | Retention note |
-|----------|------------------------|----------------|
-| Firebase RTDB automated backups (Google) | Yes, if enabled on project | Independent of Worker cron; **purge on restore** or align backup TTL with owner policy before GO |
-| Cloudflare Worker observability logs | Request metadata only (no message body in default code) | Short platform retention |
-| Cloudflare cron `runRetentionJob` | Deletes aged rows in RTDB | Does not erase backup snapshots |
-| Moderator exports / manual copies | Possible | Out of band — procedure for owner |
+- Raw IP addresses  
+- Unsalted cluster prefixes  
 
-**Child-safety hold:** messages with `safetyHold` and linked reports are skipped by automated retention until `/api/mod/resolve-safety`.
+## Related
 
-## How to delete
-
-- In-game: hide/block a player (client-side list on your profile).
-- Account deletion: contact owner *(add process before publish)* — chat messages may remain until retention expiry if not linked to deletion workflow.
-
-## Controller / contact
-
-*(Add legal entity and contact before publish — Denmark/EU GDPR.)*
+- `docs/legal/CHILD_SAFETY_ESCALATION.md` — hide quotas and reputation  
+- `docs/release/SAFE_CHAT_REPORT.md` — product summary

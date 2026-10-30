@@ -69,6 +69,23 @@ Docs (Oct 2026): [Workers pricing/limits](https://developers.cloudflare.com/work
 
 No Firebase Blaze, no paid moderation APIs.
 
+## Child safety hide vs spam (Oct 2026 — head after `25da09a`)
+
+**Owner:** immediate hide + critical mod queue for suspected child harm. **Security:** unbounded anon hide = censorship.
+
+| Control | Purpose |
+|---------|---------|
+| Filter `detectChildHarmSignals` | Immediate hide + queue (**no reporter quotas**) |
+| Report hide quota (DO, 24h) | Low-trust 1 / trusted 3 hides per day; queue always |
+| `childSafetyHideDeniedUntil` | 30d queue-only after mod false report |
+| Author brigading flag | Many low-trust hides on same author → mod alert |
+| Cluster HMAC (/24, DO, 24h) | Cap hides per network cluster — see `docs/legal/CHAT_PRIVACY.md` |
+| `restore_visibility` | Mod one-click unhide + `safetyDecisions` log |
+
+**Residual risk:** many **aged trusted** Sybil accounts can still hide a **bounded** number of messages until mod review — **accepted** for child-protection priority (owner sign-off).
+
+**Tests:** `integration.emulator.test.js` (quota, reputation, brigading, cluster, restore), `integration.newbie.test.js` (filter hide), `npm run test:safe-chat`.
+
 **Over-limit behaviour (Free):** Worker and DO return **429 / errors** (`cooldown`, `daily_limit`); Cloudflare does **not** auto-upgrade the account to paid tiers. Client shows **«Сообщение не отправлено»** / phrase-only UI when `SAFE_CHAT_FREE_TEXT=false`.
 
 ## P0 owner checklist (10 points) — PASS/FAIL

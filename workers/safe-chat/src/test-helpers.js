@@ -67,12 +67,13 @@ export async function rtdbAuth(path, method, idToken, body) {
   return { status: res.status, json, ok: res.ok };
 }
 
-export async function apiPost(SELF, path, idToken, body) {
+export async function apiPost(SELF, path, idToken, body, extraHeaders = {}) {
   return SELF.fetch(`http://localhost${path}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${idToken}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...extraHeaders
     },
     body: JSON.stringify(body ?? {})
   });
@@ -86,4 +87,9 @@ export async function apiGet(SELF, path, idToken) {
 
 export function isBlocked(blocklist, sid) {
   return Boolean(blocklist?.[sid]);
+}
+
+/** Worker send cooldown is 3s; wait between sends from the same uid in integration tests. */
+export function waitSendCooldown() {
+  return new Promise(r => setTimeout(r, 3100));
 }

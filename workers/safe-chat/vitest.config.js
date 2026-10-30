@@ -40,7 +40,9 @@ export default defineWorkersConfig({
             SAFE_CHAT_CORS_ORIGINS: "https://halloween.punk.contractbot.dk,http://127.0.0.1",
             SAFE_CHAT_ERASURE_MIN_INTERVAL_MS: integration ? "0" : String(60 * 60 * 1000),
             SAFE_CHAT_ERASURE_BATCH: integration ? "5" : "40",
-            SAFE_CHAT_CHILD_SAFETY_REPORTER_MIN_MS: integration ? String(24 * 60 * 60 * 1000) : String(24 * 60 * 60 * 1000)
+            SAFE_CHAT_YOUNG_COOLDOWN_MS: integration ? "0" : "5000",
+            SAFE_CHAT_CHILD_SAFETY_REPORTER_MIN_MS: integration ? String(24 * 60 * 60 * 1000) : String(24 * 60 * 60 * 1000),
+            SAFE_CHAT_CHILD_SAFETY_CLUSTER_HIDE_CAP: integration ? "3" : "5"
           }
         }
       }
