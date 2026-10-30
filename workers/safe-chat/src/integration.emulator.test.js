@@ -57,6 +57,38 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(r2.status).toBe(429);
   });
 
+  it("rejects invalid Bearer token with 401", async () => {
+    const res = await SELF.fetch("http://localhost/api/chat/send", {
+      method: "POST",
+      headers: { Authorization: "Bearer not-a-real-token", "Content-Type": "application/json" },
+      body: JSON.stringify({ phraseId: "hi", name: "X" })
+    });
+    expect(res.status).toBe(401);
+    expect((await res.json()).error).toBe("unauthorized");
+  });
+
+  it("child_safety report hides immediately and sets safetyHold (retention skipped)", async () => {
+    const author = await authSignUp();
+    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks", name: "Kid" });
+    const { id: msgId } = await sent.json();
+    const rep = await apiPost(SELF, "/api/chat/report", userB.idToken, {
+      msgId,
+      category: "child_safety"
+    });
+    expect((await rep.json()).ok).toBe(true);
+    const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    expect(msg.json.hidden).toBe(true);
+    expect(msg.json.safetyHold).toBe(true);
+
+    const now = 2_000_000_000_000;
+    await rtdbOwner(`chat/messages/${msgId}/time`, "PUT", now - 8 * 24 * 60 * 60 * 1000);
+    await runRetentionJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(now) }, now);
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.safetyHold).toBe(true);
+
+    await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, { msgId, action: "uphold_delete" });
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json).toBeNull();
+  });
+
   it("reports from three players auto-hide message", async () => {
     const author = await authSignUp();
     const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks", name: "Auth" });
@@ -158,6 +190,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("daily limit (DO)", () => {
     async () => {
       expect(env.SAFE_CHAT_DAILY_LIMIT).toBe("2");
       const u = await authSignUp();
+      const mature = Date.now() - 10 * 24 * 60 * 60 * 1000;
+      await rtdbOwner(`players/${u.localId}/chatRegisteredAt`, "PUT", mature);
+      await rtdbOwner(`players/${u.localId}/level`, "PUT", 5);
       const wait = () => new Promise(r => setTimeout(r, 3100));
       expect((await (await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "gg", name: "D" })).json()).ok).toBe(
         true
