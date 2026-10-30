@@ -4,6 +4,8 @@ const SAFE_CHAT_I18N = {
     chatNotSent: "Сообщение не отправлено",
     chatFreeTextOff: "Только готовые фразы",
     chatReport: "Пожаловаться",
+    chatReportSafety: "Вред ребёнку / угроза / груминг",
+    chatReportSafetyDone: "Срочная жалоба отправлена модераторам",
     chatBlock: "Скрыть игрока",
     chatReported: "Жалоба отправлена"
   },
@@ -11,6 +13,8 @@ const SAFE_CHAT_I18N = {
     chatNotSent: "Повідомлення не надіслано",
     chatFreeTextOff: "Лише готові фрази",
     chatReport: "Поскаржитися",
+    chatReportSafety: "Шкода дитині / загроза / грумінг",
+    chatReportSafetyDone: "Термінову скаргу надіслано модераторам",
     chatBlock: "Приховати гравця",
     chatReported: "Скаргу надіслано"
   },
@@ -18,6 +22,8 @@ const SAFE_CHAT_I18N = {
     chatNotSent: "Message not sent",
     chatFreeTextOff: "Quick phrases only",
     chatReport: "Report",
+    chatReportSafety: "Child harm / threat / grooming",
+    chatReportSafetyDone: "Urgent report sent to moderators",
     chatBlock: "Hide player",
     chatReported: "Report submitted"
   },
@@ -25,6 +31,8 @@ const SAFE_CHAT_I18N = {
     chatNotSent: "Besked ikke sendt",
     chatFreeTextOff: "Kun hurtigfraser",
     chatReport: "Anmeld",
+    chatReportSafety: "Skade på barn / trussel / grooming",
+    chatReportSafetyDone: "Hasteanmeldelse sendt til moderatorer",
     chatBlock: "Skjul spiller",
     chatReported: "Anmeldelse sendt"
   }

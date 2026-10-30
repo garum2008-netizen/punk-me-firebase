@@ -154,12 +154,19 @@
       escapeHtml(text) +
       "</span>";
     if (msgId && m.uid !== window.uid) {
+      const safety = document.createElement("button");
+      safety.type = "button";
+      safety.className = "chat-report-btn chat-safety-btn";
+      safety.title = tChat("chatReportSafety");
+      safety.textContent = "⚠";
+      safety.addEventListener("click", () => reportMessage(msgId, "child_safety"));
+      line.appendChild(safety);
       const rep = document.createElement("button");
       rep.type = "button";
       rep.className = "chat-report-btn";
       rep.title = tChat("chatReport");
       rep.textContent = "!";
-      rep.addEventListener("click", () => reportMessage(msgId));
+      rep.addEventListener("click", () => reportMessage(msgId, "generic"));
       line.appendChild(rep);
       const blk = document.createElement("button");
       blk.type = "button";
@@ -210,10 +217,14 @@
     return { status, json };
   }
 
-  async function reportMessage(msgId) {
+  async function reportMessage(msgId, category) {
     if (!useSafeChat()) return;
-    await api("/api/chat/report", { msgId });
-    if (typeof window.toast === "function") window.toast(tChat("chatReported"));
+    const body = { msgId };
+    if (category) body.category = category;
+    await api("/api/chat/report", body);
+    if (typeof window.toast === "function") {
+      window.toast(category === "child_safety" ? tChat("chatReportSafetyDone") : tChat("chatReported"));
+    }
   }
 
   function init(opts) {
