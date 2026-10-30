@@ -191,14 +191,19 @@
     });
   }
 
+  async function ensureAge13Declared() {
+    if (!useSafeChat()) return true;
+    const { json } = await api("/api/chat/declare-age13", { confirmed: true });
+    return json.ok === true;
+  }
+
   async function sendPhrase(phraseId) {
     ensureChatRegisteredAt();
     if (!useSafeChat()) return legacySendPhrase?.(phraseId);
+    await ensureAge13Declared();
     const { status, json } = await api("/api/chat/send", {
       phraseId,
-      lang: typeof window.getLanguage === "function" ? window.getLanguage() : "en",
-      name: window.me?.name || "Player",
-      loc: window.me?.location
+      lang: typeof window.getLanguage === "function" ? window.getLanguage() : "en"
     });
     if (!json.ok) showNotSent();
     return { status, json };
@@ -207,11 +212,10 @@
   async function sendFreeText(text) {
     ensureChatRegisteredAt();
     if (!useSafeChat()) return legacySendFreeText?.(text);
+    await ensureAge13Declared();
     const { status, json } = await api("/api/chat/send", {
       text,
-      lang: typeof window.getLanguage === "function" ? window.getLanguage() : "en",
-      name: window.me?.name || "Player",
-      loc: window.me?.location
+      lang: typeof window.getLanguage === "function" ? window.getLanguage() : "en"
     });
     if (!json.ok) showNotSent();
     return { status, json };
