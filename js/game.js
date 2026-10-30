@@ -645,6 +645,7 @@ function finishLoadMeFlow() {
     return;
   }
   continueGameBoot();
+  window.refreshStartOverlayCopy?.();
 }
 
 function startFreshPlayerKeepAccount() {
@@ -841,6 +842,9 @@ function init() {
     window.Narrator?.reset?.();
     window.Narrator?.refresh?.();
     window.StoryGoalHud?.refresh?.();
+    if (document.getElementById("howToOverlay")?.classList.contains("active")) {
+      window.openHowToPlay?.();
+    }
   };
   initLanguage();
   const bindLang = btn => {
@@ -1558,6 +1562,15 @@ function afterLocationChange() {
 
 function goLocation(id, fromHash) {
   if (!LOCATIONS[id]) return;
+  if (
+    !fromHash &&
+    id === "street" &&
+    (me.location === "kitchen" || me.location === "room" || me.location === "toilet")
+  ) {
+    goLocation("elevator", true);
+    window.setTimeout(() => goLocation("street", fromHash), 650);
+    return;
+  }
   if (window.StorySpine && !window.StorySpine.isLocationUnlocked(id)) {
     toast(window.StorySpine.blockReason(id) || (typeof t === "function" ? t("spine_loc_locked") : id));
     return;

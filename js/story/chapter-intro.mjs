@@ -64,6 +64,13 @@ export function playChapterIntro(opts = {}) {
     window.AudioManager?.playSfx?.("quest_received");
     opts.onDone?.();
     window.StoryGoalHud?.refresh?.();
+    if (localStorage.getItem("punkme_howto_seen") !== "1") {
+      setTimeout(() => {
+        if (!document.getElementById("howToOverlay")?.classList.contains("active")) {
+          window.initHowToPlay?.();
+        }
+      }, 400);
+    }
   };
 
   btn.onclick = () => {

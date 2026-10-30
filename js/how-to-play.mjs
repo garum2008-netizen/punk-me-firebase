@@ -70,6 +70,8 @@ function initHowToPlay() {
   if (ob && !ob.done && (ob.step > 0 || Object.keys(ob.progress || {}).length > 0)) seen = true;
   if (!seen && location.hash !== "#account") {
     setTimeout(() => {
+      if (document.getElementById("chapterIntro")?.classList.contains("active")) return;
+      if (document.getElementById("storyScene")?.classList.contains("active")) return;
       if (!window.__punkIsAccountModalOpen?.() && !document.getElementById("accountModal")?.classList.contains("active")) {
         openHowTo();
       }

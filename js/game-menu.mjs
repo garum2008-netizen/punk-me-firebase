@@ -33,8 +33,9 @@ function refreshStartOverlayCopy() {
   const me = window.me;
   const inCh1 =
     me?.onboarding?.done ||
+    me?.story?.flags?.ch1_started ||
     (me?.story?.chapter != null && me.story.chapter >= 1) ||
-    me?.story?.flags?.ch1_started;
+    (window.StoryEngine?.ensureStoryState?.(me)?.chapter >= 1);
   body.textContent = inCh1 ? t("start_game_body_ch1") : t("start_game_body");
 }
 

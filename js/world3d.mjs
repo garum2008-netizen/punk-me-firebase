@@ -1339,8 +1339,8 @@ function sync(data) {
     }
   }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
-    const g = worldToGameLoc(-0.12, 0.36, bounds);
-    hooks.onMove?.(g.x, g.y);
+    const g = worldToGameLoc(0.1, 0.22, bounds);
+    hooks.onMove?.(g.x, g.y, { sync3d: false });
   }
 
   const keep = new Set(["player"]);

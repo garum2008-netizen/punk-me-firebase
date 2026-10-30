@@ -79,12 +79,20 @@ export function syncGangRank(p) {
 export function addAuthority(amount, p = me()) {
   const st = ensureAuthority(p);
   const before = st.authority;
+  const stageBefore = st.auth.stage;
   st.authority = Math.max(0, Math.min(100, st.authority + amount));
   p.authority = st.authority;
   const rank = syncGangRank(p);
   if (st.authority >= 20 && st.auth.stage === 1 && st.auth.s1Done) st.auth.stage = 2;
   if (st.authority >= 45 && st.auth.stage === 2 && stage2Complete(st)) st.auth.stage = 3;
   if (st.authority >= 80 && st.auth.stage === 3 && stage3Complete(st)) st.auth.stage = 4;
+  if (stageBefore !== st.auth.stage) {
+    window.AngelinaHelp?.resetHintTier?.();
+    const body = document.getElementById("angelinaHelpBody");
+    const sub = document.getElementById("angelinaHelpSub");
+    if (body && st.auth.stage > 1) body.textContent = "";
+    if (sub && st.auth.stage > 1) sub.textContent = "";
+  }
   if (before < 20 && st.authority >= 20) window.toast?.(L(rank?.label));
   renderAuthorityHud(p);
   window.saveMe?.();
@@ -145,7 +153,7 @@ export function openStage1Dialog(opts = {}) {
   dlg.classList.add("active");
   dlg.querySelector(".story-dialog-title").textContent = L(stage.title);
   const body = dlg.querySelector(".story-dialog-body");
-  body.innerHTML = `<p class="story-line"><b>${L({ ru: "Ирокез", en: "Mohawk", da: "Mohawk" })}:</b> ${escapeHtml(L(stage.intro.text))}</p>`;
+  body.innerHTML = `<p class="story-line">${escapeHtml(L(stage.intro.text))}</p>`;
   stage.choices.forEach(c => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -376,6 +384,7 @@ export function tryAuthorityNpc(npcId, p = me()) {
     if (npcId === "razor" && st.gang_rank === "gang_member") return false;
   }
   if (npcId === "mohawk" && st.auth.stage === 1 && !st.auth.s1Done) {
+    if (!st.flags.razor_bridge_seen && !st.flags.ch1_initiation_unlocked) return false;
     openStage1Dialog();
     return true;
   }
@@ -469,17 +478,15 @@ export function openNoRatChoice() {
   window.StoryEngine?.applyDialogueCamera?.("gravedigger");
 }
 
-const STAGE1_CALLOUT_MS = 9000;
-
 export function tryStage1ProximityCallout(p = me()) {
   const st = ensureAuthority(p);
   if (st.auth.stage !== 1 || st.auth.s1Done || st.flags?.joined_gang) return;
+  if (!st.flags.razor_bridge_seen && !st.flags.ch1_initiation_unlocked) return;
+  if (st.auth.s1ProximityShown) return;
   if (p.location !== "street") return;
   if (window.World3D?.getNearestNpc?.() !== "mohawk") return;
   if (!window.StoryEngine?.canOpenStoryModal?.()) return;
-  const now = Date.now();
-  if (now - (st.auth.s1CalloutAt || 0) < STAGE1_CALLOUT_MS) return;
-  st.auth.s1CalloutAt = now;
+  st.auth.s1ProximityShown = true;
   const intro = pathData?.stages?.[0]?.intro?.text;
   if (intro) window.StoryEngine?.showNpcProximityCallout?.("mohawk", L(intro));
 }

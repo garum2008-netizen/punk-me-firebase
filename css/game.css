@@ -61,6 +61,7 @@ body.mode-world3d .room-layer { background: #050008; }
   padding: 16px; gap: 12px;
 }
 .char-select.active { display: flex; }
+body:has(#charSelect.active) #langCorner.lang-corner { display: none !important; }
 .char-select h2 { color: #0ff; text-shadow: 0 0 12px #f0f; }
 #charSelect3d { width: min(92vw, 720px); height: min(50vh, 400px); border: 2px solid #ff00ff; border-radius: 12px; }
 .char-intro { min-height: 2.5em; text-align: center; max-width: 520px; opacity: 0.9; }

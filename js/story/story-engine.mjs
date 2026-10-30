@@ -1178,6 +1178,11 @@ function showDialogueNode(dlg, node) {
 }
 
 function closeDialogue() {
+  if (activeDlg?.id === "dlg_razor_ch1_bridge") {
+    const st = ensureStoryState(me());
+    st.flags.razor_bridge_seen = true;
+    hooks.save?.();
+  }
   if (activeDlg?.id === "dlg_plukh_enter" && story().flags.plukh_stays) fireStoryEvent("plukh_choice");
   if (activeDlg?.id === "dlg_plukh_enter" && story().flags.plukh_cemetery) fireStoryEvent("plukh_choice");
   activeDlg = null;
@@ -1410,8 +1415,9 @@ export function onOnboardingComplete() {
   grantRewardOnce(p, "reward_ch0_complete", () => {
     st.quest.completed.q_ch0_newbie = true;
     st.mainlineChapter = 1;
-    st.chapter = Math.max(st.chapter || 0, 1);
-    st.flags.ch0_razor_talk = true;
+  st.chapter = Math.max(st.chapter || 0, 1);
+  st.flags.ch0_razor_talk = true;
+  st.flags.ch1_started = true;
   });
   st.quest.activeId = null;
   Authority.startAuthorityPath(p);

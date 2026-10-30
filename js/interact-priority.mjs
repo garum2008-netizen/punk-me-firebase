@@ -4,7 +4,8 @@ const PROP_STEPS = new Set([
   "ch0_mom_talk",
   "ch0_feed_bowl",
   "ch0_avatar_chosen",
-  "ch0_interact_done"
+  "ch0_interact_done",
+  "ch0_journal_open"
 ]);
 
 const DOG_STEPS = new Set(["ch0_pet_shnurok"]);
