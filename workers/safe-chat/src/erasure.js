@@ -178,7 +178,8 @@ export async function runUserErasureBatch({
   sid,
   now,
   storedCursor,
-  budget
+  budget,
+  staleRetry = false
 }) {
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
@@ -222,11 +223,13 @@ export async function runUserErasureBatch({
   let nextCursor = null;
   let processedAll = true;
   let skipping = Boolean(cursorMsgId);
+  let cursorFound = !cursorMsgId;
 
   for (const [id, m] of entries) {
     if (skipping) {
       if (id !== cursorMsgId) continue;
       skipping = false;
+      cursorFound = true;
     }
     if (subrequests >= budget) {
       nextCursor = id;
@@ -241,7 +244,7 @@ export async function runUserErasureBatch({
     }
 
     const blocked = await messageErasureBlocked(config, token, emu, ns, id, m);
-    bump(3);
+    bump(1);
     if (subrequests >= budget) {
       nextCursor = id;
       processedAll = false;
@@ -249,23 +252,46 @@ export async function runUserErasureBatch({
     }
     if (blocked) {
       await deferMessageErasure(config, token, emu, ns, id, m, now, config);
-      bump();
+      bump(1);
       deferred.push(id);
       continue;
     }
 
     const cur = await rtdbRequest(config, pathChatMessage(id), "GET", null, token, emu, ns);
-    bump();
+    bump(1);
     if (!cur.json || !isOwnMessage(cur.json, sid, authUid)) continue;
     if (await messageErasureBlocked(config, token, emu, ns, id, cur.json)) {
       await deferMessageErasure(config, token, emu, ns, id, cur.json, now, config);
-      bump();
+      bump(1);
       deferred.push(id);
       continue;
     }
     await rtdbRequest(config, pathChatMessage(id), "DELETE", null, token, emu, ns);
-    bump();
+    bump(1);
     deleted += 1;
+  }
+
+  if (cursorMsgId && !cursorFound) {
+    await rtdbRequest(config, pathChatMeta(authUid, "erasureCursor"), "DELETE", null, token, emu, ns);
+    bump();
+    if (!staleRetry) {
+      const retry = await runUserErasureBatch({
+        config,
+        env,
+        token,
+        authUid,
+        sid,
+        now,
+        storedCursor: null,
+        budget,
+        staleRetry: true
+      });
+      return {
+        ...retry,
+        subrequests: subrequests + (retry.subrequests || 0),
+        staleCursorCleared: true
+      };
+    }
   }
 
   const openCases = await openCaseMsgIds(config, token, emu, ns);

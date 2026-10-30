@@ -6,8 +6,27 @@ export class ChatLimitsDO {
   }
 
   async alarm() {
-    const uid = await this.state.storage.get("erasureContinueUid");
-    await this.state.storage.delete("erasureContinueUid");
+    const retentionPending = await this.state.storage.get("retentionContinuePending");
+    if (retentionPending) {
+      await this.state.storage.put("retentionContinuePending", false);
+      const base = (this.env.SAFE_CHAT_WORKER_URL || "").replace(/\/$/, "");
+      const secret = this.env.SAFE_CHAT_INTERNAL_SECRET || "";
+      if (base && secret) {
+        try {
+          await fetch(`${base}/api/internal/retention-continue`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Safe-Chat-Internal": secret
+            },
+            body: "{}"
+          });
+        } catch (_) {}
+      }
+    }
+    const queue = (await this.state.storage.get("erasureContinueQueue")) || [];
+    const uid = queue.shift();
+    await this.state.storage.put("erasureContinueQueue", queue);
     if (!uid) return;
     const base = (this.env.SAFE_CHAT_WORKER_URL || "").replace(/\/$/, "");
     const secret = this.env.SAFE_CHAT_INTERNAL_SECRET || "";
@@ -22,6 +41,14 @@ export class ChatLimitsDO {
         body: JSON.stringify({ uid })
       });
     } catch (_) {}
+    if (queue.length > 0) {
+      await this.state.storage.setAlarm(Date.now() + 750);
+    } else {
+      const stillRetention = await this.state.storage.get("retentionContinuePending");
+      if (stillRetention) {
+        await this.state.storage.setAlarm(Date.now() + 750);
+      }
+    }
   }
 
   async fetch(request) {
@@ -66,7 +93,17 @@ export class ChatLimitsDO {
       const body = await request.json();
       const uid = String(body.uid || "");
       if (!uid) return Response.json({ ok: false }, { status: 400 });
-      await this.state.storage.put("erasureContinueUid", uid);
+      const queue = (await this.state.storage.get("erasureContinueQueue")) || [];
+      if (!queue.includes(uid)) queue.push(uid);
+      await this.state.storage.put("erasureContinueQueue", queue);
+      const existing = await this.state.storage.getAlarm();
+      if (!existing) {
+        await this.state.storage.setAlarm(Date.now() + 750);
+      }
+      return Response.json({ ok: true, queued: queue.length });
+    }
+    if (request.method === "POST" && url.pathname === "/schedule-retention-continue") {
+      await this.state.storage.put("retentionContinuePending", true);
       const existing = await this.state.storage.getAlarm();
       if (!existing) {
         await this.state.storage.setAlarm(Date.now() + 750);

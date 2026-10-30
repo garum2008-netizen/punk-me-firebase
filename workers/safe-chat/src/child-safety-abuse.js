@@ -26,17 +26,50 @@ export async function ipv4ClusterHash(ip, salt) {
   return hmacHex(prefix, salt);
 }
 
+/** Pseudonymous cluster id for IPv6 /64 (draft — legal review). */
+export async function ipv6ClusterHash(ip, salt) {
+  const raw = String(ip || "")
+    .trim()
+    .toLowerCase()
+    .split("%")[0];
+  if (!raw.includes(":")) return null;
+  let expanded = raw;
+  if (raw.includes("::")) {
+    const [head, tail] = raw.split("::");
+    const h = head ? head.split(":").filter(Boolean) : [];
+    const t = tail ? tail.split(":").filter(Boolean) : [];
+    const missing = 8 - h.length - t.length;
+    const mid = missing > 0 ? Array(missing).fill("0") : [];
+    expanded = [...h, ...mid, ...t].join(":");
+  }
+  const groups = expanded.split(":").filter(Boolean);
+  while (groups.length < 8) groups.push("0");
+  const prefix = `${groups.slice(0, 4).join(":")}::/64`;
+  return hmacHex(prefix, salt);
+}
+
 export async function clusterHashFromRequest(request, env) {
   const salt = env.SAFE_CHAT_CLUSTER_SALT || env.SAFE_CHAT_HASH_SALT || "";
-  const ip =
-    request.headers.get("CF-Connecting-IP") ||
-    request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ||
-    "";
+  const cf = request.headers.get("CF-Connecting-IP")?.trim();
+  const ip = cf || request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() || "";
   if (!ip) return null;
+  if (ip.includes(":")) return ipv6ClusterHash(ip, salt);
   return ipv4ClusterHash(ip, salt);
 }
 
-export async function loadReporterAutoHideDenied(config, token, emu, ns, uid) {
+export async function loadReporterAutoHideDenied(config, token, emu, ns, uid, reporterHash) {
+  if (reporterHash) {
+    const byHash = await rtdbRequest(
+      config,
+      rtdbPath("chat", "internal", "reporterAutoHideDenied", reporterHash),
+      "GET",
+      null,
+      token,
+      emu,
+      ns
+    );
+    if (typeof byHash.json === "number") return byHash.json;
+  }
   const snap = await rtdbRequest(
     config,
     rtdbPath("chatMeta", uid, "childSafetyAutoHideDeniedUntil"),
@@ -62,37 +95,20 @@ export async function loadReporterAutoHideDenied(config, token, emu, ns, uid) {
 }
 
 /** After mod false-report review: reduces auto-hide weight only; reporting always allowed. */
-export async function penalizeFalseChildSafetyReport(config, token, emu, ns, reporterUid, now, configObj) {
+export async function penalizeFalseChildSafetyReport(config, token, emu, ns, reporterHash, now, configObj) {
   const denyUntil = now + configObj.childSafetyHideDeniedMs;
-  await rtdbRequest(
-    config,
-    rtdbPath("chatMeta", reporterUid, "childSafetyAutoHideDeniedUntil"),
-    "PUT",
-    denyUntil,
-    token,
-    emu,
-    ns
-  );
-  const strikesRes = await rtdbRequest(
-    config,
-    rtdbPath("chatMeta", reporterUid, "childSafetyFalseStrikes"),
-    "GET",
-    null,
-    token,
-    emu,
-    ns
-  );
-  const strikes = (typeof strikesRes.json === "number" ? strikesRes.json : 0) + 1;
-  await rtdbRequest(
-    config,
-    rtdbPath("chatMeta", reporterUid, "childSafetyFalseStrikes"),
-    "PUT",
-    strikes,
-    token,
-    emu,
-    ns
-  );
-  return { denyUntil, strikes };
+  if (reporterHash) {
+    await rtdbRequest(
+      config,
+      rtdbPath("chat", "internal", "reporterAutoHideDenied", reporterHash),
+      "PUT",
+      denyUntil,
+      token,
+      emu,
+      ns
+    );
+  }
+  return { denyUntil, strikes: 1 };
 }
 
 export async function loadAuthorSafetyMeta(config, token, emu, ns, authorSid) {
@@ -179,6 +195,7 @@ export async function enqueueChildSafetyReview({
   msgId,
   now,
   configObj,
+  env,
   trigger,
   hideMessage,
   childSafetyReportCount,
@@ -223,6 +240,23 @@ export async function enqueueChildSafetyReview({
   }
 
   await rtdbRequest(config, queuePath, "PUT", queueEntry, token, emu, ns);
+
+  let alertResult = null;
+  if (extraQueueFields.moderatorNotify) {
+    const { sendModeratorAlert } = await import("./mod-alert.js");
+    alertResult = await sendModeratorAlert(env, {
+      msgId,
+      subcategory: queueEntry.subcategory,
+      priority: queueEntry.priority,
+      escalationTier: extraQueueFields.escalationTier || queueEntry.escalationTier,
+      trigger: queueEntry.trigger,
+      riskIntrinsic: riskSnapshot.intrinsicScore ?? null
+    });
+    if (alertResult.sent) {
+      queueEntry.alertDeliveredAt = now;
+      await rtdbRequest(config, queuePath, "PUT", { ...queueEntry, alertDeliveredAt: now }, token, emu, ns);
+    }
+  }
 
   const msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
   const snap = msgRes.json

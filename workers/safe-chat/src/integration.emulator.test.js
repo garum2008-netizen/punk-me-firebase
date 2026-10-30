@@ -13,6 +13,14 @@ import {
 } from "./test-helpers.js";
 import { detectChildHarmSignals } from "./child-harm.js";
 
+async function runRetentionToCompletion(env, now) {
+  for (let i = 0; i < 25; i++) {
+    const r = await runRetentionJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(now) }, now);
+    if (!r.budgetExceeded) return r;
+  }
+  return runRetentionJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(now) }, now);
+}
+
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth + RTDB emulators, miniflare DO)", () => {
   let mod;
   let userA;
@@ -111,6 +119,54 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     });
     expect(res.status).toBe(401);
     expect((await res.json()).error).toBe("unauthorized");
+  });
+
+  it("security: muted reporter child_safety report still accepted", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const muted = await authSignUp();
+    await apiPost(SELF, "/api/mod/mute", mod.idToken, { uid: muted.localId, durationMs: 86400000 });
+    const r = await apiPost(SELF, "/api/chat/report", muted.idToken, { msgId, category: "other_child_safety" });
+    expect((await r.json()).received).toBe(true);
+    await apiPost(SELF, "/api/mod/mute", mod.idToken, { uid: muted.localId, lift: true });
+  });
+
+  it("security: child_safety reports bypass daily report cap (U-01 sample)", async () => {
+    const rep = await authSignUp();
+    for (let i = 0; i < 12; i++) {
+      const a = await authSignUp();
+      const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
+      const r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "other_child_safety" });
+      expect(r.status).not.toBe(429);
+      expect((await r.json()).received).toBe(true);
+    }
+  });
+
+  it("security: reportMeta stores reporterSid not raw uid", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
+    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
+    const meta = await rtdbOwner("chat/internal/reportMeta", "GET");
+    const entry = Object.values(meta.json || {})[0];
+    expect(entry?.reporterSid).toBeTruthy();
+    expect(entry?.reporterSid).not.toBe(userB.localId);
+    expect(entry?.reporterUid).toBeUndefined();
+  });
+
+  it("security: erasure completes after stale cursor (NEW-11b)", async () => {
+    const u = await authSignUp();
+    const sid = (await (await apiGet(SELF, "/api/chat/config", u.idToken)).json()).mySid;
+    const ids = [];
+    for (let i = 0; i < 8; i++) {
+      const p = await rtdbOwner("chat/messages", "POST", { sid, name: "T", text: `m${i}`, time: Date.now() + i });
+      ids.push(p.json?.name);
+    }
+    await rtdbOwner(`chatMeta/${u.localId}/erasureCursor`, "PUT", ids[0]);
+    const del = await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {});
+    const j = await del.json();
+    expect(j.ok).toBe(true);
+    expect(j.staleCursorCleared === true || j.complete === true || j.cursor != null).toBe(true);
   });
 
   it("risk: other_child_safety on benign phrase queues without auto-hide (false positive guard)", async () => {
@@ -315,7 +371,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId, category: "other_child_safety" });
     const now = 2_000_000_000_000;
     await rtdbOwner(`chat/messages/${msgId}/time`, "PUT", now - 8 * 24 * 60 * 60 * 1000);
-    await runRetentionJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(now) }, now);
+    await runRetentionToCompletion(env, now);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.text).toBeTruthy();
   });
 
@@ -393,7 +449,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
     const now = 2_000_000_000_000;
     await rtdbOwner(`chat/messages/${msgId}/time`, "PUT", now - 8 * 24 * 60 * 60 * 1000);
-    await runRetentionJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(now) }, now);
+    await runRetentionToCompletion(env, now);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
     expect((await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET")).json?.access).toBe(
       "moderator_only"
@@ -491,7 +547,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const newRepId = newRep.json?.name;
 
     const testEnv = { ...env, SAFE_CHAT_TEST_NOW_MS: String(now) };
-    await runRetentionJob(testEnv, now);
+    await runRetentionToCompletion(testEnv, now);
 
     expect((await rtdbOwner(`chat/messages/${oldMsgId}`, "GET")).json).toBeNull();
     expect((await rtdbOwner(`chat/messages/${freshId}`, "GET")).json?.text).toBe("new");

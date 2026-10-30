@@ -97,6 +97,12 @@ async function scheduleErasureContinuation(env, uid) {
   } catch (_) {}
 }
 
+async function scheduleRetentionContinuation(env) {
+  try {
+    await limitsStub(env, "/schedule-retention-continue", {});
+  } catch (_) {}
+}
+
 async function drainErasureInProcess(env, token, authUid, sid, firstResult) {
   let result = firstResult;
   let guard = 0;
@@ -122,6 +128,25 @@ async function checkReportLimits(env, uid, config) {
     now: getNow(env),
     dailyLimit: config.reportDailyLimit
   });
+}
+
+/** Child-safety reports are always accepted; pressure is merged into the case and down-weights credibility. */
+async function measureChildSafetyReportPressure(config, env, token, emu, ns, uid, msgId, now) {
+  const repLimits = await limitsStub(env, "/check-report", {
+    uid,
+    now,
+    dailyLimit: config.reportDailyLimit,
+    bump: true
+  });
+  const dk = dayKeyFromMs(now);
+  const path = rtdbPath("chat", "internal", "msgReportDay", msgId, dk);
+  const cur = await rtdbRequest(config, path, "GET", null, token, emu, ns);
+  const prev = typeof cur.json === "number" ? cur.json : 0;
+  const overGlobal = prev >= config.globalMsgReportsPerDay;
+  if (!overGlobal) {
+    await rtdbRequest(config, path, "PUT", prev + 1, token, emu, ns);
+  }
+  return { overDaily: !repLimits.ok, overGlobal };
 }
 
 async function bumpChatSendCount(config, env, token, uid) {
@@ -292,6 +317,7 @@ async function handleSend(request, env) {
       token,
       emu: env.FIREBASE_EMULATOR_HOST,
       ns: env.FIREBASE_EMULATOR_NS,
+      env,
       msgId,
       now,
       configObj: config,
@@ -390,6 +416,16 @@ async function handleReport(request, env) {
 
   if (isChildSafety) {
     const modRep = await fetchModState(config, env, token, auth.uid);
+    const reportPressure = await measureChildSafetyReportPressure(
+      config,
+      env,
+      token,
+      emu,
+      ns,
+      auth.uid,
+      msgId,
+      now
+    );
     const authorSid = msgRes.json.sid || null;
     const clusterHash = await clusterHashFromRequest(request, env);
     const authorMeta = await loadAuthorSafetyMeta(config, token, emu, ns, authorSid);
@@ -426,14 +462,16 @@ async function handleReport(request, env) {
     }
 
     const trust = reporterTrustForChildSafety(profile, now, config);
-    const autoHideDenied = await loadReporterAutoHideDenied(config, token, emu, ns, auth.uid);
-    const credibility = reporterCredibilityWeight({
+    const autoHideDenied = await loadReporterAutoHideDenied(config, token, emu, ns, auth.uid, reporter);
+    let credibility = reporterCredibilityWeight({
       fullyTrusted: trust.fullyTrusted,
       ageDeclared: !!profile.chatAge13DeclaredAt,
       banned: !!modRep.banned,
       muted: !!modRep.muted,
       autoHideDenied: autoHideDenied && now < autoHideDenied
     });
+    if (reportPressure.overDaily) credibility *= 0.35;
+    if (reportPressure.overGlobal) credibility *= 0.45;
 
     const reporterBoost = mergeInfo.coordinated
       ? 0
@@ -484,19 +522,21 @@ async function handleReport(request, env) {
     const distinct = Object.keys(dedupMsg.json || {}).length;
 
     if (reportId) {
+      const reporterSid = await chatPublicSid(auth.uid, salt);
       await rtdbRequest(
         config,
         rtdbPath("chat", "internal", "reportMeta", reportId),
         "PUT",
         {
-          reporterUid: auth.uid,
+          reporterSid,
           msgId,
           reporterHash: reporter,
           at: now,
           category: safetySub,
           subcategory: safetySub,
           intrinsicScore,
-          effectiveScore: decision.effectiveScore
+          effectiveScore: decision.effectiveScore,
+          reportPressure
         },
         token,
         emu,
@@ -510,7 +550,8 @@ async function handleReport(request, env) {
       moderatorNotify: decision.moderatorNotify,
       slaReviewByMs: decision.slaReviewByMs,
       possibleCoordination: mergeInfo.coordinated,
-      mergedMassReport: mergeInfo.mergedDuplicate
+      mergedMassReport: mergeInfo.mergedDuplicate,
+      reportPressure
     };
 
     await enqueueChildSafetyReview({
@@ -518,6 +559,7 @@ async function handleReport(request, env) {
       token,
       emu,
       ns,
+      env,
       msgId,
       now,
       configObj: config,
@@ -694,6 +736,19 @@ async function handleInternalErasureContinue(request, env) {
     try {
       await limitsStub(env, "/erase-user", { uid: body.uid });
     } catch (_) {}
+  }
+  return Response.json(out);
+}
+
+async function handleInternalRetentionContinue(request, env) {
+  const secret = env.SAFE_CHAT_INTERNAL_SECRET || "";
+  const hdr = request.headers.get("X-Safe-Chat-Internal") || "";
+  if (!secret || hdr !== secret) {
+    return new Response("forbidden", { status: 403 });
+  }
+  const out = await runRetentionJob(env);
+  if (out.budgetExceeded) {
+    await scheduleRetentionContinuation(env);
   }
   return Response.json(out);
 }
@@ -983,6 +1038,17 @@ async function handleModResolveSafety(request, env) {
     const ns = env.FIREBASE_EMULATOR_NS;
     const now = getNow(env);
     const action = body.action ? String(body.action).slice(0, 48) : "unknown";
+    const allowed = new Set([
+      "restore_visibility",
+      "dismiss",
+      "uphold_delete",
+      "approve_erasure",
+      "confirm_legal_hold",
+      "retain_evidence"
+    ]);
+    if (!allowed.has(action)) {
+      return err(request, env, "invalid_action", 400);
+    }
 
     await rtdbRequest(
       config,
@@ -1032,9 +1098,18 @@ async function handleModResolveSafety(request, env) {
         emu,
         ns
       );
-      if (meta.json?.reporterUid) {
-        await penalizeFalseChildSafetyReport(config, token, emu, ns, meta.json.reporterUid, now, config);
+      if (meta.json?.reporterHash) {
+        await penalizeFalseChildSafetyReport(config, token, emu, ns, meta.json.reporterHash, now, config);
       }
+      await rtdbRequest(
+        config,
+        rtdbPath("chat", "internal", "reportMeta", body.reportId),
+        "DELETE",
+        null,
+        token,
+        emu,
+        ns
+      );
     }
 
     if (action === "confirm_legal_hold" || action === "retain_evidence") {
@@ -1096,11 +1171,12 @@ export async function runRetentionJob(env, nowOverride) {
   const ns = env.FIREBASE_EMULATOR_NS;
   const now = nowOverride ?? getNow(env);
   let subrequests = 0;
+  let budgetExceeded = false;
   const budget = config.retentionBatchSize;
 
   const bump = () => {
     subrequests += 1;
-    if (subrequests >= budget) throw new Error("retention_budget");
+    if (subrequests >= budget) budgetExceeded = true;
   };
 
   try {
@@ -1119,24 +1195,41 @@ export async function runRetentionJob(env, nowOverride) {
     }
   }
 
-  const reportsForProtect = await rtdbRequest(config, "chat/reports", "GET", null, token, emu, ns);
-  bump();
-  if (reportsForProtect.json && typeof reportsForProtect.json === "object") {
-    for (const r of Object.values(reportsForProtect.json)) {
-      const cat = r?.category;
-      const isSafety =
-        (cat && (CHILD_SAFETY_SUBCATEGORIES.includes(cat) || cat === REPORT_CATEGORY_CHILD_SAFETY)) && r?.msgId;
-      if (isSafety) {
-        protectedMsgIds.add(r.msgId);
-      }
-    }
-  }
+  /* Child-safety report rows alone do not extend message lifetime; queue/holds/evidence do. */
 
   const evidenceSnap = await rtdbRequest(config, "chat/internal/safetyEvidence", "GET", null, token, emu, ns);
   bump();
   if (evidenceSnap.json && typeof evidenceSnap.json === "object") {
-    for (const msgId of Object.keys(evidenceSnap.json)) {
+    for (const [msgId, ev] of Object.entries(evidenceSnap.json)) {
+      if (budgetExceeded) break;
       protectedMsgIds.add(msgId);
+      if (subrequests >= budget) break;
+      const maxHold = ev?.maxHoldUntil;
+      if (typeof maxHold === "number" && now > maxHold) {
+        const q = await rtdbRequest(
+          config,
+          rtdbPath("chat", "internal", "safetyQueue", msgId),
+          "GET",
+          null,
+          token,
+          emu,
+          ns
+        );
+        bump();
+        if (!q.json) {
+          await rtdbRequest(
+            config,
+            rtdbPath("chat", "internal", "safetyEvidence", msgId),
+            "DELETE",
+            null,
+            token,
+            emu,
+            ns
+          );
+          bump();
+          protectedMsgIds.delete(msgId);
+        }
+      }
     }
   }
 
@@ -1144,6 +1237,7 @@ export async function runRetentionJob(env, nowOverride) {
   bump();
   if (msgs.json && typeof msgs.json === "object") {
     for (const [id, m] of Object.entries(msgs.json)) {
+      if (budgetExceeded) break;
       if (subrequests >= budget) break;
       if (m?.safetyHold || protectedMsgIds.has(id)) continue;
       try {
@@ -1162,6 +1256,7 @@ export async function runRetentionJob(env, nowOverride) {
 
   if (queue.json && typeof queue.json === "object") {
     for (const [msgId, q] of Object.entries(queue.json)) {
+      if (budgetExceeded) break;
       if (subrequests >= budget) break;
       heldMsgIds.add(msgId);
       try {
@@ -1170,7 +1265,7 @@ export async function runRetentionJob(env, nowOverride) {
         continue;
       }
       const nextEsc = q?.nextEscalateAt;
-      if (typeof nextEsc === "number" && now >= nextEsc) {
+        if (typeof nextEsc === "number" && now >= nextEsc) {
         await rtdbRequest(
           config,
           rtdbPath("chat", "internal", "safetyQueue", msgId),
@@ -1185,12 +1280,17 @@ export async function runRetentionJob(env, nowOverride) {
           ns
         );
         bump();
+        if (!budgetExceeded && q?.moderatorNotify) {
+          const { sendModeratorAlert } = await import("./mod-alert.js");
+          await sendModeratorAlert(env, { msgId, overdue: true, escalationTier: q.escalationTier });
+        }
       }
     }
   }
 
   if (holds.json && typeof holds.json === "object") {
     for (const [msgId, h] of Object.entries(holds.json)) {
+      if (budgetExceeded) break;
       if (subrequests >= budget) break;
       try {
         assertFirebaseId(msgId);
@@ -1217,6 +1317,7 @@ export async function runRetentionJob(env, nowOverride) {
   bump();
   if (reports.json && typeof reports.json === "object") {
     for (const [id, r] of Object.entries(reports.json)) {
+      if (budgetExceeded) break;
       if (subrequests >= budget) break;
       if (heldMsgIds.has(r?.msgId)) continue;
       if (r?.time && now - r.time > config.reportRetentionMs) {
@@ -1244,6 +1345,7 @@ export async function runRetentionJob(env, nowOverride) {
   bump();
   if (dedupRoot.json && typeof dedupRoot.json === "object") {
     for (const msgId of Object.keys(dedupRoot.json)) {
+      if (budgetExceeded) break;
       if (subrequests >= budget) break;
       if (heldMsgIds.has(msgId)) continue;
       if (activeReportMsgIds.has(msgId)) continue;
@@ -1263,6 +1365,7 @@ export async function runRetentionJob(env, nowOverride) {
   bump();
   if (modState.json && typeof modState.json === "object") {
     for (const [uid, state] of Object.entries(modState.json)) {
+      if (budgetExceeded) break;
       if (subrequests >= budget) break;
       try {
         assertFirebaseId(uid);
@@ -1282,7 +1385,10 @@ export async function runRetentionJob(env, nowOverride) {
     }
   }
 
-  return { subrequests, budgetExceeded: subrequests >= budget };
+  if (budgetExceeded) {
+    await scheduleRetentionContinuation(env);
+  }
+  return { subrequests, budgetExceeded };
 }
 
 export default {
@@ -1305,6 +1411,8 @@ export default {
         return handleAppealHide(request, env);
       if (url.pathname === "/api/internal/erasure-continue" && request.method === "POST")
         return handleInternalErasureContinue(request, env);
+      if (url.pathname === "/api/internal/retention-continue" && request.method === "POST")
+        return handleInternalRetentionContinue(request, env);
       if (url.pathname === "/api/mod/reports" && request.method === "GET") return handleModReports(request, env);
       if (url.pathname === "/api/mod/safety-queue" && request.method === "GET") return handleModSafetyQueue(request, env);
       if (url.pathname === "/api/mod/delete" && request.method === "POST") return handleModDelete(request, env);

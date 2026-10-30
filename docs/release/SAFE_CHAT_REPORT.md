@@ -208,6 +208,23 @@ Chat messages expose **`sid`** (HMAC of uid) and a **filtered display name**, no
 
 **Minors release default:** `SAFE_CHAT_FREE_TEXT=false` (phrases/reactions). Before free text: age limits, block/report, mod `immediate_danger` capacity — owner sign-off manual.
 
+Full t139u case map: `docs/release/T139U_TEST_PLAN_MATRIX.md`.
+
+## Security add-on (delta partial cf34ff4)
+
+| Item | Fix | Test |
+|------|-----|------|
+| Child-safety report caps | Accepted + down-weight (`reportPressure`), never 429 | U-01 sample integration |
+| Age gate on safety reports | Removed for child-safety categories | D-02 |
+| Banned/muted reporters | Accepted, reduced credibility | D-05, muted integration |
+| IPv6 cluster /64 HMAC | `ipv6ClusterHash` | `safe-chat-cluster-ipv6.test.js` |
+| Mod alert | `SAFE_CHAT_MOD_ALERT_URL` POST hook | `safe-chat-mod-alert.test.js` |
+| reportMeta PII | `reporterSid` only | integration security test |
+| Erasure stale cursor | Clear + one retry | integration NEW-11b |
+| DO erasure queue | `erasureContinueQueue` | limits-do unit |
+| Evidence lifetime | `maxHoldUntil` enforced in retention | R-04 partial |
+| P0-bl / P0-objpeer / P0-node | `database.rules.json` + rules script | 25+ rules PASS |
+
 ## Remaining risks
 
 - Open-source wordlist is not complete; evasion possible → reports + mod tools.
