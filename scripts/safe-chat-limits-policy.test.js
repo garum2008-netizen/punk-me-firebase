@@ -6,23 +6,21 @@ import { resolveSendLimits } from "../workers/safe-chat/src/limits-policy.js";
 
 test("young account gets stricter cooldown and daily cap", () => {
   const cfg = loadConfig({});
-  const young = resolveSendLimits(cfg, { accountAgeMs: 1000, playerLevel: 10 });
+  const young = resolveSendLimits(cfg, { accountAgeMs: 1000 });
   assert.equal(young.cooldownMs, cfg.youngCooldownMs);
   assert.equal(young.dailyLimit, cfg.youngDailyLimit);
 });
 
-test("low level stacks with young limits", () => {
+test("missing registration is treated as youngest (accountAgeMs 0)", () => {
   const cfg = loadConfig({});
-  const both = resolveSendLimits(cfg, { accountAgeMs: 1000, playerLevel: 1 });
-  assert.ok(both.cooldownMs >= cfg.lowLevelCooldownMs);
-  assert.ok(both.dailyLimit <= cfg.lowLevelDailyLimit);
+  const fresh = resolveSendLimits(cfg, { accountAgeMs: 0 });
+  assert.equal(fresh.dailyLimit, cfg.youngDailyLimit);
 });
 
-test("mature high-level player uses defaults", () => {
+test("mature account uses defaults", () => {
   const cfg = loadConfig({});
   const mature = resolveSendLimits(cfg, {
-    accountAgeMs: cfg.youngAccountMs + 1,
-    playerLevel: cfg.lowLevelThreshold
+    accountAgeMs: cfg.youngAccountMs + 1
   });
   assert.equal(mature.cooldownMs, cfg.cooldownMs);
   assert.equal(mature.dailyLimit, cfg.dailyLimit);

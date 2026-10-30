@@ -37,7 +37,10 @@ export default defineWorkersConfig({
             SAFE_CHAT_INTEGRATION: integration ? "1" : "0",
             SAFE_CHAT_TEST_MOD_TOKEN: process.env.SAFE_CHAT_TEST_MOD_TOKEN || "",
             SAFE_CHAT_HASH_SALT: "vitest-local-salt-do-not-use-in-prod",
-            SAFE_CHAT_CORS_ORIGINS: "https://halloween.punk.contractbot.dk,http://127.0.0.1"
+            SAFE_CHAT_CORS_ORIGINS: "https://halloween.punk.contractbot.dk,http://127.0.0.1",
+            SAFE_CHAT_ERASURE_MIN_INTERVAL_MS: integration ? "0" : String(60 * 60 * 1000),
+            SAFE_CHAT_ERASURE_BATCH: integration ? "5" : "40",
+            SAFE_CHAT_CHILD_SAFETY_REPORTER_MIN_MS: integration ? String(24 * 60 * 60 * 1000) : String(24 * 60 * 60 * 1000)
           }
         }
       }

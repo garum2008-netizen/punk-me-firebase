@@ -110,18 +110,46 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect((await res.json()).error).toBe("unauthorized");
   });
 
-  it("child_safety report hides immediately and sets safetyHold (retention skipped)", async () => {
+  it("child_safety from new reporter queues without instant hide", async () => {
     const author = await authSignUp();
-    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks", name: "Kid" });
+    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
     const { id: msgId } = await sent.json();
+    const fresh = await authSignUp();
+    await apiPost(SELF, "/api/chat/declare-age13", fresh.idToken, { confirmed: true });
+    const rep = await apiPost(SELF, "/api/chat/report", fresh.idToken, {
+      msgId,
+      category: "child_safety"
+    });
+    const body = await rep.json();
+    expect(body.ok).toBe(true);
+    expect(body.queued).toBe(true);
+    expect(body.safetyHold).not.toBe(true);
+    const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    expect(msg.json.hidden).not.toBe(true);
+    expect(msg.json.safetyHold).not.toBe(true);
+    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.childSafetyReports).toBe(1);
+  });
+
+  it("child_safety hides after trusted reporter age and retains evidence on author erasure", async () => {
+    const author = await authSignUp();
+    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
+    const { id: msgId } = await sent.json();
+    const mature = Date.now() - 2 * 24 * 60 * 60 * 1000;
+    await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", mature);
     const rep = await apiPost(SELF, "/api/chat/report", userB.idToken, {
       msgId,
       category: "child_safety"
     });
-    expect((await rep.json()).ok).toBe(true);
+    expect((await rep.json()).safetyHold).toBe(true);
     const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     expect(msg.json.hidden).toBe(true);
     expect(msg.json.safetyHold).toBe(true);
+
+    const del = await apiPost(SELF, "/api/chat/delete-my-data", author.idToken, {});
+    const delJson = await del.json();
+    expect(delJson.ok).toBe(true);
+    expect(delJson.erasureDeferred).toContain(msgId);
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.safetyHold).toBe(true);
 
     const now = 2_000_000_000_000;
     await rtdbOwner(`chat/messages/${msgId}/time`, "PUT", now - 8 * 24 * 60 * 60 * 1000);
@@ -228,6 +256,46 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect((await rtdbOwner(`chat/reports/${newRepId}`, "GET")).json?.msgId).toBe("y");
   });
 
+  it("players level does not affect server chat tier (young account limits)", async () => {
+    const u = await authSignUp();
+    await rtdbOwner(`players/${u.localId}/level`, "PUT", 9999);
+    await rtdbOwner(`players/${u.localId}/name`, "PUT", "TierTest");
+    const metaBefore = await rtdbOwner(`chatMeta/${u.localId}`, "GET");
+    expect(metaBefore.json?.rateLimitLevel).toBeUndefined();
+    const sent = await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "gg" });
+    expect((await sent.json()).ok).toBe(true);
+    const metaAfter = await rtdbOwner(`chatMeta/${u.localId}`, "GET");
+    expect(metaAfter.json?.rateLimitLevel).toBeUndefined();
+    expect(metaAfter.json?.chatRegisteredAt).toBeTruthy();
+  });
+
+  it("delete-my-data batches past subrequest budget", async () => {
+    const u = await authSignUp();
+    const sid = (await (await apiGet(SELF, "/api/chat/config", u.idToken)).json()).mySid;
+    for (let i = 0; i < 12; i++) {
+      await rtdbOwner("chat/messages", "POST", {
+        sid,
+        name: "B",
+        text: `m${i}`,
+        time: Date.now() - i
+      });
+    }
+    let cursor = null;
+    let complete = false;
+    for (let step = 0; step < 10 && !complete; step++) {
+      const body = cursor ? { cursor } : {};
+      const res = await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, body);
+      const j = await res.json();
+      expect(j.ok).toBe(true);
+      complete = j.complete;
+      cursor = j.cursor || null;
+    }
+    expect(complete).toBe(true);
+    const remaining = await rtdbOwner("chat/messages", "GET");
+    const own = Object.values(remaining.json || {}).filter(m => m.sid === sid);
+    expect(own.length).toBe(0);
+  });
+
   it("uses Auth emulator ID tokens in integration", async () => {
     expect(env.SAFE_CHAT_INTEGRATION).toBe("1");
     const res = await apiPost(SELF, "/api/chat/send", userC.idToken, { phraseId: "street" });
@@ -243,7 +311,6 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("daily limit (DO)", () => {
       const u = await authSignUp();
       const mature = Date.now() - 10 * 24 * 60 * 60 * 1000;
       await rtdbOwner(`chatMeta/${u.localId}/chatRegisteredAt`, "PUT", mature);
-      await rtdbOwner(`players/${u.localId}/level`, "PUT", 5);
       const wait = () => new Promise(r => setTimeout(r, 3100));
       expect((await (await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "gg", name: "D" })).json()).ok).toBe(
         true
