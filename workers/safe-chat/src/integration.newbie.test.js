@@ -18,6 +18,20 @@ describe.skipIf(env.SAFE_CHAT_FREE_TEXT !== "true")("newbie free-text window (fr
     expect((await phrase.json()).ok).toBe(true);
   });
 
+  it("t139u F-03: filter send-path hide applies to new and aged authors equally", async () => {
+    const newAuthor = await authSignUp();
+    await rtdbOwner(`chatMeta/${newAuthor.localId}/chatRegisteredAt`, "PUT", Date.now() - 11 * 60 * 1000);
+    const newSend = await apiPost(SELF, "/api/chat/send", newAuthor.idToken, { text: "I will hurt the kid", name: "N" });
+    const newId = (await newSend.json()).id;
+    expect((await rtdbOwner(`chat/messages/${newId}`, "GET")).json?.hidden).toBe(true);
+
+    const aged = await authSignUp();
+    await rtdbOwner(`chatMeta/${aged.localId}/chatRegisteredAt`, "PUT", Date.now() - 30 * 86400000);
+    const agedSend = await apiPost(SELF, "/api/chat/send", aged.idToken, { text: "I will hurt the kid", name: "A" });
+    const agedId = (await agedSend.json()).id;
+    expect((await rtdbOwner(`chat/messages/${agedId}`, "GET")).json?.hidden).toBe(true);
+  });
+
   it("server child-harm filter hides message and enqueues priority queue", async () => {
     const u = await authSignUp();
     const mature = Date.now() - 11 * 60 * 1000;

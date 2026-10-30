@@ -85,12 +85,8 @@ async function openCaseMsgIds(config, token, emu, ns, spend) {
   if (queue.json) Object.keys(queue.json).forEach(k => ids.add(k));
   const holds = await rtdbSpend(config, token, emu, ns, "chat/internal/safetyHolds", "GET", null, spend);
   if (holds.json) Object.keys(holds.json).forEach(k => ids.add(k));
-  const reports = await rtdbSpend(config, token, emu, ns, "chat/reports", "GET", null, spend);
-  if (reports.json) {
-    for (const r of Object.values(reports.json)) {
-      if (r?.msgId) ids.add(r.msgId);
-    }
-  }
+  const deferred = await rtdbSpend(config, token, emu, ns, "chat/internal/erasureDeferred", "GET", null, spend);
+  if (deferred.json) Object.keys(deferred.json).forEach(k => ids.add(k));
   return ids;
 }
 

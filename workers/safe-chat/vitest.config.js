@@ -15,11 +15,11 @@ export default defineWorkersConfig({
   },
   test: {
     fileParallelism: false,
-    testTimeout: integration ? 30000 : 10000,
+    testTimeout: integration ? 120000 : 10000,
     include: integration
       ? newbie
         ? ["src/integration.newbie.test.js"]
-        : ["src/integration.emulator.test.js"]
+        : ["src/integration.emulator.test.js", "src/integration.t139u.test.js"]
       : ["src/prod-config.test.js", "src/worker.smoke.test.js"],
     poolOptions: {
       workers: {

@@ -96,6 +96,38 @@ describe("child safety risk scoring", () => {
     assert.equal(hasGlobalHideIndependentSignal({ filterHit: false, authorConfirmedViolations: 0, independentReporterCount: 2, distinctClusterCount: 1 }), false);
   });
 
+  it("t139u O-02: global hide at independent-signal threshold not one step below", () => {
+    const cfg = {
+      childSafetyRiskHideHighTier: 45,
+      childSafetyRiskHideOther: 50,
+      childSafetyRiskHideImmediate: 40,
+      childSafetyImmediateDangerSlaMs: 14400000,
+      safetyQueueEscalateMs: 172800000
+    };
+    const below = decideChildSafetyAction({
+      subcategory: "grooming",
+      intrinsicScore: 39,
+      corroborating: true,
+      credibility: 1,
+      reporterBoost: 0,
+      configObj: cfg,
+      filterHit: false,
+      globalHideSignal: true
+    });
+    const at = decideChildSafetyAction({
+      subcategory: "grooming",
+      intrinsicScore: 45,
+      corroborating: true,
+      credibility: 1,
+      reporterBoost: 0,
+      configObj: cfg,
+      filterHit: false,
+      globalHideSignal: true
+    });
+    assert.equal(below.hide, false);
+    assert.equal(at.hide, true);
+  });
+
   it("coordinated mass reports add zero reporter boost", () => {
     const boost = reporterBoostFromIndependence({
       credibility: 1,

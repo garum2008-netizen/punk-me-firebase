@@ -51,8 +51,8 @@ export async function ipv6ClusterHash(ip, salt) {
 export async function clusterHashFromRequest(request, env) {
   const salt = env.SAFE_CHAT_CLUSTER_SALT || env.SAFE_CHAT_HASH_SALT || "";
   const cf = request.headers.get("CF-Connecting-IP")?.trim();
-  const ip = cf || request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() || "";
-  if (!ip) return null;
+  if (!cf) return null;
+  const ip = cf;
   if (ip.includes(":")) return ipv6ClusterHash(ip, salt);
   return ipv4ClusterHash(ip, salt);
 }

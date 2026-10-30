@@ -48,6 +48,12 @@ async function main() {
   console.log("\n=== safe-chat cluster IPv6 ===");
   if (!runNode("safe-chat-cluster-ipv6.test.js")) process.exit(1);
 
+  console.log("\n=== safe-chat limits DO erasure alarm (t139u R-08) ===");
+  if (!runNode("safe-chat-limits-do-erasure-alarm.test.js")) process.exit(1);
+
+  console.log("\n=== safe-chat t139u matrix unit tests ===");
+  if (!runNode("safe-chat-t139u-matrix-unit.test.js")) process.exit(1);
+
   console.log("\n=== RTDB rules (emulator) ===");
   let rulesOk = false;
   await withSafeChatRulesEmulator(() => {
