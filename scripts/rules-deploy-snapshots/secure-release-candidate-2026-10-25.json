@@ -1,0 +1,147 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "players": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": false,
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
+        ".write": "auth != null && auth.uid === $uid",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
+        },
+        "coins": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999999"
+        },
+        "xp": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999999"
+        },
+        "level": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999"
+        },
+        "rep": {
+          ".validate": "newData.isNumber() && newData.val() >= -999999 && newData.val() <= 999999999"
+        },
+        "authority": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999"
+        },
+        "energy": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999"
+        },
+        "mood": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999"
+        },
+        "location": {
+          ".validate": "newData.isString() && newData.val().length <= 64"
+        },
+        "avatar": {
+          ".validate": "newData.isString() && newData.val().length <= 512"
+        },
+        "characterId": {
+          ".validate": "!newData.exists() || newData.val() == null || (newData.isString() && newData.val().length <= 32)"
+        },
+        "gang_rank": {
+          ".validate": "newData.isString() && newData.val().length <= 64"
+        },
+        "lang": {
+          ".validate": "newData.isString() && newData.val().length <= 8"
+        },
+        "lastSeen": {
+          ".validate": "newData.isNumber()"
+        },
+        "lastJob": {
+          ".validate": "newData.isNumber()"
+        },
+        "built": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "x": {
+          ".validate": "newData.isNumber()"
+        },
+        "y": {
+          ".validate": "newData.isNumber()"
+        },
+        "owner": {
+          ".validate": "newData.isBoolean()"
+        },
+        "pet": {
+          ".validate": "!newData.exists() || newData.val() == null || (newData.isString() && newData.val().length <= 32)"
+        },
+        "owned": {
+          ".validate": "true"
+        },
+        "decor": {
+          ".validate": "true"
+        },
+        "inventory": {
+          ".validate": "true"
+        },
+        "equipment": {
+          ".validate": "true"
+        },
+        "quests": {
+          ".validate": "true"
+        },
+        "story": {
+          ".validate": "true"
+        },
+        "stats": {
+          ".validate": "true"
+        },
+        "jobCooldowns": {
+          ".validate": "true"
+        },
+        "dog": {
+          ".validate": "!newData.exists() || newData.val() == null || (newData.hasChildren(['x', 'y']) && newData.child('x').isNumber() && newData.child('y').isNumber())"
+        },
+        "onboarding": {
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
+        "settings": {
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
+        "dialogueHeard": {
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
+        "linkedAuth": {
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        }
+      }
+    },
+    "publicProfiles": {
+      ".read": true,
+      ".write": false,
+      "$uid": {
+        ".read": true,
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['name', 'coins']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 64 && newData.child('coins').isNumber() && newData.child('coins').val() >= 0 && newData.child('coins').val() <= 999999999 && (!newData.hasChild('avatar') || (newData.child('avatar').isString() && newData.child('avatar').val().length <= 512))"
+      }
+    },
+    "presence": {
+      "$location": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['name', 'x', 'y', 'ts']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 64 && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('ts').isNumber() && (!newData.hasChild('avatar') || (newData.child('avatar').isString() && newData.child('avatar').val().length <= 512)) && (!newData.hasChild('level') || newData.child('level').isNumber()) && (!newData.hasChild('characterId') || (newData.child('characterId').isString() && newData.child('characterId').val().length <= 32)) && (!newData.hasChild('anim') || (newData.child('anim').isString() && newData.child('anim').val().length <= 32)) && (!newData.hasChild('probe') || newData.child('probe').isBoolean())"
+        }
+      }
+    },
+    "chat": {
+      ".read": true,
+      "$msgId": {
+        ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 280",
+        ".validate": "newData.hasChildren(['uid', 'name', 'text', 'time']) && newData.child('name').isString() && newData.child('name').val().length <= 64"
+      }
+    },
+    "buildings": {
+      "$zone": {
+        ".read": true,
+        "$pieceId": {
+          ".write": "auth != null && ((!data.exists() && newData.child('owner').val() === auth.uid) || (data.exists() && data.child('owner').val() === auth.uid) || auth.token.admin === true)",
+          ".validate": "newData.hasChildren(['type', 'x', 'y', 'owner']) && newData.child('type').isString() && (newData.child('owner').val() === auth.uid || auth.token.admin === true)"
+        }
+      }
+    }
+  }
+}

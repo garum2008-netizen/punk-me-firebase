@@ -1,0 +1,105 @@
+{
+  "chromium": [
+    [
+      "start_overlay",
+      true,
+      1
+    ],
+    [
+      "onboarding_done",
+      true,
+      {
+        "onboardingDone": true,
+        "quest": "q_initiation_pay",
+        "coins": 246,
+        "granted": [
+          "onboard:go_street",
+          "onboard:talk_razor",
+          "onboard:visit_cemetery",
+          "duel:payout:razor",
+          "onboard:win_fight",
+          "onboard:shop_buy"
+        ]
+      }
+    ],
+    [
+      "propiska_quest",
+      true,
+      "q_initiation_pay"
+    ],
+    [
+      "reload_keeps_progress",
+      true,
+      {
+        "coinsBefore": 246,
+        "stepBefore": 6,
+        "after": {
+          "step": 6,
+          "done": true,
+          "coins": 246,
+          "quest": "q_initiation_pay"
+        }
+      }
+    ],
+    [
+      "video",
+      true,
+      "/workspace/qa/episode1/playthrough-demo.webm"
+    ]
+  ],
+  "webkit": [
+    [
+      "start_overlay",
+      true,
+      1
+    ],
+    [
+      "onboarding_done",
+      true,
+      {
+        "onboardingDone": true,
+        "quest": "q_initiation_pay",
+        "coins": 269,
+        "granted": [
+          "onboard:go_street",
+          "onboard:talk_razor",
+          "onboard:visit_cemetery",
+          "duel:payout:razor",
+          "onboard:win_fight",
+          "onboard:shop_buy"
+        ]
+      }
+    ],
+    [
+      "propiska_quest",
+      true,
+      "q_initiation_pay"
+    ],
+    [
+      "reload_keeps_progress",
+      true,
+      {
+        "coinsBefore": 269,
+        "stepBefore": 6,
+        "after": {
+          "step": 6,
+          "done": true,
+          "coins": 269,
+          "quest": "q_initiation_pay"
+        }
+      }
+    ]
+  ],
+  "mobile": [],
+  "keye_mobile": {
+    "key_e_blocked_in_input": true,
+    "key_e_opens_npc": true,
+    "mobile_talk_same": true
+  },
+  "keye_desktop": {
+    "key_e_blocked_in_input": true,
+    "key_e_opens_npc": true,
+    "mobile_talk_same": true
+  },
+  "pass": true
+}

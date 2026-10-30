@@ -65,6 +65,18 @@
         "owner": {
           ".validate": "newData.isBoolean()"
         },
+        "premium": {
+          ".validate": "!newData.exists() || auth.token.admin === true"
+        },
+        "entitlements": {
+          ".validate": "!newData.exists() || auth.token.admin === true"
+        },
+        "qa": {
+          ".validate": "!newData.exists() || auth.token.admin === true"
+        },
+        "createdAt": {
+          ".validate": "!newData.exists() || (newData.isNumber() && (!data.exists() || newData.val() === data.val()))"
+        },
         "pet": {
           ".validate": "!newData.exists() || newData.val() == null || (newData.isString() && newData.val().length <= 32)"
         },
@@ -98,6 +110,12 @@
         "onboarding": {
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
         },
+        "settings": {
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
+        "dialogueHeard": {
+          ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
         "linkedAuth": {
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
         }
@@ -117,7 +135,7 @@
         ".read": true,
         "$uid": {
           ".write": "auth != null && auth.uid === $uid",
-          ".validate": "newData.hasChildren(['name', 'x', 'y', 'ts']) && newData.child('name').isString() && newData.child('name').val().length <= 64 && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('ts').isNumber() && (!newData.hasChild('avatar') || newData.child('avatar').isString()) && (!newData.hasChild('level') || newData.child('level').isNumber()) && (!newData.hasChild('characterId') || newData.child('characterId').isString()) && (!newData.hasChild('anim') || newData.child('anim').isString()) && (!newData.hasChild('probe') || newData.child('probe').isBoolean())"
+          ".validate": "newData.hasChildren(['name', 'x', 'y', 'ts']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 64 && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('ts').isNumber() && (!newData.hasChild('avatar') || (newData.child('avatar').isString() && newData.child('avatar').val().length <= 512)) && (!newData.hasChild('level') || newData.child('level').isNumber()) && (!newData.hasChild('characterId') || (newData.child('characterId').isString() && newData.child('characterId').val().length <= 32)) && (!newData.hasChild('anim') || (newData.child('anim').isString() && newData.child('anim').val().length <= 32)) && (!newData.hasChild('probe') || newData.child('probe').isBoolean())"
         }
       }
     },

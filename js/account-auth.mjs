@@ -112,6 +112,9 @@ function showConflictDialog({ email, credential, providerLabel }) {
 async function signInWithExistingCredential(credential) {
   const auth = getAuth();
   if (!auth || !credential) return;
+  if (window.me && window.__playerLoaded) {
+    window.__punkGuestMergeSnapshot = { ...window.me };
+  }
   await auth.signInWithCredential(credential);
   toast(t("auth_signed_in_existing"));
 }

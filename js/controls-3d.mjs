@@ -7,7 +7,11 @@ const state = {
   interact: false,
   moveX: 0,
   moveZ: 0,
-  run: false
+  run: false,
+  touchX: 0,
+  touchZ: 0,
+  touchRun: false,
+  touchActive: false
 };
 
 let orbitCb = null;
@@ -15,12 +19,18 @@ let orbitDragging = false;
 let lastX = 0;
 
 export function getInputState() {
+  if (state.touchActive) {
+    state.moveX = state.touchX;
+    state.moveZ = state.touchZ;
+    state.run = state.touchRun;
+    return state;
+  }
   const up = state.w || state.arrowup;
   const down = state.s || state.arrowdown;
   const left = state.a || state.arrowleft;
   const right = state.d || state.arrowright;
   state.moveX = (right ? 1 : 0) - (left ? 1 : 0);
-  state.moveZ = (up ? 1 : 0) - (down ? 1 : 0);
+  state.moveZ = (down ? 1 : 0) - (up ? 1 : 0);
   state.run = state.shift;
   return state;
 }
@@ -48,27 +58,39 @@ export function initControls3D(canvas, onOrbitDelta) {
   canvas.addEventListener("pointercancel", onPtrUp);
 }
 
+function gameplayInputBlocked() {
+  if (document.body?.dataset?.gamePaused === "1") return true;
+  if (document.querySelector(".modal.active, #startGameOverlay.active")) return true;
+  return false;
+}
+
 function onKeyDown(e) {
   if (e.target?.matches?.("input, textarea, select")) return;
-  const k = e.key.toLowerCase();
-  if (k === "w" || k === "a" || k === "s" || k === "d") state[k] = true;
-  if (e.key === "ArrowUp") state.arrowup = true;
-  if (e.key === "ArrowDown") state.arrowdown = true;
-  if (e.key === "ArrowLeft") state.arrowleft = true;
-  if (e.key === "ArrowRight") state.arrowright = true;
-  if (e.key === "Shift") state.shift = true;
-  if (e.key === " ") { state.jump = true; e.preventDefault(); }
-  if (k === "e") state.interact = true;
+  if (gameplayInputBlocked()) return;
+  if (e.code === "KeyW") state.w = true;
+  if (e.code === "KeyA") state.a = true;
+  if (e.code === "KeyS") state.s = true;
+  if (e.code === "KeyD") state.d = true;
+  if (e.code === "ArrowUp") state.arrowup = true;
+  if (e.code === "ArrowDown") state.arrowdown = true;
+  if (e.code === "ArrowLeft") state.arrowleft = true;
+  if (e.code === "ArrowRight") state.arrowright = true;
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight") state.shift = true;
+  if (e.code === "Space") { state.jump = true; e.preventDefault(); }
+  if (e.code === "KeyE" && !e.repeat) state.interact = true;
 }
 
 function onKeyUp(e) {
-  const k = e.key.toLowerCase();
-  if (k === "w" || k === "a" || k === "s" || k === "d") state[k] = false;
-  if (e.key === "ArrowUp") state.arrowup = false;
-  if (e.key === "ArrowDown") state.arrowdown = false;
-  if (e.key === "ArrowLeft") state.arrowleft = false;
-  if (e.key === "ArrowRight") state.arrowright = false;
-  if (e.key === "Shift") state.shift = false;
+  if (e.code === "KeyW") state.w = false;
+  if (e.code === "KeyA") state.a = false;
+  if (e.code === "KeyS") state.s = false;
+  if (e.code === "KeyD") state.d = false;
+  if (e.code === "ArrowUp") state.arrowup = false;
+  if (e.code === "ArrowDown") state.arrowdown = false;
+  if (e.code === "ArrowLeft") state.arrowleft = false;
+  if (e.code === "ArrowRight") state.arrowright = false;
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight") state.shift = false;
+  if (e.code === "KeyE") state.interact = false;
 }
 
 function onPtrDown(e) {
@@ -92,9 +114,10 @@ function onPtrUp() {
 
 /** Touch layer fills move/run (joystick). */
 export function setTouchMove(x, z, run) {
-  state.moveX = x;
-  state.moveZ = z;
-  state.run = !!run;
+  state.touchX = x;
+  state.touchZ = z;
+  state.touchRun = !!run;
+  state.touchActive = Math.abs(x) > 0.04 || Math.abs(z) > 0.04;
 }
 
 export function touchJump() {

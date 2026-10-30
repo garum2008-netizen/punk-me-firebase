@@ -31,8 +31,8 @@ export function updateProcedural(actor, dt, _playerPos, _talking) {
 
   const t = performance.now() * 0.001;
   const { bones, rest } = actor._proc;
-  const breath = Math.sin(t * 2.1) * 0.014;
-  const sway = Math.sin(t * 0.85) * 0.01;
+  const breath = Math.sin(t * 1.6) * 0.006;
+  const sway = Math.sin(t * 0.7) * 0.004;
 
   if (bones.spine && rest.spineX !== undefined) {
     bones.spine.rotation.x = rest.spineX + breath;

@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "lines": {
+    "dlg_dlg_razor_initiation_n1": {
+      "ru": "voice/ru/dlg_dlg_razor_initiation_n1.ogg",
+      "en": "voice/en/dlg_dlg_razor_initiation_n1.ogg",
+      "da": "voice/da/dlg_dlg_razor_initiation_n1.ogg"
+    },
+    "dlg_dlg_razor_initiation_n2": {
+      "ru": "voice/ru/dlg_dlg_razor_initiation_n2.ogg",
+      "en": "voice/en/dlg_dlg_razor_initiation_n2.ogg",
+      "da": "voice/da/dlg_dlg_razor_initiation_n2.ogg"
+    },
+    "dlg_dlg_razor_initiation_n3a": {
+      "ru": "voice/ru/dlg_dlg_razor_initiation_n3a.ogg",
+      "en": "voice/en/dlg_dlg_razor_initiation_n3a.ogg",
+      "da": "voice/da/dlg_dlg_razor_initiation_n3a.ogg"
+    },
+    "dlg_dlg_razor_initiation_n3c": {
+      "ru": "voice/ru/dlg_dlg_razor_initiation_n3c.ogg",
+      "en": "voice/en/dlg_dlg_razor_initiation_n3c.ogg",
+      "da": "voice/da/dlg_dlg_razor_initiation_n3c.ogg"
+    },
+    "dlg_dlg_zoya_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_zoya_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_zoya_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_zoya_enter_n1.ogg"
+    },
+    "dlg_dlg_plukh_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_plukh_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_plukh_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_plukh_enter_n1.ogg"
+    },
+    "dlg_dlg_plukh_enter_n2": {
+      "ru": "voice/ru/dlg_dlg_plukh_enter_n2.ogg",
+      "en": "voice/en/dlg_dlg_plukh_enter_n2.ogg",
+      "da": "voice/da/dlg_dlg_plukh_enter_n2.ogg"
+    },
+    "dlg_dlg_foreman_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_foreman_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_foreman_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_foreman_enter_n1.ogg"
+    },
+    "dlg_dlg_room_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_room_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_room_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_room_enter_n1.ogg"
+    },
+    "dlg_dlg_elevator_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_elevator_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_elevator_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_elevator_enter_n1.ogg"
+    },
+    "dlg_dlg_roof_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_roof_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_roof_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_roof_enter_n1.ogg"
+    },
+    "dlg_dlg_street_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_street_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_street_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_street_enter_n1.ogg"
+    },
+    "dlg_dlg_city_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_city_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_city_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_city_enter_n1.ogg"
+    },
+    "dlg_dlg_cemetery_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_cemetery_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_cemetery_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_cemetery_enter_n1.ogg"
+    },
+    "dlg_dlg_parkour_enter_n1": {
+      "ru": "voice/ru/dlg_dlg_parkour_enter_n1.ogg",
+      "en": "voice/en/dlg_dlg_parkour_enter_n1.ogg",
+      "da": "voice/da/dlg_dlg_parkour_enter_n1.ogg"
+    },
+    "npc_razor_0": {
+      "ru": "voice/ru/npc_razor_0.ogg",
+      "en": "voice/en/npc_razor_0.ogg",
+      "da": "voice/da/npc_razor_0.ogg"
+    },
+    "npc_razor_1": {
+      "ru": "voice/ru/npc_razor_1.ogg",
+      "en": "voice/en/npc_razor_1.ogg",
+      "da": "voice/da/npc_razor_1.ogg"
+    },
+    "npc_razor_2": {
+      "ru": "voice/ru/npc_razor_2.ogg",
+      "en": "voice/en/npc_razor_2.ogg",
+      "da": "voice/da/npc_razor_2.ogg"
+    },
+    "npc_mohawk_0": {
+      "ru": "voice/ru/npc_mohawk_0.ogg",
+      "en": "voice/en/npc_mohawk_0.ogg",
+      "da": "voice/da/npc_mohawk_0.ogg"
+    },
+    "npc_mohawk_1": {
+      "ru": "voice/ru/npc_mohawk_1.ogg",
+      "en": "voice/en/npc_mohawk_1.ogg",
+      "da": "voice/da/npc_mohawk_1.ogg"
+    },
+    "npc_mohawk_2": {
+      "ru": "voice/ru/npc_mohawk_2.ogg",
+      "en": "voice/en/npc_mohawk_2.ogg",
+      "da": "voice/da/npc_mohawk_2.ogg"
+    },
+    "npc_vienna_0": {
+      "ru": "voice/ru/npc_vienna_0.ogg",
+      "en": "voice/en/npc_vienna_0.ogg",
+      "da": "voice/da/npc_vienna_0.ogg"
+    },
+    "npc_vienna_1": {
+      "ru": "voice/ru/npc_vienna_1.ogg",
+      "en": "voice/en/npc_vienna_1.ogg",
+      "da": "voice/da/npc_vienna_1.ogg"
+    },
+    "npc_vienna_2": {
+      "ru": "voice/ru/npc_vienna_2.ogg",
+      "en": "voice/en/npc_vienna_2.ogg",
+      "da": "voice/da/npc_vienna_2.ogg"
+    },
+    "npc_ghost_0": {
+      "ru": "voice/ru/npc_ghost_0.ogg",
+      "en": "voice/en/npc_ghost_0.ogg",
+      "da": "voice/da/npc_ghost_0.ogg"
+    },
+    "npc_ghost_1": {
+      "ru": "voice/ru/npc_ghost_1.ogg",
+      "en": "voice/en/npc_ghost_1.ogg",
+      "da": "voice/da/npc_ghost_1.ogg"
+    },
+    "npc_ghost_2": {
+      "ru": "voice/ru/npc_ghost_2.ogg",
+      "en": "voice/en/npc_ghost_2.ogg",
+      "da": "voice/da/npc_ghost_2.ogg"
+    },
+    "npc_gravedigger_0": {
+      "ru": "voice/ru/npc_gravedigger_0.ogg",
+      "en": "voice/en/npc_gravedigger_0.ogg",
+      "da": "voice/da/npc_gravedigger_0.ogg"
+    },
+    "npc_gravedigger_1": {
+      "ru": "voice/ru/npc_gravedigger_1.ogg",
+      "en": "voice/en/npc_gravedigger_1.ogg",
+      "da": "voice/da/npc_gravedigger_1.ogg"
+    },
+    "npc_gravedigger_2": {
+      "ru": "voice/ru/npc_gravedigger_2.ogg",
+      "en": "voice/en/npc_gravedigger_2.ogg",
+      "da": "voice/da/npc_gravedigger_2.ogg"
+    },
+    "npc_zoya_0": {
+      "ru": "voice/ru/npc_zoya_0.ogg",
+      "en": "voice/en/npc_zoya_0.ogg",
+      "da": "voice/da/npc_zoya_0.ogg"
+    },
+    "npc_plukh_0": {
+      "ru": "voice/ru/npc_plukh_0.ogg",
+      "en": "voice/en/npc_plukh_0.ogg",
+      "da": "voice/da/npc_plukh_0.ogg"
+    },
+    "npc_tony_0": {
+      "ru": "voice/ru/npc_tony_0.ogg",
+      "en": "voice/en/npc_tony_0.ogg",
+      "da": "voice/da/npc_tony_0.ogg"
+    },
+    "narr_onboard_move_desktop": {
+      "ru": "voice/ru/narr_onboard_move_desktop.ogg",
+      "en": "voice/en/narr_onboard_move_desktop.ogg",
+      "da": "voice/da/narr_onboard_move_desktop.ogg"
+    },
+    "narr_onboard_move_touch": {
+      "ru": "voice/ru/narr_onboard_move_touch.ogg",
+      "en": "voice/en/narr_onboard_move_touch.ogg",
+      "da": "voice/da/narr_onboard_move_touch.ogg"
+    },
+    "narr_onboard_go_street_desktop": {
+      "ru": "voice/ru/narr_onboard_go_street_desktop.ogg",
+      "en": "voice/en/narr_onboard_go_street_desktop.ogg",
+      "da": "voice/da/narr_onboard_go_street_desktop.ogg"
+    },
+    "narr_onboard_go_street_touch": {
+      "ru": "voice/ru/narr_onboard_go_street_touch.ogg",
+      "en": "voice/en/narr_onboard_go_street_touch.ogg",
+      "da": "voice/da/narr_onboard_go_street_touch.ogg"
+    },
+    "narr_onboard_talk_razor_desktop": {
+      "ru": "voice/ru/narr_onboard_talk_razor_desktop.ogg",
+      "en": "voice/en/narr_onboard_talk_razor_desktop.ogg",
+      "da": "voice/da/narr_onboard_talk_razor_desktop.ogg"
+    },
+    "narr_onboard_talk_razor_touch": {
+      "ru": "voice/ru/narr_onboard_talk_razor_touch.ogg",
+      "en": "voice/en/narr_onboard_talk_razor_touch.ogg",
+      "da": "voice/da/narr_onboard_talk_razor_touch.ogg"
+    },
+    "narr_onboard_visit_cemetery_desktop": {
+      "ru": "voice/ru/narr_onboard_visit_cemetery_desktop.ogg",
+      "en": "voice/en/narr_onboard_visit_cemetery_desktop.ogg",
+      "da": "voice/da/narr_onboard_visit_cemetery_desktop.ogg"
+    },
+    "narr_onboard_visit_cemetery_touch": {
+      "ru": "voice/ru/narr_onboard_visit_cemetery_touch.ogg",
+      "en": "voice/en/narr_onboard_visit_cemetery_touch.ogg",
+      "da": "voice/da/narr_onboard_visit_cemetery_touch.ogg"
+    },
+    "narr_onboard_win_fight_desktop": {
+      "ru": "voice/ru/narr_onboard_win_fight_desktop.ogg",
+      "en": "voice/en/narr_onboard_win_fight_desktop.ogg",
+      "da": "voice/da/narr_onboard_win_fight_desktop.ogg"
+    },
+    "narr_onboard_win_fight_touch": {
+      "ru": "voice/ru/narr_onboard_win_fight_touch.ogg",
+      "en": "voice/en/narr_onboard_win_fight_touch.ogg",
+      "da": "voice/da/narr_onboard_win_fight_touch.ogg"
+    },
+    "narr_onboard_shop_buy_desktop": {
+      "ru": "voice/ru/narr_onboard_shop_buy_desktop.ogg",
+      "en": "voice/en/narr_onboard_shop_buy_desktop.ogg",
+      "da": "voice/da/narr_onboard_shop_buy_desktop.ogg"
+    },
+    "narr_onboard_shop_buy_touch": {
+      "ru": "voice/ru/narr_onboard_shop_buy_touch.ogg",
+      "en": "voice/en/narr_onboard_shop_buy_touch.ogg",
+      "da": "voice/da/narr_onboard_shop_buy_touch.ogg"
+    },
+    "intro_slide1": {
+      "ru": "voice/ru/intro_slide1.ogg",
+      "en": "voice/en/intro_slide1.ogg",
+      "da": "voice/da/intro_slide1.ogg"
+    },
+    "intro_slide2": {
+      "ru": "voice/ru/intro_slide2.ogg",
+      "en": "voice/en/intro_slide2.ogg",
+      "da": "voice/da/intro_slide2.ogg"
+    },
+    "intro_slide3": {
+      "ru": "voice/ru/intro_slide3.ogg",
+      "en": "voice/en/intro_slide3.ogg",
+      "da": "voice/da/intro_slide3.ogg"
+    },
+    "intro_slide4": {
+      "ru": "voice/ru/intro_slide4.ogg",
+      "en": "voice/en/intro_slide4.ogg",
+      "da": "voice/da/intro_slide4.ogg"
+    }
+  }
+}

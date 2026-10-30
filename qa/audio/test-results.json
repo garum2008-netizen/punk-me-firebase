@@ -1,0 +1,66 @@
+[
+  {
+    "browser": "chromium",
+    "log": [
+      [
+        "unlock_after_gesture",
+        true,
+        {
+          "beforeUnlock": false,
+          "running": true,
+          "hasCtx": true,
+          "state": "running"
+        }
+      ],
+      [
+        "volume_mute_persist_reload",
+        true,
+        {
+          "music": 0.41,
+          "muted": true
+        }
+      ],
+      [
+        "ducking_during_line",
+        true,
+        {
+          "factor": 0.25118863582611084,
+          "after": 1,
+          "started": true
+        }
+      ],
+      [
+        "stop_speech_on_close",
+        true,
+        {
+          "ended": true
+        }
+      ],
+      [
+        "no_overlapping_lines",
+        true,
+        {
+          "maxConcurrent": 1
+        }
+      ],
+      [
+        "subtitles_while_muted",
+        true,
+        {
+          "saw": true,
+          "sub": "Muted subtitle check."
+        }
+      ]
+    ]
+  },
+  {
+    "browser": "webkit",
+    "log": [
+      [
+        "webkit_skip",
+        false,
+        "page.waitForTimeout: Page crashed"
+      ]
+    ]
+  }
+]

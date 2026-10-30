@@ -1,9 +1,26 @@
 {
   "dialogues": [
     {
+      "id": "dlg_razor_ch1_bridge",
+      "location": "street",
+      "trigger": { "type": "proximity", "radius_m": 10, "conditions": ["onboarding:done", "flag:!joined_gang", "flag:!ch1_initiation_unlocked"] },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_razor",
+          "text": {
+            "ru": "Эй, панк! Банда смотрит. Сначала Ирокез проверит, выдержишь ли насмешки — найди его на улице.",
+            "en": "Hey, punk! The gang's watching. Mohawk runs the hazing first — find him on the street.",
+            "da": "Hey, punk! Banden kigger. Mohawk leder hånen — find ham på gaden."
+          },
+          "next": "END"
+        }
+      ]
+    },
+    {
       "id": "dlg_razor_initiation",
       "location": "street",
-      "trigger": { "type": "proximity", "radius_m": 10, "conditions": ["onboarding:done", "flag:!joined_gang"] },
+      "trigger": { "type": "proximity", "radius_m": 10, "conditions": ["onboarding:done", "flag:!joined_gang", "flag:ch1_initiation_unlocked"] },
       "callout": { "sound": "sfx_whistle", "icon": "!", "bubble_key": "n1" },
       "nodes": [
         {
@@ -33,6 +50,7 @@
                 "da": "Jeg tjener gebyret — 150 mønter."
               },
               "hint": { "ru": "Работа · Банда ▲", "en": "Work · Gang ▲", "da": "Arbejde · Bande ▲" },
+              "requires": ["flag:!initiation_locked"],
               "effects": [{ "type": "quest_start", "id": "q_initiation_pay" }],
               "next": "n3a"
             },
@@ -44,7 +62,7 @@
                 "da": "Jeg udfordrer dig til kædeduel."
               },
               "hint": { "ru": "Дуэль · Банда ▲▲", "en": "Duel · Gang ▲▲", "da": "Duel · Bande ▲▲" },
-              "requires": ["energy>=5"],
+              "requires": ["energy>=5", "flag:!initiation_locked"],
               "effects": [{ "type": "quest_start", "id": "q_initiation_duel" }, { "type": "start_duel", "id": "razor" }],
               "next": "END"
             },
@@ -56,6 +74,7 @@
                 "da": "Jeg tagger bandens tegn i kvarteret."
               },
               "hint": { "ru": "Клякса · Реп. ▲", "en": "Tags · Rep ▲", "da": "Tags · Omdømme ▲" },
+              "requires": ["flag:!initiation_locked"],
               "effects": [{ "type": "quest_start", "id": "q_initiation_graffiti" }],
               "next": "n3c"
             }
@@ -293,6 +312,62 @@
             "da": "Mohawk: Vis et hop — banden kigger!"
           },
           "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_count_confession",
+      "location": "castle",
+      "trigger": { "type": "story_flag", "flag": "concert_ready", "conditions": ["flag:!graph_truth", "flag:!ending_chosen"] },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_count",
+          "text": {
+            "ru": "Граф: Пятьдесят лет назад я ударил по Колоколу — не из злости, а из страха, что ночь никогда не кончится. Музыка была слишком громкой для моего замка… и слишком живой для вечного Хэллоуина.",
+            "en": "Count: Fifty years ago I struck the Bell — not from malice, but fear that the night would never end. The music was too loud for my castle… and too alive for eternal Halloween.",
+            "da": "Greve: For halvtreds år siden slog jeg til klokken — ikke af ondskab, men af frygt for at natten aldrig sluttede."
+          },
+          "next": "n2"
+        },
+        {
+          "id": "n2",
+          "speaker": "npc_count",
+          "text": {
+            "ru": "Три пути открыты. Колокол готов. Выбери, каким будет утро Тыквограда — и помни: назад дороги нет.",
+            "en": "Three paths are open. The Bell is ready. Choose what morning brings to Pumpkin City — there is no going back.",
+            "da": "Tre veje er åbne. Klokken er klar. Vælg, hvad morgenen bringer — der er ingen vej tilbage."
+          },
+          "effects": [{ "type": "flag", "value": "graph_truth" }, { "type": "story_event", "name": "graph_confession_done" }],
+          "next": "END"
+        }
+      ]
+    },
+    {
+      "id": "dlg_antibully_rookie",
+      "location": "street",
+      "trigger": { "type": "quest", "quest": "q_ch2_antibully", "conditions": ["flag:!ch2_antibully_resolved"] },
+      "nodes": [
+        {
+          "id": "n1",
+          "speaker": "npc_rookie",
+          "text": {
+            "ru": "Новичок: Эй… они снова смеются. Сказать что-то или пройти мимо?",
+            "en": "Rookie: Hey… they're laughing again. Speak up or walk past?",
+            "da": "Nybegynder: De griner igen. Sig noget eller gå forbi?"
+          },
+          "choices": [
+            {
+              "id": "help",
+              "text": { "ru": "Заступиться", "en": "Stand up for them", "da": "Tag deres parti" },
+              "effects": [{ "type": "story_event", "name": "antibully_help" }]
+            },
+            {
+              "id": "mock",
+              "text": { "ru": "Поддержать насмешку", "en": "Join the mockery", "da": "Grin med" },
+              "effects": [{ "type": "story_event", "name": "antibully_mock" }]
+            }
+          ]
         }
       ]
     }

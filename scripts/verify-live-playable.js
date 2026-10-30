@@ -1,3 +1,5 @@
+/** Read-only smoke against live URL — no ?dev=1, no saveMe. Writes still forbidden via guard if misconfigured. */
+const { hostLooksLikeProd } = require("./lib/guard-no-prod-firebase");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const out = "/opt/cursor/artifacts";

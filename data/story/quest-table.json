@@ -1,0 +1,161 @@
+{
+  "version": 2,
+  "source": "docs/release/QUEST_TABLE.md",
+  "syncRobloxCommit": "6315248",
+  "quests": [
+    {
+      "id": "q_ch0_newbie",
+      "chapter": 0,
+      "startWhen": "new_player",
+      "npc": null,
+      "goalKey": "ch0_s_razor",
+      "beacon": "npc_razor",
+      "success": "event:ch0_razor_talk || onboarding.done",
+      "onFail": "angelina_hint",
+      "rewards": [{ "grant": "reward_ch0_complete" }],
+      "next": "q_ch1_initiation_choice",
+      "steps": [
+        "ch0_s_awake",
+        "ch0_s_mom",
+        "ch0_s_shnurok",
+        "ch0_s_avatar",
+        "ch0_s_move",
+        "ch0_s_interact",
+        "ch0_s_house",
+        "ch0_s_street",
+        "ch0_s_razor"
+      ],
+      "webMap": "chapterIntro + onboarding.js (see QUEST_TABLE.md)"
+    },
+    {
+      "id": "q_ch1_initiation_choice",
+      "chapter": 1,
+      "startWhen": "onboarding.done && !story.flags.joined_gang",
+      "npc": "razor",
+      "goalKey": "ch1_s_choice",
+      "beacon": "npc_razor",
+      "success": "story.flags.initiation_locked",
+      "onFail": "dlg_razor_initiation",
+      "rewards": [],
+      "next": "branch"
+    },
+    {
+      "id": "q_initiation_pay",
+      "chapter": 1,
+      "branch": "pay",
+      "startWhen": "quest.active==q_initiation_pay",
+      "npc": "razor",
+      "goalKey": "q_initiation_pay",
+      "beacon": "npc_razor",
+      "success": "event:pay_initiation_fee",
+      "onFail": "beginEarnCoins:150:obj_shop",
+      "rewards": [{ "grant": "reward_initiation_pay", "flag": "joined_gang" }],
+      "next": "q_ch2_hangout"
+    },
+    {
+      "id": "q_initiation_duel",
+      "chapter": 1,
+      "branch": "duel",
+      "startWhen": "quest.active==q_initiation_duel",
+      "npc": "razor",
+      "goalKey": "q_initiation_duel",
+      "beacon": "npc_razor",
+      "success": "event:duel_razor_win",
+      "onFail": "training_duel_retry",
+      "rewards": [{ "grant": "reward_initiation_duel", "flag": "joined_gang" }],
+      "next": "q_ch2_hangout"
+    },
+    {
+      "id": "q_initiation_graffiti",
+      "chapter": 1,
+      "branch": "graffiti",
+      "startWhen": "quest.active==q_initiation_graffiti",
+      "npc": "razor",
+      "goalKey": "q_initiation_graffiti",
+      "beacon": "npc_razor",
+      "success": "event:flyers_done",
+      "onFail": "training_flyers_hint",
+      "rewards": [{ "grant": "reward_initiation_graffiti", "flag": "joined_gang" }],
+      "next": "q_ch2_hangout"
+    },
+    {
+      "id": "q_ch2_hangout",
+      "chapter": 2,
+      "startWhen": "story.flags.joined_gang",
+      "npc": "foreman",
+      "goalKey": "q_ch2_hangout",
+      "beacon": "obj_hangout_site",
+      "success": "hangout_stage>=4",
+      "onFail": "whereToGetMaterials",
+      "rewards": [{ "grant": "reward_ch2_hangout" }],
+      "next": "q_ch3_cemetery_night",
+      "webQuestJson": "data/story/quests.json#q_ch2_hangout"
+    },
+    {
+      "id": "q_ch2_antibully",
+      "chapter": 2,
+      "startWhen": "story.flags.joined_gang && hangout_stage>=2",
+      "npc": "razor",
+      "goalKey": "q_ch2_antibully",
+      "beacon": "npc_razor",
+      "success": "story.flags.ch2_antibully_resolved",
+      "onFail": "angelina_hint",
+      "rewards": [{ "grant": "reward_ch2_choice" }],
+      "next": null,
+      "status": "planned"
+    },
+    {
+      "id": "q_ch3_cemetery_night",
+      "chapter": 3,
+      "startWhen": "quest.completed.q_ch2_hangout",
+      "npc": "gravedigger",
+      "goalKey": "q_ch3_cemetery_night",
+      "beacon": "npc_gravedigger",
+      "success": "story.unique.bell_rim",
+      "onFail": "crypt_materials_hint",
+      "rewards": [{ "grant": "reward_ch3_rim", "unique": "bell_rim" }],
+      "next": "q_ch4_castle"
+    },
+    {
+      "id": "q_ch4_castle",
+      "chapter": 4,
+      "startWhen": "story.unique.bell_rim",
+      "npc": "count",
+      "goalKey": "q_ch4_castle",
+      "beacon": "npc_count",
+      "success": "story.flags.graph_truth",
+      "endingResolve": "js/story/ending-resolve.mjs",
+      "onFail": "angelina_hint",
+      "rewards": [],
+      "next": "ending_choice",
+      "webQuestJson": "data/story/quests.json#q_ch4_castle"
+    },
+    {
+      "id": "ending_break_curse",
+      "chapter": 4,
+      "type": "ending",
+      "goalKey": "ending_break_curse_title",
+      "success": "story.ending==ending_break_curse",
+      "rewards": [{ "grant": "reward_ending_curse", "skin": "bell_chime", "npcUnlock": "zombina" }],
+      "next": "free_play"
+    },
+    {
+      "id": "ending_zombie_style",
+      "chapter": 4,
+      "type": "ending",
+      "goalKey": "ending_zombie_style_title",
+      "success": "story.ending==ending_zombie_style",
+      "rewards": [{ "grant": "reward_ending_zombie", "flag": "castle_club" }],
+      "next": "free_play"
+    },
+    {
+      "id": "ending_count_deal",
+      "chapter": 4,
+      "type": "ending",
+      "goalKey": "ending_count_deal_title",
+      "success": "story.ending==ending_count_deal",
+      "rewards": [{ "grant": "reward_ending_deal", "flag": "night_shop" }],
+      "next": "free_play"
+    }
+  ]
+}

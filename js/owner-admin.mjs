@@ -10,7 +10,7 @@ const FIREBASE_CONFIG = {
   appId: "1:761070335468:web:4bffd5120ef98e79f47cc9",
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
-const GAME_VERSION = "living3d-v22r5-accounts-r1";
+const GAME_VERSION = "story-preview-p0-r3";
 
 function t(key) {
   return typeof window.t === "function" ? window.t(key) : key;

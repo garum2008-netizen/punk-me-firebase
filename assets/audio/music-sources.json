@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-10-25T07:42:37.126Z",
+  "tracks": [
+    {
+      "bucket": "home",
+      "files": [
+        "music_home.ogg",
+        "music_home.mp3"
+      ],
+      "title": "Fast Song",
+      "author": "Bart",
+      "license": "CC0",
+      "sourceUrl": "https://opengameart.org/content/fastsong",
+      "ogaFile": "fastsong.ogg"
+    },
+    {
+      "bucket": "street",
+      "files": [
+        "music_street.ogg",
+        "music_street.mp3"
+      ],
+      "title": "Downtown Destruction",
+      "author": "Matthew Steele",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://opengameart.org/content/rock-music-pack",
+      "ogaFile": "07_-_downtown_destruction.ogg"
+    },
+    {
+      "bucket": "cemetery",
+      "files": [
+        "music_cemetery.ogg",
+        "music_cemetery.mp3"
+      ],
+      "title": "Hammer of the Berserker",
+      "author": "Matthew Steele",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://opengameart.org/content/rock-music-pack",
+      "ogaFile": "03_-_hammer_of_the_berserker.ogg"
+    },
+    {
+      "bucket": "city",
+      "files": [
+        "music_city.ogg",
+        "music_city.mp3"
+      ],
+      "title": "Plutonian Thrash",
+      "author": "Matthew Steele",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://opengameart.org/content/rock-music-pack",
+      "ogaFile": "05_-_plutonian_thrash.ogg"
+    },
+    {
+      "bucket": "roof",
+      "files": [
+        "music_roof.ogg",
+        "music_roof.mp3"
+      ],
+      "title": "Chick with Weapon",
+      "author": "Matthew Steele",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://opengameart.org/content/rock-music-pack",
+      "ogaFile": "09_-_chick_with_weapon.ogg"
+    },
+    {
+      "bucket": "construction",
+      "files": [
+        "music_construction.ogg",
+        "music_construction.mp3"
+      ],
+      "title": "Last Spike",
+      "author": "Matthew Steele",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://opengameart.org/content/rock-music-pack",
+      "ogaFile": "06_-_last_spike.ogg"
+    },
+    {
+      "bucket": "castle",
+      "files": [
+        "music_castle.ogg",
+        "music_castle.mp3"
+      ],
+      "title": "Headbangr",
+      "author": "Bart",
+      "license": "CC0",
+      "sourceUrl": "https://opengameart.org/content/headbangr",
+      "ogaFile": "headbangr.ogg"
+    }
+  ]
+}

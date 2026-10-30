@@ -7,6 +7,13 @@
 <title>PUNK ME — Живая неоновая ночь</title>
 <link rel="stylesheet" href="css/game.css?v=living3d-v22r5-accounts-r1">
 <link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r5-accounts-r1">
+<script>
+(function () {
+  if (/\bepisodeCapture=1\b/.test(location.search)) {
+    document.documentElement.classList.add("episode-capture");
+  }
+})();
+</script>
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -52,15 +59,93 @@
   </div>
   <div class="loc-name" id="locTitle" data-i18n-loc="room">Комната панка</div>
   <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
+  <button type="button" class="btn-howto btn-game-menu" id="btnGameMenu" title="Menu" data-i18n="game_menu_btn">☰</button>
   <div id="contextHint" class="context-hint" aria-live="polite"></div>
+  <div id="angelinaContext" class="angelina-context" aria-live="polite"></div>
+  <div id="angelinaHelpPanel" class="angelina-help-panel" aria-live="polite">
+    <div class="angelina-help-header">
+      <div class="angelina-portrait" aria-hidden="true"></div>
+      <strong data-i18n="angelina_name">Ангелина</strong>
+      <button type="button" class="btn secondary btn-angelina-help" id="btnAngelinaHelp" data-i18n="angelina_help_btn">Ангелина, помоги</button>
+    </div>
+    <p id="angelinaHelpBody" class="angelina-help-body"></p>
+    <p id="angelinaHelpSub" class="angelina-help-sub"></p>
+  </div>
+  <div id="angelinaSolutionConfirm" class="angelina-solution-confirm" role="dialog" aria-modal="true">
+    <div class="angelina-solution-panel">
+      <p data-i18n="angelina_solution_confirm">Показать решение?</p>
+      <button type="button" class="btn" data-angelina-solution="yes" data-i18n="yes">Да</button>
+      <button type="button" class="btn secondary" data-angelina-solution="no" data-i18n="no">Нет</button>
+    </div>
+  </div>
+  <div id="storyGoalBar" class="story-goal-bar" aria-live="polite">
+    <div class="story-goal-chapter"></div>
+    <div class="story-goal-main"></div>
+    <div class="story-goal-hint"></div>
+    <div class="story-goal-progress"></div>
+  </div>
+  <div id="langCorner" class="lang-corner" aria-label="Language">
+    <button type="button" class="lang-btn" data-lang="ru">RU</button>
+    <button type="button" class="lang-btn" data-lang="uk">UK</button>
+    <button type="button" class="lang-btn" data-lang="en">EN</button>
+    <button type="button" class="lang-btn" data-lang="da">DA</button>
+  </div>
   <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
   <div id="storyBubbles" aria-hidden="true"></div>
   <div id="storyDirection" aria-hidden="true">!</div>
+  <div id="endingRewards" class="ending-rewards" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="ending-choice-panel">
+      <h2 class="ending-rewards-title"></h2>
+      <p class="ending-rewards-body ending-preview"></p>
+      <p class="ending-rewards-world ending-preview"></p>
+      <button type="button" class="btn ending-rewards-next" data-i18n="ending_rewards_continue">В свободную игру</button>
+    </div>
+  </div>
+  <div id="endingChoice" class="ending-choice" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="ending-choice-panel">
+      <h2 data-i18n="ending_choose_title">Выбор судьбы Колокола</h2>
+      <p class="ending-preview" data-i18n="ending_choose_hint">Сначала прочитай последствия — потом выбери.</p>
+      <p class="ending-preview" id="endingPreviewLift" data-i18n="ending_lift_curse_preview"></p>
+      <button type="button" class="btn" data-ending="ending_break_curse" data-i18n="ending_lift_curse_title">Снять проклятие</button>
+      <p class="ending-preview" id="endingPreviewZombie" data-i18n="ending_zombie_style_preview"></p>
+      <button type="button" class="btn secondary" data-ending="ending_zombie_style" data-i18n="ending_zombie_style_title">Зомби — это стиль</button>
+      <p class="ending-preview" id="endingPreviewDeal" data-i18n="ending_deal_count_preview"></p>
+      <button type="button" class="btn secondary" data-ending="ending_count_deal" data-i18n="ending_deal_count_title">Сделка с Графом</button>
+    </div>
+  </div>
+  <div id="storyScene" class="story-scene" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="story-scene-panel">
+      <div class="story-scene-title"></div>
+      <div class="story-scene-speaker"></div>
+      <div class="story-scene-body"></div>
+      <button type="button" class="btn story-scene-next" data-i18n="intro_next">Дальше</button>
+    </div>
+  </div>
+  <div id="chapterIntro" class="chapter-intro" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="chapter-intro-panel">
+      <div class="chapter-intro-title"></div>
+      <div class="chapter-intro-body"></div>
+      <div class="chapter-intro-actions">
+        <span class="chapter-intro-progress"></span>
+        <button type="button" class="btn secondary chapter-intro-skip" data-i18n="intro_skip">Пропустить</button>
+        <button type="button" class="btn chapter-intro-next" data-i18n="intro_next">Далее</button>
+      </div>
+    </div>
+  </div>
+  <div id="concertPrep" class="story-dialog-panel-wrap" aria-hidden="true" role="dialog" aria-modal="true" style="display:none">
+    <div class="story-dialog-panel" style="max-width:420px;margin:12vh auto">
+      <div class="story-dialog-title" data-i18n="concert_prep_title">Концерт у Колокола</div>
+      <p class="ending-preview" data-i18n="concert_prep_hint">Кто выведет банду на сцену?</p>
+      <button type="button" class="btn" data-headliner="family" data-i18n="concert_headliner_family">Семья Мёртвиновых</button>
+      <button type="button" class="btn secondary" data-headliner="zombina" data-i18n="concert_headliner_zombina">Зомбина и банда</button>
+      <button type="button" class="btn secondary" data-headliner="count" data-i18n="concert_headliner_count">Граф (сюрприз)</button>
+    </div>
+  </div>
   <div id="storyConstructionHud" aria-live="polite">
     <div class="stage-name"></div>
     <div class="need-line"></div>
     <button type="button" class="btn secondary" style="margin-top:6px" onclick="StoryEngine?.whereToGetMaterials?.()">?</button>
-    <button type="button" class="btn" style="margin-top:6px;margin-left:6px" onclick="StoryEngine?.buildHangoutStage?.()">Build</button>
+    <button type="button" class="btn" style="margin-top:6px;margin-left:6px" data-i18n="build_hangout_btn" onclick="StoryEngine?.buildHangoutStage?.()">Построить этап</button>
   </div>
   <div id="storyDialog" role="dialog" aria-modal="true">
     <div class="story-dialog-panel">
@@ -95,6 +180,7 @@
       </div>
       <button type="button" class="lang-btn hud-desktop-only" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
     </div>
+    <div id="saveStatus" class="save-status" aria-live="polite" data-state=""></div>
     <div class="account-hud-wrap hud-account-row">
       <span class="account-hud-chip" id="accountHudChip" data-account-label hidden></span>
       <button type="button" class="btn-account" id="btnAccountOpen" data-account-signed-out data-i18n="auth_sign_in">Войти</button>
@@ -222,6 +308,31 @@
     </div>
   </div>
 </div>
+<div id="startGameOverlay" class="start-game-overlay" role="dialog" aria-modal="true" aria-hidden="true" inert>
+  <div class="start-game-panel">
+    <h2 data-i18n="start_game_title">PUNK ME</h2>
+    <p data-i18n="start_game_body">Нажми, чтобы включить звук и начать главу 0.</p>
+    <button type="button" class="btn" id="btnStartGame" data-i18n="start_game_btn" tabindex="-1">Начать</button>
+  </div>
+</div>
+<div id="gameMenuOverlay" class="game-menu-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="game-menu-panel">
+    <button type="button" class="close" id="gameMenuClose">✕</button>
+    <h2 data-i18n="game_menu_title">Меню</h2>
+    <div class="game-menu-actions">
+      <button type="button" class="btn secondary" id="gameMenuHelp" data-i18n="game_menu_help">Управление</button>
+      <button type="button" class="btn secondary" id="gameMenuReplayTutorial" data-i18n="game_menu_replay_tutorial">Повторить обучение</button>
+    </div>
+    <div class="game-menu-lang" id="gameMenuLang" aria-label="Language">
+      <button type="button" class="lang-btn" data-lang="ru">RU</button>
+      <button type="button" class="lang-btn" data-lang="uk">UK</button>
+      <button type="button" class="lang-btn" data-lang="en">EN</button>
+      <button type="button" class="lang-btn" data-lang="da">DA</button>
+    </div>
+    <div id="gameMenuJournal" class="game-menu-journal"></div>
+    <button type="button" class="btn secondary" id="gameMenuAudio" data-i18n="audio_settings_btn">Звук</button>
+  </div>
+</div>
 <div class="modal" id="accountModal">
   <button type="button" class="close" id="accountModalClose">✕</button>
   <div class="account-panel">
@@ -260,21 +371,69 @@
 </script>
 <script src="js/characters.js?v=living3d-v22r5-accounts-r1"></script>
 <script src="js/i18n.js?v=living3d-v22r5-accounts-r1"></script>
-<script src="js/voice.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/loading-screen.js?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/audio-bootstrap.mjs?v=voice-narrator-1"></script>
+<script src="js/voice.js?v=voice-narrator-1"></script>
+<script type="module" src="js/player-save-merge.mjs?v=voice-narrator-1"></script>
 <script src="js/onboarding.js?v=living3d-v22r5-accounts-r1"></script>
+<script type="module" src="js/audio-manager.mjs?v=pr-a-quality-1"></script>
+<script type="module" src="js/audio-settings-ui.mjs?v=pr-a-quality-1"></script>
+<script type="module" src="js/story/chapter-intro.mjs?v=pr-a-quality-1"></script>
+<script type="module" src="js/story/story-goal-hud.mjs?v=pr-a-quality-1"></script>
 <script type="module" src="js/context-hints.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/how-to-play.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/world3d.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/char-select.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script src="js/life.js?v=living3d-v22r5-accounts-r1"></script>
-<script src="js/game.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/game.js?v=voice-narrator-1"></script>
 <script type="module">
   import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1";
   import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r5-accounts-r1";
+  import { migrateBuildSave } from "./js/build/build-layer.mjs?v=pr-b-build-1";
+  window.__migrateBuildSave = migrateBuildSave;
+  window.purchaseCityPlot = id => window.World3D?.purchaseCityPlot?.(id);
   initPlayV21();
+  const { initAudioSettingsUi } = await import("./js/audio-settings-ui.mjs?v=pr-a-quality-1");
+  const { initAudioManager } = await import("./js/audio-manager.mjs?v=pr-a-quality-1");
+  initAudioManager();
+  initAudioSettingsUi();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
-  window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
+  await import("./js/story/story-endings.mjs?v=story-endings-3");
+  await import("./js/story/ending-resolve.mjs?v=ending-resolve-1");
+  await import("./js/story/castle-gameplay.mjs?v=castle-gp-1");
+  await import("./js/story/story-scenes.mjs?v=story-scenes-1");
+  await import("./js/story/story-checkpoints.mjs?v=story-checkpoints-1");
+  await import("./js/story/angelina-guide.mjs?v=angelina-2");
+  const { initAngelinaHelp } = await import("./js/story/angelina-help.mjs?v=angelina-2");
+  initAngelinaHelp();
+  await import("./js/story/quest-catalog.mjs?v=quest-catalog-1").then(m => m.loadQuestCatalog());
+  const concertEl = document.getElementById("concertPrep");
+  concertEl?.querySelectorAll("[data-headliner]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      concertEl.style.display = "none";
+      concertEl.classList.remove("active");
+      window.CastleGameplay?.confirmConcertPrep?.(btn.dataset.headliner, {
+        toast: m => window.toast?.(m),
+        save: () => window.saveMe?.()
+      });
+    });
+  });
+  document.querySelectorAll("#endingChoice [data-ending]").forEach(btn => {
+    btn.addEventListener("click", () => window.StoryEndings?.applyEnding(window.me, btn.dataset.ending, {
+      toast: m => window.toast?.(m),
+      save: () => window.saveMe?.(),
+      t: k => (typeof window.t === "function" ? window.t(k) : k),
+      L: o => {
+        const lang = typeof window.getLanguage === "function" ? window.getLanguage() : "ru";
+        return o[lang] || o.en || o.ru || "";
+      }
+    }));
+  });
+  window.throwDogBall = () => {
+    window.Onboarding?.onShnurokInteract?.("ball");
+    return window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => true });
+  };
   window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.me = window.me || {};
 </script>
@@ -283,8 +442,8 @@
   initAccountAuth().catch(err => console.error("initAccountAuth", err));
   document.getElementById("btnAccountSignOutLoading")?.addEventListener("click", () => window.__punkSignOut?.());
 </script>
-<p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
-  3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0
+<p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:320px;text-align:right;margin:0">
+  3D: <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> CC BY 4.0 · Music: Bart (CC0) fastsong/headbangr · Matthew Steele Rock Music Pack (CC-BY 3.0) via <a href="https://opengameart.org" target="_blank" rel="noopener">OpenGameArt</a> — see docs/audio/LICENSES.md
 </p>
 </body>
 </html>

@@ -1,0 +1,21 @@
+
+> record:episode1-youtube
+> node scripts/record-episode1-youtube.js
+
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+ffprobe: /exec-daemon/tmux-root/lib/libncursesw.so.6: no version information available (required by /lib/x86_64-linux-gnu/libcaca.so.0)
+VALIDATION FAIL audio@22s mean_volume=-99dB (need > -40); audio@52s mean_volume=-99dB (need > -40); audio@82s mean_volume=-99dB (need > -40); audio@112s mean_volume=-99dB (need > -40); audio@142s mean_volume=-99dB (need > -40); audio@172s mean_volume=-99dB (need > -40); audio@202s mean_volume=-99dB (need > -40); audio@232s mean_volume=-99dB (need > -40); audio@262s mean_volume=-99dB (need > -40); audio@292s mean_volume=-99dB (need > -40); audio@322s mean_volume=-99dB (need > -40); audio@352s mean_volume=-99dB (need > -40); audio@382s mean_volume=-99dB (need > -40); audio@412s mean_volume=-99dB (need > -40); audio@442s mean_volume=-99dB (need > -40); audio@472s mean_volume=-99dB (need > -40); audio@502s mean_volume=-99dB (need > -40); audio@532s mean_volume=-99dB (need > -40); audio@562s mean_volume=-99dB (need > -40)

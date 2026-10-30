@@ -1,0 +1,25 @@
+[
+  {
+    "label": "chromium-default",
+    "meta": {
+      "exposure": null,
+      "loc": "construction",
+      "stage": 4
+    },
+    "ok": true
+  },
+  {
+    "label": "chromium-angle-swiftshader",
+    "ok": false,
+    "error": "page.evaluate: Error: Error creating WebGL context.\n    at new WebGLRenderer (https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js:28672:13)\n    at Object.open (http://127.0.0.1:8765/js/char-select.mjs?v=living3d-v22r6-master-p1-r1:151:16)\n    at openSelect (http://127.0.0.1:8765/js/game.js?v=living3d-v22r6-master-p1-r1:513:41)\n    at finishLoadMeFlow (http://127.0.0.1:8765/js/game.js?v=living3d-v22r6-master-p1-r1:516:5)\n    at eval (eval at evaluate (:234:30), <anonymous>:3:12)\n    at UtilityScript.evaluate (<anonymous>:236:17)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+  },
+  {
+    "label": "webkit",
+    "meta": {
+      "exposure": null,
+      "loc": "construction",
+      "stage": 4
+    },
+    "ok": true
+  }
+]

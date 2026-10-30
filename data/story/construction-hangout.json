@@ -5,6 +5,7 @@
   "stages": [
     {
       "id": 1,
+      "gameplayId": "foundation_materials",
       "name": { "ru": "Фундамент", "en": "Foundation", "da": "Fundament" },
       "need": { "brick": 10, "nails": 2 },
       "hint": {
@@ -16,6 +17,7 @@
     },
     {
       "id": 2,
+      "gameplayId": "frame_materials",
       "name": { "ru": "Каркас", "en": "Frame", "da": "Skelet" },
       "need": { "board": 10, "nails": 2 },
       "hint": {
@@ -27,6 +29,7 @@
     },
     {
       "id": 3,
+      "gameplayId": "shell_materials",
       "name": { "ru": "Стены и крыша", "en": "Walls & roof", "da": "Vægge og tag" },
       "need": { "board": 8, "brick": 6, "chain": 2 },
       "hint": {
@@ -38,6 +41,7 @@
     },
     {
       "id": 4,
+      "gameplayId": "punk_finish",
       "name": { "ru": "Стиль панк", "en": "Punk style", "da": "Punk-stil" },
       "need": { "neon_tube": 2, "spray": 3 },
       "hint": {

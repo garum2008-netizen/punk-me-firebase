@@ -128,8 +128,15 @@ export function openStage1Dialog(opts = {}) {
   if (!stage) return;
   if (!opts.force) {
     if (me().location !== "street") return;
-    if (window.World3D?.getNearestNpc?.() !== "mohawk") return;
-    if (window.StoryEngine?.canOpenStoryModal && !window.StoryEngine.canOpenStoryModal()) return;
+    const gangUi = document.getElementById("gangModal")?.classList.contains("active");
+    if (!gangUi && window.World3D?.getNearestNpc?.() !== "mohawk") return;
+    if (
+      !gangUi &&
+      window.StoryEngine?.canOpenStoryModal &&
+      !window.StoryEngine.canOpenStoryModal()
+    ) {
+      return;
+    }
   } else if (me().location !== "street") return;
   window.StoryEngine?.dismissAllStoryUi?.();
   document.querySelectorAll(".modal.active").forEach(el => el.classList.remove("active"));
@@ -151,6 +158,7 @@ export function openStage1Dialog(opts = {}) {
       addAuthority(c.authority ?? 0);
       (c.effects || []).forEach(e => window.StoryEngine?.applyEffect?.(e));
       st.auth.s1Done = true;
+      st.flags.ch1_initiation_unlocked = true;
       if (st.authority < 15) addAuthority(15 - st.authority);
       st.auth.stage = 2;
       dlg.classList.remove("active");
@@ -177,7 +185,16 @@ export function getAuthorityObjective(p = me()) {
   const stageNum = st.auth.stage;
   const stages = pathData?.stages || [];
   if (stageNum === 1 && !st.auth.s1Done) {
-    return { title: L(stages[0]?.title), objective: L({ ru: "Иди на Улицу — банда подкалывает", en: "Go to Gang Street — the gang is teasing", da: "Gå til Bandegaden" }), beacon: "npc_mohawk_street" };
+    const onStreet = p.location === "street";
+    return {
+      title: L(stages[0]?.title),
+      objective: L(
+        onStreet
+          ? { ru: "Найди Ирокеза на улице и поговори с ним", en: "Find Mohawk on the street and talk to him", da: "Find Mohawk på gaden og tal med ham" }
+          : { ru: "Иди на Улицу — банда подкалывает", en: "Go to Gang Street — the gang is teasing", da: "Gå til Bandegaden" }
+      ),
+      beacon: "npc_mohawk_street"
+    };
   }
   if (stageNum === 2) {
     const tasks = stages[1]?.tasks || [];
@@ -227,13 +244,16 @@ export function runInitiationCeremony(opts = {}) {
     if (window.World3D?.getNearestNpc?.() !== "razor") return;
     if (window.StoryEngine?.canOpenStoryModal && !window.StoryEngine.canOpenStoryModal()) return;
   } else if (me().location !== "street") return;
-  if (!stage3Complete(st) || st.authority < 80) {
+  const readyForCeremony = st.authority >= 80 && (st.auth.stage >= 4 || stage3Complete(st));
+  if (!readyForCeremony) {
     window.toast?.(L({ ru: "Сначала испытания", en: "Finish the trials first", da: "Fuldfør prøverne først" }));
     return;
   }
   const stage = pathData?.stages?.[3];
   const dlg = document.getElementById("storyDialog");
   if (dlg && stage?.ceremony) {
+    document.getElementById("storyScene")?.classList.remove("active");
+    document.getElementById("chapterIntro")?.classList.remove("active");
     dlg.classList.add("active");
     dlg.querySelector(".story-dialog-title").textContent = L(stage.title);
     dlg.querySelector(".story-dialog-body").innerHTML =
@@ -242,7 +262,9 @@ export function runInitiationCeremony(opts = {}) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => window.StoryEngine?.applyDialogueCamera?.("razor"));
     });
-    dlg.querySelector("#authInitBtn").onclick = () => {
+    dlg.querySelector("#authInitBtn").onclick = ev => {
+      ev?.preventDefault?.();
+      ev?.stopPropagation?.();
       dlg.classList.remove("active");
       window.StoryEngine?.clearDialogueCamera?.();
       finishInitiation();
@@ -298,6 +320,7 @@ export function maybeChapter2Bullying() {
         window.toast?.(L(ch2.npc_reactions.cobalt_disappointed));
       }
       dlg.classList.remove("active");
+      window.StoryEngine?.updateConstructionHud?.();
       window.saveMe?.();
     };
     body.appendChild(btn);
@@ -356,8 +379,20 @@ export function tryAuthorityNpc(npcId, p = me()) {
     openStage1Dialog();
     return true;
   }
-  if (npcId === "razor" && st.auth.stage === 4 && !st.flags?.joined_gang) {
-    runInitiationCeremony();
+  if (
+    npcId === "razor" &&
+    !st.flags?.joined_gang &&
+    st.authority >= 80 &&
+    st.auth.stage >= 3 &&
+    stage3Complete(st)
+  ) {
+    runInitiationCeremony({ force: true });
+    return true;
+  }
+  if (npcId === "vintik" && me().characterId === "cobalt" && me().location === "roof" && st.auth.stage === 2 && !st.auth.tasks.cobalt_item) {
+    completeAuthTask("cobalt_item");
+    window.StoryEngine?.fireStoryEvent?.("auth_cobalt_item");
+    window.toast?.(L({ ru: "Винтик: «Нашёл куртку Кобальта. Держи, свой.»", en: "Vintik: \"Found Cobalt's jacket. Here, fam.\"", da: "Vintik: \"Fundet Cobalts jakke.\"" }));
     return true;
   }
   if (npcId === "gravedigger" && st.auth.stage === 2 && !st.auth.tasks.no_rat) {
@@ -494,3 +529,9 @@ export const Authority = {
 };
 
 export default Authority;
+
+if (typeof window !== "undefined") {
+  window.__openAuthStage1 = () => openStage1Dialog({ force: true });
+  window.__runInitiation = () => runInitiationCeremony({ force: true });
+  window.__finishInitiation = () => finishInitiation();
+}
