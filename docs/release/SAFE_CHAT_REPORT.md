@@ -12,17 +12,17 @@ flowchart LR
 ```
 
 - **Worker** (`workers/safe-chat/`): `POST /api/chat/send`, `POST /api/chat/report`, `GET /api/chat/config`, mod routes under `/api/mod/*`.
-- **RTDB (runtime):** `chat/messages` read if `auth != null`; **writes only via Worker** (service account). This PR **does not commit** `database.rules.json` changes — see rules overlay below.
+- **RTDB:** `chat/messages` read if `auth != null`; **writes only via Worker** (service account). **`database.rules.json` in this PR** matches `applySafeChatPatch` (see `scripts/build-safe-chat-rules.mjs` for live-export refresh).
 
-### RTDB rules (not in this PR diff)
+### RTDB rules (in PR diff)
 
-Deploying safe chat requires merging **`applySafeChatPatch`** onto the live rules export (after PR #45 hotfix baseline):
+Repo `database.rules.json` includes the safe-chat overlay. For production publish after merge:
 
 ```bash
-node scripts/build-safe-chat-rules.mjs --write path/to/database.rules.json   # owner review only
+node scripts/build-safe-chat-rules.mjs --write path/to/live-exported-database.rules.json   # owner review only
 ```
 
-Automated **`npm run test:safe-chat`** uses a **temporary** overlay (`scripts/lib/safe-chat-emulator.mjs`: main `database.rules.json` + patch in `os.tmpdir`, not written to repo).
+**`npm run test:safe-chat`** runs Firebase emulators against **repo** `database.rules.json` (`scripts/lib/safe-chat-emulator.mjs`).
 
 ### Integration auth (not in production bundle)
 
@@ -115,8 +115,8 @@ This runs: filter unit tests → RTDB rules on Firebase emulators → wrangler/m
 | Filter: obfuscated links, phones, email, RU/UK/DA contact & profanity | same | **PASS** (auto) |
 | Filter: length > 200 | same | **PASS** (auto) |
 | RTDB: client cannot POST `chat/messages` / legacy `chat/` | `scripts/test-safe-chat-rules.js` + Auth+DB emulator | **PASS** (auto) |
+| RTDB: unauthenticated read denied; admin write OK; chatMeta locked | same | **PASS** (auto) |
 | RTDB: client cannot POST `chat/reports`, PUT `modState/mute`, PUT `internal` | same | **PASS** (auto) |
-| RTDB: auth read `chat/messages`; `chatBlocklist` self-write | same | **PASS** (auto) |
 | `wrangler.toml` has no test-auth vars; uses `new_sqlite_classes` | `scripts/test-safe-chat-prod-config.mjs` | **PASS** (auto) |
 | `wrangler deploy --dry-run` packages Worker + SQLite DO migration | local CLI (no publish) | **PASS** (auto, see CI log in PR) |
 | Worker `/api/chat/config` smoke | vitest miniflare | **PASS** (auto) |
@@ -126,7 +126,7 @@ This runs: filter unit tests → RTDB rules on Firebase emulators → wrangler/m
 | Mute / ban block send | integration | **PASS** (auto) |
 | `/api/mod/*` forbidden for non-mod (same API as `moderation.html`) | integration | **PASS** (auto) |
 | Mod list reports + delete message | integration | **PASS** (auto) |
-| Client blocklist logic | integration (`isBlocked`) + rules blocklist write | **PASS** (auto) |
+| Client blocklist via Worker `/api/chat/block` + `blockedSids` | integration | **PASS** (auto) |
 | Retention 7d / 90d with `SAFE_CHAT_TEST_NOW_MS` | `runRetentionJob` integration | **PASS** (auto) |
 | Newbie 10 min phrases-only (`freeTextEnabled=true` in newbie suite only) | `integration.newbie.test.js` | **PASS** (auto) |
 | Auth via emulator tokens (not skipAuth) in integration | integration | **PASS** (auto) |
@@ -135,6 +135,22 @@ This runs: filter unit tests → RTDB rules on Firebase emulators → wrangler/m
 | Cron trigger in deployed Worker | Cloudflare dashboard | **Manual** (after GO) |
 | Report webhook notification | optional secret | **Manual** (not wired) |
 | Legal copy review | owner | **Manual** (Inna) |
+
+## Delta security review (77f0310) — remediation map
+
+| Item | Fix | Commit (this branch) |
+|------|-----|----------------------|
+| NEW-1 HIGH Worker bypass | `database.rules.json` + client read-only without Worker URL | see git log `fix(rtdb)` / `fix(client)` |
+| HIGH-2 chat trust fields | `chatMeta/$uid` + players validate lock legacy keys; `rateLimitLevel` server snapshot | `feat(worker)` |
+| HIGH-3 display name filter | `filterMessage` on profile name | `feat(worker)` |
+| HIGH-4 raw uid in messages | `sid` = HMAC(`chat:uid`); server blocklist API | `feat(worker)` + `fix(client)` |
+| HIGH-5 retention / erasure / lockfiles | prune reportDedup/counts; `POST /api/chat/delete-my-data`; `package-lock.json` | `feat(worker)` + `chore` |
+| LOW admin `owner` token | removed from prod `admin-token.js`; vitest aliases `admin-token.integration.js` | `fix(worker)` |
+| LOW mute / JWT exp | mute duration bounds; mandatory `exp` | `fix(worker)` |
+| LOW child_safety hide | documented safetyHold + mod resolve (not hide-and-forget) | `docs` |
+| NEW-5 pkill | emulator teardown kills spawned process group only | `test(rules)` |
+
+**Owner Gmail (unchanged per owner approval):** `js/game.js:11`, `scripts/set-admin-claim.mjs:11`, `docs/release/RULES_PUBLISH_CHECKLIST.md:47`, `scripts/rules-deploy-snapshots/repo-main-7ee242b.json:6,9,32`, `scripts/test-deploy-order-safety.js:254`.
 
 ## Remaining risks
 
