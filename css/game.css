@@ -380,8 +380,17 @@ body.social-presence-offline .hud-online-combined strong { font-weight: 600; }
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
 }
 @media (max-width: 900px) {
-  .lang-corner { top: 6px; right: 6px; }
+  #langCorner.lang-corner { display: none !important; }
   .hud .lang-switch { display: none !important; }
+  .btn-howto {
+    width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+    font-size: 18px;
+  }
+  #btnHowTo { top: 8px; right: 108px; }
+  #btnGameMenu.btn-game-menu { top: 8px; right: 56px; z-index: 34; }
+}
+@media (min-width: 901px) {
+  .game-menu-lang { display: none; }
 }
 .close {
   float: right; background: #444; color: #fff; border: none;
@@ -473,6 +482,7 @@ body.social-presence-offline .hud-online-combined strong { font-weight: 600; }
   max-width: min(90vw, 520px); text-align: center; padding: 8px 12px;
   background: rgba(0,0,0,0.72); border-radius: 12px; font-size: 13px;
   opacity: 0; transition: opacity 0.2s;
+  pointer-events: none;
 }
 .voice-subtitle.visible { opacity: 1; }
 .howto-overlay {
@@ -1018,6 +1028,15 @@ html.episode-capture .btn-account { display: none !important; }
   border: none; background: transparent; color: #fff; font-size: 20px; cursor: pointer;
 }
 .game-menu-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.game-menu-lang {
+  display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+  padding: 8px; border-radius: 10px; background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(0,255,255,0.25);
+}
+@media (max-width: 900px) {
+  .game-menu-lang { display: flex; }
+}
+.game-menu-lang .lang-btn { min-width: 44px; min-height: 44px; }
 .game-menu-journal {
   max-height: 42vh; overflow: auto; margin: 10px 0 14px;
   padding: 10px; border-radius: 12px; background: rgba(0, 0, 0, 0.35);
