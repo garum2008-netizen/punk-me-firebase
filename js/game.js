@@ -1169,15 +1169,10 @@ function localizeChatText(text) {
 }
 
 function listenChat() {
-  db.ref("chat").limitToLast(25).on("child_added", s => {
-    const m = s.val();
-    if (!m) return;
-    const box = document.getElementById("chatMessages");
-    const line = document.createElement("div");
-    line.innerHTML = "<b>" + escapeHtml(m.name) + ":</b> " + escapeHtml(localizeChatText(m.text));
-    box.appendChild(line);
-    box.scrollTop = box.scrollHeight;
-  });
+  if (window.PunkSafeChat) {
+    window.PunkSafeChat.init({ workerUrl: window.__PUNK_SAFE_CHAT_URL || "" });
+    return;
+  }
 }
 
 function listenBuildings() {
@@ -1927,9 +1922,12 @@ function sendChat() {
   const inp = document.getElementById("chatInput");
   const text = inp.value.trim();
   if (!text) return;
-  db.ref("chat").push({ uid, name: me.name, text, time: Date.now(), loc: me.location }).catch(() => {
-    toast(t("chatDown"));
-  });
+  if (window.PunkSafeChat?.useSafeChat?.()) {
+    window.PunkSafeChat.sendFreeText(text);
+    inp.value = "";
+    return;
+  }
+  toast(typeof window.tSafeChat === "function" ? window.tSafeChat("chatNotSent") : t("chatDown"));
   inp.value = "";
 }
 

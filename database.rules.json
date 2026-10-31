@@ -8,6 +8,7 @@
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
         ".write": "auth != null && auth.uid === $uid",
+        ".validate": "(!data.hasChild('chatAge13DeclaredAt') || newData.hasChild('chatAge13DeclaredAt')) && (!data.hasChild('chatRegisteredAt') || newData.hasChild('chatRegisteredAt')) && (!data.hasChild('chatBlocklist') || newData.hasChild('chatBlocklist'))",
         "name": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
         },
@@ -100,6 +101,19 @@
         },
         "linkedAuth": {
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
+        },
+        "chatAge13DeclaredAt": {
+          ".validate": "data.exists() && newData.val() == data.val()"
+        },
+        "chatRegisteredAt": {
+          ".validate": "data.exists() && newData.val() == data.val()"
+        },
+        "chatBlocklist": {
+          ".validate": "(!data.exists() || !newData.exists() || newData.val() == data.val()) && (!newData.exists() || newData.hasChildren())",
+          "$peer": {
+            ".write": "auth != null && auth.uid === $uid && newData.exists()",
+            ".validate": "data.exists() && newData.val() == data.val()"
+          }
         }
       }
     },
@@ -122,10 +136,53 @@
       }
     },
     "chat": {
-      ".read": true,
-      "$msgId": {
-        ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 280",
-        ".validate": "newData.hasChildren(['uid', 'name', 'text', 'time']) && newData.child('name').isString() && newData.child('name').val().length <= 64"
+      "messages": {
+        ".read": "auth != null",
+        ".write": false,
+        "$msgId": {
+          ".read": false,
+          ".write": false,
+          "sid": {
+            ".read": "auth != null"
+          },
+          "name": {
+            ".read": "auth != null"
+          },
+          "text": {
+            ".read": "auth != null"
+          },
+          "time": {
+            ".read": "auth != null"
+          },
+          "phraseId": {
+            ".read": "auth != null"
+          },
+          "loc": {
+            ".read": "auth != null"
+          },
+          "hidden": {
+            ".read": "auth != null"
+          },
+          "textRedacted": {
+            ".read": "auth != null"
+          }
+        }
+      },
+      "reports": {
+        ".read": false,
+        ".write": false
+      },
+      "modState": {
+        ".read": false,
+        ".write": false,
+        "$uid": {
+          ".read": false,
+          ".write": false
+        }
+      },
+      "internal": {
+        ".read": false,
+        ".write": false
       }
     },
     "buildings": {
@@ -135,6 +192,12 @@
           ".write": "auth != null && ((!data.exists() && newData.child('owner').val() === auth.uid) || (data.exists() && data.child('owner').val() === auth.uid) || auth.token.admin === true)",
           ".validate": "newData.hasChildren(['type', 'x', 'y', 'owner']) && newData.child('type').isString() && (newData.child('owner').val() === auth.uid || auth.token.admin === true)"
         }
+      }
+    },
+    "chatMeta": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
       }
     }
   }
