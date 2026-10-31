@@ -14,7 +14,9 @@ import {
   waitSendCooldown,
   resetHideCountersDo,
   putChatMessageText,
-  apiPostReport
+  apiPostReport,
+  waitForChatMessage,
+  apiSend
 } from "./test-helpers.js";
 
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms (must fail if disabled)", () => {
@@ -60,6 +62,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
       });
       const msgId = ref.json?.name;
       expect(msgId).toBeTruthy();
+      await waitForChatMessage(msgId);
       msgIds.push(msgId);
     }
     for (let i = 0; i < 3; i++) {

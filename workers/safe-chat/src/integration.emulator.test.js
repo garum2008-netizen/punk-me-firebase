@@ -16,6 +16,7 @@ import {
   resetIntegrationIsolation,
   apiPostReport,
   putChatMessageText,
+  apiSend,
   PROJECT_ID
 } from "./test-helpers.js";
 import { detectChildHarmSignals } from "./child-harm.js";
@@ -444,11 +445,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: false dismiss reduces auto-hide weight but report still accepted", async () => {
     const author = await authSignUp();
-    const { id: msgId1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { j: s1 } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
     await waitSendCooldown();
-    const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { j: s2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
+    const msgId1 = s1.id;
+    const msgId2 = s2.id;
     const rep = await authSignUp();
-    await putChatMessageText(`${msgId1}`, "how old are you secret");
+    await putChatMessageText(`${msgId1}`, "how old are you secret", { skipWait: true });
     await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "grooming" });
     const reports = await rtdbOwner("chat/reports", "GET");
     const reportId = Object.entries(reports.json || {}).find(([, v]) => v?.msgId === msgId1)?.[0];
@@ -490,14 +493,16 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("filter-detected message content hides regardless of reporter auto-hide quota", async () => {
     const author = await authSignUp();
-    const { id: msgId1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { j: s1 } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
     await waitSendCooldown();
-    const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { j: s2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
+    const msgId1 = s1.id;
+    const msgId2 = s2.id;
     const rep = await authSignUp();
-    await putChatMessageText(`${msgId1}`, "kill the kid");
-    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
-    await putChatMessageText(`${msgId2}`, "kill the kid");
-    await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" });
+    await putChatMessageText(`${msgId1}`, "kill the kid", { skipWait: true });
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" }, {}, { skipWait: true });
+    await putChatMessageText(`${msgId2}`, "kill the kid", { skipWait: true });
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" }, {}, { skipWait: true });
     expect((await rtdbOwner(`chat/messages/${msgId1}`, "GET")).json?.hidden).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).toBe(true);
   });

@@ -134,10 +134,22 @@ export async function resetIntegrationIsolation(env) {
   await rtdbOwner("chat/messages", "DELETE");
   await rtdbOwner("chat/reports", "DELETE");
   await rtdbOwner("chat/internal", "DELETE");
+  for (let i = 0; i < 60; i += 1) {
+    const snap = await rtdbOwner("chat/messages", "GET");
+    if (!snap.json || Object.keys(snap.json).length === 0) break;
+    await new Promise(r => setTimeout(r, 25));
+  }
 }
 
-export async function putChatMessageText(msgId, text) {
-  await waitForChatMessage(msgId);
+export async function apiSend(SELF, idToken, body) {
+  const r = await apiPost(SELF, "/api/chat/send", idToken, body);
+  const j = await r.json();
+  if (j.ok && j.id) await waitForChatMessage(j.id);
+  return { r, j };
+}
+
+export async function putChatMessageText(msgId, text, opts = {}) {
+  if (!opts.skipWait) await waitForChatMessage(msgId);
   await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", text);
   const needle = String(text).trim().slice(0, Math.min(32, String(text).length));
   await waitForMessageText(msgId, needle);

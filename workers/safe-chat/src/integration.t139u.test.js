@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
-import { runRetentionJob } from "./index.js";
+import { runRetentionJob, runSlaOverdueJob } from "./index.js";
 import {
   authSignUp,
   apiPost,
@@ -11,7 +11,8 @@ import {
   waitForChatMessage,
   resetHideCountersDo,
   putChatMessageText,
-  apiPostReport
+  apiPostReport,
+  apiSend
 } from "./test-helpers.js";
 
 async function runRetentionToCompletion(envIn, now) {
@@ -40,8 +41,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u D-02: R_new13 and R_aged grooming reports both queue with same escalation", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await putChatMessageText(`${msgId}`, "how old are you don't tell mom");
+    const { j: sent } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
+    const msgId = sent.id;
+    await putChatMessageText(`${msgId}`, "how old are you don't tell mom", { skipWait: true });
     const new13 = await authSignUp();
     await apiPost(SELF, "/api/chat/declare-age13", new13.idToken, { confirmed: true });
     await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" });
@@ -85,7 +87,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const q0 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     const sla = q0.json?.slaReviewBy;
     expect(typeof sla).toBe("number");
-    await runRetentionToCompletion(env, sla + 1000);
+    await runSlaOverdueJob(env, sla + 1000);
     const q1 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     expect(q1.json?.overdue).toBe(true);
   });
@@ -175,7 +177,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
       const author = await authSignUp();
       const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
       expect(msgId).toBeTruthy();
-      await putChatMessageText(`${msgId}`, "kill the kid");
+      await putChatMessageText(`${msgId}`, "how old are you don't tell mom");
       await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" }, hdr);
       hidden.push((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden === true);
     }
