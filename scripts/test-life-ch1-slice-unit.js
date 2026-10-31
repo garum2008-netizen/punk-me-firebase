@@ -33,7 +33,8 @@ const manifest = JSON.parse(
   fs.readFileSync(path.join(__dirname, "../data/story/angelina-skin-manifest.json"), "utf8")
 );
 assert(manifest.skins.A && manifest.skins.B && manifest.skins.C, "manifest skins");
-assert(manifest.skins.C.finalArtSlot === "c-v2-only", "C slot");
+assert(manifest.skins.C.source.sha256 === "c454454a00dfa74bde62ffbc7405b4eca0da0a49e718f5bdf68fb509b12aa2db", "C source sha");
+assert(manifest.sliceOnly === true, "slice only flag");
 
 if (failed) {
   console.error(`life-ch1-unit: ${failed} failed`);

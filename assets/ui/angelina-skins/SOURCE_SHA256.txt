@@ -1,0 +1,3 @@
+5453bb3e7380bbe9a8b2323b45b7773e238942dd295296ea7c430f0097e013f7  assets/ui/angelina-skins/source/angelina-teen-A.png
+4e5d65977b0f196002d3c2d740a3cf865594e6fd71c1967fd5bafa379839bf93  assets/ui/angelina-skins/source/angelina-teen-B.png
+c454454a00dfa74bde62ffbc7405b4eca0da0a49e718f5bdf68fb509b12aa2db  assets/ui/angelina-skins/source/angelina-teen-C-v2.png

@@ -1,6 +1,9 @@
 {
-  "version": 1,
-  "notes": "Owner t569u — drop final PNGs into portrait/world paths; update sha256 only. Skin C final art must be c-v2 only. Placeholders until ICE delivery.",
+  "version": 2,
+  "sliceOnly": true,
+  "promoDeployForbidden": true,
+  "notes": "Owner t569u approved PNGs. Use portrait WebP in wardrobe/dialogue; world WebP is upper-body crop derivative for 3D billboard (~256px wide). Never ship angelina-teen-C.png (v1 guitar). Rebuild shipped: python3 scripts/build-angelina-skin-assets.py",
+  "forbiddenAssets": ["angelina-teen-C.png"],
   "skins": {
     "A": {
       "id": "A",
@@ -9,9 +12,20 @@
         "en": "A — classic (pink puffer)",
         "da": "A — klassisk"
       },
-      "portrait": "assets/ui/angelina-skins/placeholder-a.svg",
-      "world": "assets/ui/angelina-skins/placeholder-a.svg",
-      "sha256": "7ecf4705b14191c5fb615180f71b4bff0f28e44f529dc525f186b46b662ae2fc"
+      "source": {
+        "path": "assets/ui/angelina-skins/source/angelina-teen-A.png",
+        "sha256": "5453bb3e7380bbe9a8b2323b45b7773e238942dd295296ea7c430f0097e013f7",
+        "pixels": "744×1334"
+      },
+      "portrait": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-portrait.webp",
+        "sha256": "91cd01dc6d0ad5c8da9e579449d544c70b6f21ccb4351ecb4f1f93568e4487bd"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-world.webp",
+        "sha256": "e31bd88c46d1586f0e4d13d0004d38082bd60f13ca1359397ed00878b1cd050b",
+        "derivative": "upper-body crop + 256px wide WebP from source"
+      }
     },
     "B": {
       "id": "B",
@@ -20,9 +34,20 @@
         "en": "B — punk teen (patched denim)",
         "da": "B — punk teen"
       },
-      "portrait": "assets/ui/angelina-skins/placeholder-b.svg",
-      "world": "assets/ui/angelina-skins/placeholder-b.svg",
-      "sha256": "4f9dd2977091ff17a0ffe96c6d7aef0779f47bb545ac69d4e84a0cf37126f34f"
+      "source": {
+        "path": "assets/ui/angelina-skins/source/angelina-teen-B.png",
+        "sha256": "4e5d65977b0f196002d3c2d740a3cf865594e6fd71c1967fd5bafa379839bf93",
+        "pixels": "744×1334"
+      },
+      "portrait": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp",
+        "sha256": "40c2580e9d684c2c1009cd75da1a22f0eedf71092d3e9fc05674c6df2fed7cba"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-world.webp",
+        "sha256": "537f17d177ea1adbd4c5e8a5c5f976af64d1b6e84ee834ec5368e13aacd75547",
+        "derivative": "upper-body crop + 256px wide WebP from source"
+      }
     },
     "C": {
       "id": "C",
@@ -31,10 +56,21 @@
         "en": "C — angel rocker (wings vest, c-v2)",
         "da": "C — angel rocker"
       },
-      "portrait": "assets/ui/angelina-skins/placeholder-c.svg",
-      "world": "assets/ui/angelina-skins/placeholder-c.svg",
-      "sha256": "d6a6c256348bd518799475fe1ff6638d56bb2710cdba0d69a98334e2d23a52df",
-      "finalArtSlot": "c-v2-only"
+      "finalArtSlot": "c-v2-only",
+      "source": {
+        "path": "assets/ui/angelina-skins/source/angelina-teen-C-v2.png",
+        "sha256": "c454454a00dfa74bde62ffbc7405b4eca0da0a49e718f5bdf68fb509b12aa2db",
+        "pixels": "720×1280"
+      },
+      "portrait": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp",
+        "sha256": "5ab732346138ca02064588aeb71c19e0890ac2e5598cdc3f97e314b59d612a10"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-world.webp",
+        "sha256": "8a61b7e4583e34fa96965776acba2243869cd2ad3f99b4ae122b443ef4dfe304",
+        "derivative": "upper-body crop + 256px wide WebP from source"
+      }
     }
   }
 }

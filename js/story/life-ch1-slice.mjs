@@ -353,9 +353,14 @@ function openWardrobePanel() {
   wardrobePending.skin = readSelectedSkin(st);
   wardrobePending.outfitFlag = null;
   panel.hidden = false;
+  document.getElementById("lifeCh1WardrobeTitle").textContent = L({
+    ru: "Angelina — гардероб",
+    en: "Angelina — wardrobe",
+    da: "Angelina — garderobe"
+  });
   document.getElementById("lifeCh1WardrobeHint").textContent = L({
-    ru: "Выбери образ Angelina (A/B/C). Плейсхолдеры до финальных PNG.",
-    en: "Pick Angelina look (A/B/C). Placeholders until final PNGs.",
+    ru: "Выбери образ Angelina (A/B/C) — одобренные Owner PNG.",
+    en: "Pick Angelina look (A/B/C) — Owner-approved PNGs.",
     da: "Vælg Angelina (A/B/C)."
   });
   document.getElementById("lifeCh1OutfitLabel").textContent = L({

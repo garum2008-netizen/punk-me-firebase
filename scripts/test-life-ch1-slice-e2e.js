@@ -86,7 +86,7 @@ async function run() {
     await page.keyboard.press("e");
     await page.waitForSelector("#lifeCh1DialogPortrait", { timeout: 10000 });
     const portraitSrc = await page.getAttribute("#lifeCh1DialogPortrait", "src");
-    if (!portraitSrc || !portraitSrc.includes("placeholder-b")) {
+    if (!portraitSrc || !portraitSrc.includes("angelina-teen-B-portrait.webp")) {
       throw new Error("skin B dialogue portrait not shown: " + portraitSrc);
     }
     await page.waitForSelector(".life-ch1-choice", { timeout: 10000 });
