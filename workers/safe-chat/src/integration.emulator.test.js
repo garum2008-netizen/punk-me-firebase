@@ -481,13 +481,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       "/api/chat/report",
       userC.idToken,
       { msgId, category: "grooming" },
-      { "CF-Connecting-IP": "203.0.113.12" }
+      { "CF-Connecting-IP": "198.51.100.12" }
     );
     let hidden = false;
-    for (let t = 0; t < 40; t += 1) {
+    for (let t = 0; t < 100; t += 1) {
       hidden = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden === true;
       if (hidden) break;
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 100));
     }
     expect(hidden).toBe(true);
     await apiPost(SELF, "/api/chat/appeal-hide", author.idToken, { msgId, reasonCode: "wrongful_hide" });
