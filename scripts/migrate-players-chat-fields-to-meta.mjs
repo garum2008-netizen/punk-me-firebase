@@ -113,6 +113,11 @@ async function rtdbPut(pathSuffix, value) {
   return { status: res.status };
 }
 
+function allowedMigrationDatabaseHostname(hostname) {
+  const h = String(hostname || "").toLowerCase();
+  return h === "localhost" || h === "127.0.0.1" || h === "::1";
+}
+
 async function main() {
   console.log("migrate-players-chat-fields-to-meta (lossless plan)");
   console.log(`Mode: ${write ? "WRITE" : "DRY-RUN"}`);
@@ -131,10 +136,16 @@ async function main() {
       process.exit(1);
     }
     if (!prodOk && emulator && dbUrl) {
-      const h = dbUrl.toLowerCase();
-      if (!h.includes("127.0.0.1") && !h.includes("localhost")) {
+      let host;
+      try {
+        host = new URL(dbUrl).hostname;
+      } catch {
+        console.error("FATAL: FIREBASE_DATABASE_URL is not a valid URL.");
+        process.exit(1);
+      }
+      if (!allowedMigrationDatabaseHostname(host)) {
         console.error(
-          "FATAL: with FIREBASE_EMULATOR_HOST set, FIREBASE_DATABASE_URL must use 127.0.0.1 or localhost (not production)."
+          "FATAL: with FIREBASE_EMULATOR_HOST set, FIREBASE_DATABASE_URL hostname must be localhost, 127.0.0.1, or ::1 (not production)."
         );
         process.exit(1);
       }

@@ -5,7 +5,6 @@ import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const integration = process.env.SAFE_CHAT_INTEGRATION === "1";
 const newbie = process.env.SAFE_CHAT_INTEGRATION_NEWBIE === "1";
-const doContinueOnly = process.env.SAFE_CHAT_ERASURE_USE_DO_CONTINUE === "1";
 
 export default defineWorkersConfig({
   resolve: {
@@ -16,22 +15,21 @@ export default defineWorkersConfig({
   },
   test: {
     fileParallelism: false,
-    testTimeout: integration ? 120000 : 10000,
+    setupFiles: integration ? ["src/integration.setup.js"] : [],
+    testTimeout: integration ? 180000 : 10000,
     include: integration
       ? newbie
         ? ["src/integration.newbie.test.js"]
-        : doContinueOnly
-          ? ["src/integration.erasure-continue.test.js"]
-          : [
-              "src/integration.emulator.test.js",
-              "src/integration.t139u.test.js",
-              "src/integration.protections.test.js",
-              "src/integration.erasure.test.js",
-              "src/integration.erasure-continue.test.js"
-            ]
+        : [
+            "src/integration.erasure.test.js",
+            "src/integration.protections.test.js",
+            "src/integration.emulator.test.js",
+            "src/integration.t139u.test.js"
+          ]
       : ["src/prod-config.test.js", "src/worker.smoke.test.js"],
     poolOptions: {
       workers: {
+        isolatedStorage: !integration,
         wrangler: { configPath: "./wrangler.toml" },
         miniflare: {
           bindings: {
@@ -50,8 +48,6 @@ export default defineWorkersConfig({
             SAFE_CHAT_ERASURE_MIN_INTERVAL_MS: integration ? "0" : String(60 * 60 * 1000),
             SAFE_CHAT_ERASURE_MAX_SUBREQUESTS: integration ? "40" : "40",
             SAFE_CHAT_ERASURE_BATCH: integration ? "5" : "40",
-            SAFE_CHAT_ERASURE_USE_DO_CONTINUE: doContinueOnly ? "1" : "0",
-            SAFE_CHAT_INTERNAL_SECRET: integration ? "vitest-internal-secret" : "",
             SAFE_CHAT_YOUNG_COOLDOWN_MS: integration ? "0" : "5000",
             SAFE_CHAT_CHILD_SAFETY_REPORTER_MIN_MS: integration ? String(24 * 60 * 60 * 1000) : String(24 * 60 * 60 * 1000),
             SAFE_CHAT_CHILD_SAFETY_CLUSTER_HIDE_CAP: integration ? "3" : "5",

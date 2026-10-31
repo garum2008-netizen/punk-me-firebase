@@ -31,89 +31,30 @@ export class ChatLimitsDO {
     const canCall = Boolean(base && secret);
 
     const retentionPending = await this.state.storage.get("retentionContinuePending");
-    if (retentionPending) {
-      if (!canCall) {
-        await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
-        return;
-      }
-      await this.state.storage.put("retentionContinuePending", false);
-      try {
-        const res = await fetch(`${base}/api/internal/retention-continue`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Safe-Chat-Internal": secret
-          },
-          body: "{}"
-        });
-        if (!res.ok) {
-          await this.state.storage.put("retentionContinuePending", true);
-        } else {
-          await this.resetAlarmBackoff();
-        }
-      } catch (_) {
-        await this.state.storage.put("retentionContinuePending", true);
-      }
-    }
-
-    const queue = (await this.state.storage.get("erasureContinueQueue")) || [];
-    const uid = queue[0];
-    if (!uid) {
-      const stillRetention = await this.state.storage.get("retentionContinuePending");
-      if (stillRetention) await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
-      return;
-    }
+    if (!retentionPending) return;
     if (!canCall) {
       await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
       return;
     }
-    queue.shift();
-    await this.state.storage.put("erasureContinueQueue", queue);
-    let requeue = false;
+    await this.state.storage.put("retentionContinuePending", false);
     try {
-      const res = await fetch(`${base}/api/internal/erasure-continue`, {
+      const res = await fetch(`${base}/api/internal/retention-continue`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Safe-Chat-Internal": secret
         },
-        body: JSON.stringify({ uid })
+        body: "{}"
       });
       if (!res.ok) {
-        requeue = true;
+        await this.state.storage.put("retentionContinuePending", true);
+        await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
       } else {
-        const body = await res.json().catch(() => ({}));
-        if (body.completeWithHolds) {
-          await this.state.storage.delete(`erasureAttempt:${uid}`);
-          requeue = false;
-        } else if (body.complete === false || body.continueScheduled === true) {
-          requeue = true;
-        } else {
-          await this.resetAlarmBackoff();
-          await this.state.storage.delete(`erasureAttempt:${uid}`);
-        }
+        await this.resetAlarmBackoff();
       }
     } catch (_) {
-      requeue = true;
-    }
-    if (requeue) {
-      const key = `erasureAttempt:${uid}`;
-      const attempts = ((await this.state.storage.get(key)) || 0) + 1;
-      if (attempts > 48) {
-        await this.state.storage.delete(key);
-      } else {
-        if (!queue.includes(uid)) queue.unshift(uid);
-        await this.state.storage.put(key, attempts);
-        await this.state.storage.put("erasureContinueQueue", queue);
-        await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
-      }
-    } else {
-      await this.state.storage.put("erasureContinueQueue", queue);
-    }
-
-    const pendingAfter = await this.state.storage.get("retentionContinuePending");
-    if (queue.length > 0 || pendingAfter) {
-      if (!requeue) await this.scheduleAlarmSoon(750);
+      await this.state.storage.put("retentionContinuePending", true);
+      await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
     }
   }
 
@@ -155,19 +96,19 @@ export class ChatLimitsDO {
       const result = await this.checkClusterHide(body);
       return Response.json(result);
     }
-    if (request.method === "POST" && url.pathname === "/schedule-erasure-continue") {
-      const body = await request.json();
-      const uid = String(body.uid || "");
-      if (!uid) return Response.json({ ok: false }, { status: 400 });
-      const queue = (await this.state.storage.get("erasureContinueQueue")) || [];
-      if (!queue.includes(uid)) queue.push(uid);
-      await this.state.storage.put("erasureContinueQueue", queue);
-      await this.scheduleAlarmSoon(750);
-      return Response.json({ ok: true, queued: queue.length });
-    }
     if (request.method === "POST" && url.pathname === "/schedule-retention-continue") {
       await this.state.storage.put("retentionContinuePending", true);
       await this.scheduleAlarmSoon(750);
+      return Response.json({ ok: true });
+    }
+    if (request.method === "POST" && url.pathname === "/integration-reset-hide-counters") {
+      if (this.env.SAFE_CHAT_INTEGRATION !== "1") {
+        return new Response("forbidden", { status: 403 });
+      }
+      await this.state.storage.delete("clusterHide");
+      await this.state.storage.delete("childSafetyHide");
+      await this.state.storage.delete("limits");
+      await this.state.storage.delete("reports");
       return Response.json({ ok: true });
     }
     return new Response("not found", { status: 404 });

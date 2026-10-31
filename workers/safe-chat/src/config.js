@@ -1,4 +1,7 @@
 export function loadConfig(env) {
+  if (env == null || typeof env !== "object") {
+    throw new Error("loadConfig: env bindings object is required");
+  }
   if (env.SAFE_CHAT_INTEGRATION === "1" && !env.FIREBASE_EMULATOR_HOST) {
     throw new Error("SAFE_CHAT_INTEGRATION requires FIREBASE_EMULATOR_HOST (test harness only)");
   }

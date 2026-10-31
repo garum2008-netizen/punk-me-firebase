@@ -14,7 +14,12 @@ const root = path.join(__dirname, "..");
 
 function runNode(script, args = []) {
   const r = spawnSync("node", [path.join(__dirname, script), ...args], { cwd: root, stdio: "inherit" });
-  return r.status === 0;
+  if (r.error) {
+    console.error(r.error);
+    return false;
+  }
+  if (r.status !== 0) return false;
+  return true;
 }
 
 async function main() {
@@ -89,19 +94,6 @@ async function main() {
     });
     integrationOk = r.status === 0;
     if (!integrationOk) return;
-    const rDo = spawnSync2("npm", ["test"], {
-      cwd: path.join(root, "workers/safe-chat"),
-      stdio: "inherit",
-      env: {
-        ...process.env,
-        SAFE_CHAT_INTEGRATION: "1",
-        SAFE_CHAT_ERASURE_USE_DO_CONTINUE: "1",
-        SAFE_CHAT_TEST_MOD_UID: mod.localId,
-        SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken
-      }
-    });
-    integrationOk = rDo.status === 0;
-    if (!integrationOk) return;
     const r2 = spawnSync2("npm", ["test"], {
       cwd: path.join(root, "workers/safe-chat"),
       stdio: "inherit",
@@ -124,6 +116,22 @@ async function main() {
     env: process.env
   });
   if (mut.status !== 0) process.exit(1);
+
+  console.log("\n=== review #8 mutation guard (M1–M6b) ===");
+  const r8 = spawnSync2("node", [path.join(__dirname, "safe-chat-review8-mutation-check.mjs")], {
+    cwd: root,
+    stdio: "inherit",
+    env: process.env
+  });
+  if (r8.status !== 0) process.exit(1);
+
+  console.log("\n=== integration order stability (20 shuffle seeds) ===");
+  const shuffle = spawnSync2("node", [path.join(__dirname, "safe-chat-integration-shuffle.mjs")], {
+    cwd: root,
+    stdio: "inherit",
+    env: process.env
+  });
+  if (shuffle.status !== 0) process.exit(shuffle.status || 1);
 
   console.log("\n=== wrangler deploy --dry-run (no publish) ===");
   const dry = spawnSync2("npx", ["wrangler", "deploy", "--dry-run"], {

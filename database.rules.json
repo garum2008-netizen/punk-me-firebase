@@ -111,7 +111,7 @@
         "chatBlocklist": {
           ".validate": "(!data.exists() || !newData.exists() || newData.val() == data.val()) && (!newData.exists() || newData.hasChildren())",
           "$peer": {
-            ".write": "newData.exists()",
+            ".write": "auth != null && auth.uid === $uid && newData.exists()",
             ".validate": "data.exists() && newData.val() == data.val()"
           }
         }
@@ -140,8 +140,32 @@
         ".read": "auth != null",
         ".write": false,
         "$msgId": {
-          ".read": "auth != null",
-          ".write": false
+          ".read": false,
+          ".write": false,
+          "sid": {
+            ".read": "auth != null"
+          },
+          "name": {
+            ".read": "auth != null"
+          },
+          "text": {
+            ".read": "auth != null"
+          },
+          "time": {
+            ".read": "auth != null"
+          },
+          "phraseId": {
+            ".read": "auth != null"
+          },
+          "loc": {
+            ".read": "auth != null"
+          },
+          "hidden": {
+            ".read": "auth != null"
+          },
+          "textRedacted": {
+            ".read": "auth != null"
+          }
         }
       },
       "reports": {

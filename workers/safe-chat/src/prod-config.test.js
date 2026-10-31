@@ -14,4 +14,8 @@ describe("production config defaults in worker", () => {
   it("integration harness requires emulator host", () => {
     expect(() => loadConfig({ SAFE_CHAT_INTEGRATION: "1" })).toThrow(/FIREBASE_EMULATOR_HOST/);
   });
+
+  it("loadConfig rejects undefined env", () => {
+    expect(() => loadConfig(undefined)).toThrow(/env bindings object is required/i);
+  });
 });

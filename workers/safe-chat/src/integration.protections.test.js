@@ -1,8 +1,9 @@
 import { env, SELF } from "cloudflare:test";
-import { describe, it, expect } from "vitest";
-import { runSlaOverdueJob } from "./index.js";
+import { describe, it, expect, beforeEach } from "vitest";
+import { runSlaOverdueJob, runErasureQueueJob } from "./index.js";
 import { loadConfig } from "./config.js";
-import { runUserErasureBatch, continueErasureForUid } from "./erasure.js";
+import { runUserErasureBatch } from "./erasure.js";
+import { persistJobAfterBatch } from "./erasure-jobs.js";
 import { getCachedAdminToken } from "./admin-token.integration.js";
 import {
   authSignUp,
@@ -10,10 +11,14 @@ import {
   apiGet,
   rtdbOwner,
   rtdbAuth,
-  waitSendCooldown
+  waitSendCooldown,
+  resetHideCountersDo
 } from "./test-helpers.js";
 
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms (must fail if disabled)", () => {
+  beforeEach(async () => {
+    await resetHideCountersDo(env);
+  });
   it("PROTECT hide quota: second discretionary global hide on new messages is blocked", async () => {
     const author = await authSignUp();
     const repA = await authSignUp();
@@ -46,6 +51,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
   });
 
   it("PROTECT cluster cap: fourth global hide from same cluster IP is blocked", async () => {
+    await resetHideCountersDo(env);
     const author = await authSignUp();
     const sid = (await (await apiGet(SELF, "/api/chat/config", author.idToken)).json()).mySid;
     const clusterHdr = { "CF-Connecting-IP": "203.0.113.55" };
@@ -56,24 +62,36 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
         sid,
         name: "Cap",
         text: "how old are you don't tell mom",
-        time: Date.now() + i
+        time: Date.now() + i * 1000
       });
-      msgIds.push(ref.json?.name || ref.key);
+      const msgId = ref.json?.name;
+      expect(msgId).toBeTruthy();
+      msgIds.push(msgId);
     }
     for (let i = 0; i < 3; i++) {
       const msgId = msgIds[i];
+      expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).toBe(sid);
       const repA = await authSignUp();
       const repB = await authSignUp();
-      await apiPost(SELF, "/api/chat/report", repA.idToken, { msgId, category: "grooming" });
-      await apiPost(SELF, "/api/chat/report", repB.idToken, { msgId, category: "grooming" }, clusterHdr);
+      await rtdbOwner(`chatMeta/${repB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 86400000);
+      await rtdbOwner(`chatMeta/${repB.localId}/chatSendCount`, "PUT", 12);
+      const r1 = await apiPost(SELF, "/api/chat/report", repA.idToken, { msgId, category: "grooming" });
+      expect(r1.status).toBe(200);
+      const r2 = await apiPost(SELF, "/api/chat/report", repB.idToken, { msgId, category: "grooming" }, clusterHdr);
+      expect(r2.status).toBe(200);
       expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
     }
     const m4 = msgIds[3];
     const repA4 = await authSignUp();
     const repB4 = await authSignUp();
+    await rtdbOwner(`chatMeta/${repB4.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 86400000);
+    await rtdbOwner(`chatMeta/${repB4.localId}/chatSendCount`, "PUT", 12);
     await apiPost(SELF, "/api/chat/report", repA4.idToken, { msgId: m4, category: "grooming" }, otherHdr);
     await apiPost(SELF, "/api/chat/report", repB4.idToken, { msgId: m4, category: "grooming" }, clusterHdr);
     expect((await rtdbOwner(`chat/messages/${m4}`, "GET")).json?.hidden).not.toBe(true);
+    expect((await rtdbOwner(`chat/internal/safetyQueue/${m4}`, "GET")).json?.hideSkipReason).toBe(
+      "cluster_hide_cap"
+    );
   }, 120000);
 
   it("PROTECT global hide gate: single reporter cannot globally hide grooming preset alone", async () => {
@@ -198,38 +216,28 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     expect(out.subrequests).toBeLessThanOrEqual(12);
   });
 
-  it("PROTECT erasure continuation: continueErasureForUid must advance in-flight jobs", async () => {
+  it("PROTECT erasure continuation: cron queue drains a partial delete-my-data job", async () => {
     const u = await authSignUp();
     const sid = (await (await apiGet(SELF, "/api/chat/config", u.idToken)).json()).mySid;
     for (let i = 0; i < 30; i++) {
       await rtdbOwner("chat/messages", "POST", { sid, name: "E", text: `e${i}`, time: Date.now() + i });
     }
-    const token = await getCachedAdminToken(env);
-    const config = loadConfig(env);
-    const first = await runUserErasureBatch({
-      config,
-      env,
-      token,
-      authUid: u.localId,
-      sid,
-      now: Date.now(),
-      storedCursor: null,
-      budget: config.erasureMaxSubrequests
-    });
-    expect(first.complete).not.toBe(true);
-    const cont = await continueErasureForUid(env, u.localId);
-    expect(cont.skipped).not.toBe(true);
-    expect(cont.subrequests).toBeGreaterThan(0);
+    const first = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
+    expect(first.status).toBe("queued");
+    const hop = await runErasureQueueJob(env);
+    expect(hop.processed).toBe(1);
+    expect(hop.subrequests).toBeGreaterThan(0);
   });
 
-  it("PROTECT erasure with safety hold: delete-my-data parks as complete_with_holds", async () => {
+  it("PROTECT erasure with safety hold: parks complete_with_holds and clears non-hold meta", async () => {
     const author = await authSignUp();
-    const alt = await authSignUp();
+    await waitSendCooldown();
     const { id: msgId } = await (
       await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })
     ).json();
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "kill the kid");
-    await apiPost(SELF, "/api/chat/report", alt.idToken, { msgId, category: "other_child_safety" });
+    await apiPost(SELF, "/api/chat/report", author.idToken, { msgId, category: "immediate_danger" });
+    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.childHarm).toBe(true);
     const token = await getCachedAdminToken(env);
     const config = loadConfig(env);
     const sid = (await (await apiGet(SELF, "/api/chat/config", author.idToken)).json()).mySid;
@@ -244,7 +252,24 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
       budget: config.erasureMaxSubrequests
     });
     expect(out.completeWithHolds || out.status === "complete_with_holds").toBe(true);
-    expect(out.continueScheduled).toBe(false);
+    await persistJobAfterBatch(env, author.localId, out, null, Date.now());
+    expect((await rtdbOwner(`chatMeta/${author.localId}/erasureJobStartedAt`, "GET")).json).toBeNull();
+    expect((await rtdbOwner(`chatMeta/${author.localId}/chatSendCount`, "GET")).json).toBeNull();
+    expect((await rtdbOwner(`chatMeta/${author.localId}/lastErasureRequestAt`, "GET")).json).toBeNull();
+  });
+
+  it("PROTECT GEN-SNAP: generic auto-hide snapshot allows restore_visibility text", async () => {
+    const modToken = env.SAFE_CHAT_TEST_MOD_TOKEN;
+    const author = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "restore me please");
+    for (let i = 0; i < 3; i++) {
+      const r = await authSignUp();
+      await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "generic" });
+    }
+    expect((await rtdbOwner(`chat/messages/${msgId}/text`, "GET")).json).toBeNull();
+    await apiPost(SELF, "/api/mod/resolve-safety", modToken, { msgId, action: "restore_visibility" });
+    expect((await rtdbOwner(`chat/messages/${msgId}/text`, "GET")).json).toBe("restore me please");
   });
 
   it("PROTECT EV-SNAP: second child_safety report keeps evidence snapshot text", async () => {

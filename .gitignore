@@ -3,4 +3,4 @@ node_modules/
 qa-out/
 database-debug.log
 firebase-debug.log
-.worktrees/
+workers/safe-chat/.prod-bundle-check/

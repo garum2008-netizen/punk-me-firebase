@@ -273,17 +273,17 @@ const mutations = [
   },
   {
     id: "MUT-J",
-    expectFailTest: "PROTECT erasure continuation:",
+    expectFailTest: "PROTECT erasure continuation: cron",
     patches: [
       {
-        file: "src/erasure.js",
+        file: "src/erasure-jobs.js",
         replacements: [
           {
-            from: `export async function continueErasureForUid(env, uid) {
-  const config = (await import("./config.js")).loadConfig(env);`,
-            to: `export async function continueErasureForUid(env, uid) {
-  return { ok: true, skipped: true }; /* MUT-J */
-  const config = (await import("./config.js")).loadConfig(env);`
+            from: `export async function runErasureQueueJob(env, nowOverride) {
+  const config = loadConfig(env);`,
+            to: `export async function runErasureQueueJob(env, nowOverride) {
+  return { ok: true, processed: 0 }; /* MUT-J */
+  const config = loadConfig(env);`
           }
         ]
       }
@@ -291,17 +291,15 @@ const mutations = [
   },
   {
     id: "MUT-K",
-    expectFailTest: "R-08: alarm re-queues uid when erasure continue returns complete false",
-    unitOnly: true,
+    expectFailTest: "H-1: cron queue drains 50",
     patches: [
       {
-        file: "src/limits-do.js",
+        file: "src/erasure-jobs.js",
         replacements: [
           {
-            from: `        } else if (body.complete === false || body.continueScheduled === true) {
-          requeue = true;`,
-            to: `        } else if (body.complete === false || body.continueScheduled === true) {
-          requeue = false; /* MUT-K */`
+            from: `  await persistJobAfterBatch(env, uid, batch, job, now);
+  return { ok: true, processed: 1, uid, subrequests: batch.subrequests, status: mapBatchToJobStatus(batch) };`,
+            to: `  /* MUT-K */ return { ok: true, processed: 0 };`
           }
         ]
       }

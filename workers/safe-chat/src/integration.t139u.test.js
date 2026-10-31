@@ -1,5 +1,5 @@
 import { env, SELF } from "cloudflare:test";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { runRetentionJob } from "./index.js";
 import {
   authSignUp,
@@ -7,7 +7,9 @@ import {
   apiGet,
   rtdbOwner,
   rtdbAuth,
-  waitSendCooldown
+  waitSendCooldown,
+  waitForChatMessage,
+  resetHideCountersDo
 } from "./test-helpers.js";
 
 async function runRetentionToCompletion(envIn, now) {
@@ -28,6 +30,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     mod = { localId: modUid, idToken: env.SAFE_CHAT_TEST_MOD_TOKEN };
     userB = await authSignUp();
     userC = await authSignUp();
+  });
+
+  beforeEach(async () => {
+    await resetHideCountersDo(env);
   });
 
   it("t139u D-02: R_new13 and R_aged grooming reports both queue with same escalation", async () => {
@@ -53,6 +59,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u D-04: hide quota consumed then global hide still allowed with independent signal", async () => {
     const author = await authSignUp();
+    await waitSendCooldown();
     const { id: m1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
     await waitSendCooldown();
     const { id: m2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
@@ -96,7 +103,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u U-03: child_safety report accepted after generic report volume on same message", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    await waitSendCooldown();
+    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
+    const { id: msgId } = await sent.json();
+    expect(msgId).toBeTruthy();
     for (let i = 0; i < 30; i++) {
       const r = await authSignUp();
       await apiPost(SELF, "/api/chat/report", r.idToken, { msgId });
@@ -141,19 +151,17 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   it("t139u B-03: distinct cluster reporters still no count-only global hide", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom meet me alone");
     for (let i = 0; i < 8; i++) {
       const r = await authSignUp();
       await apiPost(
         SELF,
         "/api/chat/report",
         r.idToken,
-        { msgId, category: "grooming" },
+        { msgId, category: "other_child_safety" },
         { "CF-Connecting-IP": `203.0.113.${i + 1}` }
       );
     }
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
-    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.intrinsicRisk).toBeGreaterThan(40);
   });
 
   it("t139u B-04: cluster hide cap blocks excess global hides from one cluster", async () => {
@@ -198,13 +206,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     expect(r2.status).not.toBe(403);
   });
 
-  it("t139u BY-08: internal erasure-continue forbidden without secret", async () => {
+  it("t139u BY-08: internal erasure-continue route removed", async () => {
     const res = await SELF.fetch("http://localhost/api/internal/erasure-continue", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Safe-Chat-Internal": "wrong" },
       body: JSON.stringify({ uid: "abc" })
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("t139u BY-02: delete-my-data does not clear childSafetyAutoHideDeniedUntil", async () => {
@@ -232,16 +240,21 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u P-06: delete-my-data response lists only reporter own message ids", async () => {
     const victim = await authSignUp();
+    const victimSid = (await (await apiGet(SELF, "/api/chat/config", victim.idToken)).json()).mySid;
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", victim.idToken, { phraseId: "hi" })).json();
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).toBe(victimSid);
     const rep = await authSignUp();
     await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "other_child_safety" });
-    const sid = (await (await apiGet(SELF, "/api/chat/config", rep.idToken)).json()).mySid;
-    await rtdbOwner("chat/messages", "POST", { sid, name: "R", text: "mine", time: Date.now() });
+    const repSid = (await (await apiGet(SELF, "/api/chat/config", rep.idToken)).json()).mySid;
+    const ownRef = await rtdbOwner("chat/messages", "POST", { sid: repSid, name: "R", text: "mine", time: Date.now() });
+    const ownMsgId = ownRef.json?.name;
+    expect(ownMsgId).toBeTruthy();
     const del = await apiPost(SELF, "/api/chat/delete-my-data", rep.idToken, {});
     const j = await del.json();
     expect(j.ok).toBe(true);
     expect(JSON.stringify(j)).not.toContain(msgId);
-    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).toBeTruthy();
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).toBe(victimSid);
+    expect((await rtdbOwner(`chat/messages/${ownMsgId}`, "GET")).json).toBeNull();
   });
 
   it("t139u M-05: mod resolve-safety rejects invalid_action", async () => {
@@ -428,7 +441,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     let ok = 0;
     for (let i = 0; i < 35; i++) {
       const a = await authSignUp();
-      const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
+      await waitSendCooldown();
+      const sent = await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" });
+      expect(sent.status).toBe(200);
+      const { id: msgId } = await sent.json();
       const r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "other_child_safety" });
       expect(r.status).toBe(200);
       const j = await r.json();

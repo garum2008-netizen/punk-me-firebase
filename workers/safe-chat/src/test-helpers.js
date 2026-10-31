@@ -89,7 +89,64 @@ export function isBlocked(blocklist, sid) {
   return Boolean(blocklist?.[sid]);
 }
 
+/** Wait until a message node exists (emulator visibility). */
+export async function waitForChatMessage(msgId, { attempts = 40, delayMs = 50 } = {}) {
+  for (let i = 0; i < attempts; i += 1) {
+    const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    if (m.json && (m.json.sid || m.json.uid)) return m.json;
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  throw new Error(`message ${msgId} not visible in RTDB`);
+}
+
 /** Worker send cooldown is 3s; wait between sends from the same uid in integration tests. */
 export function waitSendCooldown() {
   return new Promise(r => setTimeout(r, 3100));
+}
+
+/** Integration-only: reset discretionary hide + cluster counters on the global limits DO. */
+export async function resetHideCountersDo(env) {
+  if (env.SAFE_CHAT_INTEGRATION !== "1" || !env.CHAT_LIMITS) return;
+  const id = env.CHAT_LIMITS.idFromName("global");
+  const stub = env.CHAT_LIMITS.get(id);
+  await stub.fetch(new Request("http://do/integration-reset-hide-counters", { method: "POST" }));
+}
+
+/** Cron queue drain after delete-my-data (does not call delete-my-data again). */
+export async function drainErasureCronLoop(env, user, runErasureQueueJob, requeueDelete, opts = {}) {
+  const ownSid = opts.ownSid || null;
+  let guard = 0;
+  let idleRequeues = 0;
+  while (guard < 500) {
+    guard += 1;
+    if (ownSid) {
+      const remaining = await rtdbOwner("chat/messages", "GET");
+      const n = Object.values(remaining.json || {}).filter(m => m.sid === ownSid).length;
+      if (n === 0) return { status: "complete", complete: true };
+    }
+    const jobSnap = await rtdbOwner(`chat/internal/erasureJobs/${user.localId}`, "GET");
+    if (jobSnap.json?.status === "complete_with_holds" || jobSnap.json?.status === "failed") {
+      return { ...jobSnap.json, complete: false };
+    }
+    if (!jobSnap.json) {
+      if (typeof requeueDelete === "function" && idleRequeues < 8) {
+        idleRequeues += 1;
+        await requeueDelete();
+        continue;
+      }
+      return { status: "complete", complete: true };
+    }
+    idleRequeues = 0;
+    if (jobSnap.json.status === "queued") {
+      await runErasureQueueJob(env);
+    }
+  }
+  const finalJob = await rtdbOwner(`chat/internal/erasureJobs/${user.localId}`, "GET");
+  if (!finalJob.json && ownSid) {
+    const remaining = await rtdbOwner("chat/messages", "GET");
+    const n = Object.values(remaining.json || {}).filter(m => m.sid === ownSid).length;
+    return { status: n === 0 ? "complete" : "queued", complete: n === 0 };
+  }
+  if (!finalJob.json) return { status: "complete", complete: true };
+  return { status: finalJob.json.status, complete: false };
 }

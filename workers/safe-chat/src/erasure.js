@@ -52,7 +52,6 @@ async function loadSafetyBlockCache(config, token, emu, ns, spend) {
 }
 
 function messageBlockedInCache(msgId, msg, cache) {
-  if (msg?.safetyHold) return true;
   if (cache.holdIds.has(msgId)) return true;
   if (cache.queueChildHarm.has(msgId)) return true;
   if (cache.evidenceIds.has(msgId)) return true;
@@ -138,10 +137,11 @@ export async function eraseReporterArtifacts(config, token, emu, ns, reporterHas
   return { used };
 }
 
-async function countDeletableOwn(config, token, emu, ns, sid, authUid, cache, spend) {
+async function countOwnMessageStats(config, token, emu, ns, sid, authUid, cache, spend) {
   const msgs = await rtdbSpend(config, token, emu, ns, "chat/messages", "GET", null, spend);
-  if (msgs.skipped) return { count: 0, subrequests: 0 };
-  let n = 0;
+  if (msgs.skipped) return { deletable: null, allOwn: null, unknown: true };
+  let deletable = 0;
+  let allOwn = 0;
   if (msgs.json && typeof msgs.json === "object") {
     for (const [id, m] of Object.entries(msgs.json)) {
       if (!isOwnMessage(m, sid, authUid)) continue;
@@ -150,11 +150,11 @@ async function countDeletableOwn(config, token, emu, ns, sid, authUid, cache, sp
       } catch {
         continue;
       }
-      if (messageBlockedInCache(id, m, cache)) continue;
-      n += 1;
+      allOwn += 1;
+      if (!messageBlockedInCache(id, m, cache)) deletable += 1;
     }
   }
-  return { count: n, subrequests: 0 };
+  return { deletable, allOwn, unknown: false };
 }
 
 const META_CLEANUP_PATHS = uid => [
@@ -374,15 +374,18 @@ export async function runUserErasureBatch({
     }
   }
 
-  const openCases = await openCaseMsgIds(config, token, emu, ns, spend);
-  const reporterHash = assertReportHash(await anonymizeUid(authUid, env.SAFE_CHAT_HASH_SALT || ""));
-  if (!budgetExceeded) {
-    await eraseReporterArtifacts(config, token, emu, ns, reporterHash, openCases, spend);
-  }
-
-  const remaining = await countDeletableOwn(config, token, emu, ns, sid, authUid, cache, spend);
+  const ownStats = await countOwnMessageStats(config, token, emu, ns, sid, authUid, cache, spend);
+  const statsKnown = !ownStats.unknown && ownStats.deletable != null && ownStats.allOwn != null;
+  const remaining = { count: ownStats.deletable, unknown: ownStats.unknown };
+  const allOwn = { count: ownStats.allOwn, unknown: ownStats.unknown };
+  const remainingKnown = statsKnown;
+  const allOwnKnown = statsKnown;
   const workDone =
-    remaining.count === 0 && processedAll && !nextCursor && !budgetExceeded;
+    allOwnKnown &&
+    remainingKnown &&
+    processedAll &&
+    !nextCursor &&
+    !budgetExceeded;
 
   if (workDone && deferred.length > 0) {
     return {
@@ -400,12 +403,44 @@ export async function runUserErasureBatch({
     };
   }
 
-  const logicalComplete = workDone && deferred.length === 0;
+  const logicalComplete =
+    workDone &&
+    deferred.length === 0 &&
+    remaining.count === 0 &&
+    allOwn.count === 0;
+
+  if (workDone && deferred.length === 0 && remaining.count === 0 && allOwn.count > 0) {
+    return {
+      ok: true,
+      complete: false,
+      completeWithHolds: true,
+      status: "complete_with_holds",
+      continueScheduled: false,
+      deleted,
+      erasureDeferred: [],
+      cursor: null,
+      remainingDeletable: 0,
+      subrequests,
+      budgetExceeded: false
+    };
+  }
+
   let metaCleanupOk = !logicalComplete;
   if (logicalComplete) {
+    const openCases = await openCaseMsgIds(config, token, emu, ns, spend);
+    const reporterHash = assertReportHash(await anonymizeUid(authUid, env.SAFE_CHAT_HASH_SALT || ""));
+    if (!budgetExceeded) {
+      await eraseReporterArtifacts(config, token, emu, ns, reporterHash, openCases, spend);
+    }
     metaCleanupOk = await deleteErasureMeta(config, token, emu, ns, authUid, spend);
   }
-  const complete = logicalComplete && metaCleanupOk && !budgetExceeded;
+
+  const complete =
+    logicalComplete &&
+    metaCleanupOk &&
+    !budgetExceeded &&
+    allOwnKnown &&
+    allOwn.count === 0;
 
   if (logicalComplete && !metaCleanupOk) {
     let cursorToStore = nextCursor || storedCursor;
@@ -427,7 +462,7 @@ export async function runUserErasureBatch({
       deleted,
       erasureDeferred: deferred,
       cursor: cursorToStore || storedCursor,
-      remainingDeletable: remaining.count,
+      remainingDeletable: remainingKnown ? remaining.count : undefined,
       subrequests,
       budgetExceeded
     };
@@ -466,7 +501,8 @@ export async function runUserErasureBatch({
     deleted,
     erasureDeferred: deferred,
     cursor: complete ? null : nextCursor || storedCursor,
-    remainingDeletable: remaining.count,
+    remainingDeletable: remainingKnown ? remaining.count : undefined,
+    allOwnRemaining: allOwnKnown ? allOwn.count : undefined,
     subrequests,
     continueScheduled: !complete,
     budgetExceeded,
@@ -475,53 +511,10 @@ export async function runUserErasureBatch({
 }
 
 export async function continueErasureForUid(env, uid) {
-  const config = (await import("./config.js")).loadConfig(env);
-  const { getCachedAdminToken } = await import("./admin-token.js");
-  const { chatPublicSid } = await import("./rtdb.js");
-  const token = await getCachedAdminToken(env);
-  assertFirebaseId(uid);
-  const sid = await chatPublicSid(uid, env.SAFE_CHAT_HASH_SALT || "");
-  let subrequestsUsed = 0;
-  const budget = config.erasureMaxSubrequests;
-  const spendPre = () => {
-    subrequestsUsed += 1;
-    return subrequestsUsed <= budget;
-  };
-  if (!spendPre()) {
-    return { ok: true, complete: false, continueScheduled: true, subrequests: subrequestsUsed, budgetExceeded: true };
-  }
-  const cursorRes = await rtdbRequest(
-    config,
-    pathChatMeta(uid, "erasureCursor"),
-    "GET",
-    null,
-    token,
-    env.FIREBASE_EMULATOR_HOST,
-    env.FIREBASE_EMULATOR_NS
-  );
-  if (!spendPre()) {
-    return { ok: true, complete: false, continueScheduled: true, subrequests: subrequestsUsed, budgetExceeded: true };
-  }
-  const jobRes = await rtdbRequest(
-    config,
-    pathChatMeta(uid, "erasureJobStartedAt"),
-    "GET",
-    null,
-    token,
-    env.FIREBASE_EMULATOR_HOST,
-    env.FIREBASE_EMULATOR_NS
-  );
-  if (!cursorRes.json && !jobRes.json) return { ok: true, skipped: true, subrequests: subrequestsUsed };
-  return runUserErasureBatch({
-    config,
-    env,
-    token,
-    authUid: uid,
-    sid,
-    now: Date.now(),
-    storedCursor: cursorRes.json != null && cursorRes.json !== "" ? cursorRes.json : null,
-    budget,
-    subrequestsUsed,
-    bypassRateLimit: true
-  });
+  const { runErasureJobStep, persistJobAfterBatch, loadUserErasureJob } = await import("./erasure-jobs.js");
+  const now = Date.now();
+  const existing = await loadUserErasureJob(env, uid);
+  const batch = await runErasureJobStep(env, uid, { now, bypassRateLimit: true });
+  await persistJobAfterBatch(env, uid, batch, existing, now);
+  return batch;
 }

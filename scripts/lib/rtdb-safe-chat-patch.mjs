@@ -9,8 +9,16 @@ export const SAFE_CHAT_RTDB = {
     ".read": "auth != null",
     ".write": false,
     "$msgId": {
-      ".read": "auth != null",
-      ".write": false
+      ".read": false,
+      ".write": false,
+      sid: { ".read": "auth != null" },
+      name: { ".read": "auth != null" },
+      text: { ".read": "auth != null" },
+      time: { ".read": "auth != null" },
+      phraseId: { ".read": "auth != null" },
+      loc: { ".read": "auth != null" },
+      hidden: { ".read": "auth != null" },
+      textRedacted: { ".read": "auth != null" }
     }
   },
   reports: {

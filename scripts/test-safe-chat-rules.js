@@ -366,6 +366,32 @@ async function run() {
     pass: readEvidence.status === 401 || readEvidence.status === 403
   });
 
+  const msgPost = await fetchJson(dbUrl("chat/messages", null, true), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sid: "deadbeefdeadbeefdeadbeefdeadbeef",
+      name: "T",
+      text: "hi",
+      time: Date.now()
+    })
+  });
+  const holdMsgId = msgPost.json?.name;
+  if (holdMsgId) {
+    await fetchJson(dbUrl(`chat/internal/safetyHolds/${holdMsgId}`, null, true), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ at: Date.now() })
+    });
+    const readHold = await fetchJson(dbUrl(`chat/internal/safetyHolds/${holdMsgId}`, idToken));
+    cases.push({
+      name: "client read chat/messages safetyHold denied",
+      pass: readHold.status === 401 || readHold.status === 403
+    });
+  } else {
+    cases.push({ name: "client read chat/messages safetyHold denied", pass: false });
+  }
+
   let failed = 0;
   for (const c of cases) {
     const mark = c.pass ? "PASS" : "FAIL";
