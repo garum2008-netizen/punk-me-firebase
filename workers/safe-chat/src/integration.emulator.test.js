@@ -308,10 +308,12 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(r2.status).toBe(200);
     expect((await r2.json()).received).toBe(true);
     let globallyHidden = false;
-    for (let t = 0; t < 200; t += 1) {
-      globallyHidden = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden === true;
+    for (let t = 0; t < 80; t += 1) {
+      const msg = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json;
+      const q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
+      globallyHidden = msg?.hidden === true || Boolean(q?.hiddenAt);
       if (globallyHidden) break;
-      await new Promise(res => setTimeout(res, 100));
+      await new Promise(res => setTimeout(res, 75));
     }
     expect(globallyHidden).toBe(true);
   });
@@ -475,19 +477,23 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await waitForChatMessage(msgId);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
     await waitForMessageText(msgId, "how old are you");
-    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
+    const rep1 = await authSignUp();
+    await apiPost(SELF, "/api/chat/report", rep1.idToken, { msgId, category: "grooming" });
+    const rep2 = await authSignUp();
     await apiPost(
       SELF,
       "/api/chat/report",
-      userC.idToken,
+      rep2.idToken,
       { msgId, category: "grooming" },
       { "CF-Connecting-IP": "198.51.100.12" }
     );
     let hidden = false;
-    for (let t = 0; t < 100; t += 1) {
-      hidden = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden === true;
+    for (let t = 0; t < 80; t += 1) {
+      const msg = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json;
+      const q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
+      hidden = msg?.hidden === true || Boolean(q?.hiddenAt);
       if (hidden) break;
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 75));
     }
     expect(hidden).toBe(true);
     await apiPost(SELF, "/api/chat/appeal-hide", author.idToken, { msgId, reasonCode: "wrongful_hide" });

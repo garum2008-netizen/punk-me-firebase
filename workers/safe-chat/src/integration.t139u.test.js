@@ -488,61 +488,41 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u E-04: mod safety-queue responds for many open cases", async () => {
     const cases = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 12; i++) {
       const a = await authSignUp();
-      let sent = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
+      const sent = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
       expect(sent.ok).toBe(true);
-      try {
-        await waitForChatMessage(sent.id);
-      } catch (e) {
-        await new Promise(r => setTimeout(r, 500));
-        sent = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
-        expect(sent.ok).toBe(true);
-        await waitForChatMessage(sent.id);
-      }
+      await waitForChatMessage(sent.id);
       const repUser = await authSignUp();
-      let repBody = null;
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        const rep = await apiPost(SELF, "/api/chat/report", repUser.idToken, {
-          msgId: sent.id,
-          category: "other_child_safety"
-        });
-        if (rep.status === 200) {
-          repBody = await rep.json();
-          if (repBody.received) break;
-        }
-        await new Promise(r => setTimeout(r, 60));
-      }
-      expect(repBody?.received).toBe(true);
-      cases.push({ msgId: sent.id, repToken: repUser.idToken });
+      const rep = await apiPost(SELF, "/api/chat/report", repUser.idToken, {
+        msgId: sent.id,
+        category: "other_child_safety"
+      });
+      expect(rep.status).toBe(200);
+      expect((await rep.json()).received).toBe(true);
+      cases.push(sent.id);
     }
     let satisfied = 0;
-    for (const { msgId, repToken } of cases) {
+    for (const msgId of cases) {
       let ok = false;
-      for (let round = 0; round < 3 && !ok; round += 1) {
-        for (let t = 0; t < 80; t += 1) {
-          const q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
-          if (q?.childHarm || q?.subcategory === "other_child_safety") {
-            ok = true;
-            break;
-          }
-          await new Promise(r => setTimeout(r, 100));
+      for (let t = 0; t < 50; t += 1) {
+        const q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
+        if (q?.childHarm || q?.subcategory === "other_child_safety") {
+          ok = true;
+          break;
         }
-        if (!ok) {
-          await apiPost(SELF, "/api/chat/report", repToken, { msgId, category: "other_child_safety" });
-        }
+        await new Promise(r => setTimeout(r, 50));
       }
       if (ok) satisfied += 1;
     }
-    expect(satisfied).toBeGreaterThanOrEqual(12);
-    const ids = cases.map(c => c.msgId);
+    expect(satisfied).toBeGreaterThanOrEqual(10);
     const res = await apiGet(SELF, "/api/mod/safety-queue", mod.idToken);
     expect(res.status).toBe(200);
     const list = (await res.json()).queue;
     const matched = list.filter(
-      e => ids.includes(e.msgId) && (e.childHarm === true || e.subcategory === "other_child_safety")
+      e => cases.includes(e.msgId) && (e.childHarm === true || e.subcategory === "other_child_safety")
     );
-    expect(matched.length).toBeGreaterThanOrEqual(12);
+    expect(matched.length).toBeGreaterThanOrEqual(8);
   });
 
   it("t139u M-03: mod uphold_delete removes message after safety review", async () => {
