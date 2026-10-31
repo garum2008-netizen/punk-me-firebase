@@ -597,6 +597,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     for (let i = 0; i < 105; i++) {
       await apiPost(SELF, "/api/chat/report", spammer.idToken, { msgId });
     }
+    let msgSnap = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    if (!msgSnap.json?.sid) {
+      await waitSendCooldown();
+      const resent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+      expect(resent.ok).toBe(true);
+      msgId = resent.id;
+      await waitForChatMessage(msgId);
+    }
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 20);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
@@ -608,6 +616,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       await new Promise(res => setTimeout(res, 100));
     }
     const tj = await trusted.json();
+    expect(trusted.status).toBe(200);
     expect(tj.global_report_limit).toBeUndefined();
     expect(tj.received).toBe(true);
   });
