@@ -1,0 +1,78 @@
+{
+  "version": 2,
+  "sliceOnly": true,
+  "promoDeployForbidden": true,
+  "notes": "Owner t569u approved PNGs. Use portrait WebP in wardrobe/dialogue; world WebP is upper-body crop derivative for 3D billboard (~256px wide). Never ship angelina-teen-C.png (v1 guitar). Rebuild shipped: python3 scripts/build-angelina-skin-assets.py",
+  "forbiddenAssets": [
+    "angelina-teen-C.png"
+  ],
+  "skins": {
+    "A": {
+      "id": "A",
+      "title": {
+        "ru": "A — классика (розовый пуховик)",
+        "en": "A — classic (pink puffer)",
+        "da": "A — klassisk"
+      },
+      "source": {
+        "path": "assets/ui/angelina-skins/source/angelina-teen-A.png",
+        "sha256": "5453bb3e7380bbe9a8b2323b45b7773e238942dd295296ea7c430f0097e013f7",
+        "pixels": "744×1334"
+      },
+      "portrait": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-portrait.webp",
+        "sha256": "57dafbcf7e6cacf360ce593fbf5e40fa36b736d7974ac890ae5bc6b796a9a5f2"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-world.webp",
+        "sha256": "0103017ecdf1af5080406d465638c6a02a176c6ad832ccc4e3ea3ae6b332f74c",
+        "derivative": "upper-body crop + 256px wide WebP from source"
+      }
+    },
+    "B": {
+      "id": "B",
+      "title": {
+        "ru": "B — панк-подросток (джинсовка с заплатками)",
+        "en": "B — punk teen (patched denim)",
+        "da": "B — punk teen"
+      },
+      "source": {
+        "path": "assets/ui/angelina-skins/source/angelina-teen-B.png",
+        "sha256": "4e5d65977b0f196002d3c2d740a3cf865594e6fd71c1967fd5bafa379839bf93",
+        "pixels": "744×1334"
+      },
+      "portrait": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp",
+        "sha256": "b9c47b4c9c7381deedeff7f96d85170c03cdf54201873cdb32bc30cadb668ae6"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-world.webp",
+        "sha256": "6b3a85d95ef3f9b120985915123bf8a15a0c3bc366dd87356e6f3adee3771c0e",
+        "derivative": "upper-body crop + 256px wide WebP from source"
+      }
+    },
+    "C": {
+      "id": "C",
+      "title": {
+        "ru": "C — angel rocker (жилет с крыльями, c-v2)",
+        "en": "C — angel rocker (wings vest, c-v2)",
+        "da": "C — angel rocker"
+      },
+      "finalArtSlot": "c-v2-only",
+      "source": {
+        "path": "assets/ui/angelina-skins/source/angelina-teen-C-v2.png",
+        "sha256": "c454454a00dfa74bde62ffbc7405b4eca0da0a49e718f5bdf68fb509b12aa2db",
+        "pixels": "720×1280"
+      },
+      "portrait": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp",
+        "sha256": "7ab8719452166383d06de2b821c5e629ec2c0ce124469f219d296bdbacbe65f0"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-world.webp",
+        "sha256": "7c79b7ea6a992ad0a1ba2c2370493267d75b56e47ca0da8d22a1d25196999d3f",
+        "derivative": "upper-body crop + 256px wide WebP from source"
+      }
+    }
+  }
+}

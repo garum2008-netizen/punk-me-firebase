@@ -13,7 +13,7 @@ import {
   findClearSpawn,
   pointInsideCollider
 } from "./world/locations.mjs";
-import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs";
+import { updateProcedural, markActorVisibleWhenReady, setPlayerRootVisibilityGuard } from "./character-rig.mjs";
 import {
   loadAllCc0Templates,
   getTemplateForCharacter,
@@ -81,6 +81,167 @@ let elevatorCutawaySaved = null;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 let guideTarget = null;
+/** Deprecated billboard — slice uses player cutout; kept for clear API. */
+let lifeAngelinaBillboard = { sprite: null, url: "", wx: 0, wz: 0, loc: "room", visible: false };
+/** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
+let lifeCh1PlayerSkin = { sprite: null, url: "", rootVisible: true, pending: null };
+
+function enforceLifeCh1PlayerMeshVisibility(actor) {
+  const pending = lifeCh1PlayerSkin.pending;
+  if (!actor?.isPlayer || !pending?.visible || !pending?.url) return;
+  if (actor.root?.visible !== false) {
+    actor.root.visible = false;
+    lifeCh1PlayerSkin.rootVisible = false;
+  }
+  const sp = lifeCh1PlayerSkin.sprite;
+  if (sp && pending.url === lifeCh1PlayerSkin.url) {
+    sp.visible = true;
+  }
+}
+
+function applyPlayerLifeCh1SkinOpts(opts = {}) {
+  const pl = actors.get("player");
+  if (!pl?.group) return false;
+  const sp = ensureLifeCh1PlayerSprite(pl);
+  if (!sp) return false;
+  if (!opts.visible || !opts.url) {
+    sp.visible = false;
+    sp.material.opacity = 0;
+    lifeCh1PlayerSkin.url = "";
+    if (pl.root && !lifeCh1PlayerSkin.rootVisible) {
+      pl.root.visible = true;
+      lifeCh1PlayerSkin.rootVisible = true;
+    }
+    return true;
+  }
+  const url = opts.url;
+  lifeCh1PlayerSkin.url = url;
+  if (pl.root?.visible !== false) {
+    pl.root.visible = false;
+    lifeCh1PlayerSkin.rootVisible = false;
+  }
+  sp.visible = true;
+  const tail = url.split("/").pop() || url;
+  const loaded = sp.material.map?.image?.currentSrc || sp.material.map?.image?.src || "";
+  if (loaded && loaded.includes(tail) && sp.material.opacity >= 1) {
+    return true;
+  }
+  sp.material.opacity = 0;
+  texLoader.load(
+    url,
+    tex => {
+      if (lifeCh1PlayerSkin.url !== url) return;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      sp.material.map = tex;
+      sp.material.needsUpdate = true;
+      sp.material.opacity = 1;
+      if (pl.root) {
+        pl.root.visible = false;
+        lifeCh1PlayerSkin.rootVisible = false;
+      }
+      window.dispatchEvent(new CustomEvent("life-ch1-skin-texture-ready", { detail: { url } }));
+    },
+    undefined,
+    () => {
+      if (lifeCh1PlayerSkin.url === url) sp.visible = false;
+    }
+  );
+  return true;
+}
+
+function setPlayerLifeCh1Skin(opts = {}) {
+  lifeCh1PlayerSkin.pending = { ...opts };
+  applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
+}
+
+function getPlayerLifeCh1SkinRenderState() {
+  const pl = actors.get("player");
+  const sp = lifeCh1PlayerSkin.sprite;
+  const mapSrc = sp?.material?.map?.image?.currentSrc || sp?.material?.map?.image?.src || "";
+  return {
+    url: lifeCh1PlayerSkin.url || "",
+    spriteVisible: !!(sp?.visible && (sp.material?.opacity ?? 0) > 0.5),
+    rootHidden: !!(pl?.root && pl.root.visible === false),
+    textureReady: !!(sp?.material?.map && (sp.material?.opacity ?? 0) >= 1),
+    mapSrc
+  };
+}
+
+function isLifeCh1E2eTeleportEnabled() {
+  return false;
+}
+
+function isLifeCh1E2eNavAid() {
+  try {
+    return new URLSearchParams(location.search).get("lifeCh1E2e") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function faceWorldTargetForE2e(wx, wz) {
+  if (!isLifeCh1E2eNavAid()) return false;
+  const pl = actors.get("player");
+  if (!pl) return false;
+  cameraYaw = Math.atan2(wx - pl.wx, wz - pl.wz);
+  return true;
+}
+
+function ensureLifeCh1PlayerSprite(pl) {
+  if (lifeCh1PlayerSkin.sprite || !pl?.group) return lifeCh1PlayerSkin.sprite;
+  const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true, opacity: 0 });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(0.95, 1.45, 1);
+  sp.position.set(0, 0.92, 0);
+  sp.renderOrder = 8;
+  pl.group.add(sp);
+  lifeCh1PlayerSkin.sprite = sp;
+  return sp;
+}
+
+function ensureLifeAngelinaBillboardSprite() {
+  if (lifeAngelinaBillboard.sprite || !scene) return lifeAngelinaBillboard.sprite;
+  const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(1.1, 1.65, 1);
+  sp.renderOrder = 12;
+  scene.add(sp);
+  lifeAngelinaBillboard.sprite = sp;
+  return sp;
+}
+
+function setAngelinaLifeBillboard(opts = {}) {
+  lifeAngelinaBillboard.visible = !!opts.visible;
+  lifeAngelinaBillboard.wx = opts.wx ?? lifeAngelinaBillboard.wx;
+  lifeAngelinaBillboard.wz = opts.wz ?? lifeAngelinaBillboard.wz;
+  lifeAngelinaBillboard.loc = opts.loc ?? lifeAngelinaBillboard.loc;
+  if (opts.url) lifeAngelinaBillboard.url = opts.url;
+  const sp = ensureLifeAngelinaBillboardSprite();
+  if (!sp) return;
+  if (!lifeAngelinaBillboard.visible || currentLoc !== lifeAngelinaBillboard.loc) {
+    sp.visible = false;
+    return;
+  }
+  if (lifeAngelinaBillboard.url && sp.material.map?.image?.src !== lifeAngelinaBillboard.url) {
+    new THREE.TextureLoader().load(lifeAngelinaBillboard.url, tex => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      sp.material.map = tex;
+      sp.material.needsUpdate = true;
+    });
+  }
+  sp.visible = true;
+  sp.position.set(lifeAngelinaBillboard.wx, 1.55, lifeAngelinaBillboard.wz);
+}
+
+function tickLifeAngelinaBillboard() {
+  if (!lifeAngelinaBillboard.visible || !lifeAngelinaBillboard.sprite) return;
+  if (currentLoc !== lifeAngelinaBillboard.loc) {
+    lifeAngelinaBillboard.sprite.visible = false;
+    return;
+  }
+  lifeAngelinaBillboard.sprite.visible = true;
+  lifeAngelinaBillboard.sprite.position.set(lifeAngelinaBillboard.wx, 1.55, lifeAngelinaBillboard.wz);
+}
 let mobileQuality = false;
 let locFillLight = null;
 let atmospherePipe = null;
@@ -1215,6 +1376,10 @@ function sync(data) {
       applyNetworkAnim(a, player.anim);
       a._netAnim = player.anim;
     }
+    if (lifeCh1PlayerSkin.pending) {
+      applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
+    }
+    window.dispatchEvent(new CustomEvent("punk-player-actor-ready", { detail: { characterId: player.characterId } }));
   }
 
   const hideCrowd = isDuelActive() || captureFrameLock;
@@ -1374,6 +1539,7 @@ function loop() {
   else {
     setQuestMarkersVisible(true);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    tickLifeAngelinaBillboard();
   }
   const nearNpc = getNearestNpcId();
   const nearPortal = getNearPortal();
@@ -1391,6 +1557,7 @@ function loop() {
       });
     }
     markActorVisibleWhenReady(a);
+    if (a.isPlayer) enforceLifeCh1PlayerMeshVisibility(a);
     if (a._meshyDog) updateMeshyDogAnim(a, dt, a._anim === "hop" ? "hop" : "idle", a._spd || 0);
     if (a.root && !a.isDog) {
       const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));
@@ -1425,6 +1592,7 @@ function loop() {
 
 function init(h) {
   hooks = h;
+  setPlayerRootVisibilityGuard(enforceLifeCh1PlayerMeshVisibility);
   const canvas = document.getElementById("stage3d");
   if (!canvas) return Promise.resolve(false);
   mobileQuality =
@@ -1537,7 +1705,28 @@ const api = {
   getNearestNpc: getNearestNpcId,
   getNearestDog: getNearestDogId,
   getNearPortal,
+  getPlayerWorldPosition: () => {
+    const pl = actors.get("player");
+    if (!pl) return { x: 0, z: 0, loc: currentLoc };
+    return { x: pl.wx ?? 0, z: pl.wz ?? 0, loc: currentLoc };
+  },
+  setPlayerWorldPosition: (wx, wz) => {
+    if (!isLifeCh1E2eTeleportEnabled()) return false;
+    const pl = actors.get("player");
+    if (!pl?.group) return false;
+    pl.wx = wx;
+    pl.wz = wz;
+    pl.group.position.set(wx, pl.group.position.y, wz);
+    return true;
+  },
   setGuideTarget: t => { guideTarget = t; },
+  setAngelinaLifeBillboard: setAngelinaLifeBillboard,
+  clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
+  setPlayerLifeCh1Skin,
+  getPlayerLifeCh1SkinRenderState,
+  clearPlayerLifeCh1Skin: () => setPlayerLifeCh1Skin({ visible: false }),
+  /** E2E only: rotate camera toward a world point (movement still uses real WASD). */
+  faceWorldTargetForE2e,
   refreshHangoutStage: stage => {
     if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
   },
@@ -1656,7 +1845,9 @@ const api = {
       updateProcedural(a, 1 / 30, null, false);
     }
     markActorVisibleWhenReady(a);
+    enforceLifeCh1PlayerMeshVisibility(a);
     a.root.visible = true;
+    enforceLifeCh1PlayerMeshVisibility(a);
     const p = a.group.position;
     if (pose === "front") {
       camera.position.set(p.x, p.y + 0.98, p.z - 2.85);

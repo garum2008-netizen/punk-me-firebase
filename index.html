@@ -66,7 +66,18 @@
     <div class="story-dialog-panel">
       <div class="story-dialog-title"></div>
       <div class="story-dialog-body"></div>
-      <button type="button" class="btn secondary" style="margin-top:10px" onclick="StoryEngine?.dismissAllStoryUi?.()">✕</button>
+      <button type="button" class="btn secondary" style="margin-top:10px" onclick="StoryEngine?.dismissAllStoryUi?.(); window.LifeCh1Slice?.closeDialogue?.();">✕</button>
+    </div>
+  </div>
+  <div id="lifeCh1Wardrobe" class="life-ch1-wardrobe" role="dialog" aria-modal="true" aria-labelledby="lifeCh1WardrobeTitle" hidden>
+    <div class="life-ch1-wardrobe-panel">
+      <h3 id="lifeCh1WardrobeTitle">Angelina — wardrobe</h3>
+      <p class="life-ch1-wardrobe-hint" id="lifeCh1WardrobeHint"></p>
+      <div class="life-ch1-skin-grid" id="lifeCh1SkinGrid"></div>
+      <p class="life-ch1-outfit-label" id="lifeCh1OutfitLabel"></p>
+      <div class="life-ch1-outfit-row" id="lifeCh1OutfitRow"></div>
+      <button type="button" class="btn" id="lifeCh1WardrobeConfirm" disabled></button>
+      <button type="button" class="btn secondary" id="lifeCh1WardrobeClose"></button>
     </div>
   </div>
   <div id="touchControls" class="touch-controls" aria-hidden="true">
@@ -272,8 +283,10 @@
 <script type="module">
   import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1";
   import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r5-accounts-r1";
+  import { initLifeCh1Slice } from "./js/story/life-ch1-slice.mjs?v=life-ch1-slice-m1";
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
+  initLifeCh1Slice({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
   window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.me = window.me || {};

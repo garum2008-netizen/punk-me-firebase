@@ -1,20 +1,37 @@
 /** Visibility gate for skinned actors. */
+let playerRootVisibilityGuard = null;
+
+/** World3D registers a callback to re-hide the player mesh when life-ch1 cutout is active. */
+export function setPlayerRootVisibilityGuard(fn) {
+  playerRootVisibilityGuard = typeof fn === "function" ? fn : null;
+}
+
+function revealActorRoot(actor) {
+  if (actor.root) actor.root.visible = true;
+  if (actor.isPlayer && playerRootVisibilityGuard) playerRootVisibilityGuard(actor);
+}
+
 export function markActorVisibleWhenReady(actor) {
-  if (actor._visibleReady) return;
+  if (actor._visibleReady) {
+    if (actor.isPlayer && playerRootVisibilityGuard) playerRootVisibilityGuard(actor);
+    return;
+  }
   if (actor._meshy) {
     actor._visibleReady = true;
-    if (actor.root) actor.root.visible = true;
+    revealActorRoot(actor);
     return;
   }
   const idle = actor.actions?.idle;
   if (!idle) {
     actor._visibleReady = true;
-    if (actor.root) actor.root.visible = true;
+    revealActorRoot(actor);
     return;
   }
   if (idle.getEffectiveWeight() > 0.35) {
     actor._visibleReady = true;
-    actor.root.visible = true;
+    revealActorRoot(actor);
+  } else if (actor.isPlayer && playerRootVisibilityGuard) {
+    playerRootVisibilityGuard(actor);
   }
 }
 
