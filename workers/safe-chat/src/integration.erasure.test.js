@@ -20,6 +20,7 @@ async function countOwnMessagesByIds(ids, sid) {
 
 async function seedOwnMessages(u, n) {
   const sid = (await (await apiGet(SELF, "/api/chat/config", u.idToken)).json()).mySid;
+  expect(sid).toMatch(/^[a-f0-9]{32}$/);
   const ids = [];
   for (let i = 0; i < n; i++) {
     const ref = await rtdbOwner("chat/messages", "POST", {
@@ -29,18 +30,14 @@ async function seedOwnMessages(u, n) {
       time: Date.now() + i
     });
     const id = ref.json?.name;
+    expect(id).toBeTruthy();
     if (id) ids.push(id);
   }
+  expect(ids.length).toBe(n);
   return { sid, ids };
 }
 
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron queue)", () => {
-  beforeEach(async () => {
-    await rtdbOwner("chat/messages", "DELETE");
-    await rtdbOwner("chat/reports", "DELETE");
-    await rtdbOwner("chat/internal", "DELETE");
-  });
-
   it("H-1: delete-my-data then cron drains 25 messages with zero leftovers", async () => {
     const u = await authSignUp();
     const { sid, ids } = await seedOwnMessages(u, 25);

@@ -80,7 +80,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
   });
 
   it("rejects path injection in msgId on report", async () => {
-    const bad = await apiPostReport(SELF, userA.idToken, { msgId: "../../players/secret" });
+    const bad = await apiPostReport(SELF, userA.idToken, { msgId: "../../players/secret" }, {}, { skipWait: true });
     expect((await bad.json()).error).toBe("invalid_id");
   });
 

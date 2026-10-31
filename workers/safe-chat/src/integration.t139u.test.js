@@ -94,7 +94,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
     await rtdbOwner(`chat/messages/${msgId}`, "DELETE");
-    const r = await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
+    const r = await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" }, {}, { skipWait: true });
     expect((await r.json()).error).toBe("message_not_found");
     expect(r.status).toBe(404);
   });
@@ -168,13 +168,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   });
 
   it("t139u B-04: cluster hide cap blocks excess global hides from one cluster", async () => {
-    const author = await authSignUp();
     const rep = await authSignUp();
     const hdr = { "CF-Connecting-IP": "198.51.100.30" };
     const hidden = [];
     for (let i = 0; i < 5; i++) {
-      await waitSendCooldown();
+      const author = await authSignUp();
       const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+      expect(msgId).toBeTruthy();
       await putChatMessageText(`${msgId}`, "kill the kid");
       await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" }, hdr);
       hidden.push((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden === true);
@@ -413,9 +413,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const author = await authSignUp();
     const msgs = [];
     for (let i = 0; i < 3; i++) {
-      await waitSendCooldown();
-      msgs.push((await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json()).id);
-      await putChatMessageText(`${msgs[i]}`, "how old are you don't tell mom");
+      const author = await authSignUp();
+      const { id } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+      expect(id).toBeTruthy();
+      msgs.push(id);
+      await putChatMessageText(`${id}`, "how old are you don't tell mom");
     }
     const rep = await authSignUp();
     await Promise.all(

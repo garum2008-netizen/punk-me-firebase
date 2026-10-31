@@ -137,15 +137,23 @@ export async function resetIntegrationIsolation(env) {
 }
 
 export async function putChatMessageText(msgId, text) {
+  await waitForChatMessage(msgId);
   await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", text);
   const needle = String(text).trim().slice(0, Math.min(32, String(text).length));
   await waitForMessageText(msgId, needle);
 }
 
+function looksLikeChatMsgId(msgId) {
+  return typeof msgId === "string" && /^[-A-Za-z0-9]+$/.test(msgId);
+}
+
 /** POST /api/chat/report after the message node is visible in RTDB (emulator timing). */
-export async function apiPostReport(SELF, idToken, body, extraHeaders = {}) {
+export async function apiPostReport(SELF, idToken, body, extraHeaders = {}, opts = {}) {
   const msgId = body?.msgId;
-  if (msgId) await waitForChatMessage(msgId);
+  if (msgId && !opts.skipWait && looksLikeChatMsgId(msgId)) {
+    if (opts.textNeedle) await waitForMessageText(msgId, opts.textNeedle);
+    else await waitForChatMessage(msgId);
+  }
   return apiPost(SELF, "/api/chat/report", idToken, body, extraHeaders);
 }
 
