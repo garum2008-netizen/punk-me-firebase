@@ -122,13 +122,13 @@ export function waitSendCooldown() {
   return new Promise(r => setTimeout(r, 3100));
 }
 
-export function expectedChatSid(localId) {
+export async function expectedChatSid(localId) {
   return chatPublicSid(localId, process.env.SAFE_CHAT_HASH_SALT || "vitest-local-salt-do-not-use-in-prod");
 }
 
 /** Owner-POST N messages for erasure integration tests (deterministic sid, visibility barrier). */
 export async function seedOwnMessagesForErasure(u, n) {
-  const sid = expectedChatSid(u.localId);
+  const sid = await expectedChatSid(u.localId);
   if (!/^[a-f0-9]{32}$/.test(sid)) throw new Error(`invalid sid for erasure seed: ${sid}`);
   const ids = [];
   for (let i = 0; i < n; i += 1) {

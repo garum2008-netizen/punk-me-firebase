@@ -446,8 +446,6 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
   it("risk: false dismiss reduces auto-hide weight but report still accepted", async () => {
     const author = await authSignUp();
     const { j: s1 } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
-    await waitSendCooldown();
-    const { j: s2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
     const msgId1 = s1.id;
     await putChatMessageText(`${msgId1}`, "how old are you secret");
     await waitSendCooldown();
@@ -496,14 +494,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
   it("filter-detected message content hides regardless of reporter auto-hide quota", async () => {
     const author = await authSignUp();
     const { j: s1 } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
+    const msgId1 = s1.id;
+    await putChatMessageText(`${msgId1}`, "kill the kid");
     await waitSendCooldown();
     const { j: s2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
-    const msgId1 = s1.id;
     const msgId2 = s2.id;
-    const rep = await authSignUp();
-    await putChatMessageText(`${msgId1}`, "kill the kid");
-    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
     await putChatMessageText(`${msgId2}`, "kill the kid");
+    const rep = await authSignUp();
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
     await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/messages/${msgId1}`, "GET")).json?.hidden).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).toBe(true);
