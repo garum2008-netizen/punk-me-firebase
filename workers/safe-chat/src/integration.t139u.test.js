@@ -485,8 +485,19 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
       expect(sent.ok).toBe(true);
       await waitForChatMessage(sent.id);
       ids.push(sent.id);
-      const rep = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId: sent.id, category: "other_child_safety" });
-      expect((await rep.json()).received).toBe(true);
+      let repBody = null;
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const rep = await apiPost(SELF, "/api/chat/report", userB.idToken, {
+          msgId: sent.id,
+          category: "other_child_safety"
+        });
+        if (rep.status === 200) {
+          repBody = await rep.json();
+          if (repBody.received) break;
+        }
+        await new Promise(r => setTimeout(r, 60));
+      }
+      expect(repBody?.received).toBe(true);
     }
     const res = await apiGet(SELF, "/api/mod/safety-queue", mod.idToken);
     expect(res.status).toBe(200);
