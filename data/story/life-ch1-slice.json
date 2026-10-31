@@ -30,7 +30,7 @@
         "da": "Tal med Angelina — vælg hvem du stoler på"
       },
       "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
-      "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.5 },
+      "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
       "dialogue": "dlg_life_ch1_trust",
       "rewardCoins": 30
     },
@@ -42,7 +42,7 @@
         "da": "Tal med Angelina igen"
       },
       "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
-      "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.5 },
+      "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
       "dialogue": "dlg_life_ch1_reflect",
       "rewardCoins": 45
     }

@@ -17,7 +17,7 @@ function assert(cond, msg) {
 
 async function main() {
   const mod = await import(pathToFileURL(path.join(root, "js/story/life-ch1-slice.mjs")).href);
-  const { ensureLifeCh1, defaultLifeCh1State, pickReflectNode, claimStepReward } = mod;
+  const { ensureLifeCh1, defaultLifeCh1State, pickReflectNode, claimStepReward, normalizeClaimedSteps, clampStepIndex, rewardClaimKey } = mod;
 
   assert(spec.steps.length === 4, "four steps");
   assert(spec.dialogues.dlg_life_ch1_outfit.nodes.n0.choices.length === 3, "three outfit choices");
@@ -43,6 +43,17 @@ async function main() {
   claimStepReward(coinMe.lifeCh1, 1, 25);
   claimStepReward(coinMe.lifeCh1, 1, 25);
   assert(coinMe.coins === 75, "step coin grant idempotent");
+  assert(coinMe.lifeCh1.claimedSteps.s1 === true, "claimedSteps uses s1 key");
+
+  const fromArray = normalizeClaimedSteps([false, true, true]);
+  assert(fromArray.s1 && fromArray.s2, "RTDB array maps to s1/s2");
+
+  const clamped = { v: 1, active: false, completed: true, stepIndex: 14, flags: {}, claimedSteps: {} };
+  clampStepIndex(clamped);
+  assert(clamped.stepIndex <= 3, "completed stepIndex clamped to chapter max");
+
+  assert(rewardClaimKey(2, "trust_bonus") === "s2_trust_bonus", "reward key format");
+
   const pNoSlice = { lifeCh1: null };
   assert(ensureLifeCh1(pNoSlice) === null && pNoSlice.lifeCh1 === null, "slice off must not create lifeCh1");
 

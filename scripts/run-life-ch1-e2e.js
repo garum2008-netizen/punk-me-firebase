@@ -1,36 +1,32 @@
 #!/usr/bin/env node
 /**
- * Life ch1 e2e: validate RTDB rules, run against Firebase emulators + static server.
+ * Life ch1 e2e: validate PR database.rules.json, demo-project emulators, static server, N consecutive runs.
  */
 const { spawn, spawnSync } = require("child_process");
 const path = require("path");
 
 const root = path.join(__dirname, "..");
-const project = "punk-me-40605";
+const project = process.env.FIREBASE_DEMO_PROJECT || "demo-punk-life-ch1";
 const servePort = process.env.PUNK_PORT || "3456";
-
-function killStaleEmulators() {
-  spawnSync("pkill", ["-f", "firebase-database-emulator"], { stdio: "ignore" });
-  spawnSync("pkill", ["-f", "firebase emulators:start"], { stdio: "ignore" });
-}
+const runCount = Math.max(1, parseInt(process.env.LIFE_CH1_E2E_RUNS || "10", 10));
+const firebaseBin = path.join(root, "node_modules", ".bin", "firebase");
+const rulesPath = path.join(root, "database.rules.json");
 
 function validateRules() {
-  killStaleEmulators();
   const noop = path.join(root, "scripts", "validate-rtdb-rules.js");
   const cmd = `node ${noop}`;
   const r = spawnSync(
-    path.join(root, "node_modules", ".bin", "firebase"),
+    firebaseBin,
     ["emulators:exec", "--only", "database", "--project", project, cmd],
-    { cwd: root, stdio: "inherit", shell: false }
+    { cwd: root, stdio: "inherit", env: { ...process.env, FIREBASE_DATABASE_EMULATOR_HOST: undefined } }
   );
-  if (r.status !== 0) throw new Error("database.rules.json validation failed (emulator compile)");
+  if (r.status !== 0) throw new Error(`${rulesPath} validation failed (emulator compile)`);
 }
 
 function spawnEmulators() {
   return spawn(
-    "npx",
+    firebaseBin,
     [
-      "firebase",
       "emulators:start",
       "--only",
       "auth,database",
@@ -90,55 +86,70 @@ function startServe() {
   });
 }
 
+function stopChild(child, label) {
+  if (!child || child.killed) return;
+  try {
+    child.kill("SIGTERM");
+  } catch (_) {}
+  setTimeout(() => {
+    try {
+      if (!child.killed) child.kill("SIGKILL");
+    } catch (_) {}
+  }, 1500);
+}
+
 function runE2e(runIndex) {
-  return new Promise((resolve, reject) => {
+  return new Promise(resolve => {
     const child = spawn(process.execPath, [path.join(__dirname, "test-life-ch1-slice-e2e.js")], {
       cwd: root,
       stdio: "inherit",
       env: {
         ...process.env,
         PUNK_BASE: `http://127.0.0.1:${servePort}`,
-        LIFE_CH1_E2E_RUN: String(runIndex)
+        LIFE_CH1_E2E_RUN: String(runIndex),
+        FIREBASE_DEMO_PROJECT: project
       }
     });
-    child.on("exit", code => (code === 0 ? resolve() : reject(new Error(`e2e run ${runIndex} exit ${code}`))));
+    child.on("exit", code => resolve(code === 0 ? 0 : code || 1));
   });
 }
 
 function restartEmulators(emu) {
-  try {
-    emu.kill("SIGKILL");
-  } catch (_) {}
-  killStaleEmulators();
+  stopChild(emu, "emulator");
   return spawnEmulators();
 }
 
 (async () => {
   validateRules();
-  killStaleEmulators();
   let emu = spawnEmulators();
   let serve;
+  const exitCodes = [];
   try {
     await waitReady(emu);
     serve = await startServe();
-    for (let i = 1; i <= 3; i++) {
-      console.log(`\n=== life-ch1-e2e run ${i}/3 ===\n`);
-      await runE2e(i);
-      if (i < 3) {
+    for (let i = 1; i <= runCount; i++) {
+      console.log(`\n=== life-ch1-e2e run ${i}/${runCount} ===\n`);
+      const code = await runE2e(i);
+      exitCodes.push(code);
+      console.log(`life-ch1-e2e run ${i} exit ${code}`);
+      if (code !== 0) {
+        throw new Error(`run ${i} failed with exit ${code}`);
+      }
+      if (i < runCount) {
         emu = restartEmulators(emu);
         await waitReady(emu);
       }
     }
-    console.log("\nlife-ch1-e2e: 3/3 PASS");
-    serve?.kill("SIGKILL");
-    killStaleEmulators();
+    console.log(`\nlife-ch1-e2e: ${runCount}/${runCount} PASS`);
+    console.log("life-ch1-e2e exit codes:", exitCodes.join(", "));
+    stopChild(serve, "serve");
+    stopChild(emu, "emulator");
     process.exit(0);
-  } catch (inner) {
-    serve?.kill("SIGKILL");
-    killStaleEmulators();
-    throw inner;
+  } catch (e) {
+    console.error(e.message || e);
+    console.log("life-ch1-e2e exit codes:", exitCodes.join(", ") || "(none completed)");
+    stopChild(serve, "serve");
+    stopChild(emu, "emulator");
+    process.exit(1);
   }
-})().catch(e => {
-  console.error(e.message || e);
-  process.exit(1);
-});
+})();

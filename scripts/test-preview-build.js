@@ -7,6 +7,7 @@ const { chromium } = require("playwright");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
+const { isProdFirebaseRequest } = require("./firebase-prod-guard");
 
 const ROOT = path.join(__dirname, "..");
 const DIST = path.join(ROOT, "dist-preview");
@@ -68,8 +69,7 @@ const PROD_HOST_RE =
   /(?:firebaseio\.com|firebasedatabase\.app|firebaseapp\.com|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|AIzaSy)/i;
 
 function isProdFirebaseUrl(url) {
-  if (/127\.0\.0\.1|localhost/.test(url)) return false;
-  return PROD_HOST_RE.test(url);
+  return isProdFirebaseRequest(url);
 }
 
 function assertBundleNoProdSecrets() {
@@ -136,6 +136,26 @@ async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
   throw new Error("walkNear timeout");
 }
 
+async function waitForSkinRendered(page, skinLetter = "A") {
+  await page.waitForFunction(
+    skinLetter => {
+      if (window.me?.lifeCh1?.angelinaSkin !== skinLetter) return false;
+      window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
+      const rs = window.World3D?.getPlayerLifeCh1SkinRenderState?.();
+      if (!rs) return false;
+      const slug = `angelina-teen-${skinLetter}`;
+      return (
+        (rs.url.includes(slug) || rs.mapSrc.includes(slug)) &&
+        rs.textureReady &&
+        rs.spriteVisible &&
+        rs.rootHidden
+      );
+    },
+    skinLetter,
+    { timeout: 45000, polling: 100 }
+  );
+}
+
 async function runBrowserTest(base) {
   let prodAttempts = 0;
   const browser = await chromium.launch();
@@ -143,7 +163,8 @@ async function runBrowserTest(base) {
   const page = await context.newPage();
   await page.route("**/*", route => {
     const url = route.request().url();
-    if (isProdFirebaseUrl(url)) {
+    const rt = route.request().resourceType();
+    if (isProdFirebaseRequest(url) || (rt === "websocket" && isProdFirebaseRequest(url))) {
       prodAttempts += 1;
       return route.abort();
     }
@@ -218,7 +239,7 @@ async function runBrowserTest(base) {
       }
       const skin = await page.evaluate(() => window.me?.lifeCh1?.angelinaSkin);
       if (skin !== "A") throw new Error("reload lost skin " + skin);
-      await page.evaluate(() => window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.());
+      await waitForSkinRendered(page, "A");
     }
 
     const afterReload = await page.evaluate(() => ({

@@ -554,6 +554,7 @@ function applyFirebasePlayerSnapshot(snap) {
   }
   window.me = me;
   window.__playerLoaded = true;
+  if (window.LifeCh1Slice?.ensureLifeCh1) window.LifeCh1Slice.ensureLifeCh1(me);
   if (!me.characterId) {
     me.characterId = resolveCharacterIdForPlayer(me, { allowAvatarInfer: snap.exists() });
   }
@@ -857,6 +858,7 @@ function bindGameShell() {
         syncStage3D();
         window.PlayV21?.syncCosmetics?.(me);
         window.Onboarding?.syncGuideTarget?.();
+        window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
       },
       onAnimState: (st) => {
         me._animState = st;

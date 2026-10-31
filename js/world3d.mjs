@@ -84,7 +84,71 @@ let guideTarget = null;
 /** Deprecated billboard — slice uses player cutout; kept for clear API. */
 let lifeAngelinaBillboard = { sprite: null, url: "", wx: 0, wz: 0, loc: "room", visible: false };
 /** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
-let lifeCh1PlayerSkin = { sprite: null, url: "", rootVisible: true };
+let lifeCh1PlayerSkin = { sprite: null, url: "", rootVisible: true, pending: null };
+
+function applyPlayerLifeCh1SkinOpts(opts = {}) {
+  const pl = actors.get("player");
+  if (!pl?.group) return false;
+  const sp = ensureLifeCh1PlayerSprite(pl);
+  if (!sp) return false;
+  if (!opts.visible || !opts.url) {
+    sp.visible = false;
+    sp.material.opacity = 0;
+    lifeCh1PlayerSkin.url = "";
+    if (pl.root && !lifeCh1PlayerSkin.rootVisible) {
+      pl.root.visible = true;
+      lifeCh1PlayerSkin.rootVisible = true;
+    }
+    return true;
+  }
+  const url = opts.url;
+  lifeCh1PlayerSkin.url = url;
+  if (pl.root?.visible !== false) {
+    pl.root.visible = false;
+    lifeCh1PlayerSkin.rootVisible = false;
+  }
+  sp.visible = true;
+  const tail = url.split("/").pop() || url;
+  const loaded = sp.material.map?.image?.currentSrc || sp.material.map?.image?.src || "";
+  if (loaded && loaded.includes(tail) && sp.material.opacity >= 1) {
+    return true;
+  }
+  sp.material.opacity = 0;
+  texLoader.load(
+    url,
+    tex => {
+      if (lifeCh1PlayerSkin.url !== url) return;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      sp.material.map = tex;
+      sp.material.needsUpdate = true;
+      sp.material.opacity = 1;
+      window.dispatchEvent(new CustomEvent("life-ch1-skin-texture-ready", { detail: { url } }));
+    },
+    undefined,
+    () => {
+      if (lifeCh1PlayerSkin.url === url) sp.visible = false;
+    }
+  );
+  return true;
+}
+
+function setPlayerLifeCh1Skin(opts = {}) {
+  lifeCh1PlayerSkin.pending = { ...opts };
+  applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
+}
+
+function getPlayerLifeCh1SkinRenderState() {
+  const pl = actors.get("player");
+  const sp = lifeCh1PlayerSkin.sprite;
+  const mapSrc = sp?.material?.map?.image?.currentSrc || sp?.material?.map?.image?.src || "";
+  return {
+    url: lifeCh1PlayerSkin.url || "",
+    spriteVisible: !!(sp?.visible && (sp.material?.opacity ?? 0) > 0.5),
+    rootHidden: !!(pl?.root && pl.root.visible === false),
+    textureReady: !!(sp?.material?.map && (sp.material?.opacity ?? 0) >= 1),
+    mapSrc
+  };
+}
 
 function isLifeCh1E2eTeleportEnabled() {
   return false;
@@ -116,50 +180,6 @@ function ensureLifeCh1PlayerSprite(pl) {
   pl.group.add(sp);
   lifeCh1PlayerSkin.sprite = sp;
   return sp;
-}
-
-function setPlayerLifeCh1Skin(opts = {}) {
-  const pl = actors.get("player");
-  if (!pl?.group) return;
-  const sp = ensureLifeCh1PlayerSprite(pl);
-  if (!sp) return;
-  if (!opts.visible || !opts.url) {
-    sp.visible = false;
-    sp.material.opacity = 0;
-    lifeCh1PlayerSkin.url = "";
-    if (pl.root && !lifeCh1PlayerSkin.rootVisible) {
-      pl.root.visible = true;
-      lifeCh1PlayerSkin.rootVisible = true;
-    }
-    return;
-  }
-  const url = opts.url;
-  lifeCh1PlayerSkin.url = url;
-  if (pl.root?.visible !== false) {
-    pl.root.visible = false;
-    lifeCh1PlayerSkin.rootVisible = false;
-  }
-  sp.visible = true;
-  sp.material.opacity = 0;
-  const loaded = sp.material.map?.image?.currentSrc || sp.material.map?.image?.src || "";
-  if (loaded && loaded.includes(url.split("/").pop())) {
-    sp.material.opacity = 1;
-    return;
-  }
-  texLoader.load(
-    url,
-    tex => {
-      if (lifeCh1PlayerSkin.url !== url) return;
-      tex.colorSpace = THREE.SRGBColorSpace;
-      sp.material.map = tex;
-      sp.material.needsUpdate = true;
-      sp.material.opacity = 1;
-    },
-    undefined,
-    () => {
-      if (lifeCh1PlayerSkin.url === url) sp.visible = false;
-    }
-  );
 }
 
 function ensureLifeAngelinaBillboardSprite() {
@@ -1339,6 +1359,10 @@ function sync(data) {
       applyNetworkAnim(a, player.anim);
       a._netAnim = player.anim;
     }
+    if (lifeCh1PlayerSkin.pending) {
+      applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
+    }
+    window.dispatchEvent(new CustomEvent("punk-player-actor-ready", { detail: { characterId: player.characterId } }));
   }
 
   const hideCrowd = isDuelActive() || captureFrameLock;
@@ -1680,6 +1704,7 @@ const api = {
   setAngelinaLifeBillboard: setAngelinaLifeBillboard,
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
   setPlayerLifeCh1Skin,
+  getPlayerLifeCh1SkinRenderState,
   clearPlayerLifeCh1Skin: () => setPlayerLifeCh1Skin({ visible: false }),
   /** E2E only: rotate camera toward a world point (movement still uses real WASD). */
   faceWorldTargetForE2e,

@@ -5,19 +5,12 @@
 const { chromium } = require("playwright");
 const path = require("path");
 const fs = require("fs");
+const { isProdFirebaseRequest } = require("./firebase-prod-guard");
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:3456";
 const qs =
   "?solo=1&firebaseEmulator=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&v=life-ch1-slice-e2e";
 const artifactsDir = process.env.PUNK_ARTIFACTS || "/opt/cursor/artifacts/life-ch1-e2e";
-
-const PROD_HOST_RE =
-  /(?:firebaseio\.com|firebasedatabase\.app|firebaseapp\.com|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com)/i;
-
-function isProdFirebaseUrl(url) {
-  if (/127\.0\.0\.1|localhost/.test(url)) return false;
-  return PROD_HOST_RE.test(url);
-}
 
 async function dismissHowToPlay(page) {
   await page.evaluate(() => {
@@ -88,6 +81,56 @@ async function reloadAndWaitLoaded(page) {
   await dismissHowToPlay(page);
 }
 
+async function waitForSkinRendered(page, skinLetter = "B") {
+  await page.waitForFunction(
+    skinLetter => {
+      if (window.me?.lifeCh1?.angelinaSkin !== skinLetter) return false;
+      window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
+      const rs = window.World3D?.getPlayerLifeCh1SkinRenderState?.();
+      if (!rs) return false;
+      const slug = `angelina-teen-${skinLetter}`;
+      const hit = rs.url.includes(slug) || rs.mapSrc.includes(slug);
+      return hit && rs.textureReady && rs.spriteVisible && rs.rootHidden;
+    },
+    skinLetter,
+    { timeout: 45000, polling: 100 }
+  );
+}
+
+async function waitForLifeCh1Selector(page, selector, target = null) {
+  await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
+  const deadline = Date.now() + 90000;
+  while (Date.now() < deadline) {
+    const done = await page.evaluate(
+      ({ selector, target }) => {
+        if (document.querySelector(selector)) return true;
+        const pos = window.World3D?.getPlayerWorldPosition?.();
+        if (target && pos) {
+          const d = Math.hypot(target.tx - pos.x, target.tz - pos.z);
+          if (d > (target.radius || 2.85) + 0.15) return false;
+        }
+        return window.LifeCh1Slice?.tryInteract?.() && !!document.querySelector(selector);
+      },
+      { selector, target }
+    );
+    if (done) return;
+    if (target) {
+      await page.evaluate(
+        ({ tx, tz }) => window.World3D?.faceWorldTargetForE2e?.(tx, tz),
+        target
+      );
+      await page.keyboard.down("Shift");
+      await page.keyboard.down("w");
+      await page.waitForTimeout(220);
+      await page.keyboard.up("w");
+      await page.keyboard.up("Shift");
+    } else {
+      await page.waitForTimeout(120);
+    }
+  }
+  throw new Error(`timeout waiting for ${selector}`);
+}
+
 async function startSliceAfterChapter0Shortcut(page) {
   console.log("e2e: chapter-0 shortcut — onboarding.done=true (labeled test-only)");
   await page.evaluate(async () => {
@@ -103,24 +146,6 @@ async function startSliceAfterChapter0Shortcut(page) {
   );
 }
 
-async function assertPlayerCutoutVisible(page) {
-  const ok = await page.evaluate(() => {
-    const pl = window.World3D?.getPlayerWorldPosition?.();
-    if (!pl) return false;
-    return window.me?.lifeCh1?.angelinaSkin === "B";
-  });
-  if (!ok) throw new Error("expected skin B on player state");
-  await page.waitForFunction(
-    () => {
-      const st = window.me?.lifeCh1;
-      if (!st || st.angelinaSkin !== "B") return false;
-      return document.body.classList.contains("life-ch1-active") || st.completed || st.stepIndex >= 2;
-    },
-    undefined,
-    { timeout: 15000 }
-  );
-}
-
 async function run() {
   fs.mkdirSync(artifactsDir, { recursive: true });
   let prodAttempts = 0;
@@ -132,7 +157,8 @@ async function run() {
   const page = await context.newPage();
   await page.route("**/*", route => {
     const url = route.request().url();
-    if (isProdFirebaseUrl(url)) {
+    const rt = route.request().resourceType();
+    if (isProdFirebaseRequest(url) || (rt === "websocket" && isProdFirebaseRequest(url))) {
       prodAttempts += 1;
       return route.abort();
     }
@@ -169,15 +195,7 @@ async function run() {
 
     const coinsBefore = await page.evaluate(() => window.me.coins);
     await walkNear(page, -3.2, 2.5);
-    await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
-    for (let t = 0; t < 12; t++) {
-      await page.keyboard.down("e");
-      await page.waitForTimeout(320);
-      await page.keyboard.up("e");
-      await page.waitForTimeout(120);
-      if (await page.locator('[data-testid="life-ch1-skin-B"]').isVisible().catch(() => false)) break;
-    }
-    await page.waitForSelector('[data-testid="life-ch1-skin-B"]', { timeout: 15000 });
+    await waitForLifeCh1Selector(page, '[data-testid="life-ch1-skin-B"]');
     await page.click('[data-testid="life-ch1-skin-B"]');
     await page.click(".life-ch1-outfit-pick >> nth=0");
     await page.click("#lifeCh1WardrobeConfirm");
@@ -189,23 +207,15 @@ async function run() {
       undefined,
       { timeout: 15000 }
     );
+    await waitForSkinRendered(page, "B");
 
     await reloadAndWaitLoaded(page);
     await page.waitForFunction(() => window.me?.lifeCh1?.stepIndex >= 2, undefined, { timeout: 15000 });
     await assertReloadFlags(page, 2);
-    await assertPlayerCutoutVisible(page);
+    await waitForSkinRendered(page, "B");
 
-    await walkNear(page, 2.5, -1.8);
-    await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
-    for (let t = 0; t < 12; t++) {
-      await dismissHowToPlay(page);
-      await page.keyboard.down("e");
-      await page.waitForTimeout(320);
-      await page.keyboard.up("e");
-      await page.waitForTimeout(120);
-      if (await page.locator("#lifeCh1DialogPortrait").isVisible().catch(() => false)) break;
-    }
-    await page.waitForSelector("#lifeCh1DialogPortrait", { timeout: 15000 });
+    await walkNear(page, 2.5, -1.8, 2.75);
+    await waitForLifeCh1Selector(page, "#lifeCh1DialogPortrait", { tx: 2.5, tz: -1.8, radius: 2.85 });
     await page.click(".life-ch1-choice >> nth=1");
     await page.waitForFunction(
       () => window.me?.lifeCh1?.flags?.mystery_open && window.me?.lifeCh1?.stepIndex >= 3,
@@ -216,18 +226,10 @@ async function run() {
     await reloadAndWaitLoaded(page);
     await page.waitForFunction(() => window.me?.lifeCh1?.stepIndex >= 3, undefined, { timeout: 15000 });
     await assertReloadFlags(page, 3);
+    await waitForSkinRendered(page, "B");
 
-    await walkNear(page, 2.5, -1.8);
-    await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
-    for (let t = 0; t < 12; t++) {
-      await dismissHowToPlay(page);
-      await page.keyboard.down("e");
-      await page.waitForTimeout(320);
-      await page.keyboard.up("e");
-      await page.waitForTimeout(120);
-      if (await page.locator("#lifeCh1DlgOk").isVisible().catch(() => false)) break;
-    }
-    await page.waitForSelector("#lifeCh1DlgOk", { timeout: 15000 });
+    await walkNear(page, 2.5, -1.8, 2.75);
+    await waitForLifeCh1Selector(page, "#lifeCh1DlgOk", { tx: 2.5, tz: -1.8, radius: 2.85 });
     await page.click("#lifeCh1DlgOk");
     await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, {
       timeout: 20000
@@ -239,9 +241,10 @@ async function run() {
     }));
     if (snap1.coins <= coinsBefore) throw new Error("expected coin rewards: " + JSON.stringify(snap1));
     if (!snap1.lifeCh1.completed) throw new Error("life ch1 not completed");
+    if ((snap1.lifeCh1.stepIndex || 0) > 3) throw new Error("stepIndex over max: " + snap1.lifeCh1.stepIndex);
 
     const coinsAfterComplete = snap1.coins;
-    for (let r = 0; r < 3; r++) {
+    for (let r = 0; r < 4; r++) {
       await page.evaluate(() => window.saveMe());
       await reloadAndWaitLoaded(page);
       await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, {
@@ -251,7 +254,7 @@ async function run() {
       if (coins !== coinsAfterComplete) {
         throw new Error(`coins reset on reload ${r + 1}: ${coinsAfterComplete} -> ${coins}`);
       }
-      await assertPlayerCutoutVisible(page);
+      await waitForSkinRendered(page, "B");
     }
 
     if (prodAttempts !== 0) {

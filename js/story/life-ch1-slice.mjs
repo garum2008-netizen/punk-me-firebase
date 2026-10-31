@@ -37,12 +37,42 @@ function me() {
   return window.me;
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+export function normalizeClaimedSteps(raw) {
+  if (raw == null) return {};
+  if (Array.isArray(raw)) {
+    const out = {};
+    raw.forEach((v, i) => {
+      if (v) out[`s${i}`] = true;
+    });
+    return out;
+  }
+  if (typeof raw !== "object") return {};
+  const out = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (!v) continue;
+    if (/^\d+$/.test(k)) out[`s${k}`] = true;
+    else out[k] = true;
+  }
+  return out;
+}
+
+export function rewardClaimKey(stepIndex, suffix) {
+  const base = typeof stepIndex === "number" ? `s${stepIndex}` : String(stepIndex);
+  return suffix ? `${base}_${suffix}` : base;
+}
+
+export function maxStepIndex() {
+  const last = (spec?.steps?.length || 4) - 1;
+  return Math.max(0, Math.min(12, last));
+}
+
+export function clampStepIndex(st) {
+  if (!st) return;
+  st.stepIndex = Math.max(0, Math.min(maxStepIndex(), Math.floor(st.stepIndex || 0)));
+  if (st.completed) {
+    st.active = false;
+    st.stepIndex = Math.min(st.stepIndex, maxStepIndex());
+  }
 }
 
 export function defaultLifeCh1State() {
@@ -99,8 +129,7 @@ export function ensureLifeCh1(player) {
       ...p.lifeCh1,
       v: 1,
       flags: p.lifeCh1.flags && typeof p.lifeCh1.flags === "object" ? p.lifeCh1.flags : {},
-      claimedSteps:
-        p.lifeCh1.claimedSteps && typeof p.lifeCh1.claimedSteps === "object" ? p.lifeCh1.claimedSteps : {},
+      claimedSteps: normalizeClaimedSteps(p.lifeCh1.claimedSteps),
       angelinaSkin: normalizeSkinId(p.lifeCh1.angelinaSkin)
     };
   }
@@ -108,13 +137,11 @@ export function ensureLifeCh1(player) {
   if (typeof st.active !== "boolean") st.active = !!st.active;
   if (typeof st.completed !== "boolean") st.completed = !!st.completed;
   if (typeof st.stepIndex !== "number" || !Number.isFinite(st.stepIndex)) st.stepIndex = 0;
-  st.stepIndex = Math.max(0, Math.min(32, Math.floor(st.stepIndex)));
   if (typeof st.startedAt !== "number") st.startedAt = st.startedAt ? Number(st.startedAt) || 0 : 0;
   if (st.flags == null || typeof st.flags !== "object" || Array.isArray(st.flags)) st.flags = {};
-  if (st.claimedSteps == null || typeof st.claimedSteps !== "object" || Array.isArray(st.claimedSteps)) {
-    st.claimedSteps = {};
-  }
+  st.claimedSteps = normalizeClaimedSteps(st.claimedSteps);
   st.angelinaSkin = normalizeSkinId(st.angelinaSkin || "A");
+  clampStepIndex(st);
   return st;
 }
 
@@ -200,7 +227,11 @@ export function restoreLocalOverlay() {
     const raw = localStorage.getItem(localKey());
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.v === 1) me().lifeCh1 = parsed;
+    if (parsed && parsed.v === 1) {
+      parsed.claimedSteps = normalizeClaimedSteps(parsed.claimedSteps);
+      me().lifeCh1 = parsed;
+      clampStepIndex(me().lifeCh1);
+    }
   } catch (_) {}
 }
 
@@ -285,7 +316,8 @@ function grantCoins(n) {
 
 export function claimStepReward(st, stepIndex, amount) {
   if (!amount || !st) return 0;
-  const key = String(stepIndex);
+  const key =
+    typeof stepIndex === "number" ? rewardClaimKey(stepIndex) : String(stepIndex);
   if (st.claimedSteps[key]) return 0;
   st.claimedSteps[key] = true;
   grantCoins(amount);
@@ -301,16 +333,19 @@ function trustChoiceReflectBonus(st) {
 
 function advanceStep(extraReward = 0) {
   const st = ensureLifeCh1();
+  if (!st || st.completed) return;
   const step = currentStep();
+  if (!step) return;
   const idx = st.stepIndex;
   if (step?.rewardCoins) claimStepReward(st, idx, step.rewardCoins);
   if (step?.id === "reflect") {
-    claimStepReward(st, `${idx}_trust_bonus`, trustChoiceReflectBonus(st));
+    claimStepReward(st, rewardClaimKey(idx, "trust_bonus"), trustChoiceReflectBonus(st));
   }
-  if (extraReward) claimStepReward(st, `${idx}_extra`, extraReward);
-  st.stepIndex += 1;
+  if (extraReward) claimStepReward(st, rewardClaimKey(idx, "extra"), extraReward);
   const steps = spec?.steps || [];
-  if (st.stepIndex >= steps.length) {
+  const next = st.stepIndex + 1;
+  if (next >= steps.length) {
+    st.stepIndex = maxStepIndex();
     st.completed = true;
     st.active = false;
     document.body.classList.remove("life-ch1-active");
@@ -321,7 +356,10 @@ function advanceStep(extraReward = 0) {
         da: "Liv kapitel 1 færdig!"
       })
     );
+  } else {
+    st.stepIndex = next;
   }
+  clampStepIndex(st);
   persistLocalOverlay();
   hooks.save?.();
   renderObjectivePanel();
@@ -405,6 +443,8 @@ export function onBoot() {
   });
   if (typeof window !== "undefined") {
     window.addEventListener("scene3d-ready", () => syncPlayerLifeCh1Skin(), { passive: true });
+    window.addEventListener("punk-player-actor-ready", () => syncPlayerLifeCh1Skin(), { passive: true });
+    window.addEventListener("life-ch1-skin-texture-ready", () => syncPlayerLifeCh1Skin(), { passive: true });
   }
 }
 
@@ -513,7 +553,14 @@ function openWardrobePanel() {
     setAngelinaSkin(wardrobePending.skin);
     ensureLifeCh1().flags[wardrobePending.outfitFlag] = true;
     closeWardrobePanel();
-    advanceStep();
+    const step = currentStep();
+    if (isActive() && step?.id === "outfit") {
+      advanceStep();
+    } else {
+      persistLocalOverlay();
+      hooks.save?.();
+      syncPlayerLifeCh1Skin();
+    }
   };
   document.getElementById("lifeCh1WardrobeClose").textContent = L({ ru: "Закрыть", en: "Close", da: "Luk" });
   document.getElementById("lifeCh1WardrobeClose").onclick = () => closeWardrobePanel();
@@ -607,21 +654,24 @@ export function canReopenWardrobe() {
 
 export function tryInteract() {
   if (activeDlg) return false;
+  if (isActive()) {
+    const step = currentStep();
+    if (step?.interact && nearInteract(step.interact)) {
+      if (step.id === "outfit") {
+        openWardrobePanel();
+        return true;
+      }
+      if (step.dialogue) {
+        showDialogue(step.dialogue);
+        return true;
+      }
+    }
+  }
   if (canReopenWardrobe() && me()?.location === "room" && nearInteract(outfitInteractTarget())) {
     openWardrobePanel();
     return true;
   }
-  if (!isActive() || activeDlg) return false;
-  const step = currentStep();
-  if (!step?.interact) return false;
-  if (!nearInteract(step.interact)) return false;
-  if (step.id === "outfit") {
-    openWardrobePanel();
-    return true;
-  }
-  if (!step.dialogue) return false;
-  showDialogue(step.dialogue);
-  return true;
+  return false;
 }
 
 export function renderObjectivePanel() {
@@ -727,7 +777,11 @@ export async function initLifeCh1Slice(h) {
     isLifeCh1SliceEnabled,
     isLifeCh1TestMode,
     pickReflectNode,
-    portraitUrl: id => portraitUrl(id, skinManifest)
+    portraitUrl: id => portraitUrl(id, skinManifest),
+    normalizeClaimedSteps,
+    rewardClaimKey,
+    maxStepIndex,
+    clampStepIndex
   };
 }
 

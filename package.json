@@ -18,7 +18,7 @@
     "test:preview-build": "node scripts/test-preview-build.js",
     "test:angelina-skin-manifest": "node scripts/test-angelina-skin-manifest.js",
     "test:angelina-skin-alpha": "node scripts/test-angelina-skin-alpha.js",
-    "test:life-ch1": "node scripts/test-angelina-skin-manifest.js && node scripts/test-angelina-skin-alpha.js && node scripts/test-life-ch1-slice-unit.js"
+    "test:life-ch1": "node scripts/test-angelina-skin-manifest.js && node scripts/test-angelina-skin-alpha.js && node scripts/test-life-ch1-slice-unit.js && node scripts/test-life-ch1-claimed-rtdb-roundtrip.js"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",
