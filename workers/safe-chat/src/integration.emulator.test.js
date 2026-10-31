@@ -10,6 +10,7 @@ import {
   isBlocked,
   waitSendCooldown,
   waitForChatMessage,
+  waitForMessageText,
   drainErasureCronLoop,
   resetHideCountersDo,
   PROJECT_ID
@@ -224,7 +225,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const msgId = sent.id;
     await waitForChatMessage(msgId);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom meet me alone");
-    await waitForChatMessage(msgId);
+    await waitForMessageText(msgId, "how old are you");
     const rep = await authSignUp();
     let r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
     if (r.status !== 200) {

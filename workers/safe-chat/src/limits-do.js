@@ -109,6 +109,8 @@ export class ChatLimitsDO {
       await this.state.storage.delete("childSafetyHide");
       await this.state.storage.delete("limits");
       await this.state.storage.delete("reports");
+      await this.state.storage.delete("retentionContinuePending");
+      await this.state.storage.deleteAlarm();
       return Response.json({ ok: true });
     }
     return new Response("not found", { status: 404 });

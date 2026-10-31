@@ -90,13 +90,27 @@ export function isBlocked(blocklist, sid) {
 }
 
 /** Wait until a message node exists (emulator visibility). */
-export async function waitForChatMessage(msgId, { attempts = 80, delayMs = 50 } = {}) {
+export async function waitForChatMessage(msgId, { attempts = 120, delayMs = 75 } = {}) {
   for (let i = 0; i < attempts; i += 1) {
     const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     if (m.json && (m.json.sid || m.json.uid)) return m.json;
     await new Promise(r => setTimeout(r, delayMs));
   }
   throw new Error(`message ${msgId} not visible in RTDB`);
+}
+
+/** After owner PATCH of text, wait until body is visible (RTDB under load). */
+export async function waitForMessageText(msgId, textNeedle, { attempts = 120, delayMs = 75 } = {}) {
+  const needle = String(textNeedle || "");
+  for (let i = 0; i < attempts; i += 1) {
+    const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    const text = m.json?.text;
+    if (m.json && (m.json.sid || m.json.uid) && typeof text === "string" && text.includes(needle)) {
+      return m.json;
+    }
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  throw new Error(`message ${msgId} text not visible in RTDB (needle=${needle.slice(0, 32)})`);
 }
 
 /** Worker send cooldown is 3s; wait between sends from the same uid in integration tests. */
