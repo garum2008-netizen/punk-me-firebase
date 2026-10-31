@@ -18,6 +18,9 @@ const exportPath = args.find(a => a.endsWith(".json") && !a.startsWith("--"));
 const salt = process.env.SAFE_CHAT_HASH_SALT || process.env.MIGRATE_CHAT_HASH_SALT || "";
 const dbUrl = (process.env.FIREBASE_DATABASE_URL || "").replace(/\/$/, "");
 const accessToken = process.env.FIREBASE_DATABASE_ACCESS_TOKEN || process.env.FIREBASE_ACCESS_TOKEN || "";
+const emulatorNs = process.env.FIREBASE_EMULATOR_NS || "punk-me-40605-default-rtdb";
+/** Reject forged ancient legacy chat timestamps (before chat launch). */
+const LEGACY_CHAT_MIN_MS = Date.parse("2024-06-01T00:00:00.000Z");
 
 function chatPublicSid(uid, hashSalt) {
   const h = createHmac("sha256", hashSalt);
@@ -31,6 +34,8 @@ function planForPlayer(uid, player, existingMeta = {}) {
     const nowMs = Date.now();
     if (player.chatAge13DeclaredAt > nowMs + 60_000) {
       /* reject forged future legacy dates */
+    } else if (player.chatAge13DeclaredAt < LEGACY_CHAT_MIN_MS) {
+      /* reject forged ancient legacy dates */
     } else {
       const cur = typeof existingMeta.chatAge13DeclaredAt === "number" ? existingMeta.chatAge13DeclaredAt : 0;
       const merged = Math.max(cur, player.chatAge13DeclaredAt);
@@ -44,6 +49,9 @@ function planForPlayer(uid, player, existingMeta = {}) {
     }
   }
   if (typeof player.chatRegisteredAt === "number" && player.chatRegisteredAt > 0) {
+    if (player.chatRegisteredAt < LEGACY_CHAT_MIN_MS) {
+      /* reject forged ancient legacy dates */
+    } else {
     const cur = typeof existingMeta.chatRegisteredAt === "number" ? existingMeta.chatRegisteredAt : 0;
     const merged = Math.max(cur, player.chatRegisteredAt);
     if (merged !== cur) {
@@ -52,6 +60,7 @@ function planForPlayer(uid, player, existingMeta = {}) {
         path: `chatMeta/${uid}/chatRegisteredAt`,
         value: merged
       });
+    }
     }
   }
   const bl = player.chatBlocklist;
@@ -81,16 +90,22 @@ function loadExport(file) {
   return raw;
 }
 
+function rtdbUrl(pathSuffix) {
+  let url = `${dbUrl}/${pathSuffix}.json?access_token=${encodeURIComponent(accessToken)}`;
+  if (process.env.FIREBASE_EMULATOR_HOST) {
+    url += `&ns=${encodeURIComponent(emulatorNs)}`;
+  }
+  return url;
+}
+
 async function rtdbGet(pathSuffix) {
-  const url = `${dbUrl}/${pathSuffix}.json?access_token=${encodeURIComponent(accessToken)}`;
-  const res = await fetch(url);
+  const res = await fetch(rtdbUrl(pathSuffix));
   const json = await res.json();
   return { status: res.status, json };
 }
 
 async function rtdbPut(pathSuffix, value) {
-  const url = `${dbUrl}/${pathSuffix}.json?access_token=${encodeURIComponent(accessToken)}`;
-  const res = await fetch(url, {
+  const res = await fetch(rtdbUrl(pathSuffix), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(value)
@@ -114,6 +129,15 @@ async function main() {
         "FATAL: --write requires FIREBASE_EMULATOR_HOST (emulator) OR MIGRATE_ALLOW_PROD=owner-go with --i-understand-prod (owner GO only; agents must not use prod)."
       );
       process.exit(1);
+    }
+    if (!prodOk && emulator && dbUrl) {
+      const h = dbUrl.toLowerCase();
+      if (!h.includes("127.0.0.1") && !h.includes("localhost")) {
+        console.error(
+          "FATAL: with FIREBASE_EMULATOR_HOST set, FIREBASE_DATABASE_URL must use 127.0.0.1 or localhost (not production)."
+        );
+        process.exit(1);
+      }
     }
   }
   if (!exportPath) {

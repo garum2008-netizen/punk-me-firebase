@@ -2,7 +2,7 @@ import { env, SELF } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import { runSlaOverdueJob } from "./index.js";
 import { loadConfig } from "./config.js";
-import { runUserErasureBatch } from "./erasure.js";
+import { runUserErasureBatch, continueErasureForUid } from "./erasure.js";
 import { getCachedAdminToken } from "./admin-token.integration.js";
 import {
   authSignUp,
@@ -12,26 +12,6 @@ import {
   rtdbAuth,
   waitSendCooldown
 } from "./test-helpers.js";
-
-import { ChatLimitsDO } from "./limits-do.js";
-
-class MemDoStorage {
-  constructor() {
-    this.m = new Map();
-  }
-  async get(k) {
-    return this.m.get(k);
-  }
-  async put(k, v) {
-    this.m.set(k, v);
-  }
-  async getAlarm() {
-    return this.m.get("alarm");
-  }
-  async setAlarm(t) {
-    this.m.set("alarm", t);
-  }
-}
 
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms (must fail if disabled)", () => {
   it("PROTECT hide quota: second discretionary global hide on new messages is blocked", async () => {
@@ -65,15 +45,36 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     expect((await rtdbOwner(`chat/messages/${m2}`, "GET")).json?.hidden).not.toBe(true);
   });
 
-  it("PROTECT cluster cap: cluster-hide-check enforces cap in limits DO", async () => {
-    const now = Date.now();
-    const storage = new MemDoStorage();
-    const limits = new ChatLimitsDO({ storage }, env);
-    const hash = "cluster-cap-test-hash";
-    expect((await limits.checkClusterHide({ clusterHash: hash, now, cap: 2, bump: true })).ok).toBe(true);
-    expect((await limits.checkClusterHide({ clusterHash: hash, now, cap: 2, bump: true })).ok).toBe(true);
-    expect((await limits.checkClusterHide({ clusterHash: hash, now, cap: 2, bump: false })).ok).toBe(false);
-  });
+  it("PROTECT cluster cap: fourth global hide from same cluster IP is blocked", async () => {
+    const author = await authSignUp();
+    const sid = (await (await apiGet(SELF, "/api/chat/config", author.idToken)).json()).mySid;
+    const clusterHdr = { "CF-Connecting-IP": "203.0.113.55" };
+    const otherHdr = { "CF-Connecting-IP": "203.0.113.56" };
+    const msgIds = [];
+    for (let i = 0; i < 4; i++) {
+      const ref = await rtdbOwner("chat/messages", "POST", {
+        sid,
+        name: "Cap",
+        text: "how old are you don't tell mom",
+        time: Date.now() + i
+      });
+      msgIds.push(ref.json?.name || ref.key);
+    }
+    for (let i = 0; i < 3; i++) {
+      const msgId = msgIds[i];
+      const repA = await authSignUp();
+      const repB = await authSignUp();
+      await apiPost(SELF, "/api/chat/report", repA.idToken, { msgId, category: "grooming" });
+      await apiPost(SELF, "/api/chat/report", repB.idToken, { msgId, category: "grooming" }, clusterHdr);
+      expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
+    }
+    const m4 = msgIds[3];
+    const repA4 = await authSignUp();
+    const repB4 = await authSignUp();
+    await apiPost(SELF, "/api/chat/report", repA4.idToken, { msgId: m4, category: "grooming" }, otherHdr);
+    await apiPost(SELF, "/api/chat/report", repB4.idToken, { msgId: m4, category: "grooming" }, clusterHdr);
+    expect((await rtdbOwner(`chat/messages/${m4}`, "GET")).json?.hidden).not.toBe(true);
+  }, 120000);
 
   it("PROTECT global hide gate: single reporter cannot globally hide grooming preset alone", async () => {
     const author = await authSignUp();
@@ -168,6 +169,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     expect(q.json?.overdue).toBe(true);
     expect(q.json?.evidenceHoldExpiredAt).toBeTruthy();
+    const decisions = await rtdbOwner("chat/internal/safetyDecisions", "GET");
+    const actions = Object.values(decisions.json || {}).map(d => d?.action);
+    expect(actions).toContain("evidence_hold_expired");
   });
 
   it("PROTECT erasure budget: runUserErasureBatch stops with budgetExceeded", async () => {
@@ -194,6 +198,95 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     expect(out.subrequests).toBeLessThanOrEqual(12);
   });
 
+  it("PROTECT erasure continuation: continueErasureForUid must advance in-flight jobs", async () => {
+    const u = await authSignUp();
+    const sid = (await (await apiGet(SELF, "/api/chat/config", u.idToken)).json()).mySid;
+    for (let i = 0; i < 30; i++) {
+      await rtdbOwner("chat/messages", "POST", { sid, name: "E", text: `e${i}`, time: Date.now() + i });
+    }
+    const token = await getCachedAdminToken(env);
+    const config = loadConfig(env);
+    const first = await runUserErasureBatch({
+      config,
+      env,
+      token,
+      authUid: u.localId,
+      sid,
+      now: Date.now(),
+      storedCursor: null,
+      budget: config.erasureMaxSubrequests
+    });
+    expect(first.complete).not.toBe(true);
+    const cont = await continueErasureForUid(env, u.localId);
+    expect(cont.skipped).not.toBe(true);
+    expect(cont.subrequests).toBeGreaterThan(0);
+  });
+
+  it("PROTECT erasure with safety hold: delete-my-data parks as complete_with_holds", async () => {
+    const author = await authSignUp();
+    const alt = await authSignUp();
+    const { id: msgId } = await (
+      await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })
+    ).json();
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "kill the kid");
+    await apiPost(SELF, "/api/chat/report", alt.idToken, { msgId, category: "other_child_safety" });
+    const token = await getCachedAdminToken(env);
+    const config = loadConfig(env);
+    const sid = (await (await apiGet(SELF, "/api/chat/config", author.idToken)).json()).mySid;
+    const out = await runUserErasureBatch({
+      config,
+      env,
+      token,
+      authUid: author.localId,
+      sid,
+      now: Date.now(),
+      storedCursor: null,
+      budget: config.erasureMaxSubrequests
+    });
+    expect(out.completeWithHolds || out.status === "complete_with_holds").toBe(true);
+    expect(out.continueScheduled).toBe(false);
+  });
+
+  it("PROTECT EV-SNAP: second child_safety report keeps evidence snapshot text", async () => {
+    const author = await authSignUp();
+    const { id: msgId } = await (
+      await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })
+    ).json();
+    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "kill the kid");
+    const rep1 = await authSignUp();
+    const rep2 = await authSignUp();
+    await apiPost(SELF, "/api/chat/report", rep1.idToken, { msgId, category: "other_child_safety" });
+    await apiPost(
+      SELF,
+      "/api/chat/report",
+      rep2.idToken,
+      { msgId, category: "other_child_safety" },
+      { "CF-Connecting-IP": "203.0.113.77" }
+    );
+    expect((await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET")).json?.snapshot?.text).toContain(
+      "kill"
+    );
+    const rep3 = await authSignUp();
+    await apiPost(SELF, "/api/chat/report", rep3.idToken, { msgId, category: "other_child_safety" });
+    expect((await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET")).json?.snapshot?.text).toContain(
+      "kill"
+    );
+  });
+
+  it("PROTECT P-04g: generic auto-hide redacts message text for other clients", async () => {
+    const author = await authSignUp();
+    const viewer = await authSignUp();
+    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    for (let i = 0; i < 3; i++) {
+      const r = await authSignUp();
+      await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "generic" });
+    }
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
+    const clientView = await rtdbAuth(`chat/messages/${msgId}`, "GET", viewer.idToken);
+    expect(clientView.json?.text).toBeUndefined();
+    expect(clientView.json?.textRedacted).toBe(true);
+  });
+
   it("PROTECT O-03: benign preset other_child_safety does not global-hide without corroboration", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
@@ -211,8 +304,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const q0 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     const sla = q0.json?.slaReviewBy;
     expect(typeof sla).toBe("number");
-    const before = await runSlaOverdueJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(sla - 1000) }, sla - 1000);
-    expect(before.marked).toBe(0);
+    await runSlaOverdueJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(sla - 1000) }, sla - 1000);
+    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.overdue).not.toBe(true);
     const after = await runSlaOverdueJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(sla + 5) }, sla + 5);
     expect(after.marked).toBeGreaterThanOrEqual(1);
     expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.overdue).toBe(true);

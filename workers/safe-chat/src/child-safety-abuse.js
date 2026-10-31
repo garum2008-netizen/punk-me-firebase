@@ -1,7 +1,6 @@
 import { REPORT_CATEGORY_CHILD_SAFETY } from "./config.js";
 import { rtdbPath, rtdbRequest } from "./rtdb.js";
 import { reporterTrustForChildSafety } from "./player-profile.js";
-import { testMutationDisables } from "./test-mutation-flags.js";
 
 function pathChatMessage(msgId) {
   return rtdbPath("chat", "messages", msgId);
@@ -98,10 +97,7 @@ export async function loadReporterAutoHideDenied(config, token, emu, ns, uid, re
 }
 
 /** After mod false-report review: reduces auto-hide weight only; reporting always allowed. */
-export async function penalizeFalseChildSafetyReport(config, token, emu, ns, reporterHash, now, configObj, env = {}) {
-  if (testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_FALSE_REPORT_PENALTY")) {
-    return { denyUntil: 0, strikes: 0 };
-  }
+export async function penalizeFalseChildSafetyReport(config, token, emu, ns, reporterHash, now, configObj) {
   const denyUntil = now + configObj.childSafetyHideDeniedMs;
   if (reporterHash) {
     await rtdbRequest(
@@ -142,8 +138,7 @@ export async function recordMergedSafetyReport({
   clusterHash,
   reporterRegisteredAt,
   now,
-  configObj,
-  env = {}
+  configObj
 }) {
   const path = rtdbPath("chat", "internal", "safetyCase", msgId);
   const cur = await rtdbRequest(config, path, "GET", null, token, emu, ns);
@@ -170,13 +165,10 @@ export async function recordMergedSafetyReport({
     );
 
   const clusters = new Set(reports.map(r => r.clusterHash || `reporter:${r.reporterHash}`));
-  const coordinatedRaw =
+  const coordinated =
     sameSubRecent.length >= 3 &&
     clusters.size <= 1 &&
     sameSubRecent.every(r => now - r.at <= coordMs);
-  const coordinated = testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_BRIGADING")
-    ? false
-    : coordinatedRaw;
 
   const independentHashes = new Set(reports.map(r => r.reporterHash));
   await rtdbRequest(
@@ -229,11 +221,11 @@ export async function enqueueChildSafetyReview({
     ns
   );
   const prevEv = prevEvRes.json && typeof prevEvRes.json === "object" ? prevEvRes.json : {};
-  const newHoldEnd = now + configObj.safetyEvidenceMaxHoldMs;
+  const capturedAt = prevEv.capturedAt || now;
+  const holdCap = capturedAt + configObj.safetyEvidenceMaxHoldMs;
   const legalHoldUntil = Math.max(
     typeof prev.legalHoldUntil === "number" ? prev.legalHoldUntil : 0,
-    typeof prevEv.maxHoldUntil === "number" ? prevEv.maxHoldUntil : 0,
-    newHoldEnd
+    holdCap
   );
   const priority = extraQueueFields.queuePriority || prev.queuePriority || "critical";
   const slaMs = extraQueueFields.slaReviewByMs ?? configObj.safetyQueueEscalateMs;
@@ -273,32 +265,34 @@ export async function enqueueChildSafetyReview({
 
   if (hideMessage) {
     await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
-    if (snap?.text && !testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_P04_REDACTION")) {
-      await rtdbRequest(config, `${pathChatMessage(msgId)}/text`, "DELETE", null, token, emu, ns);
-      await rtdbRequest(config, `${pathChatMessage(msgId)}/textRedacted`, "PUT", true, token, emu, ns);
+    if (snap?.text) {
+      await redactPublicMessageText(config, token, emu, ns, msgId);
     }
     queueEntry.hiddenAt = queueEntry.hiddenAt || now;
   }
 
   await rtdbRequest(config, queuePath, "PUT", queueEntry, token, emu, ns);
 
-  const maxHoldUntil = Math.max(
-    typeof prevEv.maxHoldUntil === "number" ? prevEv.maxHoldUntil : 0,
-    legalHoldUntil
-  );
+  const maxHoldUntil = holdCap;
+
+  const existingSnapshot =
+    prevEv.snapshot && (prevEv.snapshot.text || prevEv.snapshot.phraseId) ? prevEv.snapshot : null;
+  const snapshotForEvidence =
+    existingSnapshot ||
+    (snap && (snap.text || snap.phraseId) ? snap : prevEv.snapshot || snap);
 
   await rtdbRequest(
     config,
     rtdbPath("chat", "internal", "safetyEvidence", msgId),
     "PUT",
     {
-      capturedAt: prevEv.capturedAt || now,
+      capturedAt,
       trigger: queueEntry.trigger,
       subcategory: queueEntry.subcategory,
       legalBasis: configObj.safetyEvidenceLegalBasis,
       maxHoldUntil,
       access: "moderator_only",
-      snapshot: snap,
+      snapshot: snapshotForEvidence,
       riskIntrinsic: riskSnapshot.intrinsicScore ?? null,
       riskEffective: riskSnapshot.effectiveScore ?? null
     },
@@ -357,6 +351,11 @@ export async function enqueueChildSafetyReview({
   }
 
   return { hidden: hideMessage, queued: true, priority, queueEntry, alertResult };
+}
+
+export async function redactPublicMessageText(config, token, emu, ns, msgId) {
+  await rtdbRequest(config, `${pathChatMessage(msgId)}/text`, "DELETE", null, token, emu, ns);
+  await rtdbRequest(config, `${pathChatMessage(msgId)}/textRedacted`, "PUT", true, token, emu, ns);
 }
 
 /** Discretionary reporter-triggered auto-hide quota (mandatory risk hides skip this). */

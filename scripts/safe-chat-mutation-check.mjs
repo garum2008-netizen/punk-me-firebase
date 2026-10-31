@@ -1,97 +1,384 @@
 #!/usr/bin/env node
 /**
- * Mutation guard: disabling each protective mechanism must break at least one automated test.
- * Runs the full Worker integration vitest suite (not protections-only).
+ * Mutation guard: patches worker source in a temp copy (no env kill-switches).
+ * Each mutation must break at least one named integration/unit test.
  */
 import { spawnSync } from "child_process";
+import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
+import { cpSync, mkdtempSync, rmSync } from "fs";
+import os from "os";
 import { withSafeChatRulesEmulator } from "./lib/safe-chat-emulator.mjs";
 import { authSignUp } from "./lib/safe-chat-emulator-auth.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
+const workerRoot = path.join(root, "workers/safe-chat");
+const alarmTest = path.join(__dirname, "safe-chat-limits-do-erasure-alarm.test.js");
 
+/** @typedef {{ id: string, expectFailTest: string, unitOnly?: boolean, patches: { file: string, replacements: { from: string, to: string }[] }[] }} Mutation */
+
+/** @type {Mutation[]} */
 const mutations = [
   {
     id: "MUT-A",
-    env: { SAFE_CHAT_TEST_DISABLE_HIDE_QUOTA: "1" },
-    expectFailTest: "PROTECT hide quota:"
+    expectFailTest: "PROTECT hide quota:",
+    patches: [
+      {
+        file: "src/child-safety-abuse.js",
+        replacements: [
+          {
+            from: `  const hideCheck = await limitsStub(env, "/child-safety-hide-check", {
+    uid: authUid,
+    now,
+    quota,
+    bump: false
+  });
+  if (!hideCheck.ok) return { ok: false, reason: hideCheck.reason || "hide_quota" };`,
+            to: `  /* MUT-A removed hide quota check */`
+          }
+        ]
+      }
+    ]
   },
   {
     id: "MUT-B",
-    env: { SAFE_CHAT_TEST_DISABLE_CLUSTER_CAP: "1" },
-    expectFailTest: "PROTECT cluster cap: cluster-hide-check"
+    expectFailTest: "PROTECT cluster cap: fourth global hide",
+    patches: [
+      {
+        file: "src/child-safety-abuse.js",
+        replacements: [
+          {
+            from: `  if (clusterHash) {
+    const clusterCheck = await limitsStub(env, "/cluster-hide-check", {
+      clusterHash,
+      now,
+      cap: configObj.childSafetyClusterHideCap,
+      bump: false
+    });
+    if (!clusterCheck.ok) return { ok: false, reason: "cluster_hide_cap" };
+  }`,
+            to: `  /* MUT-B removed cluster cap pre-check */`
+          },
+          {
+            from: `  if (clusterHash) {
+    const bumpCluster = await limitsStub(env, "/cluster-hide-check", {
+      clusterHash,
+      now,
+      cap: configObj.childSafetyClusterHideCap,
+      bump: true
+    });
+    if (!bumpCluster.ok) return { ok: false, reason: "cluster_hide_cap" };
+  }`,
+            to: `  /* MUT-B removed cluster cap bump */`
+          }
+        ]
+      }
+    ]
   },
   {
     id: "MUT-C",
-    env: { SAFE_CHAT_TEST_DISABLE_BRIGADING: "1" },
-    expectFailTest: "PROTECT brigading:"
+    expectFailTest: "PROTECT brigading:",
+    patches: [
+      {
+        file: "src/child-safety-abuse.js",
+        replacements: [
+          {
+            from: `  const coordinated =
+    sameSubRecent.length >= 3 &&
+    clusters.size <= 1 &&
+    sameSubRecent.every(r => now - r.at <= coordMs);`,
+            to: `  const coordinated = false; /* MUT-C */`
+          }
+        ]
+      }
+    ]
   },
   {
     id: "MUT-D",
-    env: { SAFE_CHAT_TEST_DISABLE_FALSE_REPORT_PENALTY: "1" },
-    expectFailTest: "PROTECT false-report penalty:"
+    expectFailTest: "PROTECT false-report penalty:",
+    patches: [
+      {
+        file: "src/child-safety-abuse.js",
+        replacements: [
+          {
+            from: `export async function penalizeFalseChildSafetyReport(config, token, emu, ns, reporterHash, now, configObj) {
+  const denyUntil = now + configObj.childSafetyHideDeniedMs;`,
+            to: `export async function penalizeFalseChildSafetyReport(config, token, emu, ns, reporterHash, now, configObj) {
+  return { denyUntil: 0, strikes: 0 }; /* MUT-D */
+  const denyUntil = now + configObj.childSafetyHideDeniedMs;`
+          }
+        ]
+      }
+    ]
   },
   {
     id: "MUT-E",
-    env: { SAFE_CHAT_TEST_DISABLE_REPORTER_PRIVACY: "1" },
-    expectFailTest: "PROTECT reporter privacy:"
+    expectFailTest: "PROTECT reporter privacy:",
+    patches: [
+      {
+        file: "src/index.js",
+        replacements: [
+          {
+            from: `    await enqueueChildSafetyReview({
+      config,
+      token,
+      emu,
+      ns,
+      env,
+      msgId,
+      now,
+      configObj: config,
+      trigger: "report",
+      hideMessage,
+      childSafetyReportCount: distinct,
+      subcategory: safetySub,
+      extraQueueFields: extra,
+      riskSnapshot: {
+        intrinsicScore,
+        effectiveScore: decision.effectiveScore,
+        hideBasis: hideMessage ? decision.hideBasis : hideSkippedReason || "queued_only"
+      },
+      ctx
+    });
+
+    return json(request, env, {
+      ...CHILD_SAFETY_REPORT_RECEIVED
+    });`,
+            to: `    await enqueueChildSafetyReview({
+      config,
+      token,
+      emu,
+      ns,
+      env,
+      msgId,
+      now,
+      configObj: config,
+      trigger: "report",
+      hideMessage,
+      childSafetyReportCount: distinct,
+      subcategory: safetySub,
+      extraQueueFields: extra,
+      riskSnapshot: {
+        intrinsicScore,
+        effectiveScore: decision.effectiveScore,
+        hideBasis: hideMessage ? decision.hideBasis : hideSkippedReason || "queued_only"
+      },
+      ctx
+    });
+
+    return json(request, env, {
+      ...CHILD_SAFETY_REPORT_RECEIVED,
+      msgId,
+      queuePriority: decision.queuePriority
+    }); /* MUT-E */`
+          }
+        ]
+      }
+    ]
   },
   {
     id: "MUT-F",
-    env: { SAFE_CHAT_TEST_DISABLE_GLOBAL_HIDE_GATE: "1" },
-    expectFailTest: "PROTECT global hide gate:"
+    expectFailTest: "PROTECT global hide gate:",
+    patches: [
+      {
+        file: "src/child-safety-risk.js",
+        replacements: [
+          {
+            from: `export function hasGlobalHideIndependentSignal({
+  filterHit,
+  authorConfirmedViolations,
+  independentReporterCount,
+  distinctClusterCount
+}) {
+  if (filterHit) return true;
+  if (authorConfirmedViolations > 0) return true;
+  if (independentReporterCount >= 2 && distinctClusterCount >= 2) return true;
+  return false;
+}`,
+            to: `export function hasGlobalHideIndependentSignal() {
+  return true; /* MUT-F */
+}`
+          }
+        ]
+      }
+    ]
   },
   {
     id: "MUT-G",
-    env: { SAFE_CHAT_TEST_DISABLE_MAX_HOLD_ESCALATION: "1" },
-    expectFailTest: "PROTECT maxHold:"
+    expectFailTest: "PROTECT maxHold:",
+    patches: [
+      {
+        file: "src/index.js",
+        replacements: [
+          {
+            from: `        await rtdbRequest(
+          config,
+          "chat/internal/safetyDecisions",
+          "POST",
+          {
+            msgId,
+            action: "evidence_hold_expired",`,
+            to: `        if (false) await rtdbRequest( /* MUT-G */
+          config,
+          "chat/internal/safetyDecisions",
+          "POST",
+          {
+            msgId,
+            action: "evidence_hold_expired",`
+          }
+        ]
+      }
+    ]
   },
   {
     id: "MUT-H",
-    env: { SAFE_CHAT_TEST_DISABLE_P04_REDACTION: "1" },
-    expectFailTest: "PROTECT P-04:"
+    expectFailTest: "PROTECT P-04:",
+    patches: [
+      {
+        file: "src/child-safety-abuse.js",
+        replacements: [
+          {
+            from: `export async function redactPublicMessageText(config, token, emu, ns, msgId) {
+  await rtdbRequest(config, \`\${pathChatMessage(msgId)}/text\`, "DELETE", null, token, emu, ns);
+  await rtdbRequest(config, \`\${pathChatMessage(msgId)}/textRedacted\`, "PUT", true, token, emu, ns);
+}`,
+            to: `export async function redactPublicMessageText() { /* MUT-H no-op */ }`
+          }
+        ]
+      }
+    ]
   },
   {
     id: "MUT-I",
-    env: { SAFE_CHAT_TEST_DISABLE_ERASURE_BUDGET: "1" },
-    expectFailTest: "PROTECT erasure budget:"
+    expectFailTest: "PROTECT erasure budget:",
+    patches: [
+      {
+        file: "src/erasure.js",
+        replacements: [
+          {
+            from: `    if (subrequests + n > budget) {
+      budgetExceeded = true;
+      return false;
+    }`,
+            to: `    if (false && subrequests + n > budget) {
+      budgetExceeded = true;
+      return false;
+    } /* MUT-I */`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-J",
+    expectFailTest: "PROTECT erasure continuation:",
+    patches: [
+      {
+        file: "src/erasure.js",
+        replacements: [
+          {
+            from: `export async function continueErasureForUid(env, uid) {
+  const config = (await import("./config.js")).loadConfig(env);`,
+            to: `export async function continueErasureForUid(env, uid) {
+  return { ok: true, skipped: true }; /* MUT-J */
+  const config = (await import("./config.js")).loadConfig(env);`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-K",
+    expectFailTest: "R-08: alarm re-queues uid when erasure continue returns complete false",
+    unitOnly: true,
+    patches: [
+      {
+        file: "src/limits-do.js",
+        replacements: [
+          {
+            from: `        } else if (body.complete === false || body.continueScheduled === true) {
+          requeue = true;`,
+            to: `        } else if (body.complete === false || body.continueScheduled === true) {
+          requeue = false; /* MUT-K */`
+          }
+        ]
+      }
+    ]
   }
 ];
 
-function runIntegrationSuite(extraEnv, mod) {
+function applyPatches(mut, destRoot) {
+  for (const p of mut.patches) {
+    const fp = path.join(destRoot, p.file);
+    let text = fs.readFileSync(fp, "utf8");
+    for (const r of p.replacements) {
+      if (!text.includes(r.from)) {
+        throw new Error(`${mut.id}: patch miss in ${p.file}`);
+      }
+      text = text.replace(r.from, r.to);
+    }
+    fs.writeFileSync(fp, text);
+  }
+}
+
+function copyWorker(dest) {
+  cpSync(workerRoot, dest, { recursive: true, filter: src => !src.includes("node_modules") });
+  cpSync(path.join(workerRoot, "node_modules"), path.join(dest, "node_modules"), { recursive: true });
+}
+
+function runIntegrationInCopy(mut, mod, dest) {
+  copyWorker(dest);
+  applyPatches(mut, dest);
   return spawnSync("npm", ["test"], {
-    cwd: path.join(root, "workers/safe-chat"),
+    cwd: dest,
     env: {
       ...process.env,
       SAFE_CHAT_INTEGRATION: "1",
-      SAFE_CHAT_TEST_MOD_UID: mod?.localId || process.env.SAFE_CHAT_TEST_MOD_UID || "mod",
-      SAFE_CHAT_TEST_MOD_TOKEN: mod?.idToken || process.env.SAFE_CHAT_TEST_MOD_TOKEN || "token",
-      ...extraEnv
+      SAFE_CHAT_TEST_MOD_UID: mod.localId,
+      SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken
     },
     encoding: "utf8"
   });
+}
+
+function runUnitInCopy(mut, dest) {
+  copyWorker(dest);
+  applyPatches(mut, dest);
+  const limitsPath = path.join(dest, "src/limits-do.js");
+  return spawnSync("node", [alarmTest], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      SAFE_CHAT_LIMITS_DO_PATH: limitsPath
+    }
+  });
+}
+
+function mutationCaught(mut, result) {
+  const out = `${result.stdout || ""}${result.stderr || ""}`;
+  if (result.status === 0) return false;
+  if (out.includes(mut.expectFailTest)) return true;
+  return out.includes("not ok") && mut.unitOnly;
 }
 
 async function main() {
   let failed = 0;
   await withSafeChatRulesEmulator(async () => {
     const mod = await authSignUp();
-    for (const m of mutations) {
-      const r = runIntegrationSuite(m.env, mod);
-      const out = `${r.stdout || ""}${r.stderr || ""}`;
-      const testFailed = out.includes("FAIL") && out.includes(m.expectFailTest);
-      const ok = r.status !== 0 && testFailed;
-      console.log(`${m.id}: expected failure => ${ok ? "CAUGHT" : "NOT CAUGHT"}`);
-      if (!ok) {
-        failed += 1;
-        if (r.status === 0) {
-          console.error(`  suite passed with ${m.id} enabled (mechanism not disabled in integration?)`);
-        } else if (!testFailed) {
-          console.error(`  suite failed but not on ${m.expectFailTest}`);
-        }
+    const tmpDir = mkdtempSync(path.join(os.tmpdir(), "safe-chat-mut-"));
+    try {
+      for (const m of mutations) {
+        const dest = path.join(tmpDir, m.id);
+        const r = m.unitOnly ? runUnitInCopy(m, dest) : runIntegrationInCopy(m, mod, dest);
+        const ok = mutationCaught(m, r);
+        console.log(`${m.id}: expected failure => ${ok ? "CAUGHT" : "NOT CAUGHT"}`);
+        if (!ok) failed += 1;
       }
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
     }
   });
   if (failed) {

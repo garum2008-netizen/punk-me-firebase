@@ -37,7 +37,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion", () 
     expect(await countOwnMessages(sid)).toBe(25);
     const out = await drainDelete(u.idToken);
     expect(out.complete).toBe(true);
-    expect(out.subrequests).toBeLessThanOrEqual(Number(env.SAFE_CHAT_ERASURE_MAX_SUBREQUESTS || 40) + 1);
+    expect(out.subrequests).toBeLessThanOrEqual(Number(env.SAFE_CHAT_ERASURE_MAX_SUBREQUESTS || 40));
     expect(await countOwnMessages(sid)).toBe(0);
     expect((await rtdbOwner(`chatMeta/${u.localId}/erasureCursor`, "GET")).json).toBeNull();
     expect((await rtdbOwner(`chatMeta/${u.localId}/erasureJobStartedAt`, "GET")).json).toBeNull();
@@ -53,5 +53,6 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion", () 
     expect(await countOwnMessages(sid)).toBe(0);
     expect((await rtdbOwner(`chatMeta/${u.localId}/chatAge13DeclaredAt`, "GET")).json).toBeNull();
     expect((await rtdbOwner(`chatMeta/${u.localId}/reporterSafetyHidden`, "GET")).json).toBeNull();
+    expect((await rtdbOwner(`chatMeta/${u.localId}/chatSendCount`, "GET")).json).toBeNull();
   }, 120000);
 });

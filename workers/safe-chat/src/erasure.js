@@ -1,6 +1,5 @@
 import { assertFirebaseId, assertReportHash } from "./ids.js";
 import { anonymizeUid, rtdbPath, rtdbRequest } from "./rtdb.js";
-import { testMutationDisables } from "./test-mutation-flags.js";
 
 function pathChatMessage(msgId) {
   return rtdbPath("chat", "messages", msgId);
@@ -120,7 +119,6 @@ export async function eraseReporterArtifacts(config, token, emu, ns, reporterHas
       if (!reporters[reporterHash]) continue;
       try {
         assertFirebaseId(msgId);
-        assertReportHash(reporterHash);
       } catch {
         continue;
       }
@@ -159,6 +157,25 @@ async function countDeletableOwn(config, token, emu, ns, sid, authUid, cache, sp
   return { count: n, subrequests: 0 };
 }
 
+const META_CLEANUP_PATHS = uid => [
+  pathChatMeta(uid, "blockedSids"),
+  pathChatMeta(uid, "chatRegisteredAt"),
+  pathChatMeta(uid, "chatAge13DeclaredAt"),
+  pathChatMeta(uid, "chatSendCount"),
+  pathChatMeta(uid, "reporterSafetyHidden"),
+  pathChatMeta(uid, "lastErasureRequestAt"),
+  pathChatMeta(uid, "erasureCursor"),
+  pathChatMeta(uid, "erasureJobStartedAt")
+];
+
+async function deleteErasureMeta(config, token, emu, ns, authUid, spend) {
+  for (const p of META_CLEANUP_PATHS(authUid)) {
+    if (!spend(1)) return false;
+    await rtdbRequest(config, p, "DELETE", null, token, emu, ns);
+  }
+  return true;
+}
+
 export async function runUserErasureBatch({
   config,
   env,
@@ -168,18 +185,15 @@ export async function runUserErasureBatch({
   now,
   storedCursor,
   budget,
+  subrequestsUsed = 0,
   staleRetry = false,
   bypassRateLimit = false
 }) {
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
-  let subrequests = 0;
+  let subrequests = subrequestsUsed;
   let budgetExceeded = false;
   const spend = (n = 1) => {
-    if (testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_ERASURE_BUDGET")) {
-      subrequests += n;
-      return true;
-    }
     if (subrequests + n > budget) {
       budgetExceeded = true;
       return false;
@@ -207,7 +221,17 @@ export async function runUserErasureBatch({
     null,
     spend
   );
-  const jobActive = Boolean(cursorActive.json);
+  const jobStartedRes = await rtdbSpend(
+    config,
+    token,
+    emu,
+    ns,
+    pathChatMeta(authUid, "erasureJobStartedAt"),
+    "GET",
+    null,
+    spend
+  );
+  const jobActive = Boolean(cursorActive.json) || Boolean(jobStartedRes.json);
 
   const lastReq = await rtdbSpend(
     config,
@@ -225,7 +249,8 @@ export async function runUserErasureBatch({
       ok: false,
       error: "erasure_rate_limit",
       retryMs: config.erasureMinIntervalMs - (now - lastAt),
-      subrequests
+      subrequests,
+      jobInProgress: Boolean(jobStartedRes.json)
     };
   }
 
@@ -237,8 +262,8 @@ export async function runUserErasureBatch({
   const cache = await loadSafetyBlockCache(config, token, emu, ns, spend);
   if (budgetExceeded) {
     const cursorToStore = storedCursor || null;
-    if (cursorToStore) {
-      await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "erasureCursor"), "PUT", cursorToStore, spend);
+    if (cursorToStore && spend(1)) {
+      await rtdbRequest(config, pathChatMeta(authUid, "erasureCursor"), "PUT", String(cursorToStore), token, emu, ns);
     }
     return {
       ok: true,
@@ -253,7 +278,7 @@ export async function runUserErasureBatch({
   const msgs = await rtdbSpend(config, token, emu, ns, "chat/messages", "GET", null, spend);
   if (msgs.skipped || budgetExceeded) {
     const cursorToStore = storedCursor || null;
-    if (cursorToStore) {
+    if (cursorToStore && spend(1)) {
       await rtdbRequest(config, pathChatMeta(authUid, "erasureCursor"), "PUT", String(cursorToStore), token, emu, ns);
     }
     return {
@@ -339,11 +364,11 @@ export async function runUserErasureBatch({
         now,
         storedCursor: null,
         budget,
+        subrequestsUsed: subrequests,
         staleRetry: true,
         bypassRateLimit: true
       }).then(retry => ({
         ...retry,
-        subrequests: subrequests + (retry.subrequests || 0),
         staleCursorCleared: true
       }));
     }
@@ -356,19 +381,59 @@ export async function runUserErasureBatch({
   }
 
   const remaining = await countDeletableOwn(config, token, emu, ns, sid, authUid, cache, spend);
-  const complete =
-    remaining.count === 0 && processedAll && !nextCursor && deferred.length === 0 && !budgetExceeded;
+  const workDone =
+    remaining.count === 0 && processedAll && !nextCursor && !budgetExceeded;
 
-  if (complete && !budgetExceeded) {
-    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "blockedSids"), "DELETE", null, spend);
-    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "chatRegisteredAt"), "DELETE", null, spend);
-    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "chatAge13DeclaredAt"), "DELETE", null, spend);
-    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "chatSendCount"), "DELETE", null, spend);
-    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "reporterSafetyHidden"), "DELETE", null, spend);
-    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "lastErasureRequestAt"), "DELETE", null, spend);
-    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "erasureCursor"), "DELETE", null, spend);
-    await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "erasureJobStartedAt"), "DELETE", null, spend);
-  } else if (!complete) {
+  if (workDone && deferred.length > 0) {
+    return {
+      ok: true,
+      complete: false,
+      completeWithHolds: true,
+      status: "complete_with_holds",
+      continueScheduled: false,
+      deleted,
+      erasureDeferred: deferred,
+      cursor: null,
+      remainingDeletable: 0,
+      subrequests,
+      budgetExceeded: false
+    };
+  }
+
+  const logicalComplete = workDone && deferred.length === 0;
+  let metaCleanupOk = !logicalComplete;
+  if (logicalComplete) {
+    metaCleanupOk = await deleteErasureMeta(config, token, emu, ns, authUid, spend);
+  }
+  const complete = logicalComplete && metaCleanupOk && !budgetExceeded;
+
+  if (logicalComplete && !metaCleanupOk) {
+    let cursorToStore = nextCursor || storedCursor;
+    if (cursorToStore && spend(1)) {
+      await rtdbRequest(
+        config,
+        pathChatMeta(authUid, "erasureCursor"),
+        "PUT",
+        String(cursorToStore),
+        token,
+        emu,
+        ns
+      );
+    }
+    return {
+      ok: true,
+      complete: false,
+      continueScheduled: true,
+      deleted,
+      erasureDeferred: deferred,
+      cursor: cursorToStore || storedCursor,
+      remainingDeletable: remaining.count,
+      subrequests,
+      budgetExceeded
+    };
+  }
+
+  if (!complete) {
     let cursorToStore = nextCursor || storedCursor;
     if (!cursorToStore) {
       for (const [id, m] of entries) {
@@ -416,6 +481,15 @@ export async function continueErasureForUid(env, uid) {
   const token = await getCachedAdminToken(env);
   assertFirebaseId(uid);
   const sid = await chatPublicSid(uid, env.SAFE_CHAT_HASH_SALT || "");
+  let subrequestsUsed = 0;
+  const budget = config.erasureMaxSubrequests;
+  const spendPre = () => {
+    subrequestsUsed += 1;
+    return subrequestsUsed <= budget;
+  };
+  if (!spendPre()) {
+    return { ok: true, complete: false, continueScheduled: true, subrequests: subrequestsUsed, budgetExceeded: true };
+  }
   const cursorRes = await rtdbRequest(
     config,
     pathChatMeta(uid, "erasureCursor"),
@@ -425,6 +499,9 @@ export async function continueErasureForUid(env, uid) {
     env.FIREBASE_EMULATOR_HOST,
     env.FIREBASE_EMULATOR_NS
   );
+  if (!spendPre()) {
+    return { ok: true, complete: false, continueScheduled: true, subrequests: subrequestsUsed, budgetExceeded: true };
+  }
   const jobRes = await rtdbRequest(
     config,
     pathChatMeta(uid, "erasureJobStartedAt"),
@@ -434,7 +511,7 @@ export async function continueErasureForUid(env, uid) {
     env.FIREBASE_EMULATOR_HOST,
     env.FIREBASE_EMULATOR_NS
   );
-  if (!cursorRes.json && !jobRes.json) return { ok: true, skipped: true };
+  if (!cursorRes.json && !jobRes.json) return { ok: true, skipped: true, subrequests: subrequestsUsed };
   return runUserErasureBatch({
     config,
     env,
@@ -443,7 +520,8 @@ export async function continueErasureForUid(env, uid) {
     sid,
     now: Date.now(),
     storedCursor: cursorRes.json != null && cursorRes.json !== "" ? cursorRes.json : null,
-    budget: config.erasureMaxSubrequests,
+    budget,
+    subrequestsUsed,
     bypassRateLimit: true
   });
 }

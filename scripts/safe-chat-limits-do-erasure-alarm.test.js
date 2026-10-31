@@ -4,7 +4,14 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ChatLimitsDO } from "../workers/safe-chat/src/limits-do.js";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const limitsPath =
+  process.env.SAFE_CHAT_LIMITS_DO_PATH ||
+  path.join(__dirname, "../workers/safe-chat/src/limits-do.js");
+const { ChatLimitsDO } = await import(pathToFileURL(limitsPath).href);
 
 class MemStorage {
   constructor() {
@@ -21,6 +28,9 @@ class MemStorage {
   }
   async setAlarm(t) {
     this.m.set("alarm", t);
+  }
+  async delete(k) {
+    this.m.delete(k);
   }
 }
 
@@ -90,6 +100,25 @@ test("R-08: alarm uses backoff when URL missing (no tight 750ms loop)", async ()
   await doObj.alarm();
   const backoff = await storage.get("erasureAlarmBackoffMs");
   assert.ok(typeof backoff === "number" && backoff >= 60_000);
+});
+
+test("R-08: alarm re-queues uid when erasure continue returns complete false", async () => {
+  const storage = new MemStorage();
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ ok: true, complete: false, continueScheduled: true }), { status: 200 });
+  try {
+    const doObj = new ChatLimitsDO(
+      { storage },
+      { SAFE_CHAT_WORKER_URL: "https://worker.example", SAFE_CHAT_INTERNAL_SECRET: "s3cret" }
+    );
+    await scheduleUid(doObj, "userF");
+    await doObj.alarm();
+    const queue = (await storage.get("erasureContinueQueue")) || [];
+    assert.deepEqual(queue, ["userF"]);
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
 });
 
 test("R-08: alarm shifts uid only after successful erasure continue fetch", async () => {

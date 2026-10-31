@@ -10,7 +10,6 @@ import { loadPlayerProfileForChat } from "./player-profile.js";
 import { getCachedAdminToken } from "./admin-token.js";
 import { corsHeaders } from "./cors.js";
 import { runUserErasureBatch, continueErasureForUid } from "./erasure.js";
-import { testMutationDisables } from "./test-mutation-flags.js";
 import { detectChildHarmSignals } from "./child-harm.js";
 import {
   enqueueChildSafetyReview,
@@ -20,7 +19,8 @@ import {
   loadAuthorSafetyMeta,
   checkDiscretionaryHideQuota,
   CHILD_SAFETY_REPORT_RECEIVED,
-  loadReporterAutoHideDenied
+  loadReporterAutoHideDenied,
+  redactPublicMessageText
 } from "./child-safety-abuse.js";
 import {
   CHILD_SAFETY_SUBCATEGORIES,
@@ -465,8 +465,7 @@ async function handleReport(request, env, ctx) {
       clusterHash,
       reporterRegisteredAt: profile.chatRegisteredAt,
       now,
-      configObj: config,
-      env
+      configObj: config
     });
 
     let intrinsicScore = intrinsicPack.intrinsicScore;
@@ -494,14 +493,12 @@ async function handleReport(request, env, ctx) {
           coordinated: mergeInfo.coordinated
         });
 
-    const globalHideSignal = testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_GLOBAL_HIDE_GATE")
-      ? true
-      : hasGlobalHideIndependentSignal({
-          filterHit,
-          authorConfirmedViolations: authorMeta.confirmedViolations,
-          independentReporterCount: mergeInfo.independentReporterCount,
-          distinctClusterCount: mergeInfo.distinctClusterCount
-        });
+    const globalHideSignal = hasGlobalHideIndependentSignal({
+      filterHit,
+      authorConfirmedViolations: authorMeta.confirmedViolations,
+      independentReporterCount: mergeInfo.independentReporterCount,
+      distinctClusterCount: mergeInfo.distinctClusterCount
+    });
 
     let decision = decideChildSafetyAction({
       subcategory: safetySub,
@@ -611,14 +608,7 @@ async function handleReport(request, env, ctx) {
     });
 
     return json(request, env, {
-      ...CHILD_SAFETY_REPORT_RECEIVED,
-      ...(testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_REPORTER_PRIVACY")
-        ? {
-            msgId,
-            queuePriority: decision.queuePriority,
-            escalationTier: decision.escalationTier
-          }
-        : {})
+      ...CHILD_SAFETY_REPORT_RECEIVED
     });
   }
 
@@ -630,6 +620,7 @@ async function handleReport(request, env, ctx) {
 
   if (next >= config.reportAutoHide) {
     await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
+    await redactPublicMessageText(config, token, emu, ns, msgId);
   }
   return json(request, env, { ok: true });
 }
@@ -728,6 +719,17 @@ async function handleDeleteMyData(request, env) {
   );
   const storedCursor = cursorRes.json != null && cursorRes.json !== "" ? cursorRes.json : null;
 
+  const jobPeek = await rtdbRequest(
+    config,
+    pathChatMeta(auth.uid, "erasureJobStartedAt"),
+    "GET",
+    null,
+    token,
+    env.FIREBASE_EMULATOR_HOST,
+    env.FIREBASE_EMULATOR_NS
+  );
+  const jobRunning = Boolean(storedCursor || jobPeek.json);
+
   let result = await runUserErasureBatch({
     config,
     env,
@@ -740,12 +742,22 @@ async function handleDeleteMyData(request, env) {
   });
 
   if (!result.ok) {
+    if (result.error === "erasure_rate_limit" && (result.jobInProgress || jobRunning)) {
+      return json(request, env, {
+        ok: true,
+        complete: false,
+        continueScheduled: true,
+        cursor: storedCursor,
+        jobInProgress: true
+      });
+    }
     return err(request, env, result.error, 429);
   }
 
-  if (env.SAFE_CHAT_INTEGRATION === "1" && result.continueScheduled) {
+  const useDoContinue = env.SAFE_CHAT_ERASURE_USE_DO_CONTINUE === "1";
+  if (!useDoContinue && env.SAFE_CHAT_INTEGRATION === "1" && result.continueScheduled) {
     result = await drainErasureInProcess(env, token, auth.uid, sid, result);
-  } else if (result.continueScheduled) {
+  } else if (result.continueScheduled && !result.completeWithHolds) {
     await scheduleErasureContinuation(env, auth.uid);
   }
 
@@ -771,6 +783,9 @@ async function handleInternalErasureContinue(request, env) {
     return new Response("bad uid", { status: 400 });
   }
   const out = await continueErasureForUid(env, body.uid);
+  if (out.completeWithHolds) {
+    return Response.json(out);
+  }
   if (out.continueScheduled) {
     await scheduleErasureContinuation(env, body.uid);
   }
@@ -1169,7 +1184,7 @@ async function handleModResolveSafety(request, env) {
         ns
       );
       if (meta.json?.reporterHash) {
-        await penalizeFalseChildSafetyReport(config, token, emu, ns, meta.json.reporterHash, now, config, env);
+        await penalizeFalseChildSafetyReport(config, token, emu, ns, meta.json.reporterHash, now, config);
       }
       await rtdbRequest(
         config,
@@ -1297,7 +1312,15 @@ export async function runRetentionJob(env, nowOverride) {
     }
   }
 
-  /* Child-safety report rows alone do not extend message lifetime; queue/holds/evidence do. */
+  /* Child-safety queue/holds/evidence defer message deletion; evidence retains snapshot after resolve. */
+
+  const evidenceEarly = await rtdbRequest(config, "chat/internal/safetyEvidence", "GET", null, token, emu, ns);
+  bump();
+  if (evidenceEarly.json && typeof evidenceEarly.json === "object") {
+    for (const msgId of Object.keys(evidenceEarly.json)) {
+      protectedMsgIds.add(msgId);
+    }
+  }
 
   const msgsEarly = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
   bump();
@@ -1353,7 +1376,6 @@ export async function runRetentionJob(env, nowOverride) {
       const cap =
         legalCap != null && maxHold != null ? Math.min(legalCap, maxHold) : legalCap ?? maxHold;
       if (
-        !testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_MAX_HOLD_ESCALATION") &&
         cap != null &&
         now > cap &&
         !q?.modResolvedAt
@@ -1399,7 +1421,6 @@ export async function runRetentionJob(env, nowOverride) {
       if (subrequests >= budget) break;
       const maxHold = ev?.maxHoldUntil;
       if (
-        !testMutationDisables(env, "SAFE_CHAT_TEST_DISABLE_MAX_HOLD_ESCALATION") &&
         typeof maxHold === "number" &&
         now > maxHold &&
         !ev?.modReleasedAt

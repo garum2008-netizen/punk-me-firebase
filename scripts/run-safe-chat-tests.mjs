@@ -30,6 +30,7 @@ async function main() {
 
   console.log("\n=== production config guard (wrangler.toml) ===");
   if (!runNode("test-safe-chat-prod-config.mjs")) process.exit(1);
+  if (!runNode("test-safe-chat-prod-bundle.mjs")) process.exit(1);
   if (!runNode("test-safe-chat-free-tier-config.mjs")) process.exit(1);
   if (!runNode("test-safe-chat-prod-source.mjs")) process.exit(1);
 
@@ -87,6 +88,19 @@ async function main() {
       }
     });
     integrationOk = r.status === 0;
+    if (!integrationOk) return;
+    const rDo = spawnSync2("npm", ["test"], {
+      cwd: path.join(root, "workers/safe-chat"),
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        SAFE_CHAT_INTEGRATION: "1",
+        SAFE_CHAT_ERASURE_USE_DO_CONTINUE: "1",
+        SAFE_CHAT_TEST_MOD_UID: mod.localId,
+        SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken
+      }
+    });
+    integrationOk = rDo.status === 0;
     if (!integrationOk) return;
     const r2 = spawnSync2("npm", ["test"], {
       cwd: path.join(root, "workers/safe-chat"),

@@ -1,6 +1,6 @@
 # t139u test plan coverage matrix (Security Review #6)
 
-**85 case IDs.** Status: **COVERED** = automated test with verifiable assertion; **MANUAL** / **OWNER** = human sign-off. Protective mechanisms are guarded by `scripts/safe-chat-mutation-check.mjs` (**MUT-A** hide quota, **MUT-B** cluster cap, **MUT-C** brigading, **MUT-D** false-report penalty, **MUT-E** reporter privacy, **MUT-F** global hide gate, **MUT-G** maxHold escalation, **MUT-H** P-04 redaction, **MUT-I** erasure subrequest budget). Test-only disable flags are ignored outside `SAFE_CHAT_INTEGRATION=1` and forbidden in production wrangler.toml.
+**85 case IDs.** Status: **COVERED** = automated test with verifiable assertion; **MANUAL** / **OWNER** = human sign-off. Protective mechanisms are guarded by `scripts/safe-chat-mutation-check.mjs` (**MUT-A** hide quota, **MUT-B** cluster cap, **MUT-C** brigading, **MUT-D** false-report penalty, **MUT-E** reporter privacy, **MUT-F** global hide gate, **MUT-G** maxHold escalation / decision log, **MUT-H** P-04 redaction, **MUT-I** erasure subrequest budget, **MUT-J** erasure continuation, **MUT-K** DO re-queue on incomplete erasure). Patches apply to a temp copy of worker source (no env kill-switches in prod bundle).
 
 | ID | Test (file: exact test name) | Status | Notes |
 |----|------------------------------|--------|-------|

@@ -3,10 +3,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "../workers/safe-chat/src/config.js";
-import { TEST_MUTATION_DISABLE_ENV_KEYS } from "../workers/safe-chat/src/test-mutation-flags.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const wranglerToml = fs.readFileSync(path.join(__dirname, "../workers/safe-chat/wrangler.toml"), "utf8");
+const srcDir = path.join(__dirname, "../workers/safe-chat/src");
+
+const forbiddenInToml = [
+  "SAFE_CHAT_TEST_MODE",
+  "SAFE_CHAT_SKIP_AUTH",
+  "SAFE_CHAT_INTEGRATION",
+  "SAFE_CHAT_TEST_DISABLE",
+  "test-mutation-flags"
+];
 
 const cases = [
   {
@@ -29,10 +37,14 @@ const cases = [
     name: "wrangler.toml has no new_classes (KV-backed) migration",
     pass: !/^\s*new_classes\s*=/m.test(wranglerToml)
   },
-  ...TEST_MUTATION_DISABLE_ENV_KEYS.map(key => ({
+  ...forbiddenInToml.map(key => ({
     name: `wrangler.toml has no ${key}`,
     pass: !wranglerToml.includes(key)
-  }))
+  })),
+  {
+    name: "worker src has no SAFE_CHAT_TEST_DISABLE strings",
+    pass: !fs.readFileSync(path.join(srcDir, "index.js"), "utf8").includes("SAFE_CHAT_TEST_DISABLE")
+  }
 ];
 
 let failed = 0;

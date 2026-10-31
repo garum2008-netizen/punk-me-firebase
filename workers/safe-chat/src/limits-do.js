@@ -1,6 +1,4 @@
 /** SQLite-backed DO; uses synchronous KV storage API (storage.get/put). */
-import { testMutationDisables } from "./test-mutation-flags.js";
-
 export class ChatLimitsDO {
   constructor(state, env) {
     this.state = state;
@@ -85,21 +83,37 @@ export class ChatLimitsDO {
         requeue = true;
       } else {
         const body = await res.json().catch(() => ({}));
-        if (body.complete === false || body.continueScheduled === true) {
+        if (body.completeWithHolds) {
+          await this.state.storage.delete(`erasureAttempt:${uid}`);
+          requeue = false;
+        } else if (body.complete === false || body.continueScheduled === true) {
           requeue = true;
         } else {
           await this.resetAlarmBackoff();
+          await this.state.storage.delete(`erasureAttempt:${uid}`);
         }
       }
     } catch (_) {
       requeue = true;
     }
-    if (requeue && !queue.includes(uid)) queue.unshift(uid);
-    if (requeue) await this.state.storage.put("erasureContinueQueue", queue);
+    if (requeue) {
+      const key = `erasureAttempt:${uid}`;
+      const attempts = ((await this.state.storage.get(key)) || 0) + 1;
+      if (attempts > 48) {
+        await this.state.storage.delete(key);
+      } else {
+        if (!queue.includes(uid)) queue.unshift(uid);
+        await this.state.storage.put(key, attempts);
+        await this.state.storage.put("erasureContinueQueue", queue);
+        await this.scheduleAlarmSoon(await this.nextAlarmDelayMs());
+      }
+    } else {
+      await this.state.storage.put("erasureContinueQueue", queue);
+    }
 
     const pendingAfter = await this.state.storage.get("retentionContinuePending");
     if (queue.length > 0 || pendingAfter) {
-      await this.scheduleAlarmSoon(requeue ? 750 : 750);
+      if (!requeue) await this.scheduleAlarmSoon(750);
     }
   }
 
@@ -192,7 +206,6 @@ export class ChatLimitsDO {
   }
 
   async checkChildSafetyHide({ uid, now, quota, bump }) {
-    if (testMutationDisables(this.env, "SAFE_CHAT_TEST_DISABLE_HIDE_QUOTA")) return { ok: true };
     const data = await this.loadChildSafetyHide();
     let rec = data[uid] || { windowStart: now, count: 0 };
     if (now - (rec.windowStart || 0) >= this.windowMs24h()) {
@@ -210,7 +223,6 @@ export class ChatLimitsDO {
   }
 
   async checkClusterHide({ clusterHash, now, cap, bump }) {
-    if (testMutationDisables(this.env, "SAFE_CHAT_TEST_DISABLE_CLUSTER_CAP")) return { ok: true };
     if (!clusterHash) return { ok: false, reason: "cluster_required" };
     const data = await this.loadClusterHide();
     let rec = data[clusterHash] || { windowStart: now, count: 0 };
