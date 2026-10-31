@@ -395,13 +395,21 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: immediate_danger uses escalation tier and moderator notify", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    expect(sent.ok).toBe(true);
+    const msgId = sent.id;
+    await waitForChatMessage(msgId);
     await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "immediate_danger" });
-    const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
-    expect(q.json?.escalationTier).toBe("immediate_danger");
-    expect(q.json?.moderatorNotify).toBe(true);
-    expect(q.json?.slaReviewBy).toBeTruthy();
-    expect(q.json?.legalHoldUntil).toBeTruthy();
+    let q = null;
+    for (let t = 0; t < 40; t += 1) {
+      q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
+      if (q?.escalationTier === "immediate_danger") break;
+      await new Promise(r => setTimeout(r, 50));
+    }
+    expect(q?.escalationTier).toBe("immediate_danger");
+    expect(q?.moderatorNotify).toBe(true);
+    expect(q?.slaReviewBy).toBeTruthy();
+    expect(q?.legalHoldUntil).toBeTruthy();
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
     expect((await rtdbOwner(`chatMeta/${userB.localId}/reporterSafetyHidden/${msgId}`, "GET")).json).toBe(true);
   });
