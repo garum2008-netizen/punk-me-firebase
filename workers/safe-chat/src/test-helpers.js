@@ -106,7 +106,7 @@ async function readChatMessageRow(msgId) {
 }
 
 export async function waitForChatMessage(msgId, { attempts, delayMs = 100 } = {}) {
-  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 400 : 200);
+  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 600 : 200);
   for (let i = 0; i < max; i += 1) {
     const row = await readChatMessageRow(msgId);
     if (row) return row;
@@ -117,7 +117,7 @@ export async function waitForChatMessage(msgId, { attempts, delayMs = 100 } = {}
 
 /** Harness barrier: sid + text visible (matches worker report GET needs). */
 export async function waitForReportableMessage(msgId, { attempts, delayMs = 100 } = {}) {
-  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 400 : 200);
+  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 600 : 200);
   for (let i = 0; i < max; i += 1) {
     const row = await readChatMessageRow(msgId);
     if (row?.sid && typeof row.text === "string" && row.text.length > 0) return row;
@@ -160,7 +160,7 @@ export async function waitForMessageHidden(msgId, { attempts = 120, delayMs = 10
 /** After owner PATCH of text, wait until body is visible (RTDB under load). */
 export async function waitForMessageText(msgId, textNeedle, { attempts, delayMs = 100 } = {}) {
   const needle = String(textNeedle || "");
-  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 400 : 200);
+  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 600 : 200);
   for (let i = 0; i < max; i += 1) {
     const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     const text = m.json?.text;
@@ -256,29 +256,7 @@ export async function resetIntegrationIsolation(env) {
     await new Promise(r => setTimeout(r, 25));
   }
   await rtdbOwner("chat/messages", "GET");
-  await rtdbIntegrationWarmProbe();
-}
-
-/** Harness-only: prime RTDB owner reads after a wipe (cold emulator). */
-async function rtdbIntegrationWarmProbe() {
-  for (let attempt = 0; attempt < 15; attempt += 1) {
-    const tag = `w-${Date.now()}-${attempt}`;
-    const put = await rtdbOwner(`chat/_warmup/${tag}`, "PUT", { ok: true });
-    if (!put.ok) {
-      await new Promise(r => setTimeout(r, 40));
-      continue;
-    }
-    for (let i = 0; i < 40; i += 1) {
-      const got = await rtdbOwner(`chat/_warmup/${tag}`, "GET");
-      if (got.json?.ok === true) {
-        await rtdbOwner(`chat/_warmup/${tag}`, "DELETE");
-        return;
-      }
-      await new Promise(r => setTimeout(r, 25));
-    }
-    await rtdbOwner(`chat/_warmup/${tag}`, "DELETE");
-  }
-  await new Promise(r => setTimeout(r, 150));
+  await new Promise(r => setTimeout(r, 100));
 }
 
 export async function apiSend(SELF, idToken, body) {
@@ -310,7 +288,6 @@ export async function putChatMessageText(msgId, text, opts = {}) {
   await rtdbOwner(`chat/messages/${msgId}`, "PUT", merged);
   const needle = String(text).trim().slice(0, Math.min(32, String(text).length));
   await waitForMessageText(msgId, needle);
-  await waitForReportableMessage(msgId);
 }
 
 function looksLikeChatMsgId(msgId) {

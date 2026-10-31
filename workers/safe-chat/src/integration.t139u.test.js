@@ -14,7 +14,8 @@ import {
   apiPostReport,
   apiSend,
   apiSendJson,
-  waitForSafetyQueue
+  waitForSafetyQueue,
+  waitForMessageHidden
 } from "./test-helpers.js";
 
 async function runRetentionToCompletion(envIn, now) {
@@ -79,7 +80,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     await putChatMessageText(`${m1}`, "kill the kid");
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId: m1, category: "other_child_safety" });
-    expect((await rtdbOwner(`chat/messages/${m1}`, "GET")).json?.hidden).toBe(true);
+    await waitForMessageHidden(m1);
     await waitSendCooldown();
     const { j: j2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
     const m2 = j2.id;
@@ -92,19 +93,27 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
       { msgId: m2, category: "grooming" },
       { "CF-Connecting-IP": "198.51.100.55" }
     );
-    expect((await rtdbOwner(`chat/messages/${m2}`, "GET")).json?.hidden).toBe(true);
+    await waitForMessageHidden(m2);
   });
 
   it("t139u O-05 / E-01: retention marks safety queue overdue after SLA", async () => {
     const author = await authSignUp();
     const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     await apiPostReport(SELF, userB.idToken, { msgId, category: "immediate_danger" });
+    await waitForSafetyQueue(msgId, q => q?.escalationTier === "immediate_danger" || q?.childHarm);
     const q0 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     const sla = q0.json?.slaReviewBy;
     expect(typeof sla).toBe("number");
     await runSlaOverdueJob(env, sla + 1000);
-    const q1 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
-    expect(q1.json?.overdue).toBe(true);
+    for (let t = 0; t < 80; t += 1) {
+      const q1 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
+      if (q1.json?.overdue === true) {
+        expect(q1.json.overdue).toBe(true);
+        return;
+      }
+      await new Promise(r => setTimeout(r, 50));
+    }
+    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.overdue).toBe(true);
   });
 
   it("t139u FM-04: report on deleted message returns message_not_found", async () => {

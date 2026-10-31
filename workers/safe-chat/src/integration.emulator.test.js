@@ -18,6 +18,7 @@ import {
   putChatMessageText,
   apiSend,
   apiSendJson,
+  waitForMessageHidden,
   PROJECT_ID
 } from "./test-helpers.js";
 import { detectChildHarmSignals } from "./child-harm.js";
