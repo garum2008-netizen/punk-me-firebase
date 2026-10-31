@@ -130,6 +130,18 @@ export async function waitForSafetyQueue(msgId, predicate, { attempts = 240, del
   throw new Error(`safetyQueue ${msgId} not ready`);
 }
 
+/** Harness barrier: message.hidden === true (async hide after filter/report). */
+export async function waitForMessageHidden(msgId, { attempts = 120, delayMs = 100 } = {}) {
+  for (let i = 0; i < attempts; i += 1) {
+    const row = await readChatMessageRow(msgId);
+    if (row?.hidden === true) return row;
+    const leaf = await rtdbOwner(`chat/messages/${msgId}/hidden`, "GET");
+    if (leaf.json === true) return { hidden: true, ...(row || {}) };
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  throw new Error(`message ${msgId} not hidden in RTDB`);
+}
+
 /** After owner PATCH of text, wait until body is visible (RTDB under load). */
 export async function waitForMessageText(msgId, textNeedle, { attempts, delayMs = 100 } = {}) {
   const needle = String(textNeedle || "");

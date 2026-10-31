@@ -48,7 +48,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     await putChatMessageText(`${msgId}`, "how old are you don't tell mom");
     const new13 = await authSignUp();
     await apiPost(SELF, "/api/chat/declare-age13", new13.idToken, { confirmed: true });
-    const r1 = await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" });
+    const r1 = await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" }, {}, { skipWait: true });
     expect(r1.status).toBe(200);
     expect((await r1.json()).received).toBe(true);
     await waitForSafetyQueue(msgId, q => q?.childHarm || q?.subcategory === "grooming");

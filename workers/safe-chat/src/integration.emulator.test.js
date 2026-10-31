@@ -500,14 +500,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const msgId1 = s1.id;
     await putChatMessageText(`${msgId1}`, "kill the kid");
     const rep = await authSignUp();
-    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" }, {}, { skipWait: true });
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
     await waitSendCooldown();
     const { j: s2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
     const msgId2 = s2.id;
     await putChatMessageText(`${msgId2}`, "kill the kid");
     await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" });
-    expect((await rtdbOwner(`chat/messages/${msgId1}`, "GET")).json?.hidden).toBe(true);
-    expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).toBe(true);
+    await waitForMessageHidden(msgId1);
+    await waitForMessageHidden(msgId2);
   });
 
   it("moderator restore_visibility unhides with decision log", async () => {
