@@ -103,8 +103,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
   it("PROTECT P-04: globally hidden message text is not readable by another client", async () => {
     const author = await authSignUp();
     const viewer = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await putChatMessageText(`${msgId}`, "kill the kid");
+    const { j: sent } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
+    const msgId = sent.id;
+    await putChatMessageText(`${msgId}`, "kill the kid", { skipWait: true });
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);

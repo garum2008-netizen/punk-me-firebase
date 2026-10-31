@@ -90,8 +90,9 @@ export function isBlocked(blocklist, sid) {
 }
 
 /** Wait until a message node exists (emulator visibility). */
-export async function waitForChatMessage(msgId, { attempts = 200, delayMs = 100 } = {}) {
-  for (let i = 0; i < attempts; i += 1) {
+export async function waitForChatMessage(msgId, { attempts, delayMs = 100 } = {}) {
+  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 400 : 200);
+  for (let i = 0; i < max; i += 1) {
     const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     if (m.json && (m.json.sid || m.json.uid)) return m.json;
     await new Promise(r => setTimeout(r, delayMs));
@@ -100,9 +101,10 @@ export async function waitForChatMessage(msgId, { attempts = 200, delayMs = 100 
 }
 
 /** After owner PATCH of text, wait until body is visible (RTDB under load). */
-export async function waitForMessageText(msgId, textNeedle, { attempts = 200, delayMs = 100 } = {}) {
+export async function waitForMessageText(msgId, textNeedle, { attempts, delayMs = 100 } = {}) {
   const needle = String(textNeedle || "");
-  for (let i = 0; i < attempts; i += 1) {
+  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 400 : 200);
+  for (let i = 0; i < max; i += 1) {
     const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     const text = m.json?.text;
     if (m.json && (m.json.sid || m.json.uid) && typeof text === "string" && text.includes(needle)) {
@@ -150,7 +152,9 @@ export async function apiSend(SELF, idToken, body) {
 
 export async function putChatMessageText(msgId, text, opts = {}) {
   if (!opts.skipWait) await waitForChatMessage(msgId);
-  await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", text);
+  const cur = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+  const merged = { ...(cur.json || {}), text: String(text) };
+  await rtdbOwner(`chat/messages/${msgId}`, "PUT", merged);
   const needle = String(text).trim().slice(0, Math.min(32, String(text).length));
   await waitForMessageText(msgId, needle);
 }

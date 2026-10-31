@@ -6,7 +6,8 @@ import {
   apiPost,
   apiGet,
   rtdbOwner,
-  drainErasureCronLoop
+  drainErasureCronLoop,
+  waitForChatMessage
 } from "./test-helpers.js";
 
 async function countOwnMessagesByIds(ids, sid) {
@@ -16,15 +17,6 @@ async function countOwnMessagesByIds(ids, sid) {
     if (m.json && m.json.sid === sid) n += 1;
   }
   return n;
-}
-
-async function expectOwnMessageCount(ids, sid, expected) {
-  for (let t = 0; t < 80; t += 1) {
-    const n = await countOwnMessagesByIds(ids, sid);
-    if (n === expected) return;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  expect(await countOwnMessagesByIds(ids, sid)).toBe(expected);
 }
 
 async function seedOwnMessages(u, n) {
@@ -40,12 +32,14 @@ async function seedOwnMessages(u, n) {
     });
     const id = ref.json?.name;
     expect(id).toBeTruthy();
-    if (id) {
-      ids.push(id);
-      await waitForChatMessage(id);
-    }
+    if (id) ids.push(id);
   }
   expect(ids.length).toBe(n);
+  for (let t = 0; t < 200; t += 1) {
+    if ((await countOwnMessagesByIds(ids, sid)) === n) return { sid, ids };
+    await new Promise(r => setTimeout(r, 50));
+  }
+  expect(await countOwnMessagesByIds(ids, sid)).toBe(n);
   return { sid, ids };
 }
 
@@ -53,7 +47,6 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron
   it("H-1: delete-my-data then cron drains 25 messages with zero leftovers", async () => {
     const u = await authSignUp();
     const { sid, ids } = await seedOwnMessages(u, 25);
-    await expectOwnMessageCount(ids, sid, 25);
     const first = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
     expect(first.ok).toBe(true);
     const out = await drainErasureCronLoop(env, u, runErasureQueueJob, null, { ownSid: sid });
