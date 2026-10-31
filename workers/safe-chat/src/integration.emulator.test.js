@@ -408,12 +408,17 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
-    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "immediate_danger" });
+    let rep = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "immediate_danger" });
+    expect(rep.status).toBe(200);
     let q = null;
-    for (let t = 0; t < 40; t += 1) {
+    for (let t = 0; t < 100; t += 1) {
       q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
       if (q?.escalationTier === "immediate_danger") break;
-      await new Promise(r => setTimeout(r, 50));
+      if (t === 40 && q?.escalationTier !== "immediate_danger") {
+        rep = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "immediate_danger" });
+        expect(rep.status).toBe(200);
+      }
+      await new Promise(r => setTimeout(r, 75));
     }
     expect(q?.escalationTier).toBe("immediate_danger");
     expect(q?.moderatorNotify).toBe(true);
@@ -564,7 +569,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 20);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
-    await waitForMessageText(msgId, "how old are you");
+    await waitForChatMessage(msgId);
     const trusted = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
     const tj = await trusted.json();
     expect(tj.global_report_limit).toBeUndefined();

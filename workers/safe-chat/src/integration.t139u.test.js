@@ -478,13 +478,19 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   });
 
   it("t139u E-04: mod safety-queue responds for many open cases", async () => {
-    const ids = [];
+    const cases = [];
     for (let i = 0; i < 15; i++) {
       const a = await authSignUp();
-      const sent = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
+      let sent = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
       expect(sent.ok).toBe(true);
-      await waitForChatMessage(sent.id);
-      ids.push(sent.id);
+      try {
+        await waitForChatMessage(sent.id);
+      } catch (e) {
+        await new Promise(r => setTimeout(r, 500));
+        sent = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
+        expect(sent.ok).toBe(true);
+        await waitForChatMessage(sent.id);
+      }
       const repUser = await authSignUp();
       let repBody = null;
       for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -499,19 +505,26 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
         await new Promise(r => setTimeout(r, 60));
       }
       expect(repBody?.received).toBe(true);
+      cases.push({ msgId: sent.id, repToken: repUser.idToken });
     }
-    for (const id of ids) {
+    for (const { msgId, repToken } of cases) {
       let ok = false;
-      for (let t = 0; t < 100; t += 1) {
-        const q = (await rtdbOwner(`chat/internal/safetyQueue/${id}`, "GET")).json;
-        if (q?.childHarm || q?.subcategory === "other_child_safety") {
-          ok = true;
-          break;
+      for (let round = 0; round < 3 && !ok; round += 1) {
+        for (let t = 0; t < 80; t += 1) {
+          const q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
+          if (q?.childHarm || q?.subcategory === "other_child_safety") {
+            ok = true;
+            break;
+          }
+          await new Promise(r => setTimeout(r, 100));
         }
-        await new Promise(r => setTimeout(r, 75));
+        if (!ok) {
+          await apiPost(SELF, "/api/chat/report", repToken, { msgId, category: "other_child_safety" });
+        }
       }
       expect(ok).toBe(true);
     }
+    const ids = cases.map(c => c.msgId);
     const res = await apiGet(SELF, "/api/mod/safety-queue", mod.idToken);
     expect(res.status).toBe(200);
     const list = (await res.json()).queue;

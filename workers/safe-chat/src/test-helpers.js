@@ -90,7 +90,7 @@ export function isBlocked(blocklist, sid) {
 }
 
 /** Wait until a message node exists (emulator visibility). */
-export async function waitForChatMessage(msgId, { attempts = 120, delayMs = 75 } = {}) {
+export async function waitForChatMessage(msgId, { attempts = 200, delayMs = 100 } = {}) {
   for (let i = 0; i < attempts; i += 1) {
     const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     if (m.json && (m.json.sid || m.json.uid)) return m.json;
@@ -100,7 +100,7 @@ export async function waitForChatMessage(msgId, { attempts = 120, delayMs = 75 }
 }
 
 /** After owner PATCH of text, wait until body is visible (RTDB under load). */
-export async function waitForMessageText(msgId, textNeedle, { attempts = 120, delayMs = 75 } = {}) {
+export async function waitForMessageText(msgId, textNeedle, { attempts = 200, delayMs = 100 } = {}) {
   const needle = String(textNeedle || "");
   for (let i = 0; i < attempts; i += 1) {
     const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
