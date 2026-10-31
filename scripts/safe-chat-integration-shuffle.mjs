@@ -10,7 +10,7 @@ const root = path.join(__dirname, "..");
 const workerRoot = path.join(root, "workers/safe-chat");
 
 const seeds = [
-  11, 4242, 90210, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18
+  11, 4242, 90210, 1, 21, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18
 ];
 
 async function runSeed(seed, mod) {
