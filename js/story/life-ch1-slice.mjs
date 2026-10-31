@@ -82,12 +82,20 @@ export function isLifeCh1TestMode() {
 export function ensureLifeCh1(player) {
   const p = player || me();
   if (!p) return null;
-  const d = defaultLifeCh1State();
-  if (p.lifeCh1 == null) p.lifeCh1 = { ...d };
-  if (typeof p.lifeCh1 !== "object") p.lifeCh1 = { ...d };
+  if (p.lifeCh1 == null) {
+    if (!isLifeCh1SliceEnabled()) return null;
+    p.lifeCh1 = { ...defaultLifeCh1State() };
+  }
+  if (typeof p.lifeCh1 !== "object") {
+    if (!isLifeCh1SliceEnabled()) {
+      p.lifeCh1 = null;
+      return null;
+    }
+    p.lifeCh1 = { ...defaultLifeCh1State() };
+  }
   if (p.lifeCh1.v !== 1) {
+    const d = defaultLifeCh1State();
     p.lifeCh1 = {
-      ...d,
       ...p.lifeCh1,
       v: 1,
       flags: p.lifeCh1.flags && typeof p.lifeCh1.flags === "object" ? p.lifeCh1.flags : {},
@@ -135,10 +143,19 @@ export function syncPlayerLifeCh1Skin() {
 
 function previewPlayerLifeCh1Skin(skinId) {
   const st = ensureLifeCh1();
+  if (!st) {
+    window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
+    return;
+  }
   const skin = normalizeSkinId(skinId);
   const url = worldUrl(skin, skinManifest);
   window.World3D?.clearAngelinaLifeBillboard?.();
-  if (!isActive() && !st.completed) {
+  const show =
+    (isActive() && !st.completed) ||
+    st.completed ||
+    (st.stepIndex || 0) >= 2 ||
+    Object.keys(st.flags || {}).some(k => k.startsWith("outfit_"));
+  if (!show) {
     window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
     return;
   }
@@ -314,12 +331,30 @@ function advanceStep(extraReward = 0) {
   syncPlayerLifeCh1Skin();
 }
 
+export function lifeCh1PayloadForSave(player) {
+  const p = player || me();
+  if (!p?.lifeCh1 || typeof p.lifeCh1 !== "object") return undefined;
+  if (!isLifeCh1SliceEnabled()) {
+    const st = p.lifeCh1;
+    const hasProgress =
+      st.completed ||
+      st.active ||
+      (st.stepIndex || 0) > 0 ||
+      (st.flags && Object.keys(st.flags).length > 0) ||
+      (st.claimedSteps && Object.keys(st.claimedSteps).length > 0);
+    if (!hasProgress) return undefined;
+  }
+  return ensureLifeCh1(p);
+}
+
 export function isActive() {
+  if (!isLifeCh1SliceEnabled()) return false;
   const st = ensureLifeCh1(me());
   return !!(st?.active && !st.completed);
 }
 
 export function isCompleted() {
+  if (!isLifeCh1SliceEnabled()) return false;
   return !!ensureLifeCh1(me())?.completed;
 }
 
@@ -364,8 +399,13 @@ export function onBoot() {
       syncPlayerLifeCh1Skin();
     } else if (me()?.onboarding?.done && !isCompleted()) {
       tryStartAfterOnboarding();
+    } else if (me()?.onboarding?.done) {
+      syncPlayerLifeCh1Skin();
     }
   });
+  if (typeof window !== "undefined") {
+    window.addEventListener("scene3d-ready", () => syncPlayerLifeCh1Skin(), { passive: true });
+  }
 }
 
 export function onMove() {
@@ -552,7 +592,25 @@ export function closeDialogue() {
   panel?.classList.remove("active", "life-ch1-dialog");
 }
 
+function outfitInteractTarget() {
+  const steps = spec?.steps || [];
+  const outfit = steps.find(s => s.id === "outfit");
+  return outfit?.interact || { loc: "room", wx: -3.2, wz: 2.5, radius: 2.8 };
+}
+
+export function canReopenWardrobe() {
+  if (!isLifeCh1SliceEnabled()) return false;
+  const st = me()?.lifeCh1;
+  if (!st || typeof st !== "object") return false;
+  return st.completed || st.active || (st.stepIndex || 0) >= 1 || Object.keys(st.flags || {}).length > 0;
+}
+
 export function tryInteract() {
+  if (activeDlg) return false;
+  if (canReopenWardrobe() && me()?.location === "room" && nearInteract(outfitInteractTarget())) {
+    openWardrobePanel();
+    return true;
+  }
   if (!isActive() || activeDlg) return false;
   const step = currentStep();
   if (!step?.interact) return false;
@@ -660,6 +718,7 @@ export async function initLifeCh1Slice(h) {
     closeWardrobePanel,
     openWardrobePanel,
     ensureLifeCh1,
+    lifeCh1PayloadForSave,
     persistLocalOverlay,
     getMusicVolumeFactor,
     getAngelinaSkin,

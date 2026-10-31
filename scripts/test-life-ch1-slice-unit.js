@@ -43,6 +43,12 @@ async function main() {
   claimStepReward(coinMe.lifeCh1, 1, 25);
   claimStepReward(coinMe.lifeCh1, 1, 25);
   assert(coinMe.coins === 75, "step coin grant idempotent");
+  const pNoSlice = { lifeCh1: null };
+  assert(ensureLifeCh1(pNoSlice) === null && pNoSlice.lifeCh1 === null, "slice off must not create lifeCh1");
+
+  const engineSrc = fs.readFileSync(path.join(root, "js/story/story-engine.mjs"), "utf8");
+  assert(!engineSrc.includes("startingCoins + 50"), "story engine must not clamp coins");
+
   delete global.window;
 
   const manifest = JSON.parse(

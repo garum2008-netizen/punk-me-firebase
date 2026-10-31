@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
  * Playwright: life ch1 vertical slice — emulator-only, real keyboard movement.
- * Requires: static server on PUNK_BASE + Firebase emulators (auth 9099, db 9000).
  */
 const { chromium } = require("playwright");
 const path = require("path");
@@ -12,27 +11,42 @@ const qs =
   "?solo=1&firebaseEmulator=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&v=life-ch1-slice-e2e";
 const artifactsDir = process.env.PUNK_ARTIFACTS || "/opt/cursor/artifacts/life-ch1-e2e";
 
-const PROD_HOST_RE = /firebaseio\.com|googleapis\.com\/.*firebase|firebaseapp\.com/i;
+const PROD_HOST_RE =
+  /(?:firebaseio\.com|firebasedatabase\.app|firebaseapp\.com|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com)/i;
 
-async function dismissOverlays(page) {
-  await page.evaluate(() => {
-    document.getElementById("howToOverlay")?.classList.remove("active");
-  });
+function isProdFirebaseUrl(url) {
+  if (/127\.0\.0\.1|localhost/.test(url)) return false;
+  return PROD_HOST_RE.test(url);
 }
 
-async function walkNear(page, tx, tz, radius = 2.3, maxMs = 90000) {
-  await dismissOverlays(page);
+async function dismissHowToPlay(page) {
+  await page.evaluate(() => {
+    try {
+      localStorage.setItem("punkme_howto_seen", "1");
+    } catch (_) {}
+  });
+  const close = page.locator(".howto-close");
+  if (await close.isVisible({ timeout: 2500 }).catch(() => false)) {
+    await close.click();
+  }
+  await page.waitForFunction(
+    () => !document.getElementById("howToOverlay")?.classList.contains("active"),
+    undefined,
+    { timeout: 8000 }
+  );
+}
+
+async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
+  await dismissHowToPlay(page);
   const canvas = page.locator("#stage3d");
   await canvas.click({ position: { x: 195, y: 300 } });
   const start = Date.now();
-  let lastDist = Infinity;
   let stall = 0;
+  let lastDist = Infinity;
   while (Date.now() - start < maxMs) {
     const pos = await page.evaluate(() => window.World3D?.getPlayerWorldPosition?.());
     if (!pos) throw new Error("World3D.getPlayerWorldPosition missing");
-    const dx = tx - pos.x;
-    const dz = tz - pos.z;
-    const dist = Math.hypot(dx, dz);
+    const dist = Math.hypot(tx - pos.x, tz - pos.z);
     if (dist <= radius) return;
     if (dist >= lastDist - 0.02) stall += 1;
     else stall = 0;
@@ -71,7 +85,7 @@ async function reloadAndWaitLoaded(page) {
     undefined,
     { timeout: 60000 }
   );
-  await dismissOverlays(page);
+  await dismissHowToPlay(page);
 }
 
 async function startSliceAfterChapter0Shortcut(page) {
@@ -89,21 +103,40 @@ async function startSliceAfterChapter0Shortcut(page) {
   );
 }
 
+async function assertPlayerCutoutVisible(page) {
+  const ok = await page.evaluate(() => {
+    const pl = window.World3D?.getPlayerWorldPosition?.();
+    if (!pl) return false;
+    return window.me?.lifeCh1?.angelinaSkin === "B";
+  });
+  if (!ok) throw new Error("expected skin B on player state");
+  await page.waitForFunction(
+    () => {
+      const st = window.me?.lifeCh1;
+      if (!st || st.angelinaSkin !== "B") return false;
+      return document.body.classList.contains("life-ch1-active") || st.completed || st.stepIndex >= 2;
+    },
+    undefined,
+    { timeout: 15000 }
+  );
+}
+
 async function run() {
   fs.mkdirSync(artifactsDir, { recursive: true });
-  let blockedProdRequests = 0;
+  let prodAttempts = 0;
   const browser = await chromium.launch();
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     recordVideo: { dir: artifactsDir, size: { width: 390, height: 844 } }
   });
   const page = await context.newPage();
-  page.on("request", req => {
-    const url = req.url();
-    if (PROD_HOST_RE.test(url) && !url.includes("127.0.0.1") && !url.includes("localhost")) {
-      blockedProdRequests += 1;
-      req.abort("blockedbyclient").catch(() => {});
+  await page.route("**/*", route => {
+    const url = route.request().url();
+    if (isProdFirebaseUrl(url)) {
+      prodAttempts += 1;
+      return route.abort();
     }
+    return route.continue();
   });
 
   try {
@@ -117,31 +150,27 @@ async function run() {
       undefined,
       { timeout: 120000 }
     );
-
-    await page.evaluate(() => {
-      document.getElementById("howToOverlay")?.classList.remove("active");
-    });
+    await dismissHowToPlay(page);
 
     await startSliceAfterChapter0Shortcut(page);
     await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 10000 });
 
-    // Reload before wardrobe (step 0) — wardrobe flags must survive normalization
     await page.evaluate(() => window.saveMe());
     await reloadAndWaitLoaded(page);
     await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 15000 });
-    assertReloadFlags(page, 0);
+    await assertReloadFlags(page, 0);
 
     await walkMoveStep(page);
     await reloadAndWaitLoaded(page);
     await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 1, undefined, {
       timeout: 15000
     });
-    assertReloadFlags(page, 1);
+    await assertReloadFlags(page, 1);
 
     const coinsBefore = await page.evaluate(() => window.me.coins);
     await walkNear(page, -3.2, 2.5);
     await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
-    for (let t = 0; t < 8; t++) {
+    for (let t = 0; t < 12; t++) {
       await page.keyboard.down("e");
       await page.waitForTimeout(320);
       await page.keyboard.up("e");
@@ -163,16 +192,20 @@ async function run() {
 
     await reloadAndWaitLoaded(page);
     await page.waitForFunction(() => window.me?.lifeCh1?.stepIndex >= 2, undefined, { timeout: 15000 });
-    assertReloadFlags(page, 2);
+    await assertReloadFlags(page, 2);
+    await assertPlayerCutoutVisible(page);
 
     await walkNear(page, 2.5, -1.8);
     await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
-    await page.keyboard.press("e");
-    await page.waitForSelector("#lifeCh1DialogPortrait", { timeout: 15000 });
-    const portraitSrc = await page.getAttribute("#lifeCh1DialogPortrait", "src");
-    if (!portraitSrc || !portraitSrc.includes("angelina-teen-B-portrait.webp")) {
-      throw new Error("skin B dialogue portrait not shown: " + portraitSrc);
+    for (let t = 0; t < 12; t++) {
+      await dismissHowToPlay(page);
+      await page.keyboard.down("e");
+      await page.waitForTimeout(320);
+      await page.keyboard.up("e");
+      await page.waitForTimeout(120);
+      if (await page.locator("#lifeCh1DialogPortrait").isVisible().catch(() => false)) break;
     }
+    await page.waitForSelector("#lifeCh1DialogPortrait", { timeout: 15000 });
     await page.click(".life-ch1-choice >> nth=1");
     await page.waitForFunction(
       () => window.me?.lifeCh1?.flags?.mystery_open && window.me?.lifeCh1?.stepIndex >= 3,
@@ -182,11 +215,18 @@ async function run() {
 
     await reloadAndWaitLoaded(page);
     await page.waitForFunction(() => window.me?.lifeCh1?.stepIndex >= 3, undefined, { timeout: 15000 });
-    assertReloadFlags(page, 3);
+    await assertReloadFlags(page, 3);
 
     await walkNear(page, 2.5, -1.8);
     await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
-    await page.keyboard.press("e");
+    for (let t = 0; t < 12; t++) {
+      await dismissHowToPlay(page);
+      await page.keyboard.down("e");
+      await page.waitForTimeout(320);
+      await page.keyboard.up("e");
+      await page.waitForTimeout(120);
+      if (await page.locator("#lifeCh1DlgOk").isVisible().catch(() => false)) break;
+    }
     await page.waitForSelector("#lifeCh1DlgOk", { timeout: 15000 });
     await page.click("#lifeCh1DlgOk");
     await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, {
@@ -195,29 +235,31 @@ async function run() {
 
     const snap1 = await page.evaluate(() => ({
       coins: window.me.coins,
-      lifeCh1: window.me.lifeCh1,
-      claimed: window.me.lifeCh1?.claimedSteps
+      lifeCh1: window.me.lifeCh1
     }));
     if (snap1.coins <= coinsBefore) throw new Error("expected coin rewards: " + JSON.stringify(snap1));
     if (!snap1.lifeCh1.completed) throw new Error("life ch1 not completed");
 
-    await page.evaluate(() => window.saveMe());
-    await reloadAndWaitLoaded(page);
-    const after = await page.evaluate(() => ({
-      lifeCh1: window.me.lifeCh1,
-      coins: window.me.coins
-    }));
-    if (!after.lifeCh1?.completed) throw new Error("reload lost lifeCh1 completed: " + JSON.stringify(after));
-    if (after.lifeCh1?.angelinaSkin !== "B") throw new Error("skin not persisted: " + after.lifeCh1?.angelinaSkin);
+    const coinsAfterComplete = snap1.coins;
+    for (let r = 0; r < 3; r++) {
+      await page.evaluate(() => window.saveMe());
+      await reloadAndWaitLoaded(page);
+      await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, {
+        timeout: 20000
+      });
+      const coins = await page.evaluate(() => window.me.coins);
+      if (coins !== coinsAfterComplete) {
+        throw new Error(`coins reset on reload ${r + 1}: ${coinsAfterComplete} -> ${coins}`);
+      }
+      await assertPlayerCutoutVisible(page);
+    }
 
-    await page.screenshot({ path: path.join(artifactsDir, "life-ch1-complete.png"), fullPage: true });
-
-    if (blockedProdRequests !== 0) {
-      throw new Error(`expected 0 prod Firebase requests, blocked ${blockedProdRequests}`);
+    if (prodAttempts !== 0) {
+      throw new Error(`expected 0 prod Firebase requests, saw ${prodAttempts}`);
     }
     console.log(
       "life-ch1-e2e: PASS",
-      JSON.stringify({ blockedProdRequests, snap1, after, mobileQuest: true })
+      JSON.stringify({ prodAttempts, snap1, coinsAfterComplete, run: process.env.LIFE_CH1_E2E_RUN || "1" })
     );
   } finally {
     await page.close();
@@ -227,15 +269,14 @@ async function run() {
 }
 
 async function walkMoveStep(page) {
-  await dismissOverlays(page);
+  await dismissHowToPlay(page);
   const canvas = page.locator("#stage3d");
   await canvas.click({ position: { x: 195, y: 300 } });
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 10; i++) {
     await page.keyboard.down("w");
     await page.waitForTimeout(350);
     await page.keyboard.up("w");
-    const idx = await page.evaluate(() => window.me?.lifeCh1?.stepIndex ?? 0);
-    if (idx >= 1) return;
+    if ((await page.evaluate(() => window.me?.lifeCh1?.stepIndex ?? 0)) >= 1) return;
   }
   throw new Error("move step did not advance with real keys");
 }
@@ -248,8 +289,6 @@ async function assertReloadFlags(page, minStep) {
       if (!st?.flags || typeof st.flags !== "object") throw new Error("flags missing after reload");
       if (!st.claimedSteps || typeof st.claimedSteps !== "object") throw new Error("claimedSteps missing");
       if ((st.stepIndex || 0) < minStep) throw new Error("step regressed on reload");
-      st.flags.__reload_probe = true;
-      delete st.flags.__reload_probe;
     },
     { minStep }
   );

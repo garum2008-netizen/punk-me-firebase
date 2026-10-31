@@ -959,6 +959,7 @@ function continueGameBoot() {
     else dogPos = { x: me.x - 4, y: me.y + 2 };
     applyHashRoute();
     syncStage3D();
+    window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
   } catch (err) {
     console.error("continueGameBoot", err);
@@ -1055,7 +1056,7 @@ function saveMe() {
 }
 
 function sanitizePlayer(p) {
-  return {
+  const out = {
     name: p.name,
     coins: p.coins,
     xp: p.xp,
@@ -1084,11 +1085,14 @@ function sanitizePlayer(p) {
     energy: p.energy,
     mood: p.mood,
     onboarding: p.onboarding || { step: 0, progress: {}, done: false },
-    lifeCh1: p.lifeCh1 == null ? null : p.lifeCh1,
     owner: isOwner,
     lastSeen: p.lastSeen,
     linkedAuth: p.linkedAuth || null
   };
+  const lifePayload = window.LifeCh1Slice?.lifeCh1PayloadForSave?.(p);
+  if (lifePayload !== undefined) out.lifeCh1 = lifePayload;
+  else if (isPreviewBuild() && p.lifeCh1 != null) out.lifeCh1 = p.lifeCh1;
+  return out;
 }
 
 function initMultiplayer() {
