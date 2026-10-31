@@ -99,8 +99,27 @@
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
         },
         "lifeCh1": {
-      ".validate": "!newData.exists() || newData.val() == null || (newData.hasChildren(['v','active','stepIndex','completed']) && newData.child('v').val() === 1 && newData.child('active').isBoolean() && newData.child('completed').isBoolean() && newData.child('stepIndex').isNumber() && newData.child('stepIndex').val() >= 0 && newData.child('stepIndex').val() <= 12 && (!newData.hasChild('startedAt') || newData.child('startedAt').isNumber()) && (!newData.hasChild('angelinaSkin') || (newData.child('angelinaSkin').isString() && newData.child('angelinaSkin').val().matches(/^[ABC]$/))) && (!newData.hasChild('flags') || (newData.hasChild('flags') && newData.child('flags').hasChildren() && newData.child('flags').numChildren() <= 24)) && (!newData.hasChild('claimedSteps') || (newData.hasChild('claimedSteps') && newData.child('claimedSteps').hasChildren() && newData.child('claimedSteps').numChildren() <= 32)))"
-    },
+          ".validate": "!newData.exists() || newData.val() == null || (newData.hasChildren(['v','active','stepIndex','completed']) && newData.child('v').val() === 1 && newData.child('active').isBoolean() && newData.child('completed').isBoolean() && newData.child('stepIndex').isNumber() && newData.child('stepIndex').val() >= 0 && newData.child('stepIndex').val() <= 12)",
+          "v": { ".validate": "newData.val() === 1" },
+          "active": { ".validate": "newData.isBoolean()" },
+          "completed": { ".validate": "newData.isBoolean()" },
+          "stepIndex": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 12" },
+          "startedAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+          "angelinaSkin": {
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^[ABC]$/) && newData.val().length <= 1)"
+          },
+          "flags": {
+            "$flagKey": {
+              ".validate": "newData.isBoolean() && $flagKey.matches(/^[a-z0-9_]{1,32}$/)"
+            }
+          },
+          "claimedSteps": {
+            "$stepKey": {
+              ".validate": "newData.isBoolean() && $stepKey.matches(/^[0-9_a-z]{1,24}$/)"
+            }
+          },
+          "$other": { ".validate": "false" }
+        },
         "linkedAuth": {
           ".validate": "!newData.exists() || newData.val() == null || newData.hasChildren()"
         }
