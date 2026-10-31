@@ -18,7 +18,7 @@
         "da": "Gå til spejlet og tryk E"
       },
       "beacon": { "loc": "room", "wx": -3.2, "wz": 2.5 },
-      "interact": { "loc": "room", "wx": -3.2, "wz": 2.5, "radius": 2.2 },
+      "interact": { "loc": "room", "wx": -3.2, "wz": 2.5, "radius": 2.8 },
       "dialogue": "dlg_life_ch1_outfit",
       "rewardCoins": 25
     },
@@ -85,6 +85,81 @@
             "ru": "Я нашла записку на тумбочке. Что сделаем?",
             "en": "I found a note on the desk. What should we do?",
             "da": "Jeg fandt en seddel. Hvad gør vi?"
+          },
+          "choices": [
+            {
+              "id": "secret",
+              "text": { "ru": "Спрятать и подумать", "en": "Hide it and think", "da": "Gem den" },
+              "flag": "mystery_secret"
+            },
+            {
+              "id": "open",
+              "text": { "ru": "Рассказать Мире позже", "en": "Tell Mira later", "da": "Fortæl Mira senere" },
+              "flag": "mystery_open"
+            },
+            {
+              "id": "trust_angelina",
+              "text": { "ru": "Довериться Angelina", "en": "Trust Angelina", "da": "Stol på Angelina" },
+              "flag": "mystery_trust_angelina"
+            }
+          ]
+        },
+        "n_after_calm": {
+          "speaker": "angelina",
+          "text": {
+            "ru": "Спокойный образ — хороший знак. Я нашла записку на тумбочке. Что сделаем?",
+            "en": "Calm look suits you. I found a note on the desk. What should we do?",
+            "da": "Roligt look. Jeg fandt en seddel."
+          },
+          "choices": [
+            {
+              "id": "secret",
+              "text": { "ru": "Спрятать и подумать", "en": "Hide it and think", "da": "Gem den" },
+              "flag": "mystery_secret"
+            },
+            {
+              "id": "open",
+              "text": { "ru": "Рассказать Мире позже", "en": "Tell Mira later", "da": "Fortæl Mira senere" },
+              "flag": "mystery_open"
+            },
+            {
+              "id": "trust_angelina",
+              "text": { "ru": "Довериться Angelina", "en": "Trust Angelina", "da": "Stol på Angelina" },
+              "flag": "mystery_trust_angelina"
+            }
+          ]
+        },
+        "n_after_bright": {
+          "speaker": "angelina",
+          "text": {
+            "ru": "Ярко! Записка на тумбочке — не для всех глаз. Решай.",
+            "en": "Bold colors! There's a note on the desk — not for everyone. Your call.",
+            "da": "Klar stil! Der ligger en seddel."
+          },
+          "choices": [
+            {
+              "id": "secret",
+              "text": { "ru": "Спрятать и подумать", "en": "Hide it and think", "da": "Gem den" },
+              "flag": "mystery_secret"
+            },
+            {
+              "id": "open",
+              "text": { "ru": "Рассказать Мире позже", "en": "Tell Mira later", "da": "Fortæl Mira senere" },
+              "flag": "mystery_open"
+            },
+            {
+              "id": "trust_angelina",
+              "text": { "ru": "Довериться Angelina", "en": "Trust Angelina", "da": "Stol på Angelina" },
+              "flag": "mystery_trust_angelina"
+            }
+          ]
+        },
+        "n_after_bold": {
+          "speaker": "angelina",
+          "text": {
+            "ru": "Смело. Записка ждёт — если ошибёмся, последствия будут позже.",
+            "en": "Brave look. The note can wait — but wrong moves echo later.",
+            "da": "Modigt look. Sedlen venter."
           },
           "choices": [
             {

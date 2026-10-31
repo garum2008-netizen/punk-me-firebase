@@ -51,27 +51,63 @@ export function defaultLifeCh1State() {
     active: false,
     stepIndex: 0,
     flags: {},
+    claimedSteps: {},
     angelinaSkin: "A",
     completed: false,
     startedAt: 0
   };
 }
 
+/** Internal QA only — slice OFF by default on main (never auto-start for live players). */
+export function isLifeCh1SliceEnabled() {
+  try {
+    if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
+    const q = new URLSearchParams(location.search);
+    if (q.get("lifeCh1Slice") === "1") return true;
+    if (q.get("lifeCh1E2e") === "1") return true;
+  } catch (_) {}
+  return false;
+}
+
+export function isLifeCh1TestMode() {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get("lifeCh1E2e") === "1") return true;
+    if (q.get("firebaseEmulator") === "1") return true;
+  } catch (_) {}
+  return false;
+}
+
 /** Additive only — never deletes or rewrites `me.story`. */
 export function ensureLifeCh1(player) {
   const p = player || me();
   if (!p) return null;
-  if (p.lifeCh1 == null) p.lifeCh1 = defaultLifeCh1State();
-  if (typeof p.lifeCh1 !== "object") p.lifeCh1 = defaultLifeCh1State();
+  const d = defaultLifeCh1State();
+  if (p.lifeCh1 == null) p.lifeCh1 = { ...d };
+  if (typeof p.lifeCh1 !== "object") p.lifeCh1 = { ...d };
   if (p.lifeCh1.v !== 1) {
     p.lifeCh1 = {
-      ...defaultLifeCh1State(),
-      flags: p.lifeCh1.flags || {},
+      ...d,
+      ...p.lifeCh1,
+      v: 1,
+      flags: p.lifeCh1.flags && typeof p.lifeCh1.flags === "object" ? p.lifeCh1.flags : {},
+      claimedSteps:
+        p.lifeCh1.claimedSteps && typeof p.lifeCh1.claimedSteps === "object" ? p.lifeCh1.claimedSteps : {},
       angelinaSkin: normalizeSkinId(p.lifeCh1.angelinaSkin)
     };
   }
-  if (!p.lifeCh1.angelinaSkin) p.lifeCh1.angelinaSkin = "A";
-  return p.lifeCh1;
+  const st = p.lifeCh1;
+  if (typeof st.active !== "boolean") st.active = !!st.active;
+  if (typeof st.completed !== "boolean") st.completed = !!st.completed;
+  if (typeof st.stepIndex !== "number" || !Number.isFinite(st.stepIndex)) st.stepIndex = 0;
+  st.stepIndex = Math.max(0, Math.min(32, Math.floor(st.stepIndex)));
+  if (typeof st.startedAt !== "number") st.startedAt = st.startedAt ? Number(st.startedAt) || 0 : 0;
+  if (st.flags == null || typeof st.flags !== "object" || Array.isArray(st.flags)) st.flags = {};
+  if (st.claimedSteps == null || typeof st.claimedSteps !== "object" || Array.isArray(st.claimedSteps)) {
+    st.claimedSteps = {};
+  }
+  st.angelinaSkin = normalizeSkinId(st.angelinaSkin || "A");
+  return st;
 }
 
 export function getAngelinaSkin() {
@@ -82,7 +118,7 @@ export function setAngelinaSkin(skinId) {
   const id = writeSelectedSkin(ensureLifeCh1(), skinId);
   persistLocalOverlay();
   hooks.save?.();
-  syncAngelinaPresentation();
+  syncPlayerLifeCh1Skin();
   return id;
 }
 
@@ -93,38 +129,29 @@ function dialogPortraitHtml(skinId) {
   return `<img id="lifeCh1DialogPortrait" class="life-ch1-dialog-portrait" src="${escapeHtml(url)}" alt="${escapeHtml(label)}" width="96" height="144" data-skin="${escapeHtml(skinId)}">`;
 }
 
-export function syncAngelinaPresentation() {
-  previewAngelinaSkin(readSelectedSkin(ensureLifeCh1()));
+export function syncPlayerLifeCh1Skin() {
+  previewPlayerLifeCh1Skin(readSelectedSkin(ensureLifeCh1()));
 }
 
-function previewAngelinaSkin(skinId) {
+function previewPlayerLifeCh1Skin(skinId) {
   const st = ensureLifeCh1();
   const skin = normalizeSkinId(skinId);
   const url = worldUrl(skin, skinManifest);
+  window.World3D?.clearAngelinaLifeBillboard?.();
   if (!isActive() && !st.completed) {
-    window.World3D?.clearAngelinaLifeBillboard?.();
+    window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
     return;
   }
-  const step = currentStep();
-  let wx = 2.5;
-  let wz = -1.8;
-  if (step?.beacon?.wx != null) {
-    wx = step.beacon.wx;
-    wz = step.beacon.wz;
-  } else if (step?.id === "outfit") {
-    wx = -3.2;
-    wz = 2.5;
+  if (me()?.location !== "room") {
+    window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
+    return;
   }
-  window.World3D?.setAngelinaLifeBillboard?.({
-    visible: true,
-    url,
-    wx,
-    wz,
-    loc: "room"
-  });
+  window.World3D?.setPlayerLifeCh1Skin?.({ visible: true, url });
 }
 
 function useLocalOverlay() {
+  if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
+  if (!isLifeCh1TestMode()) return false;
   try {
     return new URLSearchParams(location.search).get("lifeCh1Local") === "1";
   } catch {
@@ -133,6 +160,10 @@ function useLocalOverlay() {
 }
 
 function localKey() {
+  if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) {
+    const id = window.PunkPreviewSave?.getDeviceId?.() || "preview";
+    return "punkme_preview_lifeCh1_v1_" + id;
+  }
   const uid = window.uid || window.firebase?.auth?.()?.currentUser?.uid || "anon";
   return LOCAL_KEY_PREFIX + uid;
 }
@@ -228,16 +259,38 @@ function playUiBlip() {
 function grantCoins(n) {
   if (!n || window.isOwner) return;
   me().coins += n;
-  const el = document.getElementById("coins");
-  if (el && window.formatCoinsDisplay) el.textContent = window.formatCoinsDisplay();
+  if (typeof document !== "undefined") {
+    const el = document.getElementById("coins");
+    if (el && window.formatCoinsDisplay) el.textContent = window.formatCoinsDisplay();
+  }
   hooks.toast?.(`+${n} ${L({ ru: "монет", en: "coins", da: "mønter" })}`);
+}
+
+export function claimStepReward(st, stepIndex, amount) {
+  if (!amount || !st) return 0;
+  const key = String(stepIndex);
+  if (st.claimedSteps[key]) return 0;
+  st.claimedSteps[key] = true;
+  grantCoins(amount);
+  return amount;
+}
+
+function trustChoiceReflectBonus(st) {
+  if (st.flags.mystery_trust_angelina) return 20;
+  if (st.flags.mystery_secret) return 15;
+  if (st.flags.mystery_open) return 8;
+  return 0;
 }
 
 function advanceStep(extraReward = 0) {
   const st = ensureLifeCh1();
   const step = currentStep();
-  if (step?.rewardCoins) grantCoins(step.rewardCoins);
-  if (extraReward) grantCoins(extraReward);
+  const idx = st.stepIndex;
+  if (step?.rewardCoins) claimStepReward(st, idx, step.rewardCoins);
+  if (step?.id === "reflect") {
+    claimStepReward(st, `${idx}_trust_bonus`, trustChoiceReflectBonus(st));
+  }
+  if (extraReward) claimStepReward(st, `${idx}_extra`, extraReward);
   st.stepIndex += 1;
   const steps = spec?.steps || [];
   if (st.stepIndex >= steps.length) {
@@ -258,7 +311,7 @@ function advanceStep(extraReward = 0) {
   syncBeacon();
   updateChatPresetMode();
   applyMusicSceneClass();
-  syncAngelinaPresentation();
+  syncPlayerLifeCh1Skin();
 }
 
 export function isActive() {
@@ -271,6 +324,7 @@ export function isCompleted() {
 }
 
 export async function tryStartAfterOnboarding() {
+  if (!isLifeCh1SliceEnabled()) return false;
   await loadSpec();
   const p = me();
   if (!p?.onboarding?.done) return false;
@@ -294,19 +348,20 @@ export async function tryStartAfterOnboarding() {
   syncBeacon();
   updateChatPresetMode();
   applyMusicSceneClass();
-  syncAngelinaPresentation();
+  syncPlayerLifeCh1Skin();
   return true;
 }
 
 export function onBoot() {
   restoreLocalOverlay();
   loadSpec().then(() => {
+    if (!isLifeCh1SliceEnabled()) return;
     if (me()?.onboarding?.done && ensureLifeCh1()?.active) {
       syncBeacon();
       renderObjectivePanel();
       updateChatPresetMode();
       applyMusicSceneClass();
-      syncAngelinaPresentation();
+      syncPlayerLifeCh1Skin();
     } else if (me()?.onboarding?.done && !isCompleted()) {
       tryStartAfterOnboarding();
     }
@@ -337,13 +392,22 @@ function nearInteract(target) {
   return distWorld(pos.x, pos.z, target.wx, target.wz) <= (target.radius || 2);
 }
 
-function pickReflectNode(dlg) {
+export function pickReflectNode(dlg, flags) {
+  const stFlags = flags || ensureLifeCh1()?.flags || {};
+  const nodes = dlg.nodes;
+  if (stFlags.mystery_secret && nodes.n_secret) return nodes.n_secret;
+  if (stFlags.mystery_open && nodes.n_open) return nodes.n_open;
+  if (stFlags.mystery_trust_angelina && nodes.n_trust) return nodes.n_trust;
+  return nodes.n_fallback;
+}
+
+function pickTrustNode(dlg) {
   const st = ensureLifeCh1();
   const nodes = dlg.nodes;
-  if (st.flags.mystery_secret && nodes.n_secret) return nodes.n_secret;
-  if (st.flags.mystery_open && nodes.n_open) return nodes.n_open;
-  if (st.flags.mystery_trust_angelina && nodes.n_trust) return nodes.n_trust;
-  return nodes.n_fallback;
+  if (st.flags.outfit_bold && nodes.n_after_bold) return nodes.n_after_bold;
+  if (st.flags.outfit_bright && nodes.n_after_bright) return nodes.n_after_bright;
+  if (st.flags.outfit_calm && nodes.n_after_calm) return nodes.n_after_calm;
+  return nodes.n0;
 }
 
 function openWardrobePanel() {
@@ -354,14 +418,14 @@ function openWardrobePanel() {
   wardrobePending.outfitFlag = null;
   panel.hidden = false;
   document.getElementById("lifeCh1WardrobeTitle").textContent = L({
-    ru: "Angelina — гардероб",
-    en: "Angelina — wardrobe",
-    da: "Angelina — garderobe"
+    ru: "Твой образ — A / B / C",
+    en: "Your look — A / B / C",
+    da: "Dit look — A / B / C"
   });
   document.getElementById("lifeCh1WardrobeHint").textContent = L({
-    ru: "Выбери образ Angelina (A/B/C) — одобренные Owner PNG.",
-    en: "Pick Angelina look (A/B/C) — Owner-approved PNGs.",
-    da: "Vælg Angelina (A/B/C)."
+    ru: "Выбери вид героя (Owner PNG) — в мире меняется твой персонаж.",
+    en: "Pick your hero look (Owner PNG) — your character updates in the world.",
+    da: "Vælg dit helte-look."
   });
   document.getElementById("lifeCh1OutfitLabel").textContent = L({
     ru: "Стиль на сегодня:",
@@ -375,7 +439,7 @@ function openWardrobePanel() {
       const url = portraitUrl(id, skinManifest);
       const sel = wardrobePending.skin === id ? " selected" : "";
       return `<button type="button" class="life-ch1-skin-tile${sel}" data-skin="${id}" data-testid="life-ch1-skin-${id}">
-        <img src="${escapeHtml(url)}" alt="${escapeHtml(L(e.title))}" width="72" height="108">
+        <img src="${escapeHtml(url)}" alt="${escapeHtml(L(e.title))}" width="72" height="108" loading="eager" decoding="async">
         <span>${escapeHtml(id)}</span></button>`;
     })
     .join("");
@@ -383,7 +447,7 @@ function openWardrobePanel() {
     btn.onclick = () => {
       wardrobePending.skin = btn.dataset.skin;
       grid.querySelectorAll(".life-ch1-skin-tile").forEach(b => b.classList.toggle("selected", b === btn));
-      previewAngelinaSkin(wardrobePending.skin);
+      previewPlayerLifeCh1Skin(wardrobePending.skin);
       updateWardrobeConfirmState();
     };
   });
@@ -414,7 +478,7 @@ function openWardrobePanel() {
   document.getElementById("lifeCh1WardrobeClose").textContent = L({ ru: "Закрыть", en: "Close", da: "Luk" });
   document.getElementById("lifeCh1WardrobeClose").onclick = () => closeWardrobePanel();
   updateWardrobeConfirmState();
-  syncAngelinaPresentation();
+  syncPlayerLifeCh1Skin();
 }
 
 function updateWardrobeConfirmState() {
@@ -431,7 +495,8 @@ function showDialogue(dlgId) {
   const dlgRoot = spec?.dialogues?.[dlgId];
   if (!dlgRoot) return;
   let node;
-  if (dlgId === "dlg_life_ch1_reflect") node = pickReflectNode(dlgRoot);
+  if (dlgId === "dlg_life_ch1_reflect") node = pickReflectNode(dlgRoot, ensureLifeCh1().flags);
+  else if (dlgId === "dlg_life_ch1_trust") node = pickTrustNode(dlgRoot);
   else node = dlgRoot.nodes?.n0;
   if (!node) return;
 
@@ -515,12 +580,19 @@ export function renderObjectivePanel() {
   const st = ensureLifeCh1();
   const i = (st.stepIndex || 0) + 1;
   const n = spec?.steps?.length || 4;
-  box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker">
+  box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker" data-testid="life-ch1-quest-panel">
     <b>${escapeHtml(title)}</b> <span class="quest-step-num">${i}/${n}</span>
     <div class="quest-step-title">${escapeHtml(objective)}</div>
     <div class="quest-step-text life-ch1-sub">${escapeHtml(L({ ru: "Жизненная глава · отдельное сохранение lifeCh1", en: "Life chapter · lifeCh1 save namespace", da: "Liv kapitel" }))}</div>
   </div>`;
   syncBeacon();
+  const qw = document.getElementById("hudQuestsWrap");
+  const qt = document.getElementById("hudQuestsToggle");
+  if (qw?.classList.contains("collapsed")) {
+    qw.classList.remove("collapsed");
+    qt?.setAttribute("aria-expanded", "true");
+    if (qt) qt.textContent = "▾";
+  }
   return true;
 }
 
@@ -550,7 +622,6 @@ function updateChatPresetMode() {
       en: "Preset phrases only (D12-A)",
       da: "Kun faste sætninger"
     });
-    input.readOnly = true;
   }
   bar.innerHTML = PRESET_PHRASES.map((p, i) =>
     `<button type="button" class="btn secondary life-ch1-phrase" data-i="${i}">${escapeHtml(L(p))}</button>`
@@ -593,7 +664,10 @@ export async function initLifeCh1Slice(h) {
     getMusicVolumeFactor,
     getAngelinaSkin,
     setAngelinaSkin,
-    syncAngelinaPresentation,
+    syncPlayerLifeCh1Skin,
+    isLifeCh1SliceEnabled,
+    isLifeCh1TestMode,
+    pickReflectNode,
     portraitUrl: id => portraitUrl(id, skinManifest)
   };
 }

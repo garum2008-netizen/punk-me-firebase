@@ -38,10 +38,58 @@ let lastPresenceAnimPush = 0;
 
 function soloMode() {
   try {
+    if (window.__PUNK_PREVIEW__ === true) return true;
     return new URLSearchParams(location.search).has("solo");
   } catch (e) {
     return false;
   }
+}
+
+function isPreviewBuild() {
+  return window.__PUNK_PREVIEW__ === true;
+}
+
+function installPreviewBanner() {
+  if (document.getElementById("previewBuildBanner")) return;
+  const el = document.createElement("div");
+  el.id = "previewBuildBanner";
+  el.className = "preview-build-banner";
+  el.setAttribute("role", "status");
+  el.textContent = "PREVIEW — test build, progress saved only on this device";
+  document.body.prepend(el);
+}
+
+function disablePreviewChatUi() {
+  document.body.classList.add("preview-no-chat");
+  const panel = document.getElementById("chatPanel");
+  if (panel) panel.hidden = true;
+}
+
+function bootPreviewSession() {
+  installPreviewBanner();
+  disablePreviewChatUi();
+  uid = window.PunkPreviewSave?.getDeviceId?.() || "preview_local";
+  window.uid = uid;
+  isOwner = false;
+  window.isOwner = false;
+  window.__punkFirebaseReady = Promise.resolve();
+  window.dispatchEvent(new Event("punkme-firebase-ready"));
+  const saved = window.PunkPreviewSave?.load?.();
+  if (saved) {
+    applyFirebasePlayerSnapshot({
+      exists: () => true,
+      val: () => saved
+    });
+    finishLoadMeFlow();
+    return;
+  }
+  window.__playerLoaded = false;
+  hideLoading();
+  const openSelect = () => {
+    if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
+    else setTimeout(openSelect, 120);
+  };
+  openSelect();
 }
 
 function demoPartyMode() {
@@ -438,6 +486,7 @@ function migratePlayerFromSave(raw) {
   }
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
+  if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
   if (v.lifeCh1 != null && typeof v.lifeCh1 !== "object") v.lifeCh1 = null;
   return v;
 }
@@ -717,6 +766,13 @@ function init() {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);
     btn.classList.toggle("active", btn.dataset.lang === getLanguage());
   });
+  if (isPreviewBuild()) {
+    bootPreviewSession();
+    bindGameShell();
+    const ver = document.getElementById("gameVersion");
+    if (ver) ver.textContent = GAME_VERSION + "-preview";
+    return;
+  }
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
@@ -753,6 +809,12 @@ function init() {
       });
     }
   });
+  bindGameShell();
+  const ver = document.getElementById("gameVersion");
+  if (ver) ver.textContent = GAME_VERSION;
+}
+
+function bindGameShell() {
   document.getElementById("roomLayer").addEventListener("click", onRoomClick);
   window.addEventListener("keydown", onKey);
   window.addEventListener("hashchange", applyHashRoute);
@@ -821,8 +883,6 @@ function init() {
     },
     onCatPet: () => toast(t("cat_hiss"))
   });
-  const ver = document.getElementById("gameVersion");
-  if (ver) ver.textContent = GAME_VERSION;
 }
 
 function loadMe() {
@@ -869,6 +929,7 @@ function pickCharacterAndContinue(id) {
   const def = getCharacterDef(id);
   me.avatar = def.poster;
   me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
+  window.__playerLoaded = true;
   saveMe();
   continueGameBoot();
 }
@@ -888,8 +949,10 @@ function continueGameBoot() {
     if (window.initHowToPlay) initHowToPlay();
     if (window.initContextHints) initContextHints();
     renderAll();
-    initMultiplayer();
-    listenChat();
+    if (!isPreviewBuild()) {
+      initMultiplayer();
+      listenChat();
+    }
     listenBuildings();
     refreshLifeScene();
     if (me.dog) dogPos = { ...me.dog };
@@ -963,6 +1026,15 @@ function hideLoading() {
 }
 
 function saveMe() {
+  if (isPreviewBuild()) {
+    if (!window.__playerLoaded) return;
+    const prevLvl = me.level || 1;
+    me.level = levelFromXp(me.xp || 0);
+    if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
+    me.lastSeen = Date.now();
+    window.PunkPreviewSave?.save?.(sanitizePlayer(me));
+    return;
+  }
   if (!uid) return;
   if (!window.__playerLoaded) return;
   const prevLvl = me.level || 1;
@@ -1020,7 +1092,7 @@ function sanitizePlayer(p) {
 }
 
 function initMultiplayer() {
-  if (!uid) return;
+  if (isPreviewBuild() || !uid || !db) return;
   const probe = db.ref("presence/" + me.location + "/" + uid);
   const probePayload = {
     name: me.name || "Player",
@@ -1040,7 +1112,7 @@ function initMultiplayer() {
 }
 
 function pushPresence() {
-  if (!uid) return;
+  if (isPreviewBuild() || !db || !uid) return;
   if (!window.__playerLoaded) return;
   if (!presenceOk) return;
   const loc = me.location;
@@ -1175,6 +1247,7 @@ function localizeChatText(text) {
 }
 
 function listenChat() {
+  if (isPreviewBuild() || !db) return;
   db.ref("chat").limitToLast(25).on("child_added", s => {
     const m = s.val();
     if (!m) return;
@@ -1187,6 +1260,10 @@ function listenChat() {
 }
 
 function listenBuildings() {
+  if (isPreviewBuild()) {
+    loadPrivateDecor();
+    return;
+  }
   const zone = LOCATIONS[me.location]?.buildZone;
   if (!zone || zone === "room_private") {
     loadPrivateDecor();
@@ -1224,6 +1301,7 @@ function updateOnlineCount() {
   const inLoc = Object.keys(others).length + 1;
   document.getElementById("onlineCount").textContent = String(inLoc);
   updatePlayersToggleCount();
+  if (isPreviewBuild() || !db) return;
   if (!presenceOk) return;
   db.ref("presence").once("value").then(s => {
     const global = countLivePresenceTree(s.val());
@@ -1251,7 +1329,7 @@ function goLocation(id, fromHash) {
   if (!fromHash && location.hash !== "#" + id) {
     history.replaceState(null, "", "#" + id);
   }
-  if (presenceOk && presenceRef) db.ref("presence/" + me.location + "/" + uid).remove().catch(() => {});
+  if (!isPreviewBuild() && presenceOk && presenceRef && db) db.ref("presence/" + me.location + "/" + uid).remove().catch(() => {});
   me.location = id;
   me.x = 45;
   me.y = 60;
@@ -1931,6 +2009,10 @@ function runParkourJob() {
 }
 
 function sendChat() {
+  if (isPreviewBuild()) {
+    toast(typeof t === "function" ? t("preview_chat_off") : "Chat is off in preview builds.");
+    return;
+  }
   if (window.LifeCh1Slice?.isActive?.()) {
     toast(typeof t === "function" ? t("life_ch1_chat_presets") : "Use preset phrase buttons only.");
     return;
