@@ -259,9 +259,11 @@ export async function apiSend(SELF, idToken, body) {
   return { r, j };
 }
 
-/** Same as apiSend but returns parsed JSON body (common in integration tests). */
+/** Same as apiSend but returns parsed JSON body; does not throw on send errors (e.g. daily_limit). */
 export async function apiSendJson(SELF, idToken, body) {
-  const { j } = await apiSend(SELF, idToken, body);
+  const r = await apiPost(SELF, "/api/chat/send", idToken, body);
+  const j = await r.json();
+  if (j.ok && j.id) await waitForChatMessage(j.id);
   return j;
 }
 
