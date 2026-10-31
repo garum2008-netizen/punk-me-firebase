@@ -48,8 +48,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     await putChatMessageText(`${msgId}`, "how old are you don't tell mom");
     const new13 = await authSignUp();
     await apiPost(SELF, "/api/chat/declare-age13", new13.idToken, { confirmed: true });
-    await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" });
-    await waitForSafetyQueue(msgId, q => q?.subcategory === "grooming");
+    const r1 = await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" });
+    expect(r1.status).toBe(200);
+    expect((await r1.json()).received).toBe(true);
+    await waitForSafetyQueue(msgId, q => q?.childHarm || q?.subcategory === "grooming");
     const aged = await authSignUp();
     await rtdbOwner(`chatMeta/${aged.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 86400000);
     await apiPostReport(

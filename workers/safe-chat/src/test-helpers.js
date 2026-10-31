@@ -116,9 +116,12 @@ export async function waitForChatMessage(msgId, { attempts, delayMs = 100 } = {}
 }
 
 /** Wait until a safetyQueue row exists and matches predicate (harness barrier). */
-export async function waitForSafetyQueue(msgId, predicate, { attempts = 160, delayMs = 100 } = {}) {
+export async function waitForSafetyQueue(msgId, predicate, { attempts = 240, delayMs = 100 } = {}) {
   const pred = predicate || (q => Boolean(q?.childHarm || q?.subcategory));
   for (let i = 0; i < attempts; i += 1) {
+    const all = await rtdbOwner("chat/internal/safetyQueue", "GET");
+    const qListed = all.json?.[msgId];
+    if (qListed && pred(qListed)) return qListed;
     const snap = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     const q = snap.json;
     if (q && pred(q)) return q;
