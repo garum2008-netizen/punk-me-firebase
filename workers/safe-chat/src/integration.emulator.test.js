@@ -506,8 +506,12 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const msgId2 = s2.id;
     await putChatMessageText(`${msgId2}`, "kill the kid");
     const rep = await authSignUp();
-    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
-    await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" });
+    await waitForChatMessage(msgId1);
+    await waitForMessageText(msgId1, "kill the kid");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" }, {}, { skipWait: true });
+    await waitForChatMessage(msgId2);
+    await waitForMessageText(msgId2, "kill the kid");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" }, {}, { skipWait: true });
     expect((await rtdbOwner(`chat/messages/${msgId1}`, "GET")).json?.hidden).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).toBe(true);
   });
