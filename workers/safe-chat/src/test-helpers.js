@@ -310,6 +310,7 @@ export async function putChatMessageText(msgId, text, opts = {}) {
   await rtdbOwner(`chat/messages/${msgId}`, "PUT", merged);
   const needle = String(text).trim().slice(0, Math.min(32, String(text).length));
   await waitForMessageText(msgId, needle);
+  await waitForReportableMessage(msgId);
 }
 
 function looksLikeChatMsgId(msgId) {
@@ -321,7 +322,8 @@ export async function apiPostReport(SELF, idToken, body, extraHeaders = {}, opts
   const msgId = body?.msgId;
   if (msgId && !opts.skipWait && looksLikeChatMsgId(msgId)) {
     if (opts.textNeedle) await waitForMessageText(msgId, opts.textNeedle);
-    else await waitForReportableMessage(msgId);
+    else if (opts.requireText) await waitForReportableMessage(msgId);
+    else await waitForChatMessage(msgId);
   }
   return apiPost(SELF, "/api/chat/report", idToken, body, extraHeaders);
 }
