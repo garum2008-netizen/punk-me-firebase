@@ -71,12 +71,12 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   it("t139u D-04: hide quota consumed then global hide still allowed with independent signal", async () => {
     const author = await authSignUp();
     const { j: j1 } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
+    const m1 = j1.id;
+    await putChatMessageText(`${m1}`, "kill the kid");
     await waitSendCooldown();
     const { j: j2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
-    const m1 = j1.id;
     const m2 = j2.id;
     const rep = await authSignUp();
-    await putChatMessageText(`${m1}`, "kill the kid");
     await apiPostReport(SELF, rep.idToken, { msgId: m1, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/messages/${m1}`, "GET")).json?.hidden).toBe(true);
     await putChatMessageText(`${m2}`, "don't tell mom meet me alone");

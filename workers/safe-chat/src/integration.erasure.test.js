@@ -21,7 +21,7 @@ async function countOwnMessagesByIds(ids, sid) {
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron queue)", () => {
   it("H-1: delete-my-data then cron drains 25 messages with zero leftovers", async () => {
     const u = await authSignUp();
-    const { sid, ids } = await seedOwnMessagesForErasure(u, 25);
+    const { sid, ids } = await seedOwnMessagesForErasure(SELF, u, 25);
     expect(await countOwnMessagesByIds(ids, sid)).toBe(25);
     const first = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
     expect(first.ok).toBe(true);
@@ -34,7 +34,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron
 
   it("H-1: cron queue drains 50 messages with metadata cleared", async () => {
     const u = await authSignUp();
-    const { sid, ids } = await seedOwnMessagesForErasure(u, 50);
+    const { sid, ids } = await seedOwnMessagesForErasure(SELF, u, 50);
     await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
     const out = await drainErasureCronLoop(env, u, runErasureQueueJob, null, { ownSid: sid });
     expect(out.complete).toBe(true);
@@ -44,7 +44,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron
 
   it("FT-04: cron erasure queue processes 100 messages with each hop ≤40 subrequests", async () => {
     const u = await authSignUp();
-    const { sid, ids } = await seedOwnMessagesForErasure(u, 100);
+    const { sid, ids } = await seedOwnMessagesForErasure(SELF, u, 100);
     await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
     let guard = 0;
     while (guard < 500) {

@@ -127,9 +127,14 @@ export async function expectedChatSid(localId) {
 }
 
 /** Owner-POST N messages for erasure integration tests (deterministic sid, visibility barrier). */
-export async function seedOwnMessagesForErasure(u, n) {
-  const sid = await expectedChatSid(u.localId);
-  if (!/^[a-f0-9]{32}$/.test(sid)) throw new Error(`invalid sid for erasure seed: ${sid}`);
+export async function seedOwnMessagesForErasure(SELF, u, n) {
+  let sid = null;
+  for (let t = 0; t < 80; t += 1) {
+    sid = (await (await apiGet(SELF, "/api/chat/config", u.idToken)).json()).mySid;
+    if (typeof sid === "string" && /^[a-f0-9]{32}$/.test(sid)) break;
+    await new Promise(r => setTimeout(r, 50));
+  }
+  if (!sid) throw new Error("erasure seed: config mySid not available");
   const ids = [];
   for (let i = 0; i < n; i += 1) {
     const ref = await rtdbOwner("chat/messages", "POST", {
@@ -144,8 +149,9 @@ export async function seedOwnMessagesForErasure(u, n) {
     await waitForChatMessage(id);
   }
   if (ids.length !== n) throw new Error(`erasure seed expected ${n} ids got ${ids.length}`);
+  let visible = 0;
   for (let t = 0; t < 120; t += 1) {
-    let visible = 0;
+    visible = 0;
     for (const id of ids) {
       const m = await rtdbOwner(`chat/messages/${id}`, "GET");
       if (m.json?.sid === sid) visible += 1;
