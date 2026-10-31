@@ -6,8 +6,7 @@ import {
   apiPost,
   apiGet,
   rtdbOwner,
-  drainErasureCronLoop,
-  waitForChatMessage
+  drainErasureCronLoop
 } from "./test-helpers.js";
 
 async function countOwnMessagesByIds(ids, sid) {

@@ -152,8 +152,14 @@ export async function apiSend(SELF, idToken, body) {
 
 export async function putChatMessageText(msgId, text, opts = {}) {
   if (!opts.skipWait) await waitForChatMessage(msgId);
+  else {
+    const peek = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+    if (!peek.json?.sid && !peek.json?.uid) await waitForChatMessage(msgId);
+  }
   const cur = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+  if (!cur.json?.sid && !cur.json?.uid) await waitForChatMessage(msgId);
   const merged = { ...(cur.json || {}), text: String(text) };
+  if (!merged.sid && !merged.uid) throw new Error(`putChatMessageText: message ${msgId} missing sid/uid`);
   await rtdbOwner(`chat/messages/${msgId}`, "PUT", merged);
   const needle = String(text).trim().slice(0, Math.min(32, String(text).length));
   await waitForMessageText(msgId, needle);

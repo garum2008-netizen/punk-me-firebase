@@ -46,10 +46,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     await putChatMessageText(`${msgId}`, "how old are you don't tell mom", { skipWait: true });
     const new13 = await authSignUp();
     await apiPost(SELF, "/api/chat/declare-age13", new13.idToken, { confirmed: true });
-    await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" });
+    await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" }, {}, { skipWait: true });
     const aged = await authSignUp();
     await rtdbOwner(`chatMeta/${aged.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 86400000);
-    await apiPostReport(SELF, aged.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.2" });
+    await apiPostReport(SELF, aged.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.2" }, { skipWait: true });
     const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     expect(q.json?.childHarm).toBe(true);
     expect(q.json?.subcategory).toBe("grooming");
@@ -63,20 +63,25 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u D-04: hide quota consumed then global hide still allowed with independent signal", async () => {
     const author = await authSignUp();
+    const { j: j1 } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
     await waitSendCooldown();
-    const { id: m1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await waitSendCooldown();
-    const { id: m2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { j: j2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
+    const m1 = j1.id;
+    const m2 = j2.id;
     const rep = await authSignUp();
-    await putChatMessageText(`${m1}`, "kill the kid");
-    await apiPostReport(SELF, rep.idToken, { msgId: m1, category: "other_child_safety" });
+    await putChatMessageText(`${m1}`, "kill the kid", { skipWait: true });
+    await apiPostReport(SELF, rep.idToken, { msgId: m1, category: "other_child_safety" }, {}, { skipWait: true });
     expect((await rtdbOwner(`chat/messages/${m1}`, "GET")).json?.hidden).toBe(true);
-    await putChatMessageText(`${m2}`, "don't tell mom meet me alone");
-    await apiPostReport(SELF, rep.idToken, { msgId: m2, category: "grooming" });
+    await putChatMessageText(`${m2}`, "don't tell mom meet me alone", { skipWait: true });
+    await apiPostReport(SELF, rep.idToken, { msgId: m2, category: "grooming" }, {}, { skipWait: true });
     const rep2 = await authSignUp();
-    await apiPostReport(SELF, rep2.idToken,
+    await apiPostReport(
+      SELF,
+      rep2.idToken,
       { msgId: m2, category: "grooming" },
-      { "CF-Connecting-IP": "198.51.100.55" });
+      { "CF-Connecting-IP": "198.51.100.55" },
+      { skipWait: true }
+    );
     expect((await rtdbOwner(`chat/messages/${m2}`, "GET")).json?.hidden).toBe(true);
   });
 
