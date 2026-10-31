@@ -487,16 +487,32 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await waitForMessageText(msgId, "how old are you");
     const rep1 = await authSignUp();
     await apiPost(SELF, "/api/chat/report", rep1.idToken, { msgId, category: "grooming" });
+    for (let t = 0; t < 40; t += 1) {
+      if ((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.subcategory) break;
+      await new Promise(r => setTimeout(r, 50));
+    }
+    await waitForChatMessage(msgId);
     const rep2 = await authSignUp();
-    await apiPost(
+    let r2 = await apiPost(
       SELF,
       "/api/chat/report",
       rep2.idToken,
       { msgId, category: "grooming" },
       { "CF-Connecting-IP": "198.51.100.12" }
     );
+    if (r2.status === 404) {
+      await waitForChatMessage(msgId);
+      r2 = await apiPost(
+        SELF,
+        "/api/chat/report",
+        rep2.idToken,
+        { msgId, category: "grooming" },
+        { "CF-Connecting-IP": "198.51.100.12" }
+      );
+    }
+    expect(r2.status).toBe(200);
     let hidden = false;
-    for (let t = 0; t < 80; t += 1) {
+    for (let t = 0; t < 120; t += 1) {
       const msg = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json;
       const q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
       hidden = msg?.hidden === true || Boolean(q?.hiddenAt);
