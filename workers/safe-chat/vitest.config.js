@@ -6,9 +6,19 @@ import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const integration = process.env.SAFE_CHAT_INTEGRATION === "1";
 const newbie = process.env.SAFE_CHAT_INTEGRATION_NEWBIE === "1";
-const rtdbRulesJson = integration
-  ? fs.readFileSync(path.resolve(__dirname, "../../database.rules.json"), "utf8")
-  : "";
+
+function loadIntegrationRtdbRulesText() {
+  const candidates = [
+    path.join(__dirname, "database.rules.json"),
+    path.resolve(__dirname, "../../database.rules.json")
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return fs.readFileSync(p, "utf8");
+  }
+  return "";
+}
+
+const rtdbRulesJson = integration ? loadIntegrationRtdbRulesText() : "";
 
 export default defineWorkersConfig({
   resolve: {

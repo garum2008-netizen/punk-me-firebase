@@ -280,9 +280,11 @@ const mutations = [
         replacements: [
           {
             from: `export async function runErasureQueueJob(env, nowOverride) {
+  syncIntegrationEnvBindings(env);
   const config = loadConfig(env);`,
             to: `export async function runErasureQueueJob(env, nowOverride) {
   return { ok: true, processed: 0 }; /* MUT-J */
+  syncIntegrationEnvBindings(env);
   const config = loadConfig(env);`
           }
         ]
@@ -392,6 +394,7 @@ function applyPatches(mut, destRoot) {
 function copyWorker(dest) {
   cpSync(workerRoot, dest, { recursive: true, filter: src => !src.includes("node_modules") });
   cpSync(path.join(workerRoot, "node_modules"), path.join(dest, "node_modules"), { recursive: true });
+  fs.copyFileSync(path.join(root, "database.rules.json"), path.join(dest, "database.rules.json"));
 }
 
 function runIntegrationInCopy(mut, mod, dest) {
