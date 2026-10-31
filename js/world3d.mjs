@@ -81,6 +81,52 @@ let elevatorCutawaySaved = null;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 let guideTarget = null;
+/** Life ch1 Angelina portrait billboard (t569u placeholders until PNG drop-in). */
+let lifeAngelinaBillboard = { sprite: null, url: "", wx: 0, wz: 0, loc: "room", visible: false };
+
+function ensureLifeAngelinaBillboardSprite() {
+  if (lifeAngelinaBillboard.sprite || !scene) return lifeAngelinaBillboard.sprite;
+  const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(1.1, 1.65, 1);
+  sp.renderOrder = 12;
+  scene.add(sp);
+  lifeAngelinaBillboard.sprite = sp;
+  return sp;
+}
+
+function setAngelinaLifeBillboard(opts = {}) {
+  lifeAngelinaBillboard.visible = !!opts.visible;
+  lifeAngelinaBillboard.wx = opts.wx ?? lifeAngelinaBillboard.wx;
+  lifeAngelinaBillboard.wz = opts.wz ?? lifeAngelinaBillboard.wz;
+  lifeAngelinaBillboard.loc = opts.loc ?? lifeAngelinaBillboard.loc;
+  if (opts.url) lifeAngelinaBillboard.url = opts.url;
+  const sp = ensureLifeAngelinaBillboardSprite();
+  if (!sp) return;
+  if (!lifeAngelinaBillboard.visible || currentLoc !== lifeAngelinaBillboard.loc) {
+    sp.visible = false;
+    return;
+  }
+  if (lifeAngelinaBillboard.url && sp.material.map?.image?.src !== lifeAngelinaBillboard.url) {
+    new THREE.TextureLoader().load(lifeAngelinaBillboard.url, tex => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      sp.material.map = tex;
+      sp.material.needsUpdate = true;
+    });
+  }
+  sp.visible = true;
+  sp.position.set(lifeAngelinaBillboard.wx, 1.55, lifeAngelinaBillboard.wz);
+}
+
+function tickLifeAngelinaBillboard() {
+  if (!lifeAngelinaBillboard.visible || !lifeAngelinaBillboard.sprite) return;
+  if (currentLoc !== lifeAngelinaBillboard.loc) {
+    lifeAngelinaBillboard.sprite.visible = false;
+    return;
+  }
+  lifeAngelinaBillboard.sprite.visible = true;
+  lifeAngelinaBillboard.sprite.position.set(lifeAngelinaBillboard.wx, 1.55, lifeAngelinaBillboard.wz);
+}
 let mobileQuality = false;
 let locFillLight = null;
 let atmospherePipe = null;
@@ -1374,6 +1420,7 @@ function loop() {
   else {
     setQuestMarkersVisible(true);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    tickLifeAngelinaBillboard();
   }
   const nearNpc = getNearestNpcId();
   const nearPortal = getNearPortal();
@@ -1537,7 +1584,27 @@ const api = {
   getNearestNpc: getNearestNpcId,
   getNearestDog: getNearestDogId,
   getNearPortal,
+  getPlayerWorldPosition: () => {
+    const pl = actors.get("player");
+    if (!pl) return { x: 0, z: 0, loc: currentLoc };
+    return { x: pl.wx ?? 0, z: pl.wz ?? 0, loc: currentLoc };
+  },
+  setPlayerWorldPosition: (wx, wz) => {
+    try {
+      if (new URLSearchParams(location.search).get("lifeCh1E2e") !== "1") return false;
+    } catch {
+      return false;
+    }
+    const pl = actors.get("player");
+    if (!pl?.group) return false;
+    pl.wx = wx;
+    pl.wz = wz;
+    pl.group.position.set(wx, pl.group.position.y, wz);
+    return true;
+  },
   setGuideTarget: t => { guideTarget = t; },
+  setAngelinaLifeBillboard: setAngelinaLifeBillboard,
+  clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
   refreshHangoutStage: stage => {
     if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
   },

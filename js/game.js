@@ -370,6 +370,7 @@ function defaultPlayer() {
     stats: { chain: 10, magic: 8, hp: 100, maxHp: 100 },
     quests: { active: "intro", progress: {} },
     onboarding: { step: 0, progress: {}, done: false },
+    lifeCh1: null,
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -437,7 +438,7 @@ function migratePlayerFromSave(raw) {
   }
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
   if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
-  if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
+  if (v.lifeCh1 != null && typeof v.lifeCh1 !== "object") v.lifeCh1 = null;
   return v;
 }
 
@@ -763,6 +764,7 @@ function init() {
       onMove: (x, y, opts = {}) => {
         me.x = x; me.y = y;
         window.Onboarding?.onMove?.(x, y);
+        window.LifeCh1Slice?.onMove?.();
         if (opts.sync3d === false) {
           clearTimeout(moveSaveTimer);
           moveSaveTimer = setTimeout(() => saveMe(), 450);
@@ -774,6 +776,7 @@ function init() {
       onNpcClick: (nid) => openNpcDialog(nid),
       onInteract: () => {
         const playCtx = { toast, save: saveMe, hasDog };
+        if (window.LifeCh1Slice?.tryInteract?.()) return;
         if (window.PlayV21?.tryInteract(me, playCtx)) return;
         if (window.World3D?.getNearestDog?.()) {
           petDog(true);
@@ -878,6 +881,7 @@ function continueGameBoot() {
     window.Onboarding?.adaptSpawnLocation?.();
     if (me.onboarding?.done) {
       window.StoryEngine?.onOnboardingComplete?.();
+      window.LifeCh1Slice?.onBoot?.();
       window.StoryEngine?.onLocationChange?.(me.location);
       window.StoryEngine?.syncBeacon?.();
     }
@@ -1007,6 +1011,8 @@ function sanitizePlayer(p) {
     gang_rank: p.gang_rank ?? p.story?.gang_rank,
     energy: p.energy,
     mood: p.mood,
+    onboarding: p.onboarding || { step: 0, progress: {}, done: false },
+    lifeCh1: p.lifeCh1 == null ? null : p.lifeCh1,
     owner: isOwner,
     lastSeen: p.lastSeen,
     linkedAuth: p.linkedAuth || null
@@ -1426,6 +1432,7 @@ function renderQuest() {
     window.Onboarding?.render?.();
     return;
   }
+  if (window.LifeCh1Slice?.renderObjectivePanel?.()) return;
   if (window.StoryEngine?.renderObjectivePanel?.()) return;
   const qid = me.quests.active;
   if (me.onboarding?.done && qid === "intro") {
@@ -1924,6 +1931,10 @@ function runParkourJob() {
 }
 
 function sendChat() {
+  if (window.LifeCh1Slice?.isActive?.()) {
+    toast(typeof t === "function" ? t("life_ch1_chat_presets") : "Use preset phrase buttons only.");
+    return;
+  }
   const inp = document.getElementById("chatInput");
   const text = inp.value.trim();
   if (!text) return;

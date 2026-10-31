@@ -1,0 +1,149 @@
+{
+  "questId": "q_life_ch1_settle",
+  "steps": [
+    {
+      "id": "move",
+      "objective": {
+        "ru": "Пройди по комнате (WASD или джойстик)",
+        "en": "Walk around your room (WASD or joystick)",
+        "da": "Gå rundt i dit værelse"
+      },
+      "beacon": { "loc": "room", "wx": 0, "wz": 0 }
+    },
+    {
+      "id": "outfit",
+      "objective": {
+        "ru": "Подойди к зеркалу и нажми E — выбери образ",
+        "en": "Go to the mirror and press E — pick a look",
+        "da": "Gå til spejlet og tryk E"
+      },
+      "beacon": { "loc": "room", "wx": -3.2, "wz": 2.5 },
+      "interact": { "loc": "room", "wx": -3.2, "wz": 2.5, "radius": 2.2 },
+      "dialogue": "dlg_life_ch1_outfit",
+      "rewardCoins": 25
+    },
+    {
+      "id": "trust",
+      "objective": {
+        "ru": "Поговори с Ангелиной (метка в комнате) — выбери, кому доверяешь",
+        "en": "Talk to Angelina (marker in room) — choose who to trust",
+        "da": "Tal med Angelina — vælg hvem du stoler på"
+      },
+      "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
+      "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.5 },
+      "dialogue": "dlg_life_ch1_trust",
+      "rewardCoins": 30
+    },
+    {
+      "id": "reflect",
+      "objective": {
+        "ru": "Снова поговори с Ангелиной — посмотри, что изменилось",
+        "en": "Talk to Angelina again — see what changed",
+        "da": "Tal med Angelina igen"
+      },
+      "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
+      "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.5 },
+      "dialogue": "dlg_life_ch1_reflect",
+      "rewardCoins": 45
+    }
+  ],
+  "dialogues": {
+    "dlg_life_ch1_outfit": {
+      "nodes": {
+        "n0": {
+          "speaker": "angelina",
+          "text": {
+            "ru": "Выбери, как ты хочешь выглядеть сегодня. Это только стиль — без давления.",
+            "en": "Pick how you want to look today. Style only — no pressure.",
+            "da": "Vælg dit look i dag."
+          },
+          "choices": [
+            {
+              "id": "calm",
+              "text": { "ru": "Спокойный стиль", "en": "Calm look", "da": "Roligt look" },
+              "flag": "outfit_calm"
+            },
+            {
+              "id": "bright",
+              "text": { "ru": "Яркий стиль", "en": "Bright look", "da": "Klar stil" },
+              "flag": "outfit_bright"
+            },
+            {
+              "id": "bold",
+              "text": { "ru": "Смелый стиль", "en": "Bold look", "da": "Modigt look" },
+              "flag": "outfit_bold"
+            }
+          ]
+        }
+      }
+    },
+    "dlg_life_ch1_trust": {
+      "nodes": {
+        "n0": {
+          "speaker": "angelina",
+          "text": {
+            "ru": "Я нашла записку на тумбочке. Что сделаем?",
+            "en": "I found a note on the desk. What should we do?",
+            "da": "Jeg fandt en seddel. Hvad gør vi?"
+          },
+          "choices": [
+            {
+              "id": "secret",
+              "text": { "ru": "Спрятать и подумать", "en": "Hide it and think", "da": "Gem den" },
+              "flag": "mystery_secret"
+            },
+            {
+              "id": "open",
+              "text": { "ru": "Рассказать Мире позже", "en": "Tell Mira later", "da": "Fortæl Mira senere" },
+              "flag": "mystery_open"
+            },
+            {
+              "id": "trust_angelina",
+              "text": { "ru": "Довериться Angelina", "en": "Trust Angelina", "da": "Stol på Angelina" },
+              "flag": "mystery_trust_angelina"
+            }
+          ]
+        }
+      }
+    },
+    "dlg_life_ch1_reflect": {
+      "nodes": {
+        "n_secret": {
+          "speaker": "angelina",
+          "text": {
+            "ru": "Хорошо. Тайна останется между нами — пока ты не решишь иначе.",
+            "en": "Okay. It stays between us until you decide otherwise.",
+            "da": "Okay. Det bliver mellem os."
+          },
+          "requiresFlag": "mystery_secret"
+        },
+        "n_open": {
+          "speaker": "angelina",
+          "text": {
+            "ru": "Ладно… но Мира может обидеться, если узнает не от тебя.",
+            "en": "Alright… but Mira might be hurt if she hears it second-hand.",
+            "da": "Okay… men Mira kan blive ked af det."
+          },
+          "requiresFlag": "mystery_open"
+        },
+        "n_trust": {
+          "speaker": "angelina",
+          "text": {
+            "ru": "Спасибо. Я помогу — без геройства, обещаю.",
+            "en": "Thanks. I'll help — no heroics, I promise.",
+            "da": "Tak. Jeg hjælper dig."
+          },
+          "requiresFlag": "mystery_trust_angelina"
+        },
+        "n_fallback": {
+          "speaker": "angelina",
+          "text": {
+            "ru": "Ты уже сделал выбор — помни его.",
+            "en": "You already chose — remember it.",
+            "da": "Du har allerede valgt."
+          }
+        }
+      }
+    }
+  }
+}

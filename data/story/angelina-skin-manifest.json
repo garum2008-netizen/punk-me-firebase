@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "notes": "Owner t569u — drop final PNGs into portrait/world paths; update sha256 only. Skin C final art must be c-v2 only. Placeholders until ICE delivery.",
+  "skins": {
+    "A": {
+      "id": "A",
+      "title": {
+        "ru": "A — классика (розовый пуховик)",
+        "en": "A — classic (pink puffer)",
+        "da": "A — klassisk"
+      },
+      "portrait": "assets/ui/angelina-skins/placeholder-a.svg",
+      "world": "assets/ui/angelina-skins/placeholder-a.svg",
+      "sha256": "7ecf4705b14191c5fb615180f71b4bff0f28e44f529dc525f186b46b662ae2fc"
+    },
+    "B": {
+      "id": "B",
+      "title": {
+        "ru": "B — панк-подросток (джинсовка с заплатками)",
+        "en": "B — punk teen (patched denim)",
+        "da": "B — punk teen"
+      },
+      "portrait": "assets/ui/angelina-skins/placeholder-b.svg",
+      "world": "assets/ui/angelina-skins/placeholder-b.svg",
+      "sha256": "4f9dd2977091ff17a0ffe96c6d7aef0779f47bb545ac69d4e84a0cf37126f34f"
+    },
+    "C": {
+      "id": "C",
+      "title": {
+        "ru": "C — angel rocker (жилет с крыльями, c-v2)",
+        "en": "C — angel rocker (wings vest, c-v2)",
+        "da": "C — angel rocker"
+      },
+      "portrait": "assets/ui/angelina-skins/placeholder-c.svg",
+      "world": "assets/ui/angelina-skins/placeholder-c.svg",
+      "sha256": "d6a6c256348bd518799475fe1ff6638d56bb2710cdba0d69a98334e2d23a52df",
+      "finalArtSlot": "c-v2-only"
+    }
+  }
+}
