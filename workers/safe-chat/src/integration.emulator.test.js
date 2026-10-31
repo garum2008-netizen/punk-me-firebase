@@ -13,6 +13,8 @@ import {
   waitForMessageText,
   drainErasureCronLoop,
   resetHideCountersDo,
+  resetIntegrationIsolation,
+  apiPostReport,
   PROJECT_ID
 } from "./test-helpers.js";
 import { detectChildHarmSignals } from "./child-harm.js";
@@ -227,13 +229,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom meet me alone");
     await waitForMessageText(msgId, "how old are you");
     const rep = await authSignUp();
-    let r = null;
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      await waitForChatMessage(msgId);
-      r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
-      if (r.status === 200) break;
-      await new Promise(res => setTimeout(res, 100));
-    }
+    const r = await apiPostReport(SELF, rep.idToken, { msgId, category: "grooming" });
     expect(r.status).toBe(200);
     expect((await r.json()).received).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
@@ -260,7 +256,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const msgId = sent.id;
     await waitForChatMessage(msgId);
     const rep = await authSignUp();
-    const r = await apiPost(SELF, "/api/chat/report", rep.idToken, {
+    const r = await apiPostReport(SELF, rep.idToken, {
       msgId,
       category: "other_child_safety"
     });

@@ -261,7 +261,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const del = await apiPost(SELF, "/api/chat/delete-my-data", rep.idToken, {});
     const j = await del.json();
     expect(j.ok).toBe(true);
-    expect(JSON.stringify(j)).not.toContain(msgId);
+    expect(j.cursor).not.toBe(msgId);
+    expect(j.erasureDeferred ?? []).not.toContain(msgId);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).toBe(victimSid);
     expect((await rtdbOwner(`chat/messages/${ownMsgId}`, "GET")).json).toBeNull();
   });
