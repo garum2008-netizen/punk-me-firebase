@@ -3,7 +3,9 @@
   "sliceOnly": true,
   "promoDeployForbidden": true,
   "notes": "Owner t569u approved PNGs. Use portrait WebP in wardrobe/dialogue; world WebP is upper-body crop derivative for 3D billboard (~256px wide). Never ship angelina-teen-C.png (v1 guitar). Rebuild shipped: python3 scripts/build-angelina-skin-assets.py",
-  "forbiddenAssets": ["angelina-teen-C.png"],
+  "forbiddenAssets": [
+    "angelina-teen-C.png"
+  ],
   "skins": {
     "A": {
       "id": "A",
@@ -19,11 +21,11 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-portrait.webp",
-        "sha256": "91cd01dc6d0ad5c8da9e579449d544c70b6f21ccb4351ecb4f1f93568e4487bd"
+        "sha256": "57dafbcf7e6cacf360ce593fbf5e40fa36b736d7974ac890ae5bc6b796a9a5f2"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-world.webp",
-        "sha256": "e31bd88c46d1586f0e4d13d0004d38082bd60f13ca1359397ed00878b1cd050b",
+        "sha256": "0103017ecdf1af5080406d465638c6a02a176c6ad832ccc4e3ea3ae6b332f74c",
         "derivative": "upper-body crop + 256px wide WebP from source"
       }
     },
@@ -41,11 +43,11 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp",
-        "sha256": "ed7be4a3cffd11d742edb7ce14b04a3287145d0c1aecec7c866e06c3a4c358b4"
+        "sha256": "b9c47b4c9c7381deedeff7f96d85170c03cdf54201873cdb32bc30cadb668ae6"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-world.webp",
-        "sha256": "d9de9314485bd03f84c9ec635d5ba06bd879a8be97cc9fa9e611501d09e68508",
+        "sha256": "6b3a85d95ef3f9b120985915123bf8a15a0c3bc366dd87356e6f3adee3771c0e",
         "derivative": "upper-body crop + 256px wide WebP from source"
       }
     },
@@ -64,11 +66,11 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp",
-        "sha256": "3c0a708168ad82e3a1f75cab8cd31e6c6488160356a6e6542e2ff2f945a716ca"
+        "sha256": "7ab8719452166383d06de2b821c5e629ec2c0ce124469f219d296bdbacbe65f0"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-world.webp",
-        "sha256": "1b5446ba90cec64bc64cb3978e8b21c7b9e591901025ecc44e928ab9bb34e424",
+        "sha256": "7c79b7ea6a992ad0a1ba2c2370493267d75b56e47ca0da8d22a1d25196999d3f",
         "derivative": "upper-body crop + 256px wide WebP from source"
       }
     }

@@ -25,7 +25,7 @@ const SKIP_PATH_RE = [
   /[\\/]database\.rules\.json$/i,
   /[\\/]firebase\.json$/i,
   /[\\/]package(-lock)?\.json$/i,
-  /[\\/]owner\.html$/i
+  /[\\/]owner-admin\.mjs$/i,
 ];
 
 const COPY_ROOTS = ["css", "js", "data", "imagine_images", "assets/models"];
@@ -33,6 +33,7 @@ const COPY_ROOTS = ["css", "js", "data", "imagine_images", "assets/models"];
 function shouldSkip(rel) {
   const norm = rel.replace(/\\/g, "/");
   if (SKIP_FILE_RE.test(norm)) return true;
+  if (/owner-admin\.mjs$/i.test(norm)) return true;
   return SKIP_PATH_RE.some(re => re.test(norm));
 }
 
@@ -43,6 +44,17 @@ function rmrf(dir) {
 function copyFile(src, dest) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.copyFileSync(src, dest);
+}
+
+function stripPreviewSecrets(destAbs) {
+  const base = path.basename(destAbs);
+  if (base !== "game.js") return;
+  let src = fs.readFileSync(destAbs, "utf8");
+  src = src.replace(
+    /const FIREBASE_CONFIG = \{[\s\S]*?\};/,
+    "const FIREBASE_CONFIG = null; /* preview: no production Firebase */"
+  );
+  fs.writeFileSync(destAbs, src, "utf8");
 }
 
 function copyTree(srcDir, destDir, relBase = "") {
@@ -57,6 +69,7 @@ function copyTree(srcDir, destDir, relBase = "") {
       copyTree(abs, path.join(destDir, name), rel);
     } else {
       copyFile(abs, path.join(destDir, name));
+      stripPreviewSecrets(path.join(destDir, name));
     }
   }
 }

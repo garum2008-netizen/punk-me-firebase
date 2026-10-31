@@ -38,37 +38,80 @@ def save_webp(img: Image.Image, dest: Path, quality: int = 86) -> str:
     return sha256_file(dest)
 
 
-def apply_white_key(img: Image.Image, threshold: int = 248) -> Image.Image:
+def apply_alpha_cutout(img: Image.Image, tolerance: int = 28) -> Image.Image:
+    """Flood-remove background connected to corners (matches corner gray, not only pure white)."""
+    from collections import deque
+
     rgba = img.convert("RGBA")
-    px = rgba.load()
     w, h = rgba.size
+    px = rgba.load()
+    corner_refs = [
+        px[0, 0][:3],
+        px[w - 1, 0][:3],
+        px[0, h - 1][:3],
+        px[w - 1, h - 1][:3],
+    ]
+
+    def bg(r: int, g: int, b: int) -> bool:
+        for cr, cg, cb in corner_refs:
+            if max(abs(r - cr), abs(g - cg), abs(b - cb)) <= tolerance:
+                return True
+        return False
+
+    seen = bytearray(w * h)
+    q = deque()
+
+    def push(x: int, y: int) -> None:
+        i = y * w + x
+        if seen[i]:
+            return
+        r, g, b, _a = px[x, y]
+        if not bg(r, g, b):
+            return
+        seen[i] = 1
+        q.append((x, y))
+
+    for x in range(w):
+        push(x, 0)
+        push(x, h - 1)
     for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if r >= threshold and g >= threshold and b >= threshold:
-                px[x, y] = (r, g, b, 0)
+        push(0, y)
+        push(w - 1, y)
+
+    while q:
+        x, y = q.popleft()
+        px[x, y] = (px[x, y][0], px[x, y][1], px[x, y][2], 0)
+        if x > 0:
+            push(x - 1, y)
+        if x + 1 < w:
+            push(x + 1, y)
+        if y > 0:
+            push(x, y - 1)
+        if y + 1 < h:
+            push(x, y + 1)
+
     return rgba
 
 
 def portrait_variant(img: Image.Image, max_w: int = 372) -> Image.Image:
     w, h = img.size
     if w <= max_w:
-        return apply_white_key(img)
+        return img
     ratio = max_w / w
-    return apply_white_key(img.resize((max_w, int(h * ratio)), Image.Resampling.LANCZOS))
+    return img.resize((max_w, int(h * ratio)), Image.Resampling.LANCZOS)
 
 
 def world_variant(img: Image.Image, out_w: int = 256) -> Image.Image:
     """Upper-body crop + downscale for in-world sprite (derivative of approved art only)."""
     w, h = img.size
-    left = int(w * 0.12)
-    right = int(w * 0.88)
-    top = int(h * 0.02)
-    bottom = int(h * 0.58)
+    left = int(w * 0.08)
+    right = int(w * 0.92)
+    top = 0
+    bottom = int(h * 0.62)
     cropped = img.crop((left, top, right, bottom))
     cw, ch = cropped.size
     ratio = out_w / cw
-    return apply_white_key(cropped.resize((out_w, max(1, int(ch * ratio))), Image.Resampling.LANCZOS))
+    return cropped.resize((out_w, max(1, int(ch * ratio))), Image.Resampling.LANCZOS)
 
 
 def main() -> None:
@@ -87,14 +130,14 @@ def main() -> None:
             shutil.copy2(src_upload, source_path)
         source_sha = sha256_file(source_path)
 
-        img = Image.open(source_path).convert("RGB")
+        cut = apply_alpha_cutout(Image.open(source_path).convert("RGBA"))
         slug = source_name.replace(".png", "")
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"
-        port_sha = save_webp(portrait_variant(img), port_path)
+        port_sha = save_webp(portrait_variant(cut), port_path)
 
         world_path = SHIPPED_DIR / f"{slug}-world.webp"
-        world_sha = save_webp(world_variant(img), world_path, quality=82)
+        world_sha = save_webp(world_variant(cut), world_path, quality=82)
 
         skins_out[skin_id] = {
             "sourcePath": str(source_path.relative_to(ROOT)).replace("\\", "/"),

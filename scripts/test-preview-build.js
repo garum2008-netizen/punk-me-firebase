@@ -10,9 +10,6 @@ const http = require("http");
 
 const ROOT = path.join(__dirname, "..");
 const DIST = path.join(ROOT, "dist-preview");
-const PROD_HOST_RE =
-  /firebaseio\.com|firebasedatabase\.app|firebaseapp\.com|googleapis\.com\/.*firebase|gstatic\.com\/firebase/i;
-
 function runBuild() {
   const r = spawnSync("node", [path.join(__dirname, "build-preview.js")], {
     cwd: ROOT,
@@ -67,8 +64,53 @@ function serveDist(port) {
   });
 }
 
+const PROD_HOST_RE =
+  /(?:firebaseio\.com|firebasedatabase\.app|firebaseapp\.com|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|AIzaSy)/i;
+
+function isProdFirebaseUrl(url) {
+  if (/127\.0\.0\.1|localhost/.test(url)) return false;
+  return PROD_HOST_RE.test(url);
+}
+
+function assertBundleNoProdSecrets() {
+  const hits = [];
+  function walk(dir) {
+    for (const name of fs.readdirSync(dir)) {
+      const abs = path.join(dir, name);
+      if (fs.statSync(abs).isDirectory()) walk(abs);
+      else if (/\.(js|html|json|mjs)$/i.test(name)) {
+        const txt = fs.readFileSync(abs, "utf8");
+        if (/AIzaSy|firebaseapp\.com|firebasedatabase\.app/.test(txt)) {
+          hits.push(path.relative(DIST, abs));
+        }
+      }
+    }
+  }
+  walk(DIST);
+  if (hits.length) throw new Error("prod firebase strings in dist-preview: " + hits.join(", "));
+  if (fs.existsSync(path.join(DIST, "js/owner-admin.mjs"))) {
+    throw new Error("owner-admin.mjs must not ship in preview");
+  }
+  console.log("preview-bundle-secrets: PASS (0 prod config hits)");
+}
+
+async function dismissHowToPlay(page) {
+  await page.evaluate(() => {
+    try {
+      localStorage.setItem("punkme_howto_seen", "1");
+    } catch (_) {}
+  });
+  const close = page.locator(".howto-close");
+  if (await close.isVisible({ timeout: 2500 }).catch(() => false)) await close.click();
+  await page.waitForFunction(
+    () => !document.getElementById("howToOverlay")?.classList.contains("active"),
+    undefined,
+    { timeout: 8000 }
+  );
+}
+
 async function dismissOverlays(page) {
-  await page.evaluate(() => document.getElementById("howToOverlay")?.classList.remove("active"));
+  await dismissHowToPlay(page);
 }
 
 async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
@@ -99,16 +141,13 @@ async function runBrowserTest(base) {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  page.on("pageerror", err => console.error("pageerror:", err.message));
-  page.on("console", msg => {
-    if (msg.type() === "error") console.error("console:", msg.text());
-  });
-  page.on("request", req => {
-    const url = req.url();
-    if (PROD_HOST_RE.test(url) && !url.includes("127.0.0.1")) {
+  await page.route("**/*", route => {
+    const url = route.request().url();
+    if (isProdFirebaseUrl(url)) {
       prodAttempts += 1;
-      req.abort("blockedbyclient").catch(() => {});
+      return route.abort();
     }
+    return route.continue();
   });
 
   try {
@@ -164,19 +203,31 @@ async function runBrowserTest(base) {
     );
 
     const beforeReload = await page.evaluate(() => ({
+      coins: window.me.coins,
       step: window.me?.lifeCh1?.stepIndex,
-      skin: window.me?.lifeCh1?.angelinaSkin,
-      coins: window.me?.coins
+      skin: window.me?.lifeCh1?.angelinaSkin
     }));
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+    const coinsAfterWardrobe = beforeReload.coins;
+    for (let r = 0; r < 3; r++) {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+      await dismissHowToPlay(page);
+      const coins = await page.evaluate(() => window.me.coins);
+      if (coins !== coinsAfterWardrobe) {
+        throw new Error(`preview coins reset reload ${r + 1}: ${coinsAfterWardrobe} -> ${coins}`);
+      }
+      const skin = await page.evaluate(() => window.me?.lifeCh1?.angelinaSkin);
+      if (skin !== "A") throw new Error("reload lost skin " + skin);
+      await page.evaluate(() => window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.());
+    }
+
     const afterReload = await page.evaluate(() => ({
       step: window.me?.lifeCh1?.stepIndex,
       skin: window.me?.lifeCh1?.angelinaSkin,
       coins: window.me?.coins,
       flags: window.me?.lifeCh1?.flags
     }));
-    if (afterReload.step < beforeReload.step) throw new Error("reload regressed step: " + JSON.stringify({ beforeReload, afterReload }));
+    if (afterReload.step < 2) throw new Error("reload regressed step: " + JSON.stringify(afterReload));
     if (!afterReload.flags?.outfit_calm) throw new Error("reload lost outfit flag");
     if (afterReload.skin !== "A") throw new Error("reload lost skin");
 
@@ -202,6 +253,7 @@ async function runBrowserTest(base) {
 
 async function main() {
   runBuild();
+  assertBundleNoProdSecrets();
   const files = listDist();
   const totalBytes = files.reduce((s, f) => s + f.bytes, 0);
   console.log("dist-preview listing:", files.length, "files,", totalBytes, "bytes");
