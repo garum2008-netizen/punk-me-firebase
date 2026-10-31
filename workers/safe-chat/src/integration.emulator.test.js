@@ -831,11 +831,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("daily limit (DO)", () => {
       const mature = Date.now() - 10 * 24 * 60 * 60 * 1000;
       await rtdbOwner(`chatMeta/${u.localId}/chatRegisteredAt`, "PUT", mature);
       const wait = () => new Promise(r => setTimeout(r, 3100));
-      expect(await apiSendJson(SELF, u.idToken, { phraseId: "gg", name: "D" })).ok).toBe(
+      expect((await apiSendJson(SELF, u.idToken, { phraseId: "gg", name: "D" })).ok).toBe(
         true
       );
       await wait();
-      expect(await apiSendJson(SELF, u.idToken, { phraseId: "gg", name: "D" })).ok).toBe(
+      expect((await apiSendJson(SELF, u.idToken, { phraseId: "gg", name: "D" })).ok).toBe(
         true
       );
       await wait();
