@@ -93,15 +93,15 @@ export function isBlocked(blocklist, sid) {
 
 /** Wait until a message node exists (emulator visibility). */
 async function readChatMessageRow(msgId) {
+  const all = await rtdbOwner("chat/messages", "GET");
+  const listed = all.json?.[msgId];
+  if (listed && (listed.sid || listed.uid)) return listed;
   const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
   if (m.json && (m.json.sid || m.json.uid)) return m.json;
   const sidLeaf = await rtdbOwner(`chat/messages/${msgId}/sid`, "GET");
   if (typeof sidLeaf.json === "string" && /^[a-f0-9]{32}$/.test(sidLeaf.json)) {
     return { sid: sidLeaf.json, ...(typeof m.json === "object" && m.json ? m.json : {}) };
   }
-  const all = await rtdbOwner("chat/messages", "GET");
-  const row = all.json?.[msgId];
-  if (row && (row.sid || row.uid)) return row;
   return null;
 }
 

@@ -49,7 +49,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const new13 = await authSignUp();
     await apiPost(SELF, "/api/chat/declare-age13", new13.idToken, { confirmed: true });
     await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" });
-    await waitForChatMessage(msgId);
+    await waitForSafetyQueue(msgId, q => q?.subcategory === "grooming");
     const aged = await authSignUp();
     await rtdbOwner(`chatMeta/${aged.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 86400000);
     await apiPostReport(
