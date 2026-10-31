@@ -12,7 +12,8 @@ import {
   resetHideCountersDo,
   putChatMessageText,
   apiPostReport,
-  apiSend
+  apiSend,
+  waitForSafetyQueue
 } from "./test-helpers.js";
 
 async function runRetentionToCompletion(envIn, now) {
@@ -494,47 +495,25 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const cases = [];
     for (let i = 0; i < 12; i++) {
       const a = await authSignUp();
-      let sent = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
-      expect(sent.ok).toBe(true);
-      try {
-        await waitForChatMessage(sent.id);
-      } catch {
-        sent = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
-        expect(sent.ok).toBe(true);
-        await waitForChatMessage(sent.id);
-      }
+      const { j } = await apiSend(SELF, a.idToken, { phraseId: "hi" });
       const repUser = await authSignUp();
-      let rep = null;
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        try {
-          await waitForChatMessage(sent.id);
-        } catch {
-          break;
-        }
-        rep = await apiPostReport(SELF, repUser.idToken, {
-          msgId: sent.id,
-          category: "other_child_safety"
-        });
-        if (rep.status === 200) break;
-        await new Promise(r => setTimeout(r, 100));
-      }
-      if (rep?.status !== 200) continue;
+      const rep = await apiPostReport(SELF, repUser.idToken, {
+        msgId: j.id,
+        category: "other_child_safety"
+      });
+      expect(rep.status).toBe(200);
       expect((await rep.json()).received).toBe(true);
-      cases.push(sent.id);
+      cases.push(j.id);
     }
     expect(cases.length).toBeGreaterThanOrEqual(10);
     let satisfied = 0;
     for (const msgId of cases) {
-      let ok = false;
-      for (let t = 0; t < 50; t += 1) {
-        const q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
-        if (q?.childHarm || q?.subcategory === "other_child_safety") {
-          ok = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 50));
+      try {
+        await waitForSafetyQueue(msgId, q => q?.childHarm || q?.subcategory === "other_child_safety");
+        satisfied += 1;
+      } catch {
+        /* count toward satisfied threshold only when queue row appears */
       }
-      if (ok) satisfied += 1;
     }
     expect(satisfied).toBeGreaterThanOrEqual(Math.min(8, cases.length));
     const res = await apiGet(SELF, "/api/mod/safety-queue", mod.idToken);

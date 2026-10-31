@@ -397,7 +397,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const { j: j2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
     const msgId2 = j2.id;
     const rep = await authSignUp();
-    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
+    await waitForChatMessage(msgId1);
+    await waitForMessageText(msgId1, "how old are you");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" }, {}, { skipWait: true });
     await putChatMessageText(`${msgId2}`, "don't tell mom meet me alone");
     await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "grooming" });
     const rep2 = await authSignUp();

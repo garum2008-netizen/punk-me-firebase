@@ -92,14 +92,32 @@ export function isBlocked(blocklist, sid) {
 }
 
 /** Wait until a message node exists (emulator visibility). */
-export async function waitForChatMessage(msgId, { attempts, delayMs = 100 } = {}) {
+export async function waitForChatMessage(msgId, { attempts, delayMs = 100, stableReads = 2 } = {}) {
   const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 400 : 200);
+  let streak = 0;
   for (let i = 0; i < max; i += 1) {
     const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
-    if (m.json && (m.json.sid || m.json.uid)) return m.json;
+    if (m.json && (m.json.sid || m.json.uid)) {
+      streak += 1;
+      if (streak >= stableReads) return m.json;
+    } else {
+      streak = 0;
+    }
     await new Promise(r => setTimeout(r, delayMs));
   }
   throw new Error(`message ${msgId} not visible in RTDB`);
+}
+
+/** Wait until a safetyQueue row exists and matches predicate (harness barrier). */
+export async function waitForSafetyQueue(msgId, predicate, { attempts = 160, delayMs = 100 } = {}) {
+  const pred = predicate || (q => Boolean(q?.childHarm || q?.subcategory));
+  for (let i = 0; i < attempts; i += 1) {
+    const snap = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
+    const q = snap.json;
+    if (q && pred(q)) return q;
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  throw new Error(`safetyQueue ${msgId} not ready`);
 }
 
 /** After owner PATCH of text, wait until body is visible (RTDB under load). */
@@ -128,6 +146,19 @@ export async function expectedChatSid(localId) {
 
 /** Owner-POST N messages for erasure integration tests (deterministic sid, visibility barrier). */
 export async function seedOwnMessagesForErasure(SELF, u, n) {
+  let lastErr = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await seedOwnMessagesForErasureOnce(SELF, u, n);
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+  throw lastErr;
+}
+
+async function seedOwnMessagesForErasureOnce(SELF, u, n) {
   let sid = null;
   for (let t = 0; t < 80; t += 1) {
     sid = (await (await apiGet(SELF, "/api/chat/config", u.idToken)).json()).mySid;
@@ -179,11 +210,15 @@ export async function resetIntegrationIsolation(env) {
   await rtdbOwner("chat/messages", "DELETE");
   await rtdbOwner("chat/reports", "DELETE");
   await rtdbOwner("chat/internal", "DELETE");
-  for (let i = 0; i < 60; i += 1) {
+  for (let i = 0; i < 80; i += 1) {
     const snap = await rtdbOwner("chat/messages", "GET");
-    if (!snap.json || Object.keys(snap.json).length === 0) break;
+    const internal = await rtdbOwner("chat/internal", "GET");
+    const msgsEmpty = !snap.json || Object.keys(snap.json).length === 0;
+    const internalEmpty = !internal.json || Object.keys(internal.json).length === 0;
+    if (msgsEmpty && internalEmpty) break;
     await new Promise(r => setTimeout(r, 25));
   }
+  await rtdbOwner("chat/messages", "GET");
 }
 
 export async function apiSend(SELF, idToken, body) {
