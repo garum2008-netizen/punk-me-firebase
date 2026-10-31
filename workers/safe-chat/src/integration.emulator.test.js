@@ -544,8 +544,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("duplicate reports do not consume global per-message report cap", async () => {
     const author = await authSignUp();
-    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
-    const { id: msgId } = await sent.json();
+    const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    expect(sent.ok).toBe(true);
+    const msgId = sent.id;
+    await waitForChatMessage(msgId);
     const spammer = await authSignUp();
     for (let i = 0; i < 105; i++) {
       await apiPost(SELF, "/api/chat/report", spammer.idToken, { msgId });
@@ -553,6 +555,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 20);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
+    await waitForChatMessage(msgId);
     const trusted = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
     const tj = await trusted.json();
     expect(tj.global_report_limit).toBeUndefined();

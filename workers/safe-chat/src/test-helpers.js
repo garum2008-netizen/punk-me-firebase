@@ -90,7 +90,7 @@ export function isBlocked(blocklist, sid) {
 }
 
 /** Wait until a message node exists (emulator visibility). */
-export async function waitForChatMessage(msgId, { attempts = 40, delayMs = 50 } = {}) {
+export async function waitForChatMessage(msgId, { attempts = 80, delayMs = 50 } = {}) {
   for (let i = 0; i < attempts; i += 1) {
     const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     if (m.json && (m.json.sid || m.json.uid)) return m.json;
