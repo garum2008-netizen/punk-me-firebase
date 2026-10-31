@@ -144,7 +144,16 @@ export async function seedOwnMessagesForErasure(u, n) {
     await waitForChatMessage(id);
   }
   if (ids.length !== n) throw new Error(`erasure seed expected ${n} ids got ${ids.length}`);
-  return { sid, ids };
+  for (let t = 0; t < 120; t += 1) {
+    let visible = 0;
+    for (const id of ids) {
+      const m = await rtdbOwner(`chat/messages/${id}`, "GET");
+      if (m.json?.sid === sid) visible += 1;
+    }
+    if (visible === n) return { sid, ids };
+    await new Promise(r => setTimeout(r, 50));
+  }
+  throw new Error(`erasure seed: only ${visible}/${n} messages visible with sid`);
 }
 
 /** Integration-only: reset discretionary hide + cluster counters on the global limits DO. */

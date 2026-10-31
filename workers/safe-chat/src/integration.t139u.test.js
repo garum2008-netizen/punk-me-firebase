@@ -50,7 +50,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     await waitForChatMessage(msgId);
     const aged = await authSignUp();
     await rtdbOwner(`chatMeta/${aged.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 86400000);
-    await apiPostReport(SELF, aged.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.2" });
+    await apiPostReport(
+      SELF,
+      aged.idToken,
+      { msgId, category: "grooming" },
+      { "CF-Connecting-IP": "203.0.113.2" },
+      { skipWait: true }
+    );
     const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     expect(q.json?.childHarm).toBe(true);
     expect(q.json?.subcategory).toBe("grooming");
@@ -108,10 +114,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u U-03: child_safety report accepted after generic report volume on same message", async () => {
     const author = await authSignUp();
-    await waitSendCooldown();
-    const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
-    const { id: msgId } = await sent.json();
-    expect(msgId).toBeTruthy();
+    const { j: sent } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
+    const msgId = sent.id;
     for (let i = 0; i < 30; i++) {
       const r = await authSignUp();
       await apiPostReport(SELF, r.idToken, { msgId });

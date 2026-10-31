@@ -390,11 +390,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: high-tier hide with independent signal despite hide quota", async () => {
     const author = await authSignUp();
-    const { id: msgId1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await waitSendCooldown();
-    const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
-    const rep = await authSignUp();
+    const { j: j1 } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
+    const msgId1 = j1.id;
     await putChatMessageText(`${msgId1}`, "how old are you");
+    await waitSendCooldown();
+    const { j: j2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
+    const msgId2 = j2.id;
+    const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
     await putChatMessageText(`${msgId2}`, "don't tell mom meet me alone");
     await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "grooming" });
