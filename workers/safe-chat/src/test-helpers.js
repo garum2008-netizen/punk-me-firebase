@@ -115,6 +115,21 @@ export async function waitForChatMessage(msgId, { attempts, delayMs = 100 } = {}
   throw new Error(`message ${msgId} not visible in RTDB`);
 }
 
+/** Harness barrier: sid + text visible (matches worker report GET needs). */
+export async function waitForReportableMessage(msgId, { attempts, delayMs = 100 } = {}) {
+  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 400 : 200);
+  for (let i = 0; i < max; i += 1) {
+    const row = await readChatMessageRow(msgId);
+    if (row?.sid && typeof row.text === "string" && row.text.length > 0) return row;
+    const textLeaf = await rtdbOwner(`chat/messages/${msgId}/text`, "GET");
+    if (row?.sid && typeof textLeaf.json === "string" && textLeaf.json.length > 0) {
+      return { ...row, text: textLeaf.json };
+    }
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  throw new Error(`message ${msgId} not reportable in RTDB`);
+}
+
 /** Wait until a safetyQueue row exists and matches predicate (harness barrier). */
 export async function waitForSafetyQueue(msgId, predicate, { attempts = 240, delayMs = 100 } = {}) {
   const pred = predicate || (q => Boolean(q?.childHarm || q?.subcategory));
@@ -306,7 +321,7 @@ export async function apiPostReport(SELF, idToken, body, extraHeaders = {}, opts
   const msgId = body?.msgId;
   if (msgId && !opts.skipWait && looksLikeChatMsgId(msgId)) {
     if (opts.textNeedle) await waitForMessageText(msgId, opts.textNeedle);
-    else await waitForChatMessage(msgId);
+    else await waitForReportableMessage(msgId);
   }
   return apiPost(SELF, "/api/chat/report", idToken, body, extraHeaders);
 }
