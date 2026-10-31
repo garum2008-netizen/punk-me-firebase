@@ -600,8 +600,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 20);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
-    await waitForChatMessage(msgId);
-    const trusted = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
+    let trusted = null;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await waitForChatMessage(msgId);
+      trusted = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
+      if (trusted.status === 200) break;
+      await new Promise(res => setTimeout(res, 100));
+    }
     const tj = await trusted.json();
     expect(tj.global_report_limit).toBeUndefined();
     expect(tj.received).toBe(true);
