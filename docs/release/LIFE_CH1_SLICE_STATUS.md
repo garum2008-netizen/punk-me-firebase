@@ -1,36 +1,30 @@
 # Life Chapter 1 vertical slice — implementation status (automated checkpoint)
 
-**Branch:** `cursor/vertical-slice-ch1-d81d` · **Owner GO:** t147u + approved PNGs t569u.
+**Branch:** `cursor/vertical-slice-ch1-d81d` · **Draft PR #52**
 
-## Works (verified in automated tests where noted)
+## Works (verified)
 
 | Feature | Status |
 |---------|--------|
-| Life quest namespace `me.lifeCh1` (non-destructive vs canon save) | Implemented |
-| Quest flow: move → wardrobe → Angelina dialogues → rewards → complete | E2E |
-| `me.coins` rewards + persist via `lifeCh1Local` overlay / Firebase `lifeCh1` | E2E reload |
-| Angelina skin A/B/C — Owner **source PNG** + shipped **portrait/world WebP** | Unit sha256 + E2E |
-| Skin choice in `lifeCh1.angelinaSkin` survives reload | E2E |
-| Dialogue portrait + world billboard from manifest | E2E (`*-portrait.webp`) |
-| Preset chat only while life quest active (D12-A) | Implemented |
-| D11-B music soft CSS class while life quest active | Implemented |
+| `me.lifeCh1` namespace + `ensureLifeCh1` normalization (`flags`, `claimedSteps`) | Unit + E2E reload |
+| Slice **OFF** on main; `?lifeCh1Slice=1` / E2E / **preview build only** | Implemented |
+| Idempotent step coins (`claimedSteps`); owner accounts skip coin grant | Unit |
+| Player A/B/C cutout in world (not Angelina billboard) | Implemented |
+| Preview build `npm run build:preview` → `dist-preview/` | `test:preview-build` |
+| Preview: no Firebase, localStorage `punkme_preview_*`, banner, chat off | `test:preview-build` |
+| Emulator-default life-ch1 E2E + 0 prod Firebase attempts | E2E (when run) |
+| Mobile quest panel (`390px`) | CSS + E2E viewport |
+| RTDB rules shape limits for `lifeCh1` | In PR rules file |
+| `npm ci` via committed `package-lock.json` | Added |
 
-## Resolution (report only — no invented art)
+## Preview deploy (Owner GO — Inna deploys)
 
-- **A/B source:** 744×1334 screenshot crops — sufficient for wardrobe + dialogue (shipped portrait ~372px wide WebP).
-- **C-v2 source:** 720×1280 — **only** `angelina-teen-C-v2.png`; **never** v1 guitar PNG.
-- **World sprite:** upper-body crop → ~256px wide WebP. OK at current billboard scale; Owner may re-export full-res before large-format promo (still **no promo GO**).
-
-## Promo / deploy
-
-**Forbidden** without separate Owner GO. See `assets/ui/angelina-skins/README_SLICE_ONLY.md` and manifest `sliceOnly` / `promoDeployForbidden`.
+See `docs/release/PREVIEW_BUILD.md`. Basic Auth: `PREVIEW_USER` / `PREVIEW_PASS`. Not production.
 
 ## Not yet / out of scope
 
 | Item | Notes |
 |------|--------|
-| ICE-approved Angelina 3D model | 2D billboard + portraits only |
-| Paid / AI voice | Text + UI blip only |
-| Full ch0 onboarding in E2E | Snapshot skips to post-ch0 for slice focus |
-| Production deploy / hosting | Owner GO required |
-| PR #46 safe chat | Not included (D12-A preset phrases in slice only) |
+| Production deploy / live slice auto-start | Forbidden without GO |
+| Full honest E2E walk (no nav aid) | `faceWorldTargetForE2e` for tests only |
+| Owner coin grant in preview | `isOwner` false in preview |

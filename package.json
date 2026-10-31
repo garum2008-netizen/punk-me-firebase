@@ -14,7 +14,8 @@
     "test:emulator": "node scripts/run-emulator-integration.js",
     "test:life-ch1-unit": "node scripts/test-life-ch1-slice-unit.js",
     "test:life-ch1-e2e": "node scripts/test-life-ch1-slice-e2e.js",
-    "build:angelina-skins": "python3 scripts/build-angelina-skin-assets.py",
+    "build:preview": "node scripts/build-preview.js",
+    "test:preview-build": "node scripts/test-preview-build.js",
     "test:angelina-skin-manifest": "node scripts/test-angelina-skin-manifest.js",
     "test:life-ch1": "node scripts/test-angelina-skin-manifest.js && node scripts/test-life-ch1-slice-unit.js"
   },
