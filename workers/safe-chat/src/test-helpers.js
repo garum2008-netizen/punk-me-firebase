@@ -92,7 +92,7 @@ export function isBlocked(blocklist, sid) {
 }
 
 /** Wait until a message node exists (emulator visibility). */
-export async function waitForChatMessage(msgId, { attempts, delayMs = 100, stableReads = 2 } = {}) {
+export async function waitForChatMessage(msgId, { attempts, delayMs = 100, stableReads = 1 } = {}) {
   const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 400 : 200);
   let streak = 0;
   for (let i = 0; i < max; i += 1) {
@@ -219,6 +219,29 @@ export async function resetIntegrationIsolation(env) {
     await new Promise(r => setTimeout(r, 25));
   }
   await rtdbOwner("chat/messages", "GET");
+  await rtdbIntegrationWarmProbe();
+}
+
+/** Harness-only: prime RTDB owner reads after a wipe (cold emulator). */
+async function rtdbIntegrationWarmProbe() {
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    const tag = `w-${Date.now()}-${attempt}`;
+    const put = await rtdbOwner(`chat/_warmup/${tag}`, "PUT", { ok: true });
+    if (!put.ok) {
+      await new Promise(r => setTimeout(r, 40));
+      continue;
+    }
+    for (let i = 0; i < 40; i += 1) {
+      const got = await rtdbOwner(`chat/_warmup/${tag}`, "GET");
+      if (got.json?.ok === true) {
+        await rtdbOwner(`chat/_warmup/${tag}`, "DELETE");
+        return;
+      }
+      await new Promise(r => setTimeout(r, 25));
+    }
+    await rtdbOwner(`chat/_warmup/${tag}`, "DELETE");
+  }
+  throw new Error("RTDB warmup probe failed after isolation reset");
 }
 
 export async function apiSend(SELF, idToken, body) {
