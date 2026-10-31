@@ -128,6 +128,30 @@ describe("child safety risk scoring", () => {
     assert.equal(at.hide, true);
   });
 
+  it("t147u: immediate_danger escalates without global hide when no independent signal", () => {
+    const intrinsic = computeIntrinsicRiskScore({
+      subcategory: "immediate_danger",
+      messageText: "preset phrase only",
+      filterHit: false
+    });
+    const d = decideChildSafetyAction({
+      subcategory: "immediate_danger",
+      intrinsicScore: intrinsic.intrinsicScore,
+      corroborating: intrinsic.corroborating,
+      credibility: 1,
+      reporterBoost: 10,
+      configObj: cfg,
+      filterHit: false,
+      globalHideSignal: false
+    });
+    assert.equal(d.hide, false);
+    assert.equal(d.reporterLocalHide, true);
+    assert.equal(d.escalationTier, "immediate_danger");
+    assert.equal(d.queuePriority, "immediate_danger");
+    assert.equal(d.moderatorNotify, true);
+    assert.equal(d.slaReviewByMs, cfg.childSafetyImmediateDangerSlaMs);
+  });
+
   it("coordinated mass reports add zero reporter boost", () => {
     const boost = reporterBoostFromIndependence({
       credibility: 1,

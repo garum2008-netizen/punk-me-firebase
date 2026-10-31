@@ -100,7 +100,7 @@ export function computeIntrinsicRiskScore({
   };
 }
 
-/** Global hide requires an independent signal (CEO proposal — pending owner OD:11/19). */
+/** Global hide requires an independent signal (Owner t147u / CEO option 1 — approved). */
 export function hasGlobalHideIndependentSignal({
   filterHit,
   authorConfirmedViolations,
