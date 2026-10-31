@@ -32,16 +32,30 @@ def sha256_file(p: Path) -> str:
 
 def save_webp(img: Image.Image, dest: Path, quality: int = 86) -> str:
     dest.parent.mkdir(parents=True, exist_ok=True)
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
     img.save(dest, format="WEBP", quality=quality, method=6)
     return sha256_file(dest)
+
+
+def apply_white_key(img: Image.Image, threshold: int = 248) -> Image.Image:
+    rgba = img.convert("RGBA")
+    px = rgba.load()
+    w, h = rgba.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if r >= threshold and g >= threshold and b >= threshold:
+                px[x, y] = (r, g, b, 0)
+    return rgba
 
 
 def portrait_variant(img: Image.Image, max_w: int = 372) -> Image.Image:
     w, h = img.size
     if w <= max_w:
-        return img.convert("RGB")
+        return apply_white_key(img)
     ratio = max_w / w
-    return img.resize((max_w, int(h * ratio)), Image.Resampling.LANCZOS)
+    return apply_white_key(img.resize((max_w, int(h * ratio)), Image.Resampling.LANCZOS))
 
 
 def world_variant(img: Image.Image, out_w: int = 256) -> Image.Image:
@@ -54,7 +68,7 @@ def world_variant(img: Image.Image, out_w: int = 256) -> Image.Image:
     cropped = img.crop((left, top, right, bottom))
     cw, ch = cropped.size
     ratio = out_w / cw
-    return cropped.resize((out_w, max(1, int(ch * ratio))), Image.Resampling.LANCZOS)
+    return apply_white_key(cropped.resize((out_w, max(1, int(ch * ratio))), Image.Resampling.LANCZOS))
 
 
 def main() -> None:
@@ -66,11 +80,11 @@ def main() -> None:
         src_upload = UPLOADS / upload_name
         if not src_upload.exists():
             src_upload = UPLOADS / source_name
-        if not src_upload.exists():
-            raise SystemExit(f"missing upload: {upload_name}")
-
         source_path = SOURCE_DIR / source_name
-        shutil.copy2(src_upload, source_path)
+        if not source_path.exists():
+            if not src_upload.exists():
+                raise SystemExit(f"missing source: {source_name}")
+            shutil.copy2(src_upload, source_path)
         source_sha = sha256_file(source_path)
 
         img = Image.open(source_path).convert("RGB")

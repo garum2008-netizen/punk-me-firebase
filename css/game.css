@@ -795,11 +795,35 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   transition: width 0.35s ease;
 }
 
-.life-ch1-phrases { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.preview-build-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  padding: 6px 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #1a1028;
+  background: linear-gradient(90deg, #fbbf24, #f472b6);
+  border-bottom: 2px solid #7c3aed;
+  pointer-events: none;
+}
+body.preview-no-chat .chat,
+body.preview-no-chat #chatPanel {
+  display: none !important;
+}
+body:has(.preview-build-banner) #game {
+  padding-top: 28px;
+}
 .life-ch1-phrases .btn { font-size: 12px; padding: 4px 8px; }
 .life-ch1-tracker .life-ch1-sub { opacity: 0.75; font-size: 12px; margin-top: 4px; }
 body.life-ch1-music-soft #lifeCanvas { opacity: 0.92; }
 body.life-ch1-active #voiceSubtitle.visible { border-color: #a78bfa; }
+body.life-ch1-active .hud-quests-wrap.collapsed .quest-box { display: block !important; }
+body.life-ch1-active .hud-quests-wrap.collapsed .life-ch1-tracker { display: block !important; }
 
 .life-ch1-wardrobe {
   position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,.72);
@@ -812,12 +836,15 @@ body.life-ch1-active #voiceSubtitle.visible { border-color: #a78bfa; }
 }
 .life-ch1-skin-grid { display: flex; gap: 10px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
 .life-ch1-skin-tile {
-  border: 2px solid #4c1d95; border-radius: 8px; background: #0f0a18; padding: 6px; cursor: pointer;
+  border: 2px solid #4c1d95; border-radius: 8px; background: transparent; padding: 6px; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 4px; color: #e9d5ff; font-weight: 700;
+}
+.life-ch1-skin-tile img {
+  background: transparent;
 }
 .life-ch1-skin-tile.selected { border-color: #f472b6; box-shadow: 0 0 12px #f472b655; }
 .life-ch1-outfit-row { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 12px; }
 .life-ch1-outfit-row .selected { outline: 2px solid #a78bfa; }
 .life-ch1-dialog-row { display: flex; gap: 12px; align-items: flex-start; }
-.life-ch1-dialog-portrait { border-radius: 8px; border: 2px solid #7c3aed; flex-shrink: 0; background: #0f0a18; }
+.life-ch1-dialog-portrait { border-radius: 8px; border: 2px solid #7c3aed; flex-shrink: 0; background: transparent; }
 .life-ch1-wardrobe-hint, .life-ch1-outfit-label { font-size: 13px; opacity: 0.9; margin: 0; }

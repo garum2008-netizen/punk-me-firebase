@@ -81,8 +81,86 @@ let elevatorCutawaySaved = null;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 let guideTarget = null;
-/** Life ch1 Angelina portrait billboard (t569u placeholders until PNG drop-in). */
+/** Deprecated billboard — slice uses player cutout; kept for clear API. */
 let lifeAngelinaBillboard = { sprite: null, url: "", wx: 0, wz: 0, loc: "room", visible: false };
+/** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
+let lifeCh1PlayerSkin = { sprite: null, url: "", rootVisible: true };
+
+function isLifeCh1E2eTeleportEnabled() {
+  return false;
+}
+
+function isLifeCh1E2eNavAid() {
+  try {
+    return new URLSearchParams(location.search).get("lifeCh1E2e") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function faceWorldTargetForE2e(wx, wz) {
+  if (!isLifeCh1E2eNavAid()) return false;
+  const pl = actors.get("player");
+  if (!pl) return false;
+  cameraYaw = Math.atan2(wx - pl.wx, wz - pl.wz);
+  return true;
+}
+
+function ensureLifeCh1PlayerSprite(pl) {
+  if (lifeCh1PlayerSkin.sprite || !pl?.group) return lifeCh1PlayerSkin.sprite;
+  const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true, opacity: 0 });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(0.95, 1.45, 1);
+  sp.position.set(0, 0.92, 0);
+  sp.renderOrder = 8;
+  pl.group.add(sp);
+  lifeCh1PlayerSkin.sprite = sp;
+  return sp;
+}
+
+function setPlayerLifeCh1Skin(opts = {}) {
+  const pl = actors.get("player");
+  if (!pl?.group) return;
+  const sp = ensureLifeCh1PlayerSprite(pl);
+  if (!sp) return;
+  if (!opts.visible || !opts.url) {
+    sp.visible = false;
+    sp.material.opacity = 0;
+    lifeCh1PlayerSkin.url = "";
+    if (pl.root && !lifeCh1PlayerSkin.rootVisible) {
+      pl.root.visible = true;
+      lifeCh1PlayerSkin.rootVisible = true;
+    }
+    return;
+  }
+  const url = opts.url;
+  lifeCh1PlayerSkin.url = url;
+  if (pl.root?.visible !== false) {
+    pl.root.visible = false;
+    lifeCh1PlayerSkin.rootVisible = false;
+  }
+  sp.visible = true;
+  sp.material.opacity = 0;
+  const loaded = sp.material.map?.image?.currentSrc || sp.material.map?.image?.src || "";
+  if (loaded && loaded.includes(url.split("/").pop())) {
+    sp.material.opacity = 1;
+    return;
+  }
+  texLoader.load(
+    url,
+    tex => {
+      if (lifeCh1PlayerSkin.url !== url) return;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      sp.material.map = tex;
+      sp.material.needsUpdate = true;
+      sp.material.opacity = 1;
+    },
+    undefined,
+    () => {
+      if (lifeCh1PlayerSkin.url === url) sp.visible = false;
+    }
+  );
+}
 
 function ensureLifeAngelinaBillboardSprite() {
   if (lifeAngelinaBillboard.sprite || !scene) return lifeAngelinaBillboard.sprite;
@@ -1590,11 +1668,7 @@ const api = {
     return { x: pl.wx ?? 0, z: pl.wz ?? 0, loc: currentLoc };
   },
   setPlayerWorldPosition: (wx, wz) => {
-    try {
-      if (new URLSearchParams(location.search).get("lifeCh1E2e") !== "1") return false;
-    } catch {
-      return false;
-    }
+    if (!isLifeCh1E2eTeleportEnabled()) return false;
     const pl = actors.get("player");
     if (!pl?.group) return false;
     pl.wx = wx;
@@ -1605,6 +1679,10 @@ const api = {
   setGuideTarget: t => { guideTarget = t; },
   setAngelinaLifeBillboard: setAngelinaLifeBillboard,
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
+  setPlayerLifeCh1Skin,
+  clearPlayerLifeCh1Skin: () => setPlayerLifeCh1Skin({ visible: false }),
+  /** E2E only: rotate camera toward a world point (movement still uses real WASD). */
+  faceWorldTargetForE2e,
   refreshHangoutStage: stage => {
     if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
   },
