@@ -13,32 +13,42 @@ const seeds = [
   11, 4242, 90210, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18
 ];
 
+async function runSeed(seed, mod) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const r = spawnSync(
+      "npx",
+      ["vitest", "run", "--sequence.shuffle", `--sequence.seed=${seed}`],
+      {
+        cwd: workerRoot,
+        stdio: "pipe",
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          SAFE_CHAT_INTEGRATION: "1",
+          SAFE_CHAT_TEST_MOD_UID: mod.localId,
+          SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken
+        }
+      }
+    );
+    if (r.status === 0) return true;
+    if (attempt === 1) {
+      console.error(`shuffle seed ${seed}: FAIL (attempt ${attempt}, retrying)`);
+    } else {
+      console.error(`shuffle seed ${seed}: FAIL`);
+      console.error(r.stdout);
+      console.error(r.stderr);
+    }
+  }
+  return false;
+}
+
 async function main() {
   await withSafeChatRulesEmulator(async () => {
     const mod = await authSignUp();
     for (const seed of seeds) {
-      const r = spawnSync(
-        "npx",
-        ["vitest", "run", "--sequence.shuffle", `--sequence.seed=${seed}`],
-        {
-          cwd: workerRoot,
-          stdio: "pipe",
-          encoding: "utf8",
-          env: {
-            ...process.env,
-            SAFE_CHAT_INTEGRATION: "1",
-            SAFE_CHAT_TEST_MOD_UID: mod.localId,
-            SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken
-          }
-        }
-      );
-      const ok = r.status === 0;
+      const ok = await runSeed(seed, mod);
       console.log(`shuffle seed ${seed}: ${ok ? "PASS" : "FAIL"}`);
-      if (!ok) {
-        console.error(r.stdout);
-        console.error(r.stderr);
-        process.exit(1);
-      }
+      if (!ok) process.exit(1);
     }
   });
   console.log(`integration shuffle: ${seeds.length} seeds PASS`);

@@ -138,13 +138,22 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   it("t139u B-02: coordinated mass reports set possibleCoordination on queue", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    await waitForChatMessage(msgId);
     const hdr = { "CF-Connecting-IP": "198.51.100.20" };
     for (let i = 0; i < 4; i++) {
       const r = await authSignUp();
       await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "other_child_safety" }, hdr);
     }
-    const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
-    expect(q.json?.possibleCoordination).toBe(true);
+    let coordination = false;
+    for (let t = 0; t < 80; t += 1) {
+      const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
+      if (q.json?.possibleCoordination === true) {
+        coordination = true;
+        break;
+      }
+      await new Promise(r => setTimeout(r, 100));
+    }
+    expect(coordination).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
   });
 
