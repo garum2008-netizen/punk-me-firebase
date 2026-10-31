@@ -330,12 +330,12 @@ const mutations = [
         file: "src/erasure-jobs.js",
         replacements: [
           {
-            from: `export function erasureJobMayDeleteFromBatch(batch) {
-  return mapBatchToJobStatus(batch) === "complete" && batch.complete === true;
-}`,
-            to: `export function erasureJobMayDeleteFromBatch(batch) {
-  return mapBatchToJobStatus(batch) === "complete"; /* MUT-ER2 */
-}`
+            from: `  if (result.complete) {`,
+            to: `  if (true) { /* MUT-ER2 */`
+          },
+          {
+            from: `  return mapBatchToJobStatus(batch) === "complete" && batch.complete === true;`,
+            to: `  return mapBatchToJobStatus(batch) === "complete"; /* MUT-ER2 */`
           }
         ]
       }
