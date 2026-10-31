@@ -227,15 +227,23 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom meet me alone");
     await waitForMessageText(msgId, "how old are you");
     const rep = await authSignUp();
-    let r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
-    if (r.status !== 200) {
-      await new Promise(res => setTimeout(res, 100));
+    let r = null;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await waitForChatMessage(msgId);
       r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+      if (r.status === 200) break;
+      await new Promise(res => setTimeout(res, 100));
     }
     expect(r.status).toBe(200);
     expect((await r.json()).received).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
-    expect((await rtdbOwner(`chatMeta/${rep.localId}/reporterSafetyHidden/${msgId}`, "GET")).json).toBe(true);
+    let localHide = null;
+    for (let t = 0; t < 40; t += 1) {
+      localHide = (await rtdbOwner(`chatMeta/${rep.localId}/reporterSafetyHidden/${msgId}`, "GET")).json;
+      if (localHide === true) break;
+      await new Promise(res => setTimeout(res, 50));
+    }
+    expect(localHide).toBe(true);
     expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.subcategory).toBe("grooming");
   });
 
