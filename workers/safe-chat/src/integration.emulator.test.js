@@ -264,7 +264,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const msgId = sent.id;
     await waitForChatMessage(msgId);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you? don't tell your mom");
-    await waitForChatMessage(msgId);
+    await waitForMessageText(msgId, "how old are you");
     const rep = await authSignUp();
     await rtdbOwner(`chatMeta/${rep.localId}/chatAge13DeclaredAt`, "DELETE");
     let r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
@@ -444,7 +444,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const msgId = sent.id;
     await waitForChatMessage(msgId);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
-    await waitForChatMessage(msgId);
+    await waitForMessageText(msgId, "how old are you");
     await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
     await apiPost(
       SELF,
@@ -556,7 +556,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 20);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
-    await waitForChatMessage(msgId);
+    await waitForMessageText(msgId, "how old are you");
     const trusted = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
     const tj = await trusted.json();
     expect(tj.global_report_limit).toBeUndefined();
