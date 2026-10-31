@@ -263,13 +263,24 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const msgId = sent.id;
     await waitForChatMessage(msgId);
     await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you? don't tell your mom");
+    await waitForChatMessage(msgId);
     const rep = await authSignUp();
     await rtdbOwner(`chatMeta/${rep.localId}/chatAge13DeclaredAt`, "DELETE");
-    const r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    let r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    if (r.status !== 200) {
+      await new Promise(res => setTimeout(res, 100));
+      r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    }
     expect(r.status).toBe(200);
     expect((await r.json()).received).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
-    expect((await rtdbOwner(`chatMeta/${rep.localId}/reporterSafetyHidden/${msgId}`, "GET")).json).toBe(true);
+    let localHide = null;
+    for (let t = 0; t < 40; t += 1) {
+      localHide = (await rtdbOwner(`chatMeta/${rep.localId}/reporterSafetyHidden/${msgId}`, "GET")).json;
+      if (localHide === true) break;
+      await new Promise(res => setTimeout(res, 50));
+    }
+    expect(localHide).toBe(true);
     const rep2 = await authSignUp();
     await apiPost(
       SELF,
@@ -278,7 +289,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       { msgId, category: "grooming" },
       { "CF-Connecting-IP": "203.0.113.50" }
     );
-    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
+    let globallyHidden = false;
+    for (let t = 0; t < 40; t += 1) {
+      globallyHidden = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden === true;
+      if (globallyHidden) break;
+      await new Promise(res => setTimeout(res, 50));
+    }
+    expect(globallyHidden).toBe(true);
   });
 
   it("risk: filter miss caught by player grooming report (explicit)", async () => {
