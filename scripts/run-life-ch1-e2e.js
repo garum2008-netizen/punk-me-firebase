@@ -35,7 +35,7 @@ function spawnEmulators() {
       "--config",
       "firebase.json"
     ],
-    { cwd: root, stdio: "pipe", env: { ...process.env } }
+    { cwd: root, stdio: "pipe", env: { ...process.env }, detached: true }
   );
 }
 
@@ -64,7 +64,8 @@ function startServe() {
   return new Promise((resolve, reject) => {
     const child = spawn("npx", ["--yes", "serve", "-l", servePort, "."], {
       cwd: root,
-      stdio: "pipe"
+      stdio: "pipe",
+      detached: true
     });
     child.on("error", reject);
     child.stderr.on("data", d => process.stderr.write(d));
@@ -86,15 +87,23 @@ function startServe() {
   });
 }
 
-function stopChild(child, label) {
-  if (!child || child.killed) return;
+function stopChild(child) {
+  if (!child?.pid) return;
   try {
-    child.kill("SIGTERM");
-  } catch (_) {}
+    process.kill(-child.pid, "SIGTERM");
+  } catch (_) {
+    try {
+      child.kill("SIGTERM");
+    } catch (_e) {}
+  }
   setTimeout(() => {
     try {
-      if (!child.killed) child.kill("SIGKILL");
-    } catch (_) {}
+      process.kill(-child.pid, "SIGKILL");
+    } catch (_) {
+      try {
+        if (!child.killed) child.kill("SIGKILL");
+      } catch (_e) {}
+    }
   }, 1500);
 }
 
@@ -115,7 +124,7 @@ function runE2e(runIndex) {
 }
 
 function restartEmulators(emu) {
-  stopChild(emu, "emulator");
+  stopChild(emu);
   return spawnEmulators();
 }
 
@@ -142,14 +151,14 @@ function restartEmulators(emu) {
     }
     console.log(`\nlife-ch1-e2e: ${runCount}/${runCount} PASS`);
     console.log("life-ch1-e2e exit codes:", exitCodes.join(", "));
-    stopChild(serve, "serve");
-    stopChild(emu, "emulator");
+    stopChild(serve);
+    stopChild(emu);
     process.exit(0);
   } catch (e) {
     console.error(e.message || e);
     console.log("life-ch1-e2e exit codes:", exitCodes.join(", ") || "(none completed)");
-    stopChild(serve, "serve");
-    stopChild(emu, "emulator");
+    stopChild(serve);
+    stopChild(emu);
     process.exit(1);
   }
 })();

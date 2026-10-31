@@ -13,7 +13,7 @@ import {
   findClearSpawn,
   pointInsideCollider
 } from "./world/locations.mjs";
-import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs";
+import { updateProcedural, markActorVisibleWhenReady, setPlayerRootVisibilityGuard } from "./character-rig.mjs";
 import {
   loadAllCc0Templates,
   getTemplateForCharacter,
@@ -86,6 +86,19 @@ let lifeAngelinaBillboard = { sprite: null, url: "", wx: 0, wz: 0, loc: "room", 
 /** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
 let lifeCh1PlayerSkin = { sprite: null, url: "", rootVisible: true, pending: null };
 
+function enforceLifeCh1PlayerMeshVisibility(actor) {
+  const pending = lifeCh1PlayerSkin.pending;
+  if (!actor?.isPlayer || !pending?.visible || !pending?.url) return;
+  if (actor.root?.visible !== false) {
+    actor.root.visible = false;
+    lifeCh1PlayerSkin.rootVisible = false;
+  }
+  const sp = lifeCh1PlayerSkin.sprite;
+  if (sp && pending.url === lifeCh1PlayerSkin.url) {
+    sp.visible = true;
+  }
+}
+
 function applyPlayerLifeCh1SkinOpts(opts = {}) {
   const pl = actors.get("player");
   if (!pl?.group) return false;
@@ -122,6 +135,10 @@ function applyPlayerLifeCh1SkinOpts(opts = {}) {
       sp.material.map = tex;
       sp.material.needsUpdate = true;
       sp.material.opacity = 1;
+      if (pl.root) {
+        pl.root.visible = false;
+        lifeCh1PlayerSkin.rootVisible = false;
+      }
       window.dispatchEvent(new CustomEvent("life-ch1-skin-texture-ready", { detail: { url } }));
     },
     undefined,
@@ -1540,6 +1557,7 @@ function loop() {
       });
     }
     markActorVisibleWhenReady(a);
+    if (a.isPlayer) enforceLifeCh1PlayerMeshVisibility(a);
     if (a._meshyDog) updateMeshyDogAnim(a, dt, a._anim === "hop" ? "hop" : "idle", a._spd || 0);
     if (a.root && !a.isDog) {
       const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));
@@ -1574,6 +1592,7 @@ function loop() {
 
 function init(h) {
   hooks = h;
+  setPlayerRootVisibilityGuard(enforceLifeCh1PlayerMeshVisibility);
   const canvas = document.getElementById("stage3d");
   if (!canvas) return Promise.resolve(false);
   mobileQuality =
@@ -1826,7 +1845,9 @@ const api = {
       updateProcedural(a, 1 / 30, null, false);
     }
     markActorVisibleWhenReady(a);
+    enforceLifeCh1PlayerMeshVisibility(a);
     a.root.visible = true;
+    enforceLifeCh1PlayerMeshVisibility(a);
     const p = a.group.position;
     if (pose === "front") {
       camera.position.set(p.x, p.y + 0.98, p.z - 2.85);

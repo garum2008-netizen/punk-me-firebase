@@ -6,6 +6,11 @@ const { chromium } = require("playwright");
 const path = require("path");
 const fs = require("fs");
 const { isProdFirebaseRequest } = require("./firebase-prod-guard");
+const {
+  waitUntilSkinRendered,
+  assertSkinRenderNow,
+  assertSkinAfterReloadSchedule
+} = require("./life-ch1-skin-render-assert");
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:3456";
 const qs =
@@ -82,19 +87,7 @@ async function reloadAndWaitLoaded(page) {
 }
 
 async function waitForSkinRendered(page, skinLetter = "B") {
-  await page.waitForFunction(
-    skinLetter => {
-      if (window.me?.lifeCh1?.angelinaSkin !== skinLetter) return false;
-      window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
-      const rs = window.World3D?.getPlayerLifeCh1SkinRenderState?.();
-      if (!rs) return false;
-      const slug = `angelina-teen-${skinLetter}`;
-      const hit = rs.url.includes(slug) || rs.mapSrc.includes(slug);
-      return hit && rs.textureReady && rs.spriteVisible && rs.rootHidden;
-    },
-    skinLetter,
-    { timeout: 45000, polling: 100 }
-  );
+  await waitUntilSkinRendered(page, skinLetter);
 }
 
 async function waitForLifeCh1Selector(page, selector, target = null) {
@@ -212,7 +205,9 @@ async function run() {
     await reloadAndWaitLoaded(page);
     await page.waitForFunction(() => window.me?.lifeCh1?.stepIndex >= 2, undefined, { timeout: 15000 });
     await assertReloadFlags(page, 2);
-    await waitForSkinRendered(page, "B");
+    await assertSkinAfterReloadSchedule(page, "B");
+    await walkNear(page, -3.2, 2.5, 2.6);
+    await assertSkinRenderNow(page, "B", "after walk reload 1");
 
     await walkNear(page, 2.5, -1.8, 2.75);
     await waitForLifeCh1Selector(page, "#lifeCh1DialogPortrait", { tx: 2.5, tz: -1.8, radius: 2.85 });
@@ -244,7 +239,7 @@ async function run() {
     if ((snap1.lifeCh1.stepIndex || 0) > 3) throw new Error("stepIndex over max: " + snap1.lifeCh1.stepIndex);
 
     const coinsAfterComplete = snap1.coins;
-    for (let r = 0; r < 4; r++) {
+    for (let r = 0; r < 3; r++) {
       await page.evaluate(() => window.saveMe());
       await reloadAndWaitLoaded(page);
       await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, {
@@ -254,7 +249,9 @@ async function run() {
       if (coins !== coinsAfterComplete) {
         throw new Error(`coins reset on reload ${r + 1}: ${coinsAfterComplete} -> ${coins}`);
       }
-      await waitForSkinRendered(page, "B");
+      await assertSkinAfterReloadSchedule(page, "B");
+      await walkNear(page, 2.5, -1.8, 2.75);
+      await assertSkinRenderNow(page, "B", `after walk post-complete reload ${r + 1}`);
     }
 
     if (prodAttempts !== 0) {

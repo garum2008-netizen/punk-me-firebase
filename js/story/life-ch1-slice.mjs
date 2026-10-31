@@ -37,6 +37,14 @@ function me() {
   return window.me;
 }
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export function normalizeClaimedSteps(raw) {
   if (raw == null) return {};
   if (Array.isArray(raw)) {

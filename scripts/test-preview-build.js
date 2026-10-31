@@ -8,6 +8,11 @@ const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const { isProdFirebaseRequest } = require("./firebase-prod-guard");
+const {
+  waitUntilSkinRendered,
+  assertSkinRenderNow,
+  assertSkinAfterReloadSchedule
+} = require("./life-ch1-skin-render-assert");
 
 const ROOT = path.join(__dirname, "..");
 const DIST = path.join(ROOT, "dist-preview");
@@ -136,26 +141,6 @@ async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
   throw new Error("walkNear timeout");
 }
 
-async function waitForSkinRendered(page, skinLetter = "A") {
-  await page.waitForFunction(
-    skinLetter => {
-      if (window.me?.lifeCh1?.angelinaSkin !== skinLetter) return false;
-      window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
-      const rs = window.World3D?.getPlayerLifeCh1SkinRenderState?.();
-      if (!rs) return false;
-      const slug = `angelina-teen-${skinLetter}`;
-      return (
-        (rs.url.includes(slug) || rs.mapSrc.includes(slug)) &&
-        rs.textureReady &&
-        rs.spriteVisible &&
-        rs.rootHidden
-      );
-    },
-    skinLetter,
-    { timeout: 45000, polling: 100 }
-  );
-}
-
 async function runBrowserTest(base) {
   let prodAttempts = 0;
   const browser = await chromium.launch();
@@ -222,6 +207,7 @@ async function runBrowserTest(base) {
       undefined,
       { timeout: 15000 }
     );
+    await waitUntilSkinRendered(page, "A");
 
     const beforeReload = await page.evaluate(() => ({
       coins: window.me.coins,
@@ -239,7 +225,9 @@ async function runBrowserTest(base) {
       }
       const skin = await page.evaluate(() => window.me?.lifeCh1?.angelinaSkin);
       if (skin !== "A") throw new Error("reload lost skin " + skin);
-      await waitForSkinRendered(page, "A");
+      await assertSkinAfterReloadSchedule(page, "A");
+      await walkNear(page, -3.2, 2.5);
+      await assertSkinRenderNow(page, "A", `preview after walk reload ${r + 1}`);
     }
 
     const afterReload = await page.evaluate(() => ({
