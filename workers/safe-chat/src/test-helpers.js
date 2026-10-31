@@ -129,7 +129,7 @@ export function expectedChatSid(localId) {
 /** Owner-POST N messages for erasure integration tests (deterministic sid, visibility barrier). */
 export async function seedOwnMessagesForErasure(u, n) {
   const sid = expectedChatSid(u.localId);
-  expect(sid).toMatch(/^[a-f0-9]{32}$/);
+  if (!/^[a-f0-9]{32}$/.test(sid)) throw new Error(`invalid sid for erasure seed: ${sid}`);
   const ids = [];
   for (let i = 0; i < n; i += 1) {
     const ref = await rtdbOwner("chat/messages", "POST", {
@@ -139,11 +139,11 @@ export async function seedOwnMessagesForErasure(u, n) {
       time: Date.now() + i
     });
     const id = ref.json?.name;
-    expect(id).toBeTruthy();
+    if (!id) throw new Error(`erasure seed POST failed at index ${i}`);
     ids.push(id);
     await waitForChatMessage(id);
   }
-  expect(ids.length).toBe(n);
+  if (ids.length !== n) throw new Error(`erasure seed expected ${n} ids got ${ids.length}`);
   return { sid, ids };
 }
 

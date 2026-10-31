@@ -449,9 +449,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await waitSendCooldown();
     const { j: s2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
     const msgId1 = s1.id;
+    await putChatMessageText(`${msgId1}`, "how old are you secret");
+    await waitSendCooldown();
+    const { j: s2 } = await apiSend(SELF, author.idToken, { phraseId: "gg" });
     const msgId2 = s2.id;
     const rep = await authSignUp();
-    await putChatMessageText(`${msgId1}`, "how old are you secret");
     await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "grooming" });
     const reports = await rtdbOwner("chat/reports", "GET");
     const reportId = Object.entries(reports.json || {}).find(([, v]) => v?.msgId === msgId1)?.[0];
