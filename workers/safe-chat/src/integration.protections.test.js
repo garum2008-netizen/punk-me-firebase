@@ -12,7 +12,9 @@ import {
   rtdbOwner,
   rtdbAuth,
   waitSendCooldown,
-  resetHideCountersDo
+  resetHideCountersDo,
+  putChatMessageText,
+  apiPostReport
 } from "./test-helpers.js";
 
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms (must fail if disabled)", () => {
@@ -25,28 +27,20 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const repB = await authSignUp();
     await waitSendCooldown();
     const { id: m1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await rtdbOwner(`chat/messages/${m1}/text`, "PUT", "how old are you don't tell mom");
-    await apiPost(SELF, "/api/chat/report", repA.idToken, { msgId: m1, category: "grooming" });
-    await apiPost(
-      SELF,
-      "/api/chat/report",
-      repB.idToken,
+    await putChatMessageText(`${m1}`, "how old are you don't tell mom");
+    await apiPostReport(SELF, repA.idToken, { msgId: m1, category: "grooming" });
+    await apiPostReport(SELF, repB.idToken,
       { msgId: m1, category: "grooming" },
-      { "CF-Connecting-IP": "203.0.113.10" }
-    );
+      { "CF-Connecting-IP": "203.0.113.10" });
     expect((await rtdbOwner(`chat/messages/${m1}`, "GET")).json?.hidden).toBe(true);
 
     await waitSendCooldown();
     const { id: m2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
-    await rtdbOwner(`chat/messages/${m2}/text`, "PUT", "how old are you don't tell mom");
-    await apiPost(SELF, "/api/chat/report", repA.idToken, { msgId: m2, category: "grooming" });
-    await apiPost(
-      SELF,
-      "/api/chat/report",
-      repB.idToken,
+    await putChatMessageText(`${m2}`, "how old are you don't tell mom");
+    await apiPostReport(SELF, repA.idToken, { msgId: m2, category: "grooming" });
+    await apiPostReport(SELF, repB.idToken,
       { msgId: m2, category: "grooming" },
-      { "CF-Connecting-IP": "203.0.113.11" }
-    );
+      { "CF-Connecting-IP": "203.0.113.11" });
     expect((await rtdbOwner(`chat/messages/${m2}`, "GET")).json?.hidden).not.toBe(true);
   });
 
@@ -75,9 +69,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
       const repB = await authSignUp();
       await rtdbOwner(`chatMeta/${repB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 86400000);
       await rtdbOwner(`chatMeta/${repB.localId}/chatSendCount`, "PUT", 12);
-      const r1 = await apiPost(SELF, "/api/chat/report", repA.idToken, { msgId, category: "grooming" });
+      const r1 = await apiPostReport(SELF, repA.idToken, { msgId, category: "grooming" });
       expect(r1.status).toBe(200);
-      const r2 = await apiPost(SELF, "/api/chat/report", repB.idToken, { msgId, category: "grooming" }, clusterHdr);
+      const r2 = await apiPostReport(SELF, repB.idToken, { msgId, category: "grooming" }, clusterHdr);
       expect(r2.status).toBe(200);
       expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
     }
@@ -86,8 +80,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const repB4 = await authSignUp();
     await rtdbOwner(`chatMeta/${repB4.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 86400000);
     await rtdbOwner(`chatMeta/${repB4.localId}/chatSendCount`, "PUT", 12);
-    await apiPost(SELF, "/api/chat/report", repA4.idToken, { msgId: m4, category: "grooming" }, otherHdr);
-    await apiPost(SELF, "/api/chat/report", repB4.idToken, { msgId: m4, category: "grooming" }, clusterHdr);
+    await apiPostReport(SELF, repA4.idToken, { msgId: m4, category: "grooming" }, otherHdr);
+    await apiPostReport(SELF, repB4.idToken, { msgId: m4, category: "grooming" }, clusterHdr);
     expect((await rtdbOwner(`chat/messages/${m4}`, "GET")).json?.hidden).not.toBe(true);
     expect((await rtdbOwner(`chat/internal/safetyQueue/${m4}`, "GET")).json?.hideSkipReason).toBe(
       "cluster_hide_cap"
@@ -97,9 +91,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
   it("PROTECT global hide gate: single reporter cannot globally hide grooming preset alone", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you");
+    await putChatMessageText(`${msgId}`, "how old are you");
     const rep = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    await apiPostReport(SELF, rep.idToken, { msgId, category: "grooming" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
   });
 
@@ -107,9 +101,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const author = await authSignUp();
     const viewer = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "kill the kid");
+    await putChatMessageText(`${msgId}`, "kill the kid");
     const rep = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "other_child_safety" });
+    await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
     const clientView = await rtdbAuth(`chat/messages/${msgId}`, "GET", viewer.idToken);
     expect(clientView.json?.text).toBeUndefined();
@@ -124,7 +118,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const hdr = { "CF-Connecting-IP": "198.51.100.42" };
     for (let i = 0; i < 4; i++) {
       const r = await authSignUp();
-      await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "other_child_safety" }, hdr);
+      await apiPostReport(SELF, r.idToken, { msgId, category: "other_child_safety" }, hdr);
     }
     expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.possibleCoordination).toBe(true);
   });
@@ -134,11 +128,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const modToken = env.SAFE_CHAT_TEST_MOD_TOKEN;
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you");
+    await putChatMessageText(`${msgId}`, "how old are you");
     const rep = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    await apiPostReport(SELF, rep.idToken, { msgId, category: "grooming" });
     const rep2 = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep2.idToken, { msgId, category: "grooming" });
+    await apiPostReport(SELF, rep2.idToken, { msgId, category: "grooming" });
     const metas = await rtdbOwner("chat/internal/reportMeta", "GET");
     const repReport = Object.entries(metas.json || {}).find(([, v]) => v?.msgId === msgId);
     expect(repReport).toBeTruthy();
@@ -157,7 +151,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
     const rep = await authSignUp();
-    const r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "violence_threat" });
+    const r = await apiPostReport(SELF, rep.idToken, { msgId, category: "violence_threat" });
     const j = await r.json();
     expect(j.received).toBe(true);
     expect(j.msgId).toBeUndefined();
@@ -170,15 +164,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
     const rep = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "other_child_safety" });
+    await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     const rep2 = await authSignUp();
-    await apiPost(
-      SELF,
-      "/api/chat/report",
-      rep2.idToken,
+    await apiPostReport(SELF, rep2.idToken,
       { msgId, category: "other_child_safety" },
-      { "CF-Connecting-IP": "203.0.113.88" }
-    );
+      { "CF-Connecting-IP": "203.0.113.88" });
     const cap = Date.now() + 500;
     await rtdbOwner(`chat/internal/safetyEvidence/${msgId}/maxHoldUntil`, "PUT", cap);
     await rtdbOwner(`chat/internal/safetyQueue/${msgId}/legalHoldUntil`, "PUT", cap);
@@ -235,8 +225,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const { id: msgId } = await (
       await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })
     ).json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "kill the kid");
-    await apiPost(SELF, "/api/chat/report", author.idToken, { msgId, category: "immediate_danger" });
+    await putChatMessageText(`${msgId}`, "kill the kid");
+    await apiPostReport(SELF, author.idToken, { msgId, category: "immediate_danger" });
     expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.childHarm).toBe(true);
     const token = await getCachedAdminToken(env);
     const config = loadConfig(env);
@@ -262,10 +252,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const modToken = env.SAFE_CHAT_TEST_MOD_TOKEN;
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "restore me please");
+    await putChatMessageText(`${msgId}`, "restore me please");
     for (let i = 0; i < 3; i++) {
       const r = await authSignUp();
-      await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "generic" });
+      await apiPostReport(SELF, r.idToken, { msgId, category: "generic" });
     }
     expect((await rtdbOwner(`chat/messages/${msgId}/text`, "GET")).json).toBeNull();
     await apiPost(SELF, "/api/mod/resolve-safety", modToken, { msgId, action: "restore_visibility" });
@@ -277,22 +267,18 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const { id: msgId } = await (
       await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })
     ).json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "kill the kid");
+    await putChatMessageText(`${msgId}`, "kill the kid");
     const rep1 = await authSignUp();
     const rep2 = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep1.idToken, { msgId, category: "other_child_safety" });
-    await apiPost(
-      SELF,
-      "/api/chat/report",
-      rep2.idToken,
+    await apiPostReport(SELF, rep1.idToken, { msgId, category: "other_child_safety" });
+    await apiPostReport(SELF, rep2.idToken,
       { msgId, category: "other_child_safety" },
-      { "CF-Connecting-IP": "203.0.113.77" }
-    );
+      { "CF-Connecting-IP": "203.0.113.77" });
     expect((await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET")).json?.snapshot?.text).toContain(
       "kill"
     );
     const rep3 = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep3.idToken, { msgId, category: "other_child_safety" });
+    await apiPostReport(SELF, rep3.idToken, { msgId, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET")).json?.snapshot?.text).toContain(
       "kill"
     );
@@ -304,7 +290,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
     for (let i = 0; i < 3; i++) {
       const r = await authSignUp();
-      await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "generic" });
+      await apiPostReport(SELF, r.idToken, { msgId, category: "generic" });
     }
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
     const clientView = await rtdbAuth(`chat/messages/${msgId}`, "GET", viewer.idToken);
@@ -316,7 +302,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
     const rep = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "other_child_safety" });
+    await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
     expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.intrinsicRisk).toBeLessThan(50);
   });
@@ -325,7 +311,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const author = await authSignUp();
     const rep = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "immediate_danger" });
+    await apiPostReport(SELF, rep.idToken, { msgId, category: "immediate_danger" });
     const q0 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     const sla = q0.json?.slaReviewBy;
     expect(typeof sla).toBe("number");

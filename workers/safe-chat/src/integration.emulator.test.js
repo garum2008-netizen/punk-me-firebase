@@ -15,6 +15,7 @@ import {
   resetHideCountersDo,
   resetIntegrationIsolation,
   apiPostReport,
+  putChatMessageText,
   PROJECT_ID
 } from "./test-helpers.js";
 import { detectChildHarmSignals } from "./child-harm.js";
@@ -79,7 +80,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
   });
 
   it("rejects path injection in msgId on report", async () => {
-    const bad = await apiPost(SELF, "/api/chat/report", userA.idToken, { msgId: "../../players/secret" });
+    const bad = await apiPostReport(SELF, userA.idToken, { msgId: "../../players/secret" });
     expect((await bad.json()).error).toBe("invalid_id");
   });
 
@@ -116,8 +117,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
     expect(sent.ok).toBe(true);
     expect(sent.id).toBeTruthy();
-    expect((await (await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId: sent.id })).json()).ok).toBe(true);
-    const dup = await (await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId: sent.id })).json();
+    expect((await (await apiPostReport(SELF, userB.idToken, { msgId: sent.id })).json()).ok).toBe(true);
+    const dup = await (await apiPostReport(SELF, userB.idToken, { msgId: sent.id })).json();
     expect(dup.duplicate).toBe(true);
     const msg = await rtdbOwner(`chat/messages/${sent.id}`, "GET");
     expect(msg.json.hidden).not.toBe(true);
@@ -138,7 +139,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
     const muted = await authSignUp();
     await apiPost(SELF, "/api/mod/mute", mod.idToken, { uid: muted.localId, durationMs: 86400000 });
-    const r = await apiPost(SELF, "/api/chat/report", muted.idToken, { msgId, category: "other_child_safety" });
+    const r = await apiPostReport(SELF, muted.idToken, { msgId, category: "other_child_safety" });
     expect((await r.json()).received).toBe(true);
     await apiPost(SELF, "/api/mod/mute", mod.idToken, { uid: muted.localId, lift: true });
   });
@@ -151,7 +152,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       expect(sent.ok).toBe(true);
       expect(sent.id).toBeTruthy();
       await waitForChatMessage(sent.id);
-      const r = await apiPost(SELF, "/api/chat/report", rep.idToken, {
+      const r = await apiPostReport(SELF, rep.idToken, {
         msgId: sent.id,
         category: "other_child_safety"
       });
@@ -163,8 +164,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
   it("security: reportMeta stores reporterSid not raw uid", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
-    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
+    await putChatMessageText(`${msgId}`, "how old are you secret");
+    await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
     const meta = await rtdbOwner("chat/internal/reportMeta", "GET");
     const entry = Object.values(meta.json || {})[0];
     expect(entry?.reporterSid).toBeTruthy();
@@ -226,7 +227,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom meet me alone");
+    await putChatMessageText(`${msgId}`, "how old are you don't tell mom meet me alone");
     await waitForMessageText(msgId, "how old are you");
     const rep = await authSignUp();
     const r = await apiPostReport(SELF, rep.idToken, { msgId, category: "grooming" });
@@ -273,14 +274,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you? don't tell your mom");
+    await putChatMessageText(`${msgId}`, "how old are you? don't tell your mom");
     await waitForMessageText(msgId, "how old are you");
     const rep = await authSignUp();
     await rtdbOwner(`chatMeta/${rep.localId}/chatAge13DeclaredAt`, "DELETE");
-    let r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    let r = await apiPostReport(SELF, rep.idToken, { msgId, category: "grooming" });
     if (r.status !== 200) {
       await new Promise(res => setTimeout(res, 100));
-      r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+      r = await apiPostReport(SELF, rep.idToken, { msgId, category: "grooming" });
     }
     expect(r.status).toBe(200);
     expect((await r.json()).received).toBe(true);
@@ -298,22 +299,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     }
     await waitForChatMessage(msgId);
     const rep2 = await authSignUp();
-    let r2 = await apiPost(
-      SELF,
-      "/api/chat/report",
-      rep2.idToken,
+    let r2 = await apiPostReport(SELF, rep2.idToken,
       { msgId, category: "grooming" },
-      { "CF-Connecting-IP": "198.51.100.50" }
-    );
+      { "CF-Connecting-IP": "198.51.100.50" });
     if (r2.status === 404) {
       await waitForChatMessage(msgId);
-      r2 = await apiPost(
-        SELF,
-        "/api/chat/report",
-        rep2.idToken,
+      r2 = await apiPostReport(SELF, rep2.idToken,
         { msgId, category: "grooming" },
-        { "CF-Connecting-IP": "198.51.100.50" }
-      );
+        { "CF-Connecting-IP": "198.51.100.50" });
     }
     expect(r2.status).toBe(200);
     expect((await r2.json()).received).toBe(true);
@@ -332,19 +325,15 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
     await waitForChatMessage(msgId);
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "send pics on telegram meet me alone");
+    await putChatMessageText(`${msgId}`, "send pics on telegram meet me alone");
     await waitForMessageText(msgId, "telegram");
     expect(detectChildHarmSignals("send pics on telegram meet me alone")).toBe(false);
     const rep = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
+    await apiPostReport(SELF, rep.idToken, { msgId, category: "grooming" });
     const rep2 = await authSignUp();
-    await apiPost(
-      SELF,
-      "/api/chat/report",
-      rep2.idToken,
+    await apiPostReport(SELF, rep2.idToken,
       { msgId, category: "grooming" },
-      { "CF-Connecting-IP": "203.0.113.77" }
-    );
+      { "CF-Connecting-IP": "203.0.113.77" });
     let hidden = false;
     for (let t = 0; t < 100; t += 1) {
       hidden = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden === true;
@@ -359,7 +348,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
     const banned = await authSignUp();
     await apiPost(SELF, "/api/mod/ban", mod.idToken, { uid: banned.localId });
-    const r = await apiPost(SELF, "/api/chat/report", banned.idToken, { msgId, category: "immediate_danger" });
+    const r = await apiPostReport(SELF, banned.idToken, { msgId, category: "immediate_danger" });
     expect((await r.json()).received).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
     expect((await rtdbOwner(`chatMeta/${banned.localId}/reporterSafetyHidden/${msgId}`, "GET")).json).toBe(true);
@@ -375,7 +364,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const noAge = await authSignUp();
     await rtdbOwner(`chatMeta/${noAge.localId}/chatAge13DeclaredAt`, "DELETE");
     for (let i = 0; i < 5; i++) {
-      const rr = await apiPost(SELF, "/api/chat/report", noAge.idToken, {
+      const rr = await apiPostReport(SELF, noAge.idToken, {
         msgId,
         category: "other_child_safety"
       });
@@ -392,7 +381,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       const r = await authSignUp();
       const reg = Date.now() - 5000;
       await rtdbOwner(`chatMeta/${r.localId}/chatRegisteredAt`, "PUT", reg);
-      await apiPost(SELF, "/api/chat/report", r.idToken, { msgId, category: "other_child_safety" }, hdr);
+      await apiPostReport(SELF, r.idToken, { msgId, category: "other_child_safety" }, hdr);
     }
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
     expect((await rtdbOwner(`chat/internal/safetyCase/${msgId}`, "GET")).json?.reports?.length).toBeGreaterThan(3);
@@ -404,25 +393,21 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await waitSendCooldown();
     const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
     const rep = await authSignUp();
-    await rtdbOwner(`chat/messages/${msgId1}/text`, "PUT", "how old are you");
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId1, category: "other_child_safety" });
-    await rtdbOwner(`chat/messages/${msgId2}/text`, "PUT", "don't tell mom meet me alone");
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId2, category: "grooming" });
+    await putChatMessageText(`${msgId1}`, "how old are you");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
+    await putChatMessageText(`${msgId2}`, "don't tell mom meet me alone");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "grooming" });
     const rep2 = await authSignUp();
-    await apiPost(
-      SELF,
-      "/api/chat/report",
-      rep2.idToken,
+    await apiPostReport(SELF, rep2.idToken,
       { msgId: msgId2, category: "grooming" },
-      { "CF-Connecting-IP": "198.51.100.99" }
-    );
+      { "CF-Connecting-IP": "198.51.100.99" });
     expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).toBe(true);
   });
 
   it("risk: reporter privacy response has no case or target details", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    const r = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "violence_threat" });
+    const r = await apiPostReport(SELF, userB.idToken, { msgId, category: "violence_threat" });
     const j = await r.json();
     expect(j.messageKey).toBe("thanks_received");
     expect(j.hidden).toBeUndefined();
@@ -437,14 +422,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
-    let rep = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "immediate_danger" });
+    let rep = await apiPostReport(SELF, userB.idToken, { msgId, category: "immediate_danger" });
     expect(rep.status).toBe(200);
     let q = null;
     for (let t = 0; t < 100; t += 1) {
       q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
       if (q?.escalationTier === "immediate_danger") break;
       if (t === 40 && q?.escalationTier !== "immediate_danger") {
-        rep = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "immediate_danger" });
+        rep = await apiPostReport(SELF, userB.idToken, { msgId, category: "immediate_danger" });
         expect(rep.status).toBe(200);
       }
       await new Promise(r => setTimeout(r, 75));
@@ -463,8 +448,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await waitSendCooldown();
     const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
     const rep = await authSignUp();
-    await rtdbOwner(`chat/messages/${msgId1}/text`, "PUT", "how old are you secret");
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId1, category: "grooming" });
+    await putChatMessageText(`${msgId1}`, "how old are you secret");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "grooming" });
     const reports = await rtdbOwner("chat/reports", "GET");
     const reportId = Object.entries(reports.json || {}).find(([, v]) => v?.msgId === msgId1)?.[0];
     await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, {
@@ -473,8 +458,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       falseReport: true,
       reportId
     });
-    await rtdbOwner(`chat/messages/${msgId2}/text`, "PUT", "thanks");
-    const r2 = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId2, category: "other_child_safety" });
+    await putChatMessageText(`${msgId2}`, "thanks");
+    const r2 = await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" });
     expect((await r2.json()).received).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).not.toBe(true);
   });
@@ -485,10 +470,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "kill the kid");
+    await putChatMessageText(`${msgId}`, "kill the kid");
     await waitForMessageText(msgId, "kill the kid");
     const rep = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "other_child_safety" });
+    await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     let hidden = false;
     for (let t = 0; t < 80; t += 1) {
       const msg = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json;
@@ -509,10 +494,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await waitSendCooldown();
     const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
     const rep = await authSignUp();
-    await rtdbOwner(`chat/messages/${msgId1}/text`, "PUT", "kill the kid");
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId1, category: "other_child_safety" });
-    await rtdbOwner(`chat/messages/${msgId2}/text`, "PUT", "kill the kid");
-    await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId: msgId2, category: "other_child_safety" });
+    await putChatMessageText(`${msgId1}`, "kill the kid");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
+    await putChatMessageText(`${msgId2}`, "kill the kid");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/messages/${msgId1}`, "GET")).json?.hidden).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).toBe(true);
   });
@@ -520,9 +505,9 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
   it("moderator restore_visibility unhides with decision log", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
-    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
-    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
+    await putChatMessageText(`${msgId}`, "how old are you secret");
+    await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
+    await apiPostReport(SELF, userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json.hidden).toBe(true);
     await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, { msgId, action: "restore_visibility" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json.hidden).not.toBe(true);
@@ -533,8 +518,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const author = await authSignUp();
     const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
     const { id: msgId } = await sent.json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
-    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
+    await putChatMessageText(`${msgId}`, "how old are you secret");
+    await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
     const ev = await rtdbAuth(`chat/internal/safetyEvidence/${msgId}`, "GET", userA.idToken);
     expect(ev.status === 401 || ev.status === 403).toBe(true);
     const q = await rtdbAuth("chat/internal/safetyQueue", "GET", userA.idToken);
@@ -553,8 +538,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
   it("retention enforces legalHoldUntil and maxHoldUntil (R-04)", async () => {
     const author = await authSignUp();
     const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "other_child_safety" });
-    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "other_child_safety" }, { "CF-Connecting-IP": "203.0.113.22" });
+    await apiPostReport(SELF, userB.idToken, { msgId, category: "other_child_safety" });
+    await apiPostReport(SELF, userC.idToken, { msgId, category: "other_child_safety" }, { "CF-Connecting-IP": "203.0.113.22" });
     const cap = 1_000_000;
     await rtdbOwner(`chat/internal/safetyQueue/${msgId}/legalHoldUntil`, "PUT", cap);
     await rtdbOwner(`chat/internal/safetyEvidence/${msgId}/maxHoldUntil`, "PUT", cap);
@@ -571,7 +556,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const { id: msgId } = await sent.json();
     const fresh = await authSignUp();
     await apiPost(SELF, "/api/chat/declare-age13", fresh.idToken, { confirmed: true });
-    await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId, category: "other_child_safety" });
+    await apiPostReport(SELF, fresh.idToken, { msgId, category: "other_child_safety" });
     const now = Date.now() + 8 * 24 * 60 * 60 * 1000;
     await rtdbOwner(`chat/internal/safetyQueue/${msgId}/legalHoldUntil`, "PUT", now + 365 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chat/messages/${msgId}/time`, "PUT", now - 8 * 24 * 60 * 60 * 1000);
@@ -589,7 +574,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await waitForChatMessage(msgId);
     const spammer = await authSignUp();
     for (let i = 0; i < 105; i++) {
-      await apiPost(SELF, "/api/chat/report", spammer.idToken, { msgId });
+      await apiPostReport(SELF, spammer.idToken, { msgId });
     }
     let msgSnap = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     if (!msgSnap.json?.sid) {
@@ -601,11 +586,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     }
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 20);
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
+    await putChatMessageText(`${msgId}`, "how old are you don't tell mom");
     let trusted = null;
     for (let attempt = 0; attempt < 8; attempt += 1) {
       await waitForChatMessage(msgId);
-      trusted = await apiPost(SELF, "/api/chat/report", userB.idToken, { msgId, category: "grooming" });
+      trusted = await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
       if (trusted.status === 200) break;
       await new Promise(res => setTimeout(res, 100));
     }
@@ -636,10 +621,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const author = await authSignUp();
     const sent = await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" });
     const { id: msgId } = await sent.json();
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you secret");
+    await putChatMessageText(`${msgId}`, "how old are you secret");
     const fresh = await authSignUp();
-    await apiPost(SELF, "/api/chat/report", fresh.idToken, { msgId, category: "grooming" });
-    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
+    await apiPostReport(SELF, fresh.idToken, { msgId, category: "grooming" });
+    await apiPostReport(SELF, userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
     const del = await apiPost(SELF, "/api/chat/delete-my-data", author.idToken, {});
     const dj = await del.json();
     expect(dj.ok).toBe(true);
@@ -656,12 +641,12 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const mature = Date.now() - 2 * 24 * 60 * 60 * 1000;
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", mature);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 10);
-    await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", "how old are you don't tell mom");
-    const rep = await apiPost(SELF, "/api/chat/report", userB.idToken, {
+    await putChatMessageText(`${msgId}`, "how old are you don't tell mom");
+    const rep = await apiPostReport(SELF, userB.idToken, {
       msgId,
       category: "grooming"
     });
-    await apiPost(SELF, "/api/chat/report", userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
+    await apiPostReport(SELF, userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
     expect((await rep.json()).received).toBe(true);
     const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     expect(msg.json.hidden).toBe(true);
@@ -692,7 +677,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     expect(msgId).toBeTruthy();
 
     for (const u of [userB, userC, userD]) {
-      const rep = await apiPost(SELF, "/api/chat/report", u.idToken, { msgId });
+      const rep = await apiPostReport(SELF, u.idToken, { msgId });
       expect((await rep.json()).ok).toBe(true);
     }
     const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");

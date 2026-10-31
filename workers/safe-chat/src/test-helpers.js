@@ -136,6 +136,12 @@ export async function resetIntegrationIsolation(env) {
   await rtdbOwner("chat/internal", "DELETE");
 }
 
+export async function putChatMessageText(msgId, text) {
+  await rtdbOwner(`chat/messages/${msgId}/text`, "PUT", text);
+  const needle = String(text).trim().slice(0, Math.min(32, String(text).length));
+  await waitForMessageText(msgId, needle);
+}
+
 /** POST /api/chat/report after the message node is visible in RTDB (emulator timing). */
 export async function apiPostReport(SELF, idToken, body, extraHeaders = {}) {
   const msgId = body?.msgId;
@@ -184,11 +190,7 @@ export async function drainErasureCronLoop(env, user, runErasureQueueJob, requeu
       return { status: "complete", complete: true };
     }
     idleRequeues = 0;
-    if (jobSnap.json.status === "queued") {
-      await runErasureQueueJob(env);
-    } else {
-      await runErasureQueueJob(env);
-    }
+    await runErasureQueueJob(env);
   }
   const finalJob = await rtdbOwner(`chat/internal/erasureJobs/${user.localId}`, "GET");
   if (ownSid) {
