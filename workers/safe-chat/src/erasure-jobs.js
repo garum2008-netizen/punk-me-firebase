@@ -27,7 +27,8 @@ function pathJob(uid) {
 export function mapBatchToJobStatus(result) {
   if (result.completeWithHolds) return "complete_with_holds";
   if (result.complete) {
-    if (result.allOwnRemaining != null && result.allOwnRemaining > 0) return "queued";
+    if (result.allOwnRemaining == null) return "queued";
+    if (result.allOwnRemaining > 0) return "queued";
     if (result.remainingDeletable == null) return "queued";
     if (result.remainingDeletable > 0) return "queued";
     return "complete";
@@ -177,6 +178,18 @@ export async function persistJobAfterBatch(env, uid, batch, existingJob, now) {
       await eraseUserLimits(env, uid);
     }
     if (status === "complete") {
+      if (batch.complete !== true) {
+        await writeJob(config, token, emu, ns, uid, {
+          status: "queued",
+          cursor: batch.cursor || existingJob?.cursor || null,
+          attempts: nextAttempts,
+          updatedAt: now,
+          requestedAt: existingJob?.requestedAt || now,
+          holdMsgIds: existingJob?.holdMsgIds || null,
+          subrequestsLast: batch.subrequests
+        });
+        return readJob(config, token, emu, ns, uid);
+      }
       if (typeof batch.allOwnRemaining === "number" && batch.allOwnRemaining > 0) {
         await writeJob(config, token, emu, ns, uid, {
           status: "queued",

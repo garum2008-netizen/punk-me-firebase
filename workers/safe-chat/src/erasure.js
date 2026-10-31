@@ -296,20 +296,19 @@ export async function runUserErasureBatch({
   const deferred = [];
   let nextCursor = null;
   let processedAll = true;
-  let skipping = Boolean(cursorMsgId);
-  let cursorFound = !cursorMsgId;
+  let startIdx = 0;
+  if (cursorMsgId) {
+    const idx = entries.findIndex(([id]) => id === cursorMsgId);
+    if (idx >= 0) startIdx = idx;
+  }
   let maxDeletes = config.erasureBatchSize;
 
-  for (const [id, m] of entries) {
+  for (let ei = startIdx; ei < entries.length; ei += 1) {
+    const [id, m] = entries[ei];
     if (budgetExceeded) {
       nextCursor = nextCursor || id;
       processedAll = false;
       break;
-    }
-    if (skipping) {
-      if (id !== cursorMsgId) continue;
-      skipping = false;
-      cursorFound = true;
     }
     if (!isOwnMessage(m, sid, authUid)) continue;
     try {
@@ -352,7 +351,7 @@ export async function runUserErasureBatch({
     deleted += 1;
   }
 
-  if (cursorMsgId && !cursorFound) {
+  if (cursorMsgId && startIdx === 0 && entries.findIndex(([id]) => id === cursorMsgId) < 0) {
     await rtdbSpend(config, token, emu, ns, pathChatMeta(authUid, "erasureCursor"), "DELETE", null, spend);
     if (!staleRetry) {
       return runUserErasureBatch({

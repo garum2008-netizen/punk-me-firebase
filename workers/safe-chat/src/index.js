@@ -392,7 +392,9 @@ async function handleReport(request, env, ctx) {
   const ns = env.FIREBASE_EMULATOR_NS;
 
   let msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
-  for (let i = 0; i < 16 && !msgRes.json; i += 1) {
+  const reportMsgGetRetries =
+    env.SAFE_CHAT_INTEGRATION === "1" ? 0 : 2;
+  for (let i = 0; i < reportMsgGetRetries && !msgRes.json; i += 1) {
     await new Promise(r => setTimeout(r, 50));
     msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
   }
@@ -719,6 +721,37 @@ async function handleUnblock(request, env) {
   return json(request, env, { ok: true });
 }
 
+async function sanitizeErasurePayloadForUser(payload, config, env, token, authUid) {
+  const sid = await chatPublicSid(authUid, env.SAFE_CHAT_HASH_SALT || "");
+  const emu = env.FIREBASE_EMULATOR_HOST;
+  const ns = env.FIREBASE_EMULATOR_NS;
+  const own = (m) => m && (m.sid === sid || m.uid === authUid);
+  let out = payload;
+  if (out.cursor) {
+    try {
+      assertFirebaseId(String(out.cursor));
+      const cur = await rtdbRequest(config, pathChatMessage(out.cursor), "GET", null, token, emu, ns);
+      if (!own(cur.json)) out = { ...out, cursor: null };
+    } catch {
+      out = { ...out, cursor: null };
+    }
+  }
+  if (out.erasureDeferred?.length) {
+    const kept = [];
+    for (const id of out.erasureDeferred) {
+      try {
+        assertFirebaseId(String(id));
+        const m = await rtdbRequest(config, pathChatMessage(id), "GET", null, token, emu, ns);
+        if (own(m.json)) kept.push(id);
+      } catch {
+        /* drop invalid ids from user-visible payload */
+      }
+    }
+    out = { ...out, erasureDeferred: kept.length ? kept : undefined };
+  }
+  return out;
+}
+
 async function handleDeleteMyData(request, env) {
   const config = loadConfig(env);
   let auth;
@@ -747,7 +780,8 @@ async function handleDeleteMyData(request, env) {
     lastRequestAt: lastAt
   });
   if (error) return err(request, env, error, error === "erasure_rate_limit" ? 429 : 400);
-  const payload = userFacingErasurePayload(job, batch);
+  let payload = userFacingErasurePayload(job, batch);
+  payload = await sanitizeErasurePayloadForUser(payload, config, env, token, auth.uid);
   if (rateLimited) {
     return json(request, env, { ...payload, rateLimited: true });
   }

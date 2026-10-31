@@ -126,6 +126,29 @@ export async function resetHideCountersDo(env) {
   await stub.fetch(new Request("http://do/integration-reset-hide-counters", { method: "POST" }));
 }
 
+/** Wipe shared RTDB chat state and DO limits so shuffled tests do not leak reports, hides, or jobs. */
+export async function resetIntegrationIsolation(env) {
+  if (env.SAFE_CHAT_INTEGRATION !== "1") return;
+  delete env.SAFE_CHAT_TEST_NOW_MS;
+  await resetHideCountersDo(env);
+  await rtdbOwner("chat/messages", "DELETE");
+  await rtdbOwner("chat/reports", "DELETE");
+  await rtdbOwner("chat/internal", "DELETE");
+}
+
+/** POST /api/chat/report after the message node is visible in RTDB (emulator timing). */
+export async function apiPostReport(SELF, idToken, body, extraHeaders = {}) {
+  const msgId = body?.msgId;
+  if (msgId) await waitForChatMessage(msgId);
+  return apiPost(SELF, "/api/chat/report", idToken, body, extraHeaders);
+}
+
+async function countOwnMessagesForSid(ownSid) {
+  if (!ownSid) return null;
+  const remaining = await rtdbOwner("chat/messages", "GET");
+  return Object.values(remaining.json || {}).filter(m => m.sid === ownSid).length;
+}
+
 /** Cron queue drain after delete-my-data (does not call delete-my-data again). */
 export async function drainErasureCronLoop(env, user, runErasureQueueJob, requeueDelete, opts = {}) {
   const ownSid = opts.ownSid || null;
@@ -134,8 +157,7 @@ export async function drainErasureCronLoop(env, user, runErasureQueueJob, requeu
   while (guard < 500) {
     guard += 1;
     if (ownSid) {
-      const remaining = await rtdbOwner("chat/messages", "GET");
-      const n = Object.values(remaining.json || {}).filter(m => m.sid === ownSid).length;
+      const n = await countOwnMessagesForSid(ownSid);
       if (n === 0) return { status: "complete", complete: true };
     }
     const jobSnap = await rtdbOwner(`chat/internal/erasureJobs/${user.localId}`, "GET");
@@ -143,6 +165,17 @@ export async function drainErasureCronLoop(env, user, runErasureQueueJob, requeu
       return { ...jobSnap.json, complete: false };
     }
     if (!jobSnap.json) {
+      if (ownSid) {
+        const n = await countOwnMessagesForSid(ownSid);
+        if (n > 0) {
+          if (typeof requeueDelete === "function" && idleRequeues < 8) {
+            idleRequeues += 1;
+            await requeueDelete();
+            continue;
+          }
+          return { status: "queued", complete: false };
+        }
+      }
       if (typeof requeueDelete === "function" && idleRequeues < 8) {
         idleRequeues += 1;
         await requeueDelete();
@@ -153,13 +186,15 @@ export async function drainErasureCronLoop(env, user, runErasureQueueJob, requeu
     idleRequeues = 0;
     if (jobSnap.json.status === "queued") {
       await runErasureQueueJob(env);
+    } else {
+      await runErasureQueueJob(env);
     }
   }
   const finalJob = await rtdbOwner(`chat/internal/erasureJobs/${user.localId}`, "GET");
-  if (!finalJob.json && ownSid) {
-    const remaining = await rtdbOwner("chat/messages", "GET");
-    const n = Object.values(remaining.json || {}).filter(m => m.sid === ownSid).length;
-    return { status: n === 0 ? "complete" : "queued", complete: n === 0 };
+  if (ownSid) {
+    const n = await countOwnMessagesForSid(ownSid);
+    if (n > 0) return { status: finalJob.json?.status || "queued", complete: false };
+    return { status: "complete", complete: true };
   }
   if (!finalJob.json) return { status: "complete", complete: true };
   return { status: finalJob.json.status, complete: false };
