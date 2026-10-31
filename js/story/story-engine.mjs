@@ -971,11 +971,6 @@ export function initStoryEngine(h) {
   return loadStoryData()
     .then(() => {
       ensureStoryState(me());
-      const bal = data.balance;
-      if (bal?.startingCoins && !window.devCoinsEnabled?.()) {
-        const p = me();
-        if (p.coins > bal.startingCoins + 50) p.coins = bal.startingCoins;
-      }
       renderObjectivePanel();
       window.StoryEngine = api;
       window.StoryEngine.openNoRatChoice = () => Authority.openNoRatChoice?.();
