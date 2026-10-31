@@ -44,7 +44,8 @@ async function main() {
     }
   });
   const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  console.log("\n=== integration flake survey (commit f2c6782 baseline) ===");
+  const head = spawnSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root, encoding: "utf8" }).stdout?.trim();
+  console.log(`\n=== integration flake survey (HEAD ${head || "unknown"}) ===`);
   console.log(`runs: ${runs}, vitest EXIT 0: ${passRuns}/${runs}`);
   console.log("failure frequency (test title):");
   for (const [name, n] of sorted) {
