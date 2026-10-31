@@ -143,6 +143,7 @@ export async function seedOwnMessagesForErasure(SELF, u, n) {
       text: `msg-${i}`,
       time: Date.now() + i
     });
+    if (!ref.ok) throw new Error(`erasure seed POST failed: ${ref.status}`);
     const id = ref.json?.name;
     if (!id) throw new Error(`erasure seed POST failed at index ${i}`);
     ids.push(id);
@@ -188,7 +189,8 @@ export async function resetIntegrationIsolation(env) {
 export async function apiSend(SELF, idToken, body) {
   const r = await apiPost(SELF, "/api/chat/send", idToken, body);
   const j = await r.json();
-  if (j.ok && j.id) await waitForChatMessage(j.id);
+  if (!j.ok) throw new Error(`apiSend failed: ${j.error || "unknown"} status=${r.status}`);
+  if (j.id) await waitForChatMessage(j.id);
   return { r, j };
 }
 
