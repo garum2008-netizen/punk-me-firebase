@@ -1,4 +1,8 @@
 import { chatPublicSid } from "./rtdb.js";
+import { env as workerEnv } from "cloudflare:test";
+import { getActiveIntegrationRtdbNs, getActiveIntegrationDoName } from "./integration-isolation.js";
+import { integrationIsolationHeaders } from "./integration-env-sync.js";
+import { chatLimitsDoName } from "./limits-do-env.js";
 
 const AUTH_HOST = "127.0.0.1";
 const AUTH_PORT = 9099;
@@ -7,6 +11,14 @@ const DB_PORT = 9000;
 
 export const PROJECT_ID = "punk-me-40605";
 export const DB_NS = `${PROJECT_ID}-default-rtdb`;
+
+function rtdbNs() {
+  return workerEnv.SAFE_CHAT_INTEGRATION === "1" ? getActiveIntegrationRtdbNs() : DB_NS;
+}
+
+function integrationEnabled() {
+  return workerEnv.SAFE_CHAT_INTEGRATION === "1";
+}
 
 export async function authSignUp(opts = {}) {
   const res = await fetch(
@@ -30,8 +42,20 @@ export async function seedChatPlayer(user, opts = {}) {
   if (opts.location) await rtdbOwner(`players/${user.localId}/location`, "PUT", opts.location);
 }
 
+/** Replicate Auth users' player/chatMeta into the current per-test RTDB namespace. */
+export async function reseedAuthUsersInActiveNs(users) {
+  for (const u of users) {
+    if (u?.localId) await seedChatPlayer(u);
+  }
+}
+
+export function integrationFetchHeaders() {
+  if (!integrationEnabled()) return {};
+  return integrationIsolationHeaders(getActiveIntegrationRtdbNs(), getActiveIntegrationDoName());
+}
+
 export async function rtdbOwner(path, method, body) {
-  const url = `http://${DB_HOST}:${DB_PORT}/${path.replace(/^\//, "")}.json?ns=${encodeURIComponent(DB_NS)}&access_token=owner`;
+  const url = `http://${DB_HOST}:${DB_PORT}/${path.replace(/^\//, "")}.json?ns=${encodeURIComponent(rtdbNs())}&access_token=owner`;
   const res = await fetch(url, {
     method,
     headers: body !== undefined ? { "Content-Type": "application/json" } : {},
@@ -48,7 +72,7 @@ export async function rtdbOwner(path, method, body) {
 }
 
 export function rtdbUrl(path, token) {
-  const q = new URLSearchParams({ ns: DB_NS });
+  const q = new URLSearchParams({ ns: rtdbNs() });
   if (token) q.set("auth", token);
   return `http://${DB_HOST}:${DB_PORT}/${path.replace(/^\//, "")}.json?${q}`;
 }
@@ -70,11 +94,15 @@ export async function rtdbAuth(path, method, idToken, body) {
 }
 
 export async function apiPost(SELF, path, idToken, body, extraHeaders = {}) {
+  const iso = integrationEnabled()
+    ? integrationIsolationHeaders(getActiveIntegrationRtdbNs(), getActiveIntegrationDoName())
+    : {};
   return SELF.fetch(`http://localhost${path}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${idToken}`,
       "Content-Type": "application/json",
+      ...iso,
       ...extraHeaders
     },
     body: JSON.stringify(body ?? {})
@@ -82,8 +110,11 @@ export async function apiPost(SELF, path, idToken, body, extraHeaders = {}) {
 }
 
 export async function apiGet(SELF, path, idToken) {
+  const iso = integrationEnabled()
+    ? integrationIsolationHeaders(getActiveIntegrationRtdbNs(), getActiveIntegrationDoName())
+    : {};
   return SELF.fetch(`http://localhost${path}`, {
-    headers: { Authorization: `Bearer ${idToken}` }
+    headers: { Authorization: `Bearer ${idToken}`, ...iso }
   });
 }
 
@@ -106,7 +137,7 @@ async function readChatMessageRow(msgId) {
 }
 
 export async function waitForChatMessage(msgId, { attempts, delayMs = 100 } = {}) {
-  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 600 : 200);
+  const max = attempts ?? (integrationEnabled() ? 600 : 200);
   for (let i = 0; i < max; i += 1) {
     const row = await readChatMessageRow(msgId);
     if (row) return row;
@@ -117,7 +148,7 @@ export async function waitForChatMessage(msgId, { attempts, delayMs = 100 } = {}
 
 /** Harness barrier: sid + text visible (matches worker report GET needs). */
 export async function waitForReportableMessage(msgId, { attempts, delayMs = 100 } = {}) {
-  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 600 : 200);
+  const max = attempts ?? (integrationEnabled() ? 600 : 200);
   for (let i = 0; i < max; i += 1) {
     const row = await readChatMessageRow(msgId);
     if (row?.sid && typeof row.text === "string" && row.text.length > 0) return row;
@@ -160,7 +191,7 @@ export async function waitForMessageHidden(msgId, { attempts = 120, delayMs = 10
 /** After owner PATCH of text, wait until body is visible (RTDB under load). */
 export async function waitForMessageText(msgId, textNeedle, { attempts, delayMs = 100 } = {}) {
   const needle = String(textNeedle || "");
-  const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 600 : 200);
+  const max = attempts ?? (integrationEnabled() ? 600 : 200);
   for (let i = 0; i < max; i += 1) {
     const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     const text = m.json?.text;
@@ -234,29 +265,17 @@ async function seedOwnMessagesForErasureOnce(SELF, u, n) {
 /** Integration-only: reset discretionary hide + cluster counters on the global limits DO. */
 export async function resetHideCountersDo(env) {
   if (env.SAFE_CHAT_INTEGRATION !== "1" || !env.CHAT_LIMITS) return;
-  const id = env.CHAT_LIMITS.idFromName("global");
+  const name = chatLimitsDoName(env);
+  if (name !== "global") return;
+  const id = env.CHAT_LIMITS.idFromName(name);
   const stub = env.CHAT_LIMITS.get(id);
   await stub.fetch(new Request("http://do/integration-reset-hide-counters", { method: "POST" }));
 }
 
-/** Wipe shared RTDB chat state and DO limits so shuffled tests do not leak reports, hides, or jobs. */
+/** Integration: limits DO is namespaced per test; no shared RTDB wipe (fresh ns each test). */
 export async function resetIntegrationIsolation(env) {
-  if (env.SAFE_CHAT_INTEGRATION !== "1") return;
+  if (workerEnv.SAFE_CHAT_INTEGRATION !== "1") return;
   delete env.SAFE_CHAT_TEST_NOW_MS;
-  await resetHideCountersDo(env);
-  await rtdbOwner("chat/messages", "DELETE");
-  await rtdbOwner("chat/reports", "DELETE");
-  await rtdbOwner("chat/internal", "DELETE");
-  for (let i = 0; i < 80; i += 1) {
-    const snap = await rtdbOwner("chat/messages", "GET");
-    const internal = await rtdbOwner("chat/internal", "GET");
-    const msgsEmpty = !snap.json || Object.keys(snap.json).length === 0;
-    const internalEmpty = !internal.json || Object.keys(internal.json).length === 0;
-    if (msgsEmpty && internalEmpty) break;
-    await new Promise(r => setTimeout(r, 25));
-  }
-  await rtdbOwner("chat/messages", "GET");
-  await new Promise(r => setTimeout(r, 100));
 }
 
 export async function apiSend(SELF, idToken, body) {

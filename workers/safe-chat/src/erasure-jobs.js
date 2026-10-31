@@ -3,13 +3,15 @@ import { chatPublicSid, rtdbPath, rtdbRequest } from "./rtdb.js";
 import { loadConfig } from "./config.js";
 import { getCachedAdminToken } from "./admin-token.js";
 import { runUserErasureBatch } from "./erasure.js";
+import { chatLimitsDoName } from "./limits-do-env.js";
+import { syncIntegrationEnvBindings } from "./integration-isolation.js";
 
 const JOBS_ROOT = "chat/internal/erasureJobs";
 const MAX_JOB_ATTEMPTS = 48;
 
 async function eraseUserLimits(env, uid) {
   try {
-    const id = env.CHAT_LIMITS.idFromName("global");
+    const id = env.CHAT_LIMITS.idFromName(chatLimitsDoName(env));
     const stub = env.CHAT_LIMITS.get(id);
     await stub.fetch(
       new Request("http://do/erase-user", {
@@ -291,6 +293,7 @@ export async function resumeErasureJobsAfterHoldRelease(env, msgId) {
 }
 
 export async function runErasureQueueJob(env, nowOverride) {
+  syncIntegrationEnvBindings(env);
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;

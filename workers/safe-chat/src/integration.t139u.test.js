@@ -10,6 +10,8 @@ import {
   waitSendCooldown,
   waitForChatMessage,
   resetHideCountersDo,
+  reseedAuthUsersInActiveNs,
+  integrationFetchHeaders,
   putChatMessageText,
   apiPostReport,
   apiSend,
@@ -40,6 +42,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   beforeEach(async () => {
     await resetHideCountersDo(env);
+    await reseedAuthUsersInActiveNs([userB, userC]);
   });
 
   it("t139u D-02: R_new13 and R_aged grooming reports both queue with same escalation", async () => {
@@ -236,7 +239,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   it("t139u BY-08: internal erasure-continue route removed", async () => {
     const res = await SELF.fetch("http://localhost/api/internal/erasure-continue", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Safe-Chat-Internal": "wrong" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Safe-Chat-Internal": "wrong",
+        ...integrationFetchHeaders()
+      },
       body: JSON.stringify({ uid: "abc" })
     });
     expect(res.status).toBe(404);

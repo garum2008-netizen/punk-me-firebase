@@ -13,7 +13,8 @@ import {
   waitForMessageText,
   drainErasureCronLoop,
   resetHideCountersDo,
-  resetIntegrationIsolation,
+  reseedAuthUsersInActiveNs,
+  integrationFetchHeaders,
   apiPostReport,
   putChatMessageText,
   apiSend,
@@ -55,10 +56,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   beforeEach(async () => {
     await resetHideCountersDo(env);
+    await reseedAuthUsersInActiveNs([userA, userB, userC, userD]);
   });
 
   it("freeTextEnabled=false rejects free text, allows preset phrase", async () => {
-    const cfg = await (await SELF.fetch("http://localhost/api/chat/config")).json();
+    const cfg = await (
+      await SELF.fetch("http://localhost/api/chat/config", { headers: integrationFetchHeaders() })
+    ).json();
     expect(cfg.freeTextEnabled).toBe(false);
 
     const bad = await apiPost(SELF, "/api/chat/send", userA.idToken, { text: "hello world", name: "A" });
@@ -130,7 +134,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
   it("rejects invalid Bearer token with 401", async () => {
     const res = await SELF.fetch("http://localhost/api/chat/send", {
       method: "POST",
-      headers: { Authorization: "Bearer not-a-real-token", "Content-Type": "application/json" },
+      headers: {
+        Authorization: "Bearer not-a-real-token",
+        "Content-Type": "application/json",
+        ...integrationFetchHeaders()
+      },
       body: JSON.stringify({ phraseId: "hi", name: "X" })
     });
     expect(res.status).toBe(401);

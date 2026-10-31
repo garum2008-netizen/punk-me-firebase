@@ -15,6 +15,7 @@ export default defineWorkersConfig({
   },
   test: {
     fileParallelism: false,
+    sequence: { concurrent: false },
     setupFiles: integration ? ["src/integration.setup.js"] : [],
     testTimeout: integration ? 180000 : 10000,
     include: integration
@@ -29,7 +30,8 @@ export default defineWorkersConfig({
       : ["src/prod-config.test.js", "src/worker.smoke.test.js", "src/erasure-honesty.test.js"],
     poolOptions: {
       workers: {
-        isolatedStorage: !integration,
+        isolatedStorage: false,
+        singleWorker: integration,
         wrangler: { configPath: "./wrangler.toml" },
         miniflare: {
           bindings: {

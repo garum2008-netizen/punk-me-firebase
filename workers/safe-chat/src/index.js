@@ -40,6 +40,9 @@ import {
   messagePassesFilter
 } from "./child-safety-risk.js";
 import { reporterTrustForChildSafety } from "./player-profile.js";
+import { bindIntegrationIsolationFromRequest } from "./integration-env-sync.js";
+import { syncIntegrationEnvBindings } from "./integration-isolation.js";
+import { chatLimitsDoName } from "./limits-do-env.js";
 
 function secretsEqual(a, b) {
   if (typeof a !== "string" || typeof b !== "string") return false;
@@ -90,7 +93,7 @@ function pathModState(uid, ...rest) {
 }
 
 async function limitsStub(env, pathname, body) {
-  const id = env.CHAT_LIMITS.idFromName("global");
+  const id = env.CHAT_LIMITS.idFromName(chatLimitsDoName(env));
   const stub = env.CHAT_LIMITS.get(id);
   const res = await stub.fetch(
     new Request(`http://do${pathname}`, {
@@ -1263,6 +1266,7 @@ async function handleModResolveSafety(request, env) {
 }
 
 export async function runSlaOverdueJob(env, nowOverride) {
+  syncIntegrationEnvBindings(env);
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
@@ -1295,6 +1299,7 @@ export async function runSlaOverdueJob(env, nowOverride) {
 }
 
 export async function runRetentionJob(env, nowOverride) {
+  syncIntegrationEnvBindings(env);
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
@@ -1593,6 +1598,7 @@ export async function runRetentionJob(env, nowOverride) {
 
 export default {
   async fetch(request, env, ctx) {
+    bindIntegrationIsolationFromRequest(request, env);
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }
