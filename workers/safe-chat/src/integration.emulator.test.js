@@ -267,14 +267,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     await waitForMessageText(msgId, "how old are you");
     const rep = await authSignUp();
     await rtdbOwner(`chatMeta/${rep.localId}/chatAge13DeclaredAt`, "DELETE");
-    let r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" }, {
-      "CF-Connecting-IP": "203.0.113.51"
-    });
+    let r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
     if (r.status !== 200) {
       await new Promise(res => setTimeout(res, 100));
-      r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" }, {
-        "CF-Connecting-IP": "203.0.113.51"
-      });
+      r = await apiPost(SELF, "/api/chat/report", rep.idToken, { msgId, category: "grooming" });
     }
     expect(r.status).toBe(200);
     expect((await r.json()).received).toBe(true);
@@ -297,7 +293,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       "/api/chat/report",
       rep2.idToken,
       { msgId, category: "grooming" },
-      { "CF-Connecting-IP": "203.0.113.50" }
+      { "CF-Connecting-IP": "198.51.100.50" }
     );
     if (r2.status === 404) {
       await waitForChatMessage(msgId);
@@ -306,7 +302,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
         "/api/chat/report",
         rep2.idToken,
         { msgId, category: "grooming" },
-        { "CF-Connecting-IP": "203.0.113.50" }
+        { "CF-Connecting-IP": "198.51.100.50" }
       );
     }
     expect(r2.status).toBe(200);
