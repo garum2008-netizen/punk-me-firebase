@@ -26,7 +26,7 @@ export default defineWorkersConfig({
             "src/integration.emulator.test.js",
             "src/integration.t139u.test.js"
           ]
-      : ["src/prod-config.test.js", "src/worker.smoke.test.js"],
+      : ["src/prod-config.test.js", "src/worker.smoke.test.js", "src/erasure-honesty.test.js"],
     poolOptions: {
       workers: {
         isolatedStorage: !integration,

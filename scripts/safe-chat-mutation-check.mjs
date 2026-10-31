@@ -304,8 +304,76 @@ const mutations = [
         ]
       }
     ]
+  },
+  {
+    id: "MUT-ER1",
+    erasureUnit: true,
+    expectFailTest: "erasure honesty: mapBatchToJobStatus stays queued when allOwnRemaining is unknown",
+    patches: [
+      {
+        file: "src/erasure-jobs.js",
+        replacements: [
+          {
+            from: `    if (result.allOwnRemaining == null) return "queued";`,
+            to: `    /* MUT-ER1 */`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-ER2",
+    erasureUnit: true,
+    expectFailTest: "erasure honesty: erasureJobMayDeleteFromBatch requires batch.complete true",
+    patches: [
+      {
+        file: "src/erasure-jobs.js",
+        replacements: [
+          {
+            from: `export function erasureJobMayDeleteFromBatch(batch) {
+  return mapBatchToJobStatus(batch) === "complete" && batch.complete === true;
+}`,
+            to: `export function erasureJobMayDeleteFromBatch(batch) {
+  return mapBatchToJobStatus(batch) === "complete"; /* MUT-ER2 */
+}`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-ER3",
+    erasureUnit: true,
+    expectFailTest: "erasure honesty: erasureBatchStartIndex resumes at cursor without skipping earlier ids incorrectly",
+    patches: [
+      {
+        file: "src/erasure.js",
+        replacements: [
+          {
+            from: `export function erasureBatchStartIndex(entries, cursorMsgId) {
+  if (!cursorMsgId) return 0;
+  const idx = entries.findIndex(([id]) => id === cursorMsgId);
+  return idx >= 0 ? idx : 0;
+}`,
+            to: `export function erasureBatchStartIndex(entries, cursorMsgId) {
+  return 0; /* MUT-ER3 always restart from top */
+}`
+          }
+        ]
+      }
+    ]
   }
 ];
+
+function runErasureHonestyInCopy(mut, dest) {
+  copyWorker(dest);
+  applyPatches(mut, dest);
+  return spawnSync("npx", ["vitest", "run", "src/erasure-honesty.test.js"], {
+    cwd: dest,
+    env: { ...process.env, SAFE_CHAT_INTEGRATION: "0" },
+    encoding: "utf8"
+  });
+}
 
 function applyPatches(mut, destRoot) {
   for (const p of mut.patches) {
@@ -370,7 +438,11 @@ async function main() {
     try {
       for (const m of mutations) {
         const dest = path.join(tmpDir, m.id);
-        const r = m.unitOnly ? runUnitInCopy(m, dest) : runIntegrationInCopy(m, mod, dest);
+        const r = m.erasureUnit
+          ? runErasureHonestyInCopy(m, dest)
+          : m.unitOnly
+            ? runUnitInCopy(m, dest)
+            : runIntegrationInCopy(m, mod, dest);
         const ok = mutationCaught(m, r);
         console.log(`${m.id}: expected failure => ${ok ? "CAUGHT" : "NOT CAUGHT"}`);
         if (!ok) failed += 1;

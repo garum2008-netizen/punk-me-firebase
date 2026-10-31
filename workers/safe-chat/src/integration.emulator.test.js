@@ -451,7 +451,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const msgId1 = s1.id;
     const msgId2 = s2.id;
     const rep = await authSignUp();
-    await putChatMessageText(`${msgId1}`, "how old are you secret", { skipWait: true });
+    await putChatMessageText(`${msgId1}`, "how old are you secret");
     await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "grooming" });
     const reports = await rtdbOwner("chat/reports", "GET");
     const reportId = Object.entries(reports.json || {}).find(([, v]) => v?.msgId === msgId1)?.[0];
@@ -499,10 +499,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const msgId1 = s1.id;
     const msgId2 = s2.id;
     const rep = await authSignUp();
-    await putChatMessageText(`${msgId1}`, "kill the kid", { skipWait: true });
-    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" }, {}, { skipWait: true });
-    await putChatMessageText(`${msgId2}`, "kill the kid", { skipWait: true });
-    await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" }, {}, { skipWait: true });
+    await putChatMessageText(`${msgId1}`, "kill the kid");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "other_child_safety" });
+    await putChatMessageText(`${msgId2}`, "kill the kid");
+    await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/messages/${msgId1}`, "GET")).json?.hidden).toBe(true);
     expect((await rtdbOwner(`chat/messages/${msgId2}`, "GET")).json?.hidden).toBe(true);
   });

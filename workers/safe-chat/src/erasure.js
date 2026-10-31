@@ -176,6 +176,13 @@ async function deleteErasureMeta(config, token, emu, ns, authUid, spend) {
   return true;
 }
 
+/** Resume index for batched erasure (exported for unit tests). */
+export function erasureBatchStartIndex(entries, cursorMsgId) {
+  if (!cursorMsgId) return 0;
+  const idx = entries.findIndex(([id]) => id === cursorMsgId);
+  return idx >= 0 ? idx : 0;
+}
+
 export async function runUserErasureBatch({
   config,
   env,
@@ -296,11 +303,7 @@ export async function runUserErasureBatch({
   const deferred = [];
   let nextCursor = null;
   let processedAll = true;
-  let startIdx = 0;
-  if (cursorMsgId) {
-    const idx = entries.findIndex(([id]) => id === cursorMsgId);
-    if (idx >= 0) startIdx = idx;
-  }
+  const startIdx = erasureBatchStartIndex(entries, cursorMsgId);
   let maxDeletes = config.erasureBatchSize;
 
   for (let ei = startIdx; ei < entries.length; ei += 1) {

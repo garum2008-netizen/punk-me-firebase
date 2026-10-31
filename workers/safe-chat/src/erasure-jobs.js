@@ -37,6 +37,11 @@ export function mapBatchToJobStatus(result) {
   return "queued";
 }
 
+/** True only when batch honestly reports zero own messages left (unit-tested guard). */
+export function erasureJobMayDeleteFromBatch(batch) {
+  return mapBatchToJobStatus(batch) === "complete" && batch.complete === true;
+}
+
 export function userFacingErasurePayload(job, batch) {
   let status = job?.status || mapBatchToJobStatus(batch);
   if (
@@ -178,7 +183,7 @@ export async function persistJobAfterBatch(env, uid, batch, existingJob, now) {
       await eraseUserLimits(env, uid);
     }
     if (status === "complete") {
-      if (batch.complete !== true) {
+      if (!erasureJobMayDeleteFromBatch(batch)) {
         await writeJob(config, token, emu, ns, uid, {
           status: "queued",
           cursor: batch.cursor || existingJob?.cursor || null,

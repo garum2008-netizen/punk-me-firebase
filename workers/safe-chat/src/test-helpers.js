@@ -1,3 +1,5 @@
+import { chatPublicSid } from "./rtdb.js";
+
 const AUTH_HOST = "127.0.0.1";
 const AUTH_PORT = 9099;
 const DB_HOST = "127.0.0.1";
@@ -118,6 +120,31 @@ export async function waitForMessageText(msgId, textNeedle, { attempts, delayMs 
 /** Worker send cooldown is 3s; wait between sends from the same uid in integration tests. */
 export function waitSendCooldown() {
   return new Promise(r => setTimeout(r, 3100));
+}
+
+export function expectedChatSid(localId) {
+  return chatPublicSid(localId, process.env.SAFE_CHAT_HASH_SALT || "vitest-local-salt-do-not-use-in-prod");
+}
+
+/** Owner-POST N messages for erasure integration tests (deterministic sid, visibility barrier). */
+export async function seedOwnMessagesForErasure(u, n) {
+  const sid = expectedChatSid(u.localId);
+  expect(sid).toMatch(/^[a-f0-9]{32}$/);
+  const ids = [];
+  for (let i = 0; i < n; i += 1) {
+    const ref = await rtdbOwner("chat/messages", "POST", {
+      sid,
+      name: "Erasure",
+      text: `msg-${i}`,
+      time: Date.now() + i
+    });
+    const id = ref.json?.name;
+    expect(id).toBeTruthy();
+    ids.push(id);
+    await waitForChatMessage(id);
+  }
+  expect(ids.length).toBe(n);
+  return { sid, ids };
 }
 
 /** Integration-only: reset discretionary hide + cluster counters on the global limits DO. */

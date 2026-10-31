@@ -43,13 +43,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const author = await authSignUp();
     const { j: sent } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
     const msgId = sent.id;
-    await putChatMessageText(`${msgId}`, "how old are you don't tell mom", { skipWait: true });
+    await putChatMessageText(`${msgId}`, "how old are you don't tell mom");
     const new13 = await authSignUp();
     await apiPost(SELF, "/api/chat/declare-age13", new13.idToken, { confirmed: true });
-    await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" }, {}, { skipWait: true });
+    await apiPostReport(SELF, new13.idToken, { msgId, category: "grooming" });
     const aged = await authSignUp();
     await rtdbOwner(`chatMeta/${aged.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 86400000);
-    await apiPostReport(SELF, aged.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.2" }, { skipWait: true });
+    await apiPostReport(SELF, aged.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.2" });
     const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     expect(q.json?.childHarm).toBe(true);
     expect(q.json?.subcategory).toBe("grooming");
@@ -69,18 +69,17 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const m1 = j1.id;
     const m2 = j2.id;
     const rep = await authSignUp();
-    await putChatMessageText(`${m1}`, "kill the kid", { skipWait: true });
-    await apiPostReport(SELF, rep.idToken, { msgId: m1, category: "other_child_safety" }, {}, { skipWait: true });
+    await putChatMessageText(`${m1}`, "kill the kid");
+    await apiPostReport(SELF, rep.idToken, { msgId: m1, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/messages/${m1}`, "GET")).json?.hidden).toBe(true);
-    await putChatMessageText(`${m2}`, "don't tell mom meet me alone", { skipWait: true });
-    await apiPostReport(SELF, rep.idToken, { msgId: m2, category: "grooming" }, {}, { skipWait: true });
+    await putChatMessageText(`${m2}`, "don't tell mom meet me alone");
+    await apiPostReport(SELF, rep.idToken, { msgId: m2, category: "grooming" });
     const rep2 = await authSignUp();
     await apiPostReport(
       SELF,
       rep2.idToken,
       { msgId: m2, category: "grooming" },
-      { "CF-Connecting-IP": "198.51.100.55" },
-      { skipWait: true }
+      { "CF-Connecting-IP": "198.51.100.55" }
     );
     expect((await rtdbOwner(`chat/messages/${m2}`, "GET")).json?.hidden).toBe(true);
   });
