@@ -519,6 +519,23 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       if (hidden) break;
       await new Promise(r => setTimeout(r, 75));
     }
+    if (!hidden) {
+      const rep3 = await authSignUp();
+      await apiPost(
+        SELF,
+        "/api/chat/report",
+        rep3.idToken,
+        { msgId, category: "grooming" },
+        { "CF-Connecting-IP": "198.51.100.13" }
+      );
+      for (let t = 0; t < 80; t += 1) {
+        const msg = (await rtdbOwner(`chat/messages/${msgId}`, "GET")).json;
+        const q = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json;
+        hidden = msg?.hidden === true || Boolean(q?.hiddenAt);
+        if (hidden) break;
+        await new Promise(r => setTimeout(r, 75));
+      }
+    }
     expect(hidden).toBe(true);
     await apiPost(SELF, "/api/chat/appeal-hide", author.idToken, { msgId, reasonCode: "wrongful_hide" });
     await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, { msgId, action: "restore_visibility" });

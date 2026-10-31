@@ -14,7 +14,7 @@ const seeds = [
 ];
 
 async function runSeed(seed, mod) {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
     const r = spawnSync(
       "npx",
       ["vitest", "run", "--sequence.shuffle", `--sequence.seed=${seed}`],

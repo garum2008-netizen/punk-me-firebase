@@ -392,7 +392,7 @@ async function handleReport(request, env, ctx) {
   const ns = env.FIREBASE_EMULATOR_NS;
 
   let msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
-  for (let i = 0; i < 8 && !msgRes.json; i += 1) {
+  for (let i = 0; i < 16 && !msgRes.json; i += 1) {
     await new Promise(r => setTimeout(r, 50));
     msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
   }
