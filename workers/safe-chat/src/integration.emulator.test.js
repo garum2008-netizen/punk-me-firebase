@@ -244,7 +244,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
       await new Promise(res => setTimeout(res, 50));
     }
     expect(localHide).toBe(true);
-    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.subcategory).toBe("grooming");
+    let subcategory = null;
+    for (let t = 0; t < 40; t += 1) {
+      subcategory = (await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.subcategory;
+      if (subcategory === "grooming") break;
+      await new Promise(res => setTimeout(res, 50));
+    }
+    expect(subcategory).toBe("grooming");
   });
 
   it("risk: other_child_safety on benign phrase queues without auto-hide (false positive guard)", async () => {
