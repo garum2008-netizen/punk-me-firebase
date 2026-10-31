@@ -17,6 +17,7 @@ import {
   apiPostReport,
   putChatMessageText,
   apiSend,
+  apiSendJson,
   PROJECT_ID
 } from "./test-helpers.js";
 import { detectChildHarmSignals } from "./child-harm.js";
@@ -115,7 +116,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("deduplicates reports from the same reporter", async () => {
     const author = await authSignUp();
-    const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const sent = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     expect(sent.ok).toBe(true);
     expect(sent.id).toBeTruthy();
     expect((await (await apiPostReport(SELF, userB.idToken, { msgId: sent.id })).json()).ok).toBe(true);
@@ -137,7 +138,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("security: muted reporter child_safety report still accepted", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     const muted = await authSignUp();
     await apiPost(SELF, "/api/mod/mute", mod.idToken, { uid: muted.localId, durationMs: 86400000 });
     const r = await apiPostReport(SELF, muted.idToken, { msgId, category: "other_child_safety" });
@@ -149,7 +150,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const rep = await authSignUp();
     for (let i = 0; i < 12; i++) {
       const a = await authSignUp();
-      const sent = await (await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" })).json();
+      const sent = await apiSendJson(SELF, a.idToken, { phraseId: "hi" });
       expect(sent.ok).toBe(true);
       expect(sent.id).toBeTruthy();
       await waitForChatMessage(sent.id);
@@ -164,7 +165,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("security: reportMeta stores reporterSid not raw uid", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "how old are you secret");
     await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
     const meta = await rtdbOwner("chat/internal/reportMeta", "GET");
@@ -224,7 +225,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("t139u D-07: evasion grooming on worker path yields reporter-local hide without global hide", async () => {
     const author = await authSignUp();
-    const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const sent = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
@@ -253,7 +254,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: other_child_safety on benign phrase queues without auto-hide (false positive guard)", async () => {
     const author = await authSignUp();
-    const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const sent = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
@@ -271,7 +272,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: unaged reporter grooming report with message context queues; global hide needs independent signal", async () => {
     const author = await authSignUp();
-    const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const sent = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
@@ -324,7 +325,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: filter miss caught by player grooming report (explicit)", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
     await waitForChatMessage(msgId);
     await putChatMessageText(`${msgId}`, "send pics on telegram meet me alone");
     await waitForMessageText(msgId, "telegram");
@@ -346,7 +347,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: banned reporter immediate_danger does not global-hide benign preset alone", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     const banned = await authSignUp();
     await apiPost(SELF, "/api/mod/ban", mod.idToken, { uid: banned.localId });
     const r = await apiPostReport(SELF, banned.idToken, { msgId, category: "immediate_danger" });
@@ -361,7 +362,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: child-safety reports never rejected for rate limits or undeclared age", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     const noAge = await authSignUp();
     await rtdbOwner(`chatMeta/${noAge.localId}/chatAge13DeclaredAt`, "DELETE");
     for (let i = 0; i < 5; i++) {
@@ -375,7 +376,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: mass identical coordinated reports do not hide from count alone", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     const ip = "198.51.100.10";
     const hdr = { "CF-Connecting-IP": ip };
     for (let i = 0; i < 6; i++) {
@@ -411,7 +412,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: reporter privacy response has no case or target details", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     const r = await apiPostReport(SELF, userB.idToken, { msgId, category: "violence_threat" });
     const j = await r.json();
     expect(j.messageKey).toBe("thanks_received");
@@ -423,7 +424,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: immediate_danger uses escalation tier and moderator notify", async () => {
     const author = await authSignUp();
-    const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const sent = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
@@ -473,7 +474,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("risk: appeal and moderator restore after wrongful hide", async () => {
     const author = await authSignUp();
-    const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const sent = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     expect(sent.ok).toBe(true);
     const msgId = sent.id;
     await waitForChatMessage(msgId);
@@ -513,7 +514,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("moderator restore_visibility unhides with decision log", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "how old are you secret");
     await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
     await apiPostReport(SELF, userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
@@ -546,7 +547,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("retention enforces legalHoldUntil and maxHoldUntil (R-04)", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await apiPostReport(SELF, userB.idToken, { msgId, category: "other_child_safety" });
     await apiPostReport(SELF, userC.idToken, { msgId, category: "other_child_safety" }, { "CF-Connecting-IP": "203.0.113.22" });
     const cap = 1_000_000;
@@ -577,10 +578,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
 
   it("duplicate reports do not consume global per-message report cap", async () => {
     const author = await authSignUp();
-    const sent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-    expect(sent.ok).toBe(true);
-    const msgId = sent.id;
-    await waitForChatMessage(msgId);
+    const { j: sent } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
+    let msgId = sent.id;
     const spammer = await authSignUp();
     for (let i = 0; i < 105; i++) {
       await apiPostReport(SELF, spammer.idToken, { msgId });
@@ -588,10 +587,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     let msgSnap = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     if (!msgSnap.json?.sid) {
       await waitSendCooldown();
-      const resent = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
-      expect(resent.ok).toBe(true);
+      const { j: resent } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
       msgId = resent.id;
-      await waitForChatMessage(msgId);
     }
     await rtdbOwner(`chatMeta/${userB.localId}/chatRegisteredAt`, "PUT", Date.now() - 3 * 24 * 60 * 60 * 1000);
     await rtdbOwner(`chatMeta/${userB.localId}/chatSendCount`, "PUT", 20);
@@ -834,15 +831,15 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("daily limit (DO)", () => {
       const mature = Date.now() - 10 * 24 * 60 * 60 * 1000;
       await rtdbOwner(`chatMeta/${u.localId}/chatRegisteredAt`, "PUT", mature);
       const wait = () => new Promise(r => setTimeout(r, 3100));
-      expect((await (await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "gg", name: "D" })).json()).ok).toBe(
+      expect(await apiSendJson(SELF, u.idToken, { phraseId: "gg", name: "D" })).ok).toBe(
         true
       );
       await wait();
-      expect((await (await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "gg", name: "D" })).json()).ok).toBe(
+      expect(await apiSendJson(SELF, u.idToken, { phraseId: "gg", name: "D" })).ok).toBe(
         true
       );
       await wait();
-      const third = await (await apiPost(SELF, "/api/chat/send", u.idToken, { phraseId: "gg", name: "D" })).json();
+      const third = await apiSendJson(SELF, u.idToken, { phraseId: "gg", name: "D" });
       expect(third.ok).toBe(false);
       expect(third.error).toBe("daily_limit");
     },

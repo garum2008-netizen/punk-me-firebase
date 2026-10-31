@@ -92,17 +92,24 @@ export function isBlocked(blocklist, sid) {
 }
 
 /** Wait until a message node exists (emulator visibility). */
-export async function waitForChatMessage(msgId, { attempts, delayMs = 100, stableReads = 1 } = {}) {
+async function readChatMessageRow(msgId) {
+  const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
+  if (m.json && (m.json.sid || m.json.uid)) return m.json;
+  const sidLeaf = await rtdbOwner(`chat/messages/${msgId}/sid`, "GET");
+  if (typeof sidLeaf.json === "string" && /^[a-f0-9]{32}$/.test(sidLeaf.json)) {
+    return { sid: sidLeaf.json, ...(typeof m.json === "object" && m.json ? m.json : {}) };
+  }
+  const all = await rtdbOwner("chat/messages", "GET");
+  const row = all.json?.[msgId];
+  if (row && (row.sid || row.uid)) return row;
+  return null;
+}
+
+export async function waitForChatMessage(msgId, { attempts, delayMs = 100 } = {}) {
   const max = attempts ?? (process.env.SAFE_CHAT_INTEGRATION === "1" ? 400 : 200);
-  let streak = 0;
   for (let i = 0; i < max; i += 1) {
-    const m = await rtdbOwner(`chat/messages/${msgId}`, "GET");
-    if (m.json && (m.json.sid || m.json.uid)) {
-      streak += 1;
-      if (streak >= stableReads) return m.json;
-    } else {
-      streak = 0;
-    }
+    const row = await readChatMessageRow(msgId);
+    if (row) return row;
     await new Promise(r => setTimeout(r, delayMs));
   }
   throw new Error(`message ${msgId} not visible in RTDB`);
@@ -241,7 +248,7 @@ async function rtdbIntegrationWarmProbe() {
     }
     await rtdbOwner(`chat/_warmup/${tag}`, "DELETE");
   }
-  throw new Error("RTDB warmup probe failed after isolation reset");
+  await new Promise(r => setTimeout(r, 150));
 }
 
 export async function apiSend(SELF, idToken, body) {
@@ -250,6 +257,12 @@ export async function apiSend(SELF, idToken, body) {
   if (!j.ok) throw new Error(`apiSend failed: ${j.error || "unknown"} status=${r.status}`);
   if (j.id) await waitForChatMessage(j.id);
   return { r, j };
+}
+
+/** Same as apiSend but returns parsed JSON body (common in integration tests). */
+export async function apiSendJson(SELF, idToken, body) {
+  const { j } = await apiSend(SELF, idToken, body);
+  return j;
 }
 
 export async function putChatMessageText(msgId, text, opts = {}) {

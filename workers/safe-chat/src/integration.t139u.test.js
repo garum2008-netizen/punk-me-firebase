@@ -13,6 +13,7 @@ import {
   putChatMessageText,
   apiPostReport,
   apiSend,
+  apiSendJson,
   waitForSafetyQueue
 } from "./test-helpers.js";
 
@@ -94,7 +95,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u O-05 / E-01: retention marks safety queue overdue after SLA", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     await apiPostReport(SELF, userB.idToken, { msgId, category: "immediate_danger" });
     const q0 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     const sla = q0.json?.slaReviewBy;
@@ -106,7 +107,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u FM-04: report on deleted message returns message_not_found", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     await rtdbOwner(`chat/messages/${msgId}`, "DELETE");
     const r = await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" }, {}, { skipWait: true });
     expect((await r.json()).error).toBe("message_not_found");
@@ -129,7 +130,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u U-06: child_safety report handler stays under 50 fetches", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     let n = 0;
     const orig = globalThis.fetch;
     globalThis.fetch = (...args) => {
@@ -147,7 +148,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u B-02: coordinated mass reports set possibleCoordination on queue", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await waitForChatMessage(msgId);
     const hdr = { "CF-Connecting-IP": "198.51.100.20" };
     for (let i = 0; i < 4; i++) {
@@ -169,7 +170,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u B-03: distinct cluster reporters still no count-only global hide", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     for (let i = 0; i < 8; i++) {
       const r = await authSignUp();
       await apiPostReport(SELF, r.idToken,
@@ -185,7 +186,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const hidden = [];
     for (let i = 0; i < 5; i++) {
       const author = await authSignUp();
-      const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+      const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
       expect(msgId).toBeTruthy();
       await putChatMessageText(`${msgId}`, "how old are you don't tell mom");
       await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" }, hdr);
@@ -196,7 +197,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u B-07: false-report penalty does not block later child_safety submission", async () => {
     const author = await authSignUp();
-    const { id: msgId1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId1 } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     const rep = await authSignUp();
     await putChatMessageText(`${msgId1}`, "how old are you");
     await apiPostReport(SELF, rep.idToken, { msgId: msgId1, category: "grooming" });
@@ -213,7 +214,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     });
     expect((await dismiss.json()).ok).toBe(true);
     await waitSendCooldown();
-    const { id: msgId2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId2 } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     const r2 = await apiPostReport(SELF, rep.idToken, { msgId: msgId2, category: "other_child_safety" });
     const j2 = await r2.json();
     expect(j2.ok).toBe(true);
@@ -242,7 +243,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   it("t139u P-04: hidden messages retain text in evidence not in client-visible message", async () => {
     const author = await authSignUp();
     const viewer = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "kill the kid");
     await apiPostReport(SELF, userB.idToken, { msgId, category: "other_child_safety" });
     const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
@@ -256,7 +257,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   it("t139u P-06: delete-my-data response lists only reporter own message ids", async () => {
     const victim = await authSignUp();
     const victimSid = (await (await apiGet(SELF, "/api/chat/config", victim.idToken)).json()).mySid;
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", victim.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, victim.idToken, { phraseId: "hi" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).toBe(victimSid);
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
@@ -264,18 +265,20 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const ownRef = await rtdbOwner("chat/messages", "POST", { sid: repSid, name: "R", text: "mine", time: Date.now() });
     const ownMsgId = ownRef.json?.name;
     expect(ownMsgId).toBeTruthy();
+    await waitForChatMessage(ownMsgId);
     const del = await apiPost(SELF, "/api/chat/delete-my-data", rep.idToken, {});
     const j = await del.json();
     expect(j.ok).toBe(true);
     expect(j.cursor).not.toBe(msgId);
     expect(j.erasureDeferred ?? []).not.toContain(msgId);
+    await waitForChatMessage(msgId);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).toBe(victimSid);
     expect((await rtdbOwner(`chat/messages/${ownMsgId}`, "GET")).json).toBeNull();
   });
 
   it("t139u M-05: mod resolve-safety rejects invalid_action", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     const bad = await apiPost(SELF, "/api/mod/resolve-safety", mod.idToken, { msgId, action: "dismis_typo" });
     expect((await bad.json()).error).toBe("invalid_action");
     expect(bad.status).toBe(400);
@@ -283,7 +286,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u M-01: restore_visibility writes safetyDecisions entry", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "how old are you secret");
     await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
     await apiPostReport(SELF, userC.idToken, { msgId, category: "grooming" });
@@ -295,7 +298,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u R-04: retention enforces legalHoldUntil cap on open case", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await apiPostReport(SELF, userB.idToken, { msgId, category: "other_child_safety" });
     const cap = Date.now() + 1000;
     await rtdbOwner(`chat/internal/safetyQueue/${msgId}/legalHoldUntil`, "PUT", cap);
@@ -307,7 +310,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u R-06: reporter delete-my-data removes own generic report rows", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId });
     let j = await (await apiPost(SELF, "/api/chat/delete-my-data", rep.idToken, {})).json();
@@ -324,8 +327,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   it("t139u E-02: mod safety-queue lists immediate_danger before ordinary priority", async () => {
     const a1 = await authSignUp();
     const a2 = await authSignUp();
-    const { id: ordinary } = await (await apiPost(SELF, "/api/chat/send", a1.idToken, { phraseId: "thanks" })).json();
-    const { id: danger } = await (await apiPost(SELF, "/api/chat/send", a2.idToken, { phraseId: "gg" })).json();
+    const { id: ordinary } = await apiSendJson(SELF, a1.idToken, { phraseId: "thanks" });
+    const { id: danger } = await apiSendJson(SELF, a2.idToken, { phraseId: "gg" });
     await apiPostReport(SELF, userB.idToken, { msgId: ordinary, category: "other_child_safety" });
     await apiPostReport(SELF, userB.idToken, { msgId: danger, category: "immediate_danger" });
     const q = await apiGet(SELF, "/api/mod/safety-queue", mod.idToken);
@@ -340,7 +343,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u O-04: safetyEvidence snapshot has minimal fields only", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await apiPostReport(SELF, userB.idToken, { msgId, category: "other_child_safety" });
     const ev = await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET");
     expect(ev.json?.access).toBe("moderator_only");
@@ -350,7 +353,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u B-01: fifty identical reports without extra signal do not global-hide", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     for (let i = 0; i < 20; i++) {
       const r = await authSignUp();
       await apiPostReport(SELF, r.idToken,
@@ -364,7 +367,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u B-08: one safety queue row per message with merged reports", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     for (let i = 0; i < 5; i++) {
       const r = await authSignUp();
       await apiPostReport(SELF, r.idToken, { msgId, category: "other_child_safety" });
@@ -379,14 +382,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const author = await authSignUp();
     const rep = await authSignUp();
     await waitSendCooldown();
-    const { id: m1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: m1 } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${m1}`, "how old are you don't tell mom");
     await apiPostReport(SELF, rep.idToken, { msgId: m1, category: "grooming" });
     const rep2 = await authSignUp();
     await apiPostReport(SELF, rep2.idToken, { msgId: m1, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.5" });
     expect((await rtdbOwner(`chat/messages/${m1}`, "GET")).json?.hidden).toBe(true);
     await waitSendCooldown();
-    const { id: m2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { id: m2 } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
     await putChatMessageText(`${m2}`, "how old are you don't tell mom");
     await apiPostReport(SELF, rep.idToken, { msgId: m2, category: "grooming" });
     expect((await rtdbOwner(`chat/messages/${m2}`, "GET")).json?.hidden).not.toBe(true);
@@ -396,14 +399,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const author = await authSignUp();
     const rep = await authSignUp();
     await waitSendCooldown();
-    const { id: m1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: m1 } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${m1}`, "how old are you don't tell mom");
     await apiPostReport(SELF, rep.idToken, { msgId: m1, category: "grooming" }, { "CF-Connecting-IP": "198.51.100.1" });
     const rep2 = await authSignUp();
     await apiPostReport(SELF, rep2.idToken, { msgId: m1, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.9" });
     expect((await rtdbOwner(`chat/messages/${m1}`, "GET")).json?.hidden).toBe(true);
     await waitSendCooldown();
-    const { id: m2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { id: m2 } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
     await putChatMessageText(`${m2}`, "how old are you don't tell mom");
     await apiPostReport(SELF, rep.idToken, { msgId: m2, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.44" });
     expect((await rtdbOwner(`chat/messages/${m2}`, "GET")).json?.hidden).not.toBe(true);
@@ -411,7 +414,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u BY-06: many reporters behind one IP still queue danger reports", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "how old are you don't tell mom");
     const hdr = { "CF-Connecting-IP": "198.51.100.88" };
     for (let i = 0; i < 4; i++) {
@@ -426,7 +429,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const msgs = [];
     for (let i = 0; i < 3; i++) {
       const author = await authSignUp();
-      const { id } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+      const { id } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
       expect(id).toBeTruthy();
       msgs.push(id);
       await putChatMessageText(`${id}`, "how old are you don't tell mom");
@@ -472,18 +475,18 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const author = await authSignUp();
     const rep = await authSignUp();
     await waitSendCooldown();
-    const { id: m1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: m1 } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${m1}`, "kill the kid");
     await apiPostReport(SELF, rep.idToken, { msgId: m1, category: "other_child_safety" });
     await waitSendCooldown();
-    const { id: m2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { id: m2 } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
     await apiPostReport(SELF, rep.idToken, { msgId: m2, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/internal/safetyQueue/${m2}`, "GET")).json?.childHarm).toBe(true);
   });
 
   it("t139u FM-02: fresh unaged reporter filter-miss grooming path queues report", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
     await putChatMessageText(`${msgId}`, "send pics on telegram meet me alone");
     const fresh = await authSignUp();
     await rtdbOwner(`chatMeta/${fresh.localId}/chatAge13DeclaredAt`, "DELETE");
@@ -527,7 +530,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u M-03: mod uphold_delete removes message after safety review", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "how old are you secret");
     await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
     await apiPostReport(SELF, userC.idToken, { msgId, category: "grooming" });
@@ -537,7 +540,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u M-04: mod ban prevents send but not child_safety report acceptance", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     const banned = await authSignUp();
     await apiPost(SELF, "/api/mod/ban", mod.idToken, { uid: banned.localId });
     const sendBlocked = await apiPost(SELF, "/api/chat/send", banned.idToken, { phraseId: "hi" });
@@ -555,7 +558,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u M-08: mod can list reports and delete message", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     await apiPostReport(SELF, userB.idToken, { msgId });
     const list = await apiGet(SELF, "/api/mod/reports", mod.idToken);
     expect(list.status).toBe(200);
@@ -566,7 +569,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u R-05: erasureDeferred snapshot carries expiresAt", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "how old are you secret");
     await apiPostReport(SELF, userB.idToken, { msgId, category: "grooming" });
     await apiPostReport(SELF, userC.idToken, { msgId, category: "grooming" });
@@ -578,7 +581,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
 
   it("t139u R-09: safetyEvidence maxHoldUntil matches config retention cap", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await apiPostReport(SELF, userB.idToken, { msgId, category: "other_child_safety" });
     const ev = await rtdbOwner(`chat/internal/safetyEvidence/${msgId}`, "GET");
     const maxHold = ev.json?.maxHoldUntil;

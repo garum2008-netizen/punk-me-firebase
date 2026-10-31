@@ -16,7 +16,9 @@ import {
   putChatMessageText,
   apiPostReport,
   waitForChatMessage,
-  apiSend
+  apiSend,
+  apiSendJson,
+  waitForSafetyQueue
 } from "./test-helpers.js";
 
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms (must fail if disabled)", () => {
@@ -28,7 +30,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const repA = await authSignUp();
     const repB = await authSignUp();
     await waitSendCooldown();
-    const { id: m1 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: m1 } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${m1}`, "how old are you don't tell mom");
     await apiPostReport(SELF, repA.idToken, { msgId: m1, category: "grooming" });
     await apiPostReport(SELF, repB.idToken,
@@ -37,7 +39,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     expect((await rtdbOwner(`chat/messages/${m1}`, "GET")).json?.hidden).toBe(true);
 
     await waitSendCooldown();
-    const { id: m2 } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { id: m2 } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
     await putChatMessageText(`${m2}`, "how old are you don't tell mom");
     await apiPostReport(SELF, repA.idToken, { msgId: m2, category: "grooming" });
     await apiPostReport(SELF, repB.idToken,
@@ -93,7 +95,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
 
   it("PROTECT global hide gate: single reporter cannot globally hide grooming preset alone", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "how old are you");
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "grooming" });
@@ -118,7 +120,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
 
   it("PROTECT brigading: coordinated mass reports set possibleCoordination", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     const hdr = { "CF-Connecting-IP": "198.51.100.42" };
     for (let i = 0; i < 4; i++) {
       const r = await authSignUp();
@@ -131,7 +133,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const modUid = (env.MODERATOR_UIDS || "").split(",")[0];
     const modToken = env.SAFE_CHAT_TEST_MOD_TOKEN;
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "how old are you");
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "grooming" });
@@ -153,7 +155,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
 
   it("PROTECT reporter privacy: child_safety report JSON exposes no case or target fields", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     const rep = await authSignUp();
     const r = await apiPostReport(SELF, rep.idToken, { msgId, category: "violence_threat" });
     const j = await r.json();
@@ -166,7 +168,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
 
   it("PROTECT maxHold: retention escalates when maxHoldUntil is in the past", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     const rep2 = await authSignUp();
@@ -226,12 +228,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
   it("PROTECT erasure with safety hold: parks complete_with_holds and clears non-hold meta", async () => {
     const author = await authSignUp();
     await waitSendCooldown();
-    const { id: msgId } = await (
-      await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })
-    ).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     await putChatMessageText(`${msgId}`, "kill the kid");
     await apiPostReport(SELF, author.idToken, { msgId, category: "immediate_danger" });
-    expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.childHarm).toBe(true);
+    await waitForSafetyQueue(msgId, q => q?.childHarm === true);
     const token = await getCachedAdminToken(env);
     const config = loadConfig(env);
     const sid = (await (await apiGet(SELF, "/api/chat/config", author.idToken)).json()).mySid;
@@ -255,7 +255,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
   it("PROTECT GEN-SNAP: generic auto-hide snapshot allows restore_visibility text", async () => {
     const modToken = env.SAFE_CHAT_TEST_MOD_TOKEN;
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
     await putChatMessageText(`${msgId}`, "restore me please");
     for (let i = 0; i < 3; i++) {
       const r = await authSignUp();
@@ -291,7 +291,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
   it("PROTECT P-04g: generic auto-hide redacts message text for other clients", async () => {
     const author = await authSignUp();
     const viewer = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "gg" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
     for (let i = 0; i < 3; i++) {
       const r = await authSignUp();
       await apiPostReport(SELF, r.idToken, { msgId, category: "generic" });
@@ -304,7 +304,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
 
   it("PROTECT O-03: benign preset other_child_safety does not global-hide without corroboration", async () => {
     const author = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "thanks" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
@@ -314,7 +314,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
   it("PROTECT E-05: runSlaOverdueJob marks overdue at configured SLA boundary", async () => {
     const author = await authSignUp();
     const rep = await authSignUp();
-    const { id: msgId } = await (await apiPost(SELF, "/api/chat/send", author.idToken, { phraseId: "hi" })).json();
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "hi" });
     await apiPostReport(SELF, rep.idToken, { msgId, category: "immediate_danger" });
     const q0 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     const sla = q0.json?.slaReviewBy;
