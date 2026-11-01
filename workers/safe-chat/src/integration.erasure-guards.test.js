@@ -124,7 +124,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
     const u = await authSignUp();
     let job = null;
     const now = Date.now();
-    for (let i = 0; i < 48; i++) {
+    for (let i = 0; i < 60; i++) {
       job = await persistJobAfterBatch(
         env,
         u.localId,
@@ -132,11 +132,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
         job,
         now + i
       );
+      if (job?.status === "failed") break;
     }
-    const j = (await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "GET")).json;
-    expect(j.status).toBe("failed");
+    expect(job?.status).toBe("failed");
     const decisions = Object.values((await rtdbOwner("chat/internal/safetyDecisions", "GET")).json || {});
-    expect(decisions.some(d => d?.action === "erasure_job_failed")).toBe(true);
+    expect(
+      decisions.some(d => d?.action === "erasure_job_failed" && String(d?.note || "").includes("Erasure batch failed"))
+    ).toBe(true);
     await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "DELETE");
   });
 

@@ -14,7 +14,10 @@ export function publicFieldsFromCanonical(canonical) {
     phraseId: canonical.phraseId ?? null
   };
   if (canonical.loc) out.loc = canonical.loc;
-  if (canonical.hidden === true) out.hidden = true;
+  if (canonical.hidden === true) {
+    out.hidden = true;
+    delete out.text;
+  }
   if (canonical.textRedacted === true) {
     out.textRedacted = true;
     delete out.text;

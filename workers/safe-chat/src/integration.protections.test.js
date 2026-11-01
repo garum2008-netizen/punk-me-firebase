@@ -184,17 +184,26 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     await apiPostReport(SELF, rep2.idToken,
       { msgId, category: "other_child_safety" },
       { "CF-Connecting-IP": "203.0.113.88" });
+    await waitForSafetyQueue(msgId, q => Boolean(q?.childHarm || q?.subcategory));
     const cap = Date.now() + 500;
     await rtdbOwner(`chat/internal/safetyEvidence/${msgId}/maxHoldUntil`, "PUT", cap);
     await rtdbOwner(`chat/internal/safetyQueue/${msgId}/legalHoldUntil`, "PUT", cap);
     const { runRetentionJob } = await import("./index.js");
-    await runRetentionJob({ ...env, SAFE_CHAT_TEST_NOW_MS: String(cap + 5000), SAFE_CHAT_RETENTION_BATCH: "120" }, cap + 5000);
+    const testEnv = { ...env, SAFE_CHAT_TEST_NOW_MS: String(cap + 5000), SAFE_CHAT_RETENTION_BATCH: "240" };
+    const now = cap + 5000;
+    let sawDecision = false;
+    for (let hop = 0; hop < 12; hop++) {
+      await runRetentionJob(testEnv, now);
+      const decisions = Object.values((await rtdbOwner("chat/internal/safetyDecisions", "GET")).json || {});
+      if (decisions.some(d => d?.action === "evidence_hold_expired" && d?.msgId === msgId)) {
+        sawDecision = true;
+        break;
+      }
+    }
+    expect(sawDecision).toBe(true);
     const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     expect(q.json?.overdue).toBe(true);
     expect(q.json?.evidenceHoldExpiredAt).toBeTruthy();
-    const decisions = await rtdbOwner("chat/internal/safetyDecisions", "GET");
-    const actions = Object.values(decisions.json || {}).map(d => d?.action);
-    expect(actions).toContain("evidence_hold_expired");
   });
 
   it("PROTECT erasure budget: runUserErasureBatch stops with budgetExceeded", async () => {

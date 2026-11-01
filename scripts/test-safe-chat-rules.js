@@ -72,6 +72,28 @@ async function run() {
     pass: readClient.status === 200
   });
 
+  const writeClientMirror = await fetchJson(dbUrl("chat/clientMessages/fake-msg-id", idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sid: "deadbeefdeadbeefdeadbeefdeadbeef",
+      name: "X",
+      text: "injected",
+      time: Date.now()
+    })
+  });
+  cases.push({
+    name: "client PUT chat/clientMessages denied",
+    pass: writeClientMirror.status === 403 || writeClientMirror.status === 401
+  });
+
+  const otherUser = await signUp();
+  const readOtherChatMeta = await fetchJson(dbUrl(`chatMeta/${otherUser.localId}/chatSendCount`, idToken));
+  cases.push({
+    name: "client read other uid chatMeta denied",
+    pass: readOtherChatMeta.status === 403 || readOtherChatMeta.status === 401
+  });
+
   const clientQuery = await fetchJson(
     dbUrl("chat/clientMessages", idToken) + "&orderBy=%22$key%22&limitToLast=5"
   );

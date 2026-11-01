@@ -48,7 +48,8 @@ export default defineWorkersConfig({
             "src/integration.erasure-guards.test.js",
             "src/integration.protections.test.js",
             "src/integration.emulator.test.js",
-            "src/integration.t139u.test.js"
+            "src/integration.t139u.test.js",
+            "src/integration.client-mirror.test.js"
           ]
       : ["src/prod-config.test.js", "src/worker.smoke.test.js", "src/erasure-honesty.test.js"],
     poolOptions: {

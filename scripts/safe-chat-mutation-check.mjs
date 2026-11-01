@@ -221,7 +221,6 @@ const mutations = [
   {
     id: "MUT-G",
     expectFailTest: "PROTECT maxHold:",
-    expectFailAlt: "evidence_hold_expired",
     patches: [
       {
         file: "src/index.js",
@@ -372,6 +371,24 @@ const mutations = [
     ]
   },
   {
+    id: "MUT-MIRROR-HIDDEN",
+    expectFailTest: "PROTECT MIRROR: hidden message mirror omits body text",
+    patches: [
+      {
+        file: "src/client-message-mirror.js",
+        replacements: [
+          {
+            from: `  if (canonical.hidden === true) {
+    out.hidden = true;
+    delete out.text;
+  }`,
+            to: `  if (canonical.hidden === true) out.hidden = true; /* MUT-MIRROR-HIDDEN */`
+          }
+        ]
+      }
+    ]
+  },
+  {
     id: "MUT-X4",
     expectFailTest: "GUARD X4: attempt cap fails job",
     patches: [
@@ -389,7 +406,6 @@ const mutations = [
   {
     id: "MUT-X5",
     expectFailTest: "GUARD X5: permanent erasure failure records",
-    expectFailAlt: "erasure_job_failed",
     patches: [
       {
         file: "src/erasure-jobs.js",
@@ -543,7 +559,7 @@ function copyWorker(dest) {
 function runIntegrationInCopy(mut, mod, dest) {
   prepareWorkerCopy(dest);
   applyPatches(mut, dest);
-  const r = spawnSync("npx", ["vitest", "run", "--reporter=verbose"], {
+  const r = spawnSync("npm", ["test"], {
     cwd: dest,
     env: {
       ...process.env,
@@ -589,9 +605,7 @@ function runUnitInCopy(mut, dest) {
 function mutationCaught(mut, result) {
   const out = `${result.stdout || ""}${result.stderr || ""}`;
   if (result.status === 0) return false;
-  if (out.includes(mut.expectFailTest)) return true;
-  if (mut.expectFailAlt && out.includes(mut.expectFailAlt)) return true;
-  return out.includes("not ok") && mut.unitOnly;
+  return out.includes(mut.expectFailTest);
 }
 
 async function main() {

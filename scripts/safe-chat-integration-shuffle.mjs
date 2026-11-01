@@ -11,9 +11,11 @@ const workerRoot = path.join(root, "workers/safe-chat");
 
 const integrationFiles = [
   "src/integration.erasure.test.js",
+  "src/integration.erasure-guards.test.js",
   "src/integration.protections.test.js",
   "src/integration.emulator.test.js",
-  "src/integration.t139u.test.js"
+  "src/integration.t139u.test.js",
+  "src/integration.client-mirror.test.js"
 ];
 
 /** Twenty vitest shuffle seeds (order must pass with per-test isolation, no retries). */
