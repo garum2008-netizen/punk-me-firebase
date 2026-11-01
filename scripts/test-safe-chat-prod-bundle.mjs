@@ -63,4 +63,27 @@ for (const re of forbiddenPatterns) {
   if (hit) failed += 1;
 }
 if (failed) process.exit(1);
+
+const prodRuntimePath = path.join(workerRoot, "src/runtime-env.js");
+const prodRuntime = fs.readFileSync(prodRuntimePath, "utf8");
+const exportMatches = [...prodRuntime.matchAll(/export\s+function\s+([A-Za-z0-9_]+)/g)].map(m => m[1]);
+const allowedRuntimeExports = new Set(["applyIntegrationRequestEnv", "integrationNowMs"]);
+const extraExports = exportMatches.filter(n => !allowedRuntimeExports.has(n));
+const missingExports = [...allowedRuntimeExports].filter(n => !exportMatches.includes(n));
+if (extraExports.length || missingExports.length) {
+  console.log(
+    `FAIL  runtime-env.js exports must be exactly ${[...allowedRuntimeExports].join(", ")}; got ${exportMatches.join(", ") || "(none)"}`
+  );
+  failed += 1;
+} else {
+  console.log("PASS  runtime-env.js export allowlist");
+}
+if (!/applyIntegrationRequestEnv\([^)]*\)\s*\{\s*\}/.test(prodRuntime.replace(/\s+/g, " "))) {
+  console.log("FAIL  applyIntegrationRequestEnv must be a no-op in production runtime-env.js");
+  failed += 1;
+} else {
+  console.log("PASS  applyIntegrationRequestEnv is no-op");
+}
+
+if (failed) process.exit(1);
 console.log("\nprod bundle file guard OK");

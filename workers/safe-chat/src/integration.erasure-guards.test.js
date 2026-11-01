@@ -282,7 +282,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
       fetchCount += 1;
       return real(...a);
     });
-    const out = await runScheduledInvocation(env, { cron: "*/15 * * * *" });
+    const out = await runScheduledInvocation(env, { cron: "0 4 * * *" });
     spy.mockRestore();
     expect(out.subrequests).toBeLessThanOrEqual(CRON_INVOCATION_SUBREQUEST_BUDGET);
     expect(fetchCount).toBeLessThanOrEqual(CRON_INVOCATION_SUBREQUEST_BUDGET + 5);

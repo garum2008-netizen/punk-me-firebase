@@ -762,23 +762,24 @@ async function handleDeleteMyData(request, env) {
   );
   const lastAt = typeof lastReq.json === "number" ? lastReq.json : 0;
   const requestOverhead = 1;
-  const { rateLimited, job, batch, error } = await startOrContinueUserErasure(env, auth.uid, {
-    now,
-    respectRateLimit: true,
-    lastRequestAt: lastAt
-  });
+  const { rateLimited, job, batch, error, jobStatusOnly, requestSubrequests } =
+    await startOrContinueUserErasure(env, auth.uid, {
+      now,
+      respectRateLimit: true,
+      lastRequestAt: lastAt
+    });
   if (error) return err(request, env, error, error === "erasure_rate_limit" ? 429 : 400);
+  if (jobStatusOnly) {
+    const payload = await sanitizeErasurePayloadForUser(userFacingErasurePayload(job, null));
+    return json(request, env, payload);
+  }
   let payload = userFacingErasurePayload(job, batch);
   if (batch && typeof batch.subrequests === "number") {
-    batch.subrequests += requestOverhead;
-    payload.subrequests = batch.subrequests;
-  } else if (batch) {
-    payload.subrequests = requestOverhead;
+    payload.subrequests = batch.subrequests + requestOverhead;
+  } else if (typeof requestSubrequests === "number") {
+    payload.subrequests = requestSubrequests + requestOverhead;
   }
   payload = await sanitizeErasurePayloadForUser(payload);
-  if (payload.subrequests != null && payload.subrequests > config.erasureMaxSubrequests) {
-    return err(request, env, "erasure_budget_exceeded", 503);
-  }
   if (rateLimited) {
     return json(request, env, { ...payload, rateLimited: true });
   }
@@ -1281,8 +1282,8 @@ export async function runSlaOverdueJob(env, nowOverride, opts = {}) {
   const ns = env.FIREBASE_EMULATOR_NS;
   const now = nowOverride ?? getNow(env);
   const spend = opts.spend;
-  const queue = await rtdbRequest(config, "chat/internal/safetyQueue", "GET", null, token, emu, ns);
   if (spend && !spend(1)) return { ok: true, marked: 0, budgetStopped: true };
+  const queue = await rtdbRequest(config, "chat/internal/safetyQueue", "GET", null, token, emu, ns);
   if (!queue.json || typeof queue.json !== "object") return { ok: true, marked: 0 };
   let marked = 0;
   for (const [msgId, q] of Object.entries(queue.json)) {
@@ -1326,24 +1327,29 @@ export async function runRetentionJob(env, nowOverride, opts = {}) {
       : config.retentionBatchSize;
 
   const bump = () => {
+    if (budgetExceeded) return false;
     if (spend && !spend(1)) {
       budgetExceeded = true;
-      return;
+      return false;
     }
     subrequests += 1;
     if (subrequests >= budget) budgetExceeded = true;
+    return true;
+  };
+
+  const rtdbRetain = async (path, method, body) => {
+    if (!bump()) return { json: null, skipped: true };
+    return rtdbRequest(config, path, method, body, token, emu, ns);
   };
 
   try {
     await limitsStub(env, "/prune", { now, maxAgeMs: config.limitsRetentionMs });
   } catch (_) {}
 
-  const holds = await rtdbRequest(config, "chat/internal/safetyHolds", "GET", null, token, emu, ns);
-  bump();
+  const holds = await rtdbRetain("chat/internal/safetyHolds", "GET", null);
   const protectedMsgIds = new Set(Object.keys(holds.json || {}));
 
-  const queue = await rtdbRequest(config, "chat/internal/safetyQueue", "GET", null, token, emu, ns);
-  bump();
+  const queue = await rtdbRetain("chat/internal/safetyQueue", "GET", null);
   if (queue.json && typeof queue.json === "object") {
     for (const msgId of Object.keys(queue.json)) {
       protectedMsgIds.add(msgId);
@@ -1352,16 +1358,14 @@ export async function runRetentionJob(env, nowOverride, opts = {}) {
 
   /* Child-safety queue/holds/evidence defer message deletion; evidence retains snapshot after resolve. */
 
-  const evidenceEarly = await rtdbRequest(config, "chat/internal/safetyEvidence", "GET", null, token, emu, ns);
-  bump();
+  const evidenceEarly = await rtdbRetain("chat/internal/safetyEvidence", "GET", null);
   if (evidenceEarly.json && typeof evidenceEarly.json === "object") {
     for (const msgId of Object.keys(evidenceEarly.json)) {
       protectedMsgIds.add(msgId);
     }
   }
 
-  const msgsEarly = await rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns);
-  bump();
+  const msgsEarly = await rtdbRetain("chat/messages", "GET", null);
   if (msgsEarly.json && typeof msgsEarly.json === "object") {
     for (const [id, m] of Object.entries(msgsEarly.json)) {
       if (budgetExceeded) break;
@@ -1373,10 +1377,12 @@ export async function runRetentionJob(env, nowOverride, opts = {}) {
         continue;
       }
       if (m?.time && now - m.time > config.msgRetentionMs) {
+        if (!bump()) break;
         await rtdbRequest(config, pathChatMessage(id), "DELETE", null, token, emu, ns);
-        bump();
+        if (!bump()) break;
         await deleteClientMessageMirror(config, token, emu, ns, id);
         if (!budgetExceeded) {
+          if (!bump()) break;
           await rtdbRequest(
             config,
             rtdbPath("chat", "internal", "genericAutoHideEvidence", id),
@@ -1386,14 +1392,12 @@ export async function runRetentionJob(env, nowOverride, opts = {}) {
             emu,
             ns
           );
-          bump();
         }
       }
     }
   }
 
-  const mirrorEarly = await rtdbRequest(config, "chat/clientMessages", "GET", null, token, emu, ns);
-  bump();
+  const mirrorEarly = await rtdbRetain("chat/clientMessages", "GET", null);
   if (mirrorEarly.json && typeof mirrorEarly.json === "object" && !budgetExceeded) {
     const canonIds = new Set(Object.keys(msgsEarly.json || {}));
     for (const id of Object.keys(mirrorEarly.json)) {
@@ -1406,13 +1410,12 @@ export async function runRetentionJob(env, nowOverride, opts = {}) {
       } catch {
         continue;
       }
+      if (!bump()) break;
       await deleteClientMessageMirror(config, token, emu, ns, id);
-      bump();
     }
   }
 
-  const genericEv = await rtdbRequest(config, "chat/internal/genericAutoHideEvidence", "GET", null, token, emu, ns);
-  bump();
+  const genericEv = await rtdbRetain("chat/internal/genericAutoHideEvidence", "GET", null);
   if (genericEv.json && typeof genericEv.json === "object") {
     for (const [msgId, ev] of Object.entries(genericEv.json)) {
       if (budgetExceeded) break;
@@ -1425,6 +1428,7 @@ export async function runRetentionJob(env, nowOverride, opts = {}) {
       }
       const snapTime = ev?.snapshot?.time ?? ev?.at;
       if (typeof snapTime === "number" && now - snapTime > config.msgRetentionMs) {
+        if (!bump()) break;
         await rtdbRequest(
           config,
           rtdbPath("chat", "internal", "genericAutoHideEvidence", msgId),
@@ -1434,13 +1438,11 @@ export async function runRetentionJob(env, nowOverride, opts = {}) {
           emu,
           ns
         );
-        bump();
       }
     }
   }
 
-  const reportsEarly = await rtdbRequest(config, "chat/reports", "GET", null, token, emu, ns);
-  bump();
+  const reportsEarly = await rtdbRetain("chat/reports", "GET", null);
   if (reportsEarly.json && typeof reportsEarly.json === "object") {
     for (const [id, r] of Object.entries(reportsEarly.json)) {
       if (budgetExceeded) break;
@@ -1452,14 +1454,13 @@ export async function runRetentionJob(env, nowOverride, opts = {}) {
         } catch {
           continue;
         }
+        if (!bump()) break;
         await rtdbRequest(config, rtdbPath("chat", "reports", id), "DELETE", null, token, emu, ns);
-        bump();
       }
     }
   }
 
-  const evidenceSnap = await rtdbRequest(config, "chat/internal/safetyEvidence", "GET", null, token, emu, ns);
-  bump();
+  const evidenceSnap = await rtdbRetain("chat/internal/safetyEvidence", "GET", null);
   if (queue.json && typeof queue.json === "object") {
     for (const [msgId, q] of Object.entries(queue.json)) {
       if (budgetExceeded) break;
