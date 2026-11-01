@@ -9,32 +9,42 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 const workerRoot = path.join(root, "workers/safe-chat");
 
+const integrationFiles = [
+  "src/integration.erasure.test.js",
+  "src/integration.protections.test.js",
+  "src/integration.emulator.test.js",
+  "src/integration.t139u.test.js"
+];
+
 /** Twenty vitest shuffle seeds (order must pass with per-test isolation, no retries). */
 const seeds = [
   11, 4242, 90210, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18
 ];
 
 function runSeed(seed, mod) {
-  const r = spawnSync(
-    "npx",
-    ["vitest", "run", "--sequence.shuffle", `--sequence.seed=${seed}`],
-    {
-      cwd: workerRoot,
-      stdio: "pipe",
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        SAFE_CHAT_INTEGRATION: "1",
-        SAFE_CHAT_TEST_MOD_UID: mod.localId,
-        SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken
+  for (const file of integrationFiles) {
+    const r = spawnSync(
+      "npx",
+      ["vitest", "run", file, "--sequence.shuffle", `--sequence.seed=${seed}`],
+      {
+        cwd: workerRoot,
+        stdio: "pipe",
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          SAFE_CHAT_INTEGRATION: "1",
+          SAFE_CHAT_TEST_MOD_UID: mod.localId,
+          SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken,
+          CI: "true"
+        }
       }
+    );
+    if (r.status !== 0) {
+      console.error(`shuffle seed ${seed} file ${file}: FAIL`);
+      console.error(r.stdout);
+      console.error(r.stderr);
+      return false;
     }
-  );
-  if (r.status !== 0) {
-    console.error(`shuffle seed ${seed}: FAIL`);
-    console.error(r.stdout);
-    console.error(r.stderr);
-    return false;
   }
   return true;
 }
