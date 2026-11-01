@@ -24,5 +24,5 @@ export function getActiveIntegrationDoName() {
 export function syncIntegrationEnvBindings(env) {
   if (env.SAFE_CHAT_INTEGRATION !== "1") return;
   env.FIREBASE_EMULATOR_NS = activeNs;
-  env.SAFE_CHAT_TEST_DO_NAME = activeDoName;
+  env.SAFE_CHAT_LIMITS_DO_NAME = activeDoName;
 }

@@ -1644,7 +1644,7 @@ export default {
       const ns = request.headers.get("X-Sc-Rtdb-Ns");
       const doName = request.headers.get("X-Sc-Lim-Do");
       if (ns) env.FIREBASE_EMULATOR_NS = ns;
-      if (doName) env.SAFE_CHAT_TEST_DO_NAME = doName;
+      if (doName) env.SAFE_CHAT_LIMITS_DO_NAME = doName;
     }
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(request, env) });
