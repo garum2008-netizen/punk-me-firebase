@@ -108,11 +108,18 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     const viewer = await authSignUp();
     const { j: sent } = await apiSend(SELF, author.idToken, { phraseId: "thanks" });
     const msgId = sent.id;
-    await putChatMessageText(`${msgId}`, "kill the kid", { skipWait: true });
+    await putChatMessageText(`${msgId}`, "kill the kid");
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
+    await waitForMessageHidden(msgId);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
-    const clientView = await rtdbAuth(`chat/messages/${msgId}`, "GET", viewer.idToken);
+    for (let i = 0; i < 120; i++) {
+      const mirror = await rtdbOwner(`chat/clientMessages/${msgId}`, "GET");
+      if (mirror.json?.textRedacted === true) break;
+      if (i === 119) throw new Error(`clientMessages ${msgId} missing textRedacted`);
+      await new Promise(r => setTimeout(r, 50));
+    }
+    const clientView = await rtdbAuth(`chat/clientMessages/${msgId}`, "GET", viewer.idToken);
     expect(clientView.json?.text).toBeUndefined();
     expect(clientView.json?.textRedacted).toBe(true);
     const ev = await rtdbAuth(`chat/internal/safetyEvidence/${msgId}`, "GET", viewer.idToken);
@@ -315,8 +322,15 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
       const r = await authSignUp();
       await apiPostReport(SELF, r.idToken, { msgId, category: "generic" });
     }
+    await waitForMessageHidden(msgId);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
-    const clientView = await rtdbAuth(`chat/messages/${msgId}`, "GET", viewer.idToken);
+    for (let i = 0; i < 120; i++) {
+      const mirror = await rtdbOwner(`chat/clientMessages/${msgId}`, "GET");
+      if (mirror.json?.textRedacted === true) break;
+      if (i === 119) throw new Error(`clientMessages ${msgId} missing textRedacted`);
+      await new Promise(r => setTimeout(r, 50));
+    }
+    const clientView = await rtdbAuth(`chat/clientMessages/${msgId}`, "GET", viewer.idToken);
     expect(clientView.json?.text).toBeUndefined();
     expect(clientView.json?.textRedacted).toBe(true);
   });

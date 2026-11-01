@@ -21,6 +21,7 @@ import {
   apiSend,
   apiSendJson,
   waitForMessageHidden,
+  waitForSafetyQueue,
   PROJECT_ID
 } from "./test-helpers.js";
 import { detectChildHarmSignals } from "./child-harm.js";
@@ -662,6 +663,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     });
     await apiPostReport(SELF, userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
     expect((await rep.json()).received).toBe(true);
+    await waitForSafetyQueue(msgId, q => Boolean(q?.childHarm));
+    await waitForMessageHidden(msgId);
     const msg = await rtdbOwner(`chat/messages/${msgId}`, "GET");
     expect(msg.json.hidden).toBe(true);
 
