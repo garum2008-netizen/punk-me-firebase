@@ -14,7 +14,8 @@ import {
   runErasureQueueJob,
   startOrContinueUserErasure,
   userFacingErasurePayload,
-  resumeErasureJobsAfterHoldRelease
+  resumeErasureJobsAfterHoldRelease,
+  loadUserErasureJob
 } from "./erasure-jobs.js";
 import { detectChildHarmSignals } from "./child-harm.js";
 import {
@@ -761,7 +762,20 @@ async function handleDeleteMyData(request, env) {
     env.FIREBASE_EMULATOR_NS
   );
   const lastAt = typeof lastReq.json === "number" ? lastReq.json : 0;
-  const requestOverhead = 1;
+  const preJob = await loadUserErasureJob(env, auth.uid);
+  if (
+    preJob?.status === "queued" &&
+    !preJob.retryAfter &&
+    !preJob.lastError &&
+    !preJob.cursor &&
+    !(Array.isArray(preJob.holdMsgIds) && preJob.holdMsgIds.length > 0)
+  ) {
+    return json(
+      request,
+      env,
+      await sanitizeErasurePayloadForUser(userFacingErasurePayload(preJob, null))
+    );
+  }
   const { rateLimited, job, batch, error, jobStatusOnly, requestSubrequests } =
     await startOrContinueUserErasure(env, auth.uid, {
       now,
@@ -773,11 +787,19 @@ async function handleDeleteMyData(request, env) {
     const payload = await sanitizeErasurePayloadForUser(userFacingErasurePayload(job, null));
     return json(request, env, payload);
   }
-  let payload = userFacingErasurePayload(job, batch);
-  if (batch && typeof batch.subrequests === "number") {
-    payload.subrequests = batch.subrequests + requestOverhead;
-  } else if (typeof requestSubrequests === "number") {
-    payload.subrequests = requestSubrequests + requestOverhead;
+  let effectiveJob = job;
+  if (batch?.complete && !effectiveJob) {
+    const still = await loadUserErasureJob(env, auth.uid);
+    if (still && (still.status === "queued" || still.status === "in_progress")) {
+      effectiveJob = still;
+      return json(request, env, await sanitizeErasurePayloadForUser(userFacingErasurePayload(still, null)));
+    }
+  }
+  let payload = userFacingErasurePayload(effectiveJob, batch);
+  if (typeof requestSubrequests === "number") {
+    payload.subrequests = requestSubrequests + 1;
+  } else if (batch && typeof batch.subrequests === "number") {
+    payload.subrequests = batch.subrequests + 1;
   }
   payload = await sanitizeErasurePayloadForUser(payload);
   if (rateLimited) {
