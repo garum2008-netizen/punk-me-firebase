@@ -263,14 +263,14 @@ const mutations = [
         file: "src/erasure.js",
         replacements: [
           {
-            from: `    if (subrequests + n > budget) {
-      budgetExceeded = true;
-      return false;
-    }`,
-            to: `    if (false && subrequests + n > budget) {
-      budgetExceeded = true;
-      return false;
-    } /* MUT-I */`
+            from: `      if (subrequests + 1 > budget) {
+        budgetExceeded = true;
+        return false;
+      }`,
+            to: `      if (false && subrequests + 1 > budget) {
+        budgetExceeded = true;
+        return false;
+      } /* MUT-I */`
           }
         ]
       }
