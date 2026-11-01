@@ -46,12 +46,18 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
     const u = await authSignUp();
     const sid = await sidOf(u);
     await rtdbOwner("chat/messages", "POST", { sid, name: "X", text: "thanks", time: Date.now() });
+    const beforeDecisionIds = new Set(
+      Object.keys((await rtdbOwner("chat/internal/safetyDecisions", "GET")).json || {})
+    );
     const now = Date.now();
     await persistJobAfterBatch(env, u.localId, { ok: false, error: "rtdb_unavailable", subrequests: 3 }, null, now);
     let job = (await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "GET")).json;
     expect(job.status).toBe("queued");
-    const decisions = Object.values((await rtdbOwner("chat/internal/safetyDecisions", "GET")).json || {});
-    expect(decisions.some(d => d?.action === "erasure_job_failed")).toBe(false);
+    const afterDecisions = (await rtdbOwner("chat/internal/safetyDecisions", "GET")).json || {};
+    const freshDecisions = Object.entries(afterDecisions)
+      .filter(([id]) => !beforeDecisionIds.has(id))
+      .map(([, d]) => d);
+    expect(freshDecisions.some(d => d?.action === "erasure_job_failed")).toBe(false);
     const retry = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
     expect(retry.status).not.toBe("failed");
     await runErasureQueueJob(env);
