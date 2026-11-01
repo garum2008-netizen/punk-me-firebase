@@ -822,6 +822,14 @@ async function handleDeleteMyData(request, env) {
     payload.erasureDeferred = batch.erasureDeferred.filter(
       id => typeof id === "string" && /^[-A-Za-z0-9]+$/.test(String(id))
     );
+  } else if (
+    Array.isArray(job?.holdMsgIds) &&
+    job.holdMsgIds.length > 0 &&
+    (!payload.erasureDeferred || payload.erasureDeferred.length === 0)
+  ) {
+    payload.erasureDeferred = job.holdMsgIds.filter(
+      id => typeof id === "string" && /^[-A-Za-z0-9]+$/.test(String(id))
+    );
   }
   if (rateLimited) {
     return json(request, env, { ...payload, rateLimited: true });
