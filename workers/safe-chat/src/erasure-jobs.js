@@ -198,6 +198,29 @@ async function recordErasureJobAlert(config, token, emu, ns, env, uid, note, bat
   });
 }
 
+async function recordErasureJobTransientAlert(config, token, emu, ns, env, uid, note, batchError, attempts) {
+  await rtdbRequest(
+    config,
+    "chat/internal/safetyDecisions",
+    "POST",
+    {
+      msgId: null,
+      action: "erasure_job_retry",
+      at: Date.now(),
+      moderatorUid: null,
+      note: `${note} (attempt ${attempts})`
+    },
+    token,
+    emu,
+    ns
+  );
+  await sendModeratorAlert(env, {
+    kind: "erasure_job_retry",
+    uidPrefix: uid.slice(0, 8),
+    error: batchError || note
+  });
+}
+
 export async function persistJobAfterBatch(env, uid, batch, existingJob, now) {
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
@@ -211,6 +234,20 @@ export async function persistJobAfterBatch(env, uid, batch, existingJob, now) {
   if (status === "failed" && batch?.ok === false) {
     nextAttempts = progressed ? attempts : attempts + 1;
     const note = `Erasure batch failed (${batch.error || "unknown"}); will retry`;
+    const alertEvery = config.erasureTransientAlertEveryAttempts || 4;
+    if (nextAttempts === 1 || nextAttempts % alertEvery === 0) {
+      await recordErasureJobTransientAlert(
+        config,
+        token,
+        emu,
+        ns,
+        env,
+        uid,
+        note,
+        batch.error,
+        nextAttempts
+      );
+    }
     if (nextAttempts >= MAX_JOB_ATTEMPTS) {
       await recordErasureJobAlert(config, token, emu, ns, env, uid, note, batch.error);
       await writeJob(config, token, emu, ns, uid, {
@@ -408,14 +445,27 @@ async function withErasureQueueLock(env, fn) {
   }
 }
 
-export async function runErasureQueueJob(env, nowOverride) {
-  return withErasureQueueLock(env, async () => {
-  const config = loadConfig(env);
-  const token = await getCachedAdminToken(env);
-  const emu = env.FIREBASE_EMULATOR_HOST;
-  const ns = env.FIREBASE_EMULATOR_NS;
+export async function runErasureQueueJob(env, nowOverride, opts = {}) {
+  const spend = opts.spend;
+  const budgetRemaining = opts.budgetRemaining;
+  if (spend && budgetRemaining && budgetRemaining() <= 0) {
+    return { ok: true, processed: 0, budgetStopped: true };
+  }
+  let stepEnv = env;
+  if (budgetRemaining) {
+    const config = loadConfig(env);
+    const cap = Math.min(config.erasureMaxSubrequests, Math.max(0, budgetRemaining()));
+    if (cap <= 0) return { ok: true, processed: 0, budgetStopped: true };
+    stepEnv = { ...env, SAFE_CHAT_ERASURE_MAX_SUBREQUESTS: String(cap) };
+  }
+  return withErasureQueueLock(stepEnv, async () => {
+  const config = loadConfig(stepEnv);
+  const token = await getCachedAdminToken(stepEnv);
+  const emu = stepEnv.FIREBASE_EMULATOR_HOST;
+  const ns = stepEnv.FIREBASE_EMULATOR_NS;
   const now = nowOverride ?? Date.now();
   const jobsRes = await rtdbRequest(config, JOBS_ROOT, "GET", null, token, emu, ns);
+  if (spend && !spend(1)) return { ok: true, processed: 0, budgetStopped: true };
   if (!jobsRes.json || typeof jobsRes.json !== "object") {
     return { ok: true, processed: 0 };
   }
@@ -426,29 +476,36 @@ export async function runErasureQueueJob(env, nowOverride) {
   assertFirebaseId(uid);
   const claimed = await tryClaimQueuedJob(config, token, emu, ns, uid, job, now);
   if (!claimed) return { ok: true, processed: 0, skipped: "not_claimed" };
-  const batch = await runErasureJobStep(env, uid, { now, bypassRateLimit: true });
-  await persistJobAfterBatch(env, uid, batch, claimed, now);
+  const batch = await runErasureJobStep(stepEnv, uid, { now, bypassRateLimit: true });
+  await persistJobAfterBatch(stepEnv, uid, batch, claimed, now);
   return { ok: true, processed: 1, uid, subrequests: batch.subrequests, status: mapBatchToJobStatus(batch) };
   });
 }
 
 /** Used by delete-my-data and tests. */
-export async function startOrContinueUserErasure(env, authUid, { now, respectRateLimit = true, lastRequestAt = 0 }) {
+export async function startOrContinueUserErasure(env, authUid, { now, respectRateLimit = true, lastRequestAt = 0 } = {}) {
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
-  const existingRaw = await readJob(config, token, emu, ns, authUid);
+  let requestSubrequests = 0;
+  const countRtdb = async (promise) => {
+    requestSubrequests += 1;
+    return promise;
+  };
+  const existingRaw = await countRtdb(() => readJob(config, token, emu, ns, authUid));
   let existing = existingRaw;
 
   if (existing?.status === "failed") {
-    await writeJob(config, token, emu, ns, authUid, {
-      ...existing,
-      status: "queued",
-      failedAt: null,
-      lastError: null,
-      updatedAt: now
-    });
+    await countRtdb(() =>
+      writeJob(config, token, emu, ns, authUid, {
+        ...existing,
+        status: "queued",
+        failedAt: null,
+        lastError: null,
+        updatedAt: now
+      })
+    );
     existing = { ...existing, status: "queued", failedAt: null, lastError: null };
   }
 
@@ -466,7 +523,17 @@ export async function startOrContinueUserErasure(env, authUid, { now, respectRat
   }
 
   if (existing?.status === "complete_with_holds") {
-    return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
+    if (!Array.isArray(existing.holdMsgIds) || existing.holdMsgIds.length === 0) {
+      return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
+    }
+    await countRtdb(() =>
+      writeJob(config, token, emu, ns, authUid, {
+        ...existing,
+        status: "queued",
+        updatedAt: now
+      })
+    );
+    existing = { ...existing, status: "queued" };
   }
 
   if (existing?.status === "queued") {
@@ -479,30 +546,28 @@ export async function startOrContinueUserErasure(env, authUid, { now, respectRat
       return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
     }
     if (existing.retryAfter) {
-      await writeJob(config, token, emu, ns, authUid, {
-        ...existing,
-        retryAfter: null,
-        updatedAt: now
-      });
+      await countRtdb(() =>
+        writeJob(config, token, emu, ns, authUid, {
+          ...existing,
+          retryAfter: null,
+          updatedAt: now
+        })
+      );
       existing = { ...existing, retryAfter: null };
     }
   }
 
   const batch = await runErasureJobStep(env, authUid, { now, bypassRateLimit: !respectRateLimit });
   if (!batch.ok) {
-    return { rateLimited: false, job: existing, batch, error: batch.error };
+    if (batch) batch.subrequests = (batch.subrequests || 0) + requestSubrequests;
+    return { rateLimited: false, job: existing, batch, error: batch.error, requestSubrequests };
   }
   const job = await persistJobAfterBatch(env, authUid, batch, existing, now);
-  await rtdbRequest(
-    config,
-    rtdbPath("chatMeta", authUid, "lastErasureRequestAt"),
-    "PUT",
-    now,
-    token,
-    emu,
-    ns
+  await countRtdb(() =>
+    rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
   );
-  return { rateLimited: false, job, batch };
+  batch.subrequests = (batch.subrequests || 0) + requestSubrequests;
+  return { rateLimited: false, job, batch, requestSubrequests };
 }
 
 export async function loadUserErasureJob(env, uid) {

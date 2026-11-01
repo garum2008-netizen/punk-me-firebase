@@ -36,15 +36,30 @@ const forbidden = [
   "X-Safe-Chat-Integration-Ns",
   "X-Safe-Chat-Integration-Do",
   "SAFE_CHAT_TEST_DO_NAME",
+  "X-Sc-Rtdb-Ns",
+  "X-Sc-Lim-Do",
+  "SAFE_CHAT_LIMITS_DO_NAME",
+  "SAFE_CHAT_TEST_NOW_MS",
+  "runtime-env.integration",
   "integration-reset-hide-counters",
   "integration-isolation.js",
   "integration-env-sync.js",
   "integration-rtdb-rules.js"
 ];
+const forbiddenPatterns = [
+  /X-Sc-[A-Za-z0-9-]+/,
+  /SAFE_CHAT_[A-Z0-9_]*TEST[A-Z0-9_]*/,
+  /runtime-env\.integration/
+];
 let failed = 0;
 for (const needle of forbidden) {
   const hit = bundle.includes(needle);
   console.log(`${hit ? "FAIL" : "PASS"}  bundle must not contain ${needle}`);
+  if (hit) failed += 1;
+}
+for (const re of forbiddenPatterns) {
+  const hit = re.test(bundle);
+  console.log(`${hit ? "FAIL" : "PASS"}  bundle must not match ${re}`);
   if (hit) failed += 1;
 }
 if (failed) process.exit(1);

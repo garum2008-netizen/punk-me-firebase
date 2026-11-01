@@ -10,7 +10,8 @@ import {
   rtdbOwner,
   rtdbAuth,
   waitForMessageHidden,
-  waitForSafetyQueue
+  waitForSafetyQueue,
+  apiGet
 } from "./test-helpers.js";
 
 const FORBIDDEN_MIRROR_KEYS = ["uid", "email", "cluster", "reporterSafetyHidden", "reporterSid"];
@@ -80,6 +81,23 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("chat/clientMessages mirror (
       if (m.json == null) return;
     }
     expect((await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json).toBeNull();
+  });
+
+  it("PROTECT MIRROR: held-message erasure removes public mirror", async () => {
+    const author = await authSignUp();
+    const sid = (await (await apiGet(SELF, "/api/chat/config", author.idToken)).json()).mySid;
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
+    await putChatMessageText(`${msgId}`, "held-but-not-hidden-yet");
+    await rtdbOwner(`chat/internal/safetyHolds/${msgId}`, "PUT", {
+      at: Date.now(),
+      category: "child_safety",
+      nextEscalateAt: Date.now() + 3600000
+    });
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).not.toBe(true);
+    expect((await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json?.text).toBeTruthy();
+    await (await apiPost(SELF, "/api/chat/delete-my-data", author.idToken, {})).json();
+    expect((await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json).toBeNull();
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).toBe(sid);
   });
 
   it("PROTECT MIRROR: client cannot write chat/clientMessages", async () => {

@@ -83,6 +83,7 @@ export function loadConfig(env) {
       env.SAFE_CHAT_ERASURE_DEFERRED_TTL_MS || String(90 * 24 * 60 * 60 * 1000),
       10
     ),
+    erasureTransientAlertEveryAttempts: parseInt(env.SAFE_CHAT_ERASURE_TRANSIENT_ALERT_EVERY || "4", 10),
     erasureCursorMaxLen: parseInt(env.SAFE_CHAT_ERASURE_CURSOR_MAX_LEN || "128", 10),
     msgRetentionMs: 7 * 24 * 60 * 60 * 1000,
     reportRetentionMs: 90 * 24 * 60 * 60 * 1000,

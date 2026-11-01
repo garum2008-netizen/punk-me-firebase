@@ -109,11 +109,11 @@ const patches = {
     list: [
       {
         file: "src/erasure-jobs.js",
-        from: `export async function runErasureQueueJob(env, nowOverride) {
-  return withErasureQueueLock(env, async () => {`,
-        to: `export async function runErasureQueueJob(env, nowOverride) {
+        from: `export async function runErasureQueueJob(env, nowOverride, opts = {}) {
+  const spend = opts.spend;`,
+        to: `export async function runErasureQueueJob(env, nowOverride, opts = {}) {
   return { ok: true, processed: 0 }; /* M5b */
-  return withErasureQueueLock(env, async () => {`
+  const spend = opts.spend;`
       }
     ]
   },
@@ -215,7 +215,12 @@ function mutationCaught(mutId, result) {
   const spec = patches[mutId];
   const out = `${result.stdout || ""}${result.stderr || ""}`;
   if (result.status === 0) return false;
-  return out.includes(spec.expectFailTest);
+  const needle = spec.expectFailTest;
+  for (const line of out.split("\n")) {
+    if (!line.includes(needle)) continue;
+    if (line.includes("×") || /\bFAIL\b/.test(line)) return true;
+  }
+  return false;
 }
 
 async function main() {

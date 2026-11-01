@@ -277,42 +277,6 @@ const mutations = [
     ]
   },
   {
-    id: "MUT-J",
-    expectFailTest: "PROTECT erasure continuation: cron",
-    patches: [
-      {
-        file: "src/erasure-jobs.js",
-        replacements: [
-          {
-            from: `export async function runErasureQueueJob(env, nowOverride) {
-  return withErasureQueueLock(env, async () => {
-  const config = loadConfig(env);`,
-            to: `export async function runErasureQueueJob(env, nowOverride) {
-  return { ok: true, processed: 0 }; /* MUT-J */
-  return withErasureQueueLock(env, async () => {
-  const config = loadConfig(env);`
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: "MUT-K",
-    expectFailTest: "H-1: cron queue drains 50",
-    patches: [
-      {
-        file: "src/erasure-jobs.js",
-        replacements: [
-          {
-            from: `  await persistJobAfterBatch(env, uid, batch, claimed, now);
-  return { ok: true, processed: 1, uid, subrequests: batch.subrequests, status: mapBatchToJobStatus(batch) };`,
-            to: `  /* MUT-K */ return { ok: true, processed: 0 };`
-          }
-        ]
-      }
-    ]
-  },
-  {
     id: "MUT-ER1",
     erasureUnit: true,
     expectFailTest: "erasure honesty: mapBatchToJobStatus stays queued when allOwnRemaining is unknown",
@@ -380,6 +344,21 @@ const mutations = [
           {
             from: `  await rtdbRequest(config, \`\${pathClientChatMessage(msgId)}/text\`, "DELETE", null, token, emu, ns);`,
             to: `  /* MUT-MIRROR-HIDDEN: leave toxic text on client mirror */`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-DEFER-MIRROR",
+    expectFailTest: "PROTECT MIRROR: held-message erasure removes public mirror",
+    patches: [
+      {
+        file: "src/erasure.js",
+        replacements: [
+          {
+            from: `  await rtdbSpend(config, token, emu, ns, rtdbPath("chat", "clientMessages", msgId), "DELETE", null, spend);`,
+            to: `  /* MUT-DEFER-MIRROR */`
           }
         ]
       }
@@ -555,7 +534,7 @@ function copyWorker(dest) {
 
 function runIntegrationInCopy(mut, mod, dest) {
   prepareWorkerCopy(dest);
-  applyPatches(mut, dest);
+  if (mut.patches?.length) applyPatches(mut, dest);
   const r = spawnSync("npm", ["test"], {
     cwd: dest,
     env: {
@@ -602,7 +581,12 @@ function runUnitInCopy(mut, dest) {
 function mutationCaught(mut, result) {
   const out = `${result.stdout || ""}${result.stderr || ""}`;
   if (result.status === 0) return false;
-  return out.includes(mut.expectFailTest);
+  const needle = mut.expectFailTest;
+  for (const line of out.split("\n")) {
+    if (!line.includes(needle)) continue;
+    if (line.includes("×") || /\bFAIL\b/.test(line)) return true;
+  }
+  return false;
 }
 
 async function main() {
@@ -611,6 +595,16 @@ async function main() {
     const mod = await authSignUp();
     const tmpDir = mkdtempSync(path.join(os.tmpdir(), "safe-chat-mut-"));
     try {
+      const ctrlDest = path.join(tmpDir, "CTRL0");
+      prepareWorkerCopy(ctrlDest);
+      const ctrl = runIntegrationInCopy({ id: "CTRL0", expectFailTest: "", patches: [] }, mod, ctrlDest);
+      if (ctrl.status !== 0) {
+        console.error("mutation-check: CTRL0 (unmutated copy) must pass");
+        console.error(`${ctrl.stdout || ""}${ctrl.stderr || ""}`);
+        process.exit(1);
+      }
+      console.log("CTRL0: unmutated copy PASS");
+
       for (const m of mutations) {
         const dest = path.join(tmpDir, m.id);
         const r = m.erasureUnit

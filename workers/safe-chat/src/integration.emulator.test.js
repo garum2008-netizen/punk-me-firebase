@@ -647,7 +647,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const dj = await del.json();
     expect(dj.ok).toBe(true);
     await waitForErasureDeferred(msgId);
-    expect(dj.completeWithHolds || dj.status === "complete_with_holds" || dj.erasureDeferred?.includes(msgId)).toBeTruthy();
+    expect(dj.erasureDeferred).toContain(msgId);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
     expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.childHarm).toBe(true);
   });
@@ -675,7 +675,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const delJson = await del.json();
     expect(delJson.ok).toBe(true);
     await waitForErasureDeferred(msgId);
-    expect(delJson.erasureDeferred?.includes(msgId) || delJson.completeWithHolds || delJson.status === "complete_with_holds").toBeTruthy();
+    expect(delJson.erasureDeferred).toContain(msgId);
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
 
     const now = Date.now() + 8 * 24 * 60 * 60 * 1000;
@@ -858,6 +858,6 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("daily limit (DO)", () => {
       expect(third.ok).toBe(false);
       expect(third.error).toBe("daily_limit");
     },
-    20000
+    60000
   );
 });

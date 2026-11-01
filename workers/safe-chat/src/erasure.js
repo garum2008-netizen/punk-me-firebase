@@ -77,6 +77,7 @@ export async function deferMessageErasure(config, token, emu, ns, msgId, msg, no
     },
     spend
   );
+  await rtdbSpend(config, token, emu, ns, rtdbPath("chat", "clientMessages", msgId), "DELETE", null, spend);
 }
 
 async function openCaseMsgIds(config, token, emu, ns, spend) {

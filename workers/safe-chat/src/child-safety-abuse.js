@@ -267,9 +267,7 @@ export async function enqueueChildSafetyReview({
   if (hideMessage) {
     await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
     await rtdbRequest(config, `${pathClientChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
-    if (snap?.text) {
-      await redactPublicMessageText(config, token, emu, ns, msgId);
-    }
+    await redactPublicMessageText(config, token, emu, ns, msgId);
     queueEntry.hiddenAt = queueEntry.hiddenAt || now;
   }
 

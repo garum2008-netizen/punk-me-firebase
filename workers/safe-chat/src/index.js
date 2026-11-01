@@ -41,6 +41,7 @@ import {
 } from "./child-safety-risk.js";
 import { reporterTrustForChildSafety } from "./player-profile.js";
 import { chatLimitsDoName } from "./limits-do-env.js";
+import { applyIntegrationRequestEnv, integrationNowMs } from "./runtime-env.js";
 import { upsertClientMessageMirror, deleteClientMessageMirror, pathClientChatMessage } from "./client-message-mirror.js";
 
 function secretsEqual(a, b) {
@@ -68,10 +69,8 @@ function err(request, env, code, status = 400) {
 }
 
 export function getNow(env) {
-  if (env.SAFE_CHAT_INTEGRATION === "1" && env.SAFE_CHAT_TEST_NOW_MS) {
-    const n = parseInt(env.SAFE_CHAT_TEST_NOW_MS, 10);
-    if (!Number.isNaN(n)) return n;
-  }
+  const testNow = integrationNowMs(env);
+  if (testNow != null) return testNow;
   return Date.now();
 }
 
@@ -762,6 +761,7 @@ async function handleDeleteMyData(request, env) {
     env.FIREBASE_EMULATOR_NS
   );
   const lastAt = typeof lastReq.json === "number" ? lastReq.json : 0;
+  const requestOverhead = 1;
   const { rateLimited, job, batch, error } = await startOrContinueUserErasure(env, auth.uid, {
     now,
     respectRateLimit: true,
@@ -769,8 +769,14 @@ async function handleDeleteMyData(request, env) {
   });
   if (error) return err(request, env, error, error === "erasure_rate_limit" ? 429 : 400);
   let payload = userFacingErasurePayload(job, batch);
+  if (batch && typeof batch.subrequests === "number") {
+    batch.subrequests += requestOverhead;
+    payload.subrequests = batch.subrequests;
+  } else if (batch) {
+    payload.subrequests = requestOverhead;
+  }
   payload = await sanitizeErasurePayloadForUser(payload);
-  if (batch?.subrequests != null && batch.subrequests > config.erasureMaxSubrequests) {
+  if (payload.subrequests != null && payload.subrequests > config.erasureMaxSubrequests) {
     return err(request, env, "erasure_budget_exceeded", 503);
   }
   if (rateLimited) {
@@ -1268,16 +1274,19 @@ async function handleModResolveSafety(request, env) {
   }
 }
 
-export async function runSlaOverdueJob(env, nowOverride) {
+export async function runSlaOverdueJob(env, nowOverride, opts = {}) {
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
   const now = nowOverride ?? getNow(env);
+  const spend = opts.spend;
   const queue = await rtdbRequest(config, "chat/internal/safetyQueue", "GET", null, token, emu, ns);
+  if (spend && !spend(1)) return { ok: true, marked: 0, budgetStopped: true };
   if (!queue.json || typeof queue.json !== "object") return { ok: true, marked: 0 };
   let marked = 0;
   for (const [msgId, q] of Object.entries(queue.json)) {
+    if (spend && !spend(1)) break;
     try {
       assertFirebaseId(msgId);
     } catch {
@@ -1286,6 +1295,7 @@ export async function runSlaOverdueJob(env, nowOverride) {
     const sla = typeof q?.slaReviewBy === "number" ? q.slaReviewBy : q?.nextEscalateAt;
     if (typeof sla !== "number" || now < sla) continue;
     if (q.overdue) continue;
+    if (spend && !spend(1)) break;
     await rtdbRequest(
       config,
       rtdbPath("chat", "internal", "safetyQueue", msgId),
@@ -1300,17 +1310,26 @@ export async function runSlaOverdueJob(env, nowOverride) {
   return { ok: true, marked };
 }
 
-export async function runRetentionJob(env, nowOverride) {
+export async function runRetentionJob(env, nowOverride, opts = {}) {
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
   const now = nowOverride ?? getNow(env);
+  const spend = opts.spend;
+  const budgetRemaining = opts.budgetRemaining;
   let subrequests = 0;
   let budgetExceeded = false;
-  const budget = config.retentionBatchSize;
+  const budget =
+    spend && budgetRemaining != null
+      ? Math.min(config.retentionBatchSize, Math.max(0, budgetRemaining()))
+      : config.retentionBatchSize;
 
   const bump = () => {
+    if (spend && !spend(1)) {
+      budgetExceeded = true;
+      return;
+    }
     subrequests += 1;
     if (subrequests >= budget) budgetExceeded = true;
   };
@@ -1370,6 +1389,25 @@ export async function runRetentionJob(env, nowOverride) {
           bump();
         }
       }
+    }
+  }
+
+  const mirrorEarly = await rtdbRequest(config, "chat/clientMessages", "GET", null, token, emu, ns);
+  bump();
+  if (mirrorEarly.json && typeof mirrorEarly.json === "object" && !budgetExceeded) {
+    const canonIds = new Set(Object.keys(msgsEarly.json || {}));
+    for (const id of Object.keys(mirrorEarly.json)) {
+      if (budgetExceeded) break;
+      if (subrequests >= budget) break;
+      if (protectedMsgIds.has(id)) continue;
+      if (canonIds.has(id)) continue;
+      try {
+        assertFirebaseId(id);
+      } catch {
+        continue;
+      }
+      await deleteClientMessageMirror(config, token, emu, ns, id);
+      bump();
     }
   }
 
@@ -1638,14 +1676,35 @@ export async function runRetentionJob(env, nowOverride) {
   return { subrequests, budgetExceeded };
 }
 
+/** Whole scheduled() invocation subrequest budget (free tier cap is 50). */
+export const CRON_INVOCATION_SUBREQUEST_BUDGET = 45;
+
+export async function runScheduledInvocation(env, event) {
+  let subrequests = 0;
+  const spend = (n = 1) => {
+    if (subrequests + n > CRON_INVOCATION_SUBREQUEST_BUDGET) return false;
+    subrequests += n;
+    return true;
+  };
+  await getCachedAdminToken(env);
+  spend(1);
+  await runSlaOverdueJob(env, undefined, { spend });
+  await runErasureQueueJob(env, undefined, {
+    spend,
+    budgetRemaining: () => CRON_INVOCATION_SUBREQUEST_BUDGET - subrequests
+  });
+  if (event.cron === "0 4 * * *") {
+    await runRetentionJob(env, undefined, {
+      spend,
+      budgetRemaining: () => CRON_INVOCATION_SUBREQUEST_BUDGET - subrequests
+    });
+  }
+  return { subrequests, budgetExceeded: subrequests >= CRON_INVOCATION_SUBREQUEST_BUDGET };
+}
+
 export default {
   async fetch(request, env, ctx) {
-    if (env.SAFE_CHAT_INTEGRATION === "1") {
-      const ns = request.headers.get("X-Sc-Rtdb-Ns");
-      const doName = request.headers.get("X-Sc-Lim-Do");
-      if (ns) env.FIREBASE_EMULATOR_NS = ns;
-      if (doName) env.SAFE_CHAT_LIMITS_DO_NAME = doName;
-    }
+    applyIntegrationRequestEnv(request, env);
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }
@@ -1680,11 +1739,7 @@ export default {
     }
   },
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runSlaOverdueJob(env));
-    ctx.waitUntil(runErasureQueueJob(env));
-    if (event.cron === "0 4 * * *") {
-      ctx.waitUntil(runRetentionJob(env));
-    }
+    ctx.waitUntil(runScheduledInvocation(env, event));
   }
 };
 

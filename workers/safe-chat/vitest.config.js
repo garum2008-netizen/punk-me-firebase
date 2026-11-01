@@ -30,6 +30,10 @@ export default defineWorkersConfig({
             [path.resolve(__dirname, "src/limits-do-env.js")]: path.resolve(
               __dirname,
               "src/limits-do-env.integration.js"
+            ),
+            [path.resolve(__dirname, "src/runtime-env.js")]: path.resolve(
+              __dirname,
+              "src/runtime-env.integration.js"
             )
           }
         : {})

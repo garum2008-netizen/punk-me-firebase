@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, it, expect, vi } from "vitest";
-import { runErasureQueueJob } from "./index.js";
+import { runErasureQueueJob, runScheduledInvocation, CRON_INVOCATION_SUBREQUEST_BUDGET } from "./index.js";
 import {
   persistJobAfterBatch,
   erasureBatchMadeProgress,
@@ -8,7 +8,7 @@ import {
   resumeErasureJobsAfterHoldRelease,
   startOrContinueUserErasure
 } from "./erasure-jobs.js";
-import { authSignUp, apiPost, apiGet, rtdbOwner } from "./test-helpers.js";
+import { authSignUp, apiPost, apiGet, rtdbOwner, apiPostReport, apiSendJson } from "./test-helpers.js";
 
 async function sidOf(u) {
   return (await (await apiGet(SELF, "/api/chat/config", u.idToken)).json()).mySid;
@@ -30,16 +30,17 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
     }
     const real = globalThis.fetch;
     let n = 0;
-    const spy = vi.spyOn(globalThis, "fetch").mockImplementation((...a) => {
-      n += 1;
-      return real(...a);
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation((input, ...a) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (String(url).includes("9000") || String(url).includes("firebasedatabase")) n += 1;
+      return real(input, ...a);
     });
     const res = await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {});
     spy.mockRestore();
     const j = await res.json();
     expect(j.ok).toBe(true);
-    expect(j.subrequests).toBeLessThanOrEqual(40);
-    expect(n).toBeLessThanOrEqual(45);
+    expect(n).toBeLessThanOrEqual(40);
+    expect(j.subrequests).toBe(n);
   }, 120000);
 
   it("GUARD P5: transient batch failure re-queues job and user retry continues erasure", async () => {
@@ -58,6 +59,11 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
       .filter(([id]) => !beforeDecisionIds.has(id))
       .map(([, d]) => d);
     expect(freshDecisions.some(d => d?.action === "erasure_job_failed")).toBe(false);
+    expect(
+      freshDecisions.some(
+        d => d?.action === "erasure_job_retry" && String(d?.note || "").includes("Erasure batch failed")
+      )
+    ).toBe(true);
     const retry = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
     expect(retry.status).not.toBe("failed");
     await runErasureQueueJob(env);
@@ -205,6 +211,15 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
     expect(payload.complete).toBe(false);
   });
 
+  it("GUARD X3: generic report succeeds without extra client-side delay (read-after-write retry)", async () => {
+    const author = await authSignUp();
+    const send = await apiSendJson(SELF, author.idToken, { phraseId: "gg", name: "R" });
+    expect(send.ok).toBe(true);
+    const rep = await authSignUp();
+    const r = await apiPostReport(SELF, rep.idToken, { msgId: send.id, category: "generic" });
+    expect(r.status).toBe(200);
+  });
+
   it("GUARD X12: delete-my-data with active queued job does not lie complete", async () => {
     const u = await authSignUp();
     await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "PUT", {
@@ -218,4 +233,58 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
     expect(j.status).toBe("queued");
     await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "DELETE");
   });
+
+  it("GUARD X12: repeat delete-my-data on complete_with_holds re-runs erasure batch", async () => {
+    const u = await authSignUp();
+    const sid = await sidOf(u);
+    const msgId = (await rtdbOwner("chat/messages", "POST", { sid, name: "h", text: "x", time: Date.now() })).json?.name;
+    await rtdbOwner(`chat/internal/safetyHolds/${msgId}`, "PUT", { at: Date.now() });
+    await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "PUT", {
+      status: "complete_with_holds",
+      holdMsgIds: [msgId],
+      attempts: 0,
+      updatedAt: Date.now(),
+      requestedAt: Date.now()
+    });
+    const first = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
+    expect(first.jobInProgress || first.status === "queued" || first.completeWithHolds).toBeTruthy();
+    const second = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
+    expect(second.complete).not.toBe(true);
+    expect(second.subrequests).toBeGreaterThan(0);
+    await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "DELETE");
+  });
+
+  it("GUARD P7: scheduled invocation stays within cron subrequest budget", async () => {
+    const u = await authSignUp();
+    const sid = await sidOf(u);
+    for (let i = 0; i < 60; i++) {
+      await rtdbOwner("chat/messages", "POST", { sid, name: "Q", text: `m${i}`, time: Date.now() + i });
+    }
+    await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "PUT", {
+      status: "queued",
+      attempts: 0,
+      updatedAt: Date.now(),
+      requestedAt: Date.now()
+    });
+    const now = Date.now();
+    for (let i = 0; i < 12; i++) {
+      const id = (await rtdbOwner("chat/messages", "POST", { sid, name: "S", text: "sla", time: now + i })).json?.name;
+      await rtdbOwner(`chat/internal/safetyQueue/${id}`, "PUT", {
+        childHarm: true,
+        slaReviewBy: now - 1000,
+        nextEscalateAt: now - 1000,
+        overdue: false
+      });
+    }
+    let fetchCount = 0;
+    const real = globalThis.fetch;
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation((...a) => {
+      fetchCount += 1;
+      return real(...a);
+    });
+    const out = await runScheduledInvocation(env, { cron: "*/15 * * * *" });
+    spy.mockRestore();
+    expect(out.subrequests).toBeLessThanOrEqual(CRON_INVOCATION_SUBREQUEST_BUDGET);
+    expect(fetchCount).toBeLessThanOrEqual(CRON_INVOCATION_SUBREQUEST_BUDGET + 5);
+  }, 180000);
 });
