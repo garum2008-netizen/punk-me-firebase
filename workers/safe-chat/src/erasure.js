@@ -60,6 +60,15 @@ function messageBlockedInCache(msgId, msg, cache) {
   return false;
 }
 
+/** safetyHolds alone already block erasure; no erasureDeferred row required. */
+function needsErasureDeferredRecord(msgId, cache) {
+  if (cache.deferredIds.has(msgId)) return false;
+  if (cache.holdIds.has(msgId) && !cache.queueChildHarm.has(msgId) && !cache.evidenceIds.has(msgId)) {
+    return false;
+  }
+  return messageBlockedInCache(msgId, null, cache);
+}
+
 export async function deferMessageErasure(config, token, emu, ns, msgId, msg, now, configObj, spend) {
   await rtdbSpend(
     config,
@@ -210,7 +219,9 @@ async function ensureDeferredOwnBlockedMessages(
     if (out.includes(id)) continue;
     const m = entries.find(([mid]) => mid === id)?.[1];
     if (!m) continue;
-    await deferMessageErasure(config, token, emu, ns, id, m, now, config, spend);
+    if (needsErasureDeferredRecord(id, cache)) {
+      await deferMessageErasure(config, token, emu, ns, id, m, now, config, spend);
+    }
     out.push(id);
   }
   return out;
@@ -395,7 +406,9 @@ export async function runUserErasureBatch({
     }
 
     if (messageBlockedInCache(id, m, cache)) {
-      await deferMessageErasure(config, token, emu, ns, id, m, now, config, spend);
+      if (needsErasureDeferredRecord(id, cache)) {
+        await deferMessageErasure(config, token, emu, ns, id, m, now, config, spend);
+      }
       deferred.push(id);
       if (budgetExceeded) {
         nextCursor = id;

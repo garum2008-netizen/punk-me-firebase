@@ -432,6 +432,7 @@ async function tryClaimQueuedJob(config, token, emu, ns, uid, job, now) {
 
 async function withErasureQueueLock(env, fn) {
   let stub;
+  let lockToken = null;
   try {
     const id = env.CHAT_LIMITS.idFromName(chatLimitsDoName(env));
     stub = env.CHAT_LIMITS.get(id);
@@ -442,19 +443,28 @@ async function withErasureQueueLock(env, fn) {
       })
     );
     const lock = await acquire.json();
-    if (lock?.ok) {
-      try {
-        return await fn(lock.token);
-      } finally {
-        /* Hold lock until TTL — do not release early or a queued waiter can drain twice. */
-      }
-    }
-    if (lock?.reason === "locked") {
+    if (lock?.ok) lockToken = lock.token;
+    else if (lock?.reason === "locked") {
       return { ok: true, processed: 0, skipped: "queue_locked" };
+    } else {
+      return { ok: true, processed: 0, skipped: "queue_lock_unavailable" };
     }
-    return { ok: true, processed: 0, skipped: "queue_lock_unavailable" };
   } catch (_) {
     return { ok: true, processed: 0, skipped: "queue_lock_unavailable" };
+  }
+  try {
+    return await fn(lockToken);
+  } finally {
+    if (stub && lockToken) {
+      try {
+        await stub.fetch(
+          new Request("http://do/erasure-queue-lock", {
+            method: "POST",
+            body: JSON.stringify({ op: "release", token: lockToken })
+          })
+        );
+      } catch (_) {}
+    }
   }
 }
 
