@@ -770,11 +770,27 @@ async function handleDeleteMyData(request, env) {
     !preJob.cursor &&
     !(Array.isArray(preJob.holdMsgIds) && preJob.holdMsgIds.length > 0)
   ) {
-    return json(
-      request,
-      env,
-      await sanitizeErasurePayloadForUser(userFacingErasurePayload(preJob, null))
+    const sid = await chatPublicSid(auth.uid, env.SAFE_CHAT_HASH_SALT || "");
+    const msgsRes = await rtdbRequest(
+      config,
+      "chat/messages",
+      "GET",
+      null,
+      token,
+      env.FIREBASE_EMULATOR_HOST,
+      env.FIREBASE_EMULATOR_NS
     );
+    const ownMsgs =
+      msgsRes.json && typeof msgsRes.json === "object"
+        ? Object.values(msgsRes.json).filter(m => m?.sid === sid)
+        : [];
+    if (ownMsgs.length === 0) {
+      return json(
+        request,
+        env,
+        await sanitizeErasurePayloadForUser(userFacingErasurePayload(preJob, null))
+      );
+    }
   }
   const { rateLimited, job, batch, error, jobStatusOnly, requestSubrequests } =
     await startOrContinueUserErasure(env, auth.uid, {
