@@ -29,14 +29,27 @@ const mutations = [
         file: "src/child-safety-abuse.js",
         replacements: [
           {
-            from: `  const hideCheck = await limitsStub(env, "/child-safety-hide-check", {
-    uid: authUid,
-    now,
-    quota,
-    bump: false
-  });
-  if (!hideCheck.ok) return { ok: false, reason: hideCheck.reason || "hide_quota" };`,
-            to: `  /* MUT-A removed hide quota check */`
+            from: `export async function checkDiscretionaryHideQuota({
+  env,
+  configObj,
+  limitsStub,
+  authUid,
+  profile,
+  now,
+  clusterHash
+}) {
+  const trust = reporterTrustForChildSafety(profile, now, configObj);`,
+            to: `export async function checkDiscretionaryHideQuota({
+  env,
+  configObj,
+  limitsStub,
+  authUid,
+  profile,
+  now,
+  clusterHash
+}) {
+  return { ok: true }; /* MUT-A */
+  const trust = reporterTrustForChildSafety(profile, now, configObj);`
           }
         ]
       }
@@ -213,20 +226,44 @@ const mutations = [
         file: "src/index.js",
         replacements: [
           {
-            from: `        await rtdbRequest(
+            from: `      if (
+        cap != null &&
+        now > cap &&
+        !q?.modResolvedAt
+      ) {
+        await rtdbRequest(
           config,
           "chat/internal/safetyDecisions",
           "POST",
           {
             msgId,
-            action: "evidence_hold_expired",`,
-            to: `        if (false) await rtdbRequest( /* MUT-G */
+            action: "evidence_hold_expired",
+            at: now,
+            moderatorUid: null,
+            note: "Automatic escalation: legal/max hold reached without moderator decision"
+          },
+          token,
+          emu,
+          ns
+        );
+        bump();
+        await rtdbRequest(
           config,
-          "chat/internal/safetyDecisions",
-          "POST",
+          rtdbPath("chat", "internal", "safetyQueue", msgId),
+          "PUT",
           {
-            msgId,
-            action: "evidence_hold_expired",`
+            ...q,
+            overdue: true,
+            evidenceHoldExpiredAt: now,
+            nextEscalateAt: now + config.safetyQueueEscalateMs
+          },
+          token,
+          emu,
+          ns
+        );
+        bump();
+      }`,
+            to: `      if (false) { /* MUT-G disabled hold expiry escalation */ }`
           }
         ]
       }
@@ -243,6 +280,9 @@ const mutations = [
             from: `export async function redactPublicMessageText(config, token, emu, ns, msgId) {
   await rtdbRequest(config, \`\${pathChatMessage(msgId)}/text\`, "DELETE", null, token, emu, ns);
   await rtdbRequest(config, \`\${pathChatMessage(msgId)}/textRedacted\`, "PUT", true, token, emu, ns);
+  await rtdbRequest(config, \`\${pathClientChatMessage(msgId)}/text\`, "DELETE", null, token, emu, ns);
+  await rtdbRequest(config, \`\${pathClientChatMessage(msgId)}/textRedacted\`, "PUT", true, token, emu, ns);
+  await rtdbRequest(config, \`\${pathClientChatMessage(msgId)}/hidden\`, "PUT", true, token, emu, ns);
 }`,
             to: `export async function redactPublicMessageText() { /* MUT-H no-op */ }`
           }
@@ -280,11 +320,11 @@ const mutations = [
         replacements: [
           {
             from: `export async function runErasureQueueJob(env, nowOverride) {
-  syncIntegrationEnvBindings(env);
+  return withErasureQueueLock(env, async () => {
   const config = loadConfig(env);`,
             to: `export async function runErasureQueueJob(env, nowOverride) {
   return { ok: true, processed: 0 }; /* MUT-J */
-  syncIntegrationEnvBindings(env);
+  return withErasureQueueLock(env, async () => {
   const config = loadConfig(env);`
           }
         ]
@@ -299,7 +339,7 @@ const mutations = [
         file: "src/erasure-jobs.js",
         replacements: [
           {
-            from: `  await persistJobAfterBatch(env, uid, batch, job, now);
+            from: `  await persistJobAfterBatch(env, uid, batch, claimed, now);
   return { ok: true, processed: 1, uid, subrequests: batch.subrequests, status: mapBatchToJobStatus(batch) };`,
             to: `  /* MUT-K */ return { ok: true, processed: 0 };`
           }
@@ -459,15 +499,10 @@ const mutations = [
         file: "src/erasure-jobs.js",
         replacements: [
           {
-            from: `  if (
-    existing &&
-    (existing.status === "queued" ||
-      existing.status === "in_progress" ||
-      existing.status === "complete_with_holds")
-  ) {
-    return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
-  }`,
-            to: `  if (false) { /* MUT-X12 */ return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true }; }`
+            from: `    if (!pendingWork) {
+      return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
+    }`,
+            to: `    if (false) { /* MUT-X12 */ return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true }; }`
           }
         ]
       }
