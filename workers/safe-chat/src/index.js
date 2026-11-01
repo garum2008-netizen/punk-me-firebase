@@ -1640,6 +1640,12 @@ export async function runRetentionJob(env, nowOverride) {
 
 export default {
   async fetch(request, env, ctx) {
+    if (env.SAFE_CHAT_INTEGRATION === "1") {
+      const ns = request.headers.get("X-Sc-Rtdb-Ns");
+      const doName = request.headers.get("X-Sc-Lim-Do");
+      if (ns) env.FIREBASE_EMULATOR_NS = ns;
+      if (doName) env.SAFE_CHAT_TEST_DO_NAME = doName;
+    }
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }

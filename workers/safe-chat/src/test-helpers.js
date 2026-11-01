@@ -1,8 +1,11 @@
 import { chatPublicSid } from "./rtdb.js";
 import { env as workerEnv } from "cloudflare:test";
 import { getActiveIntegrationRtdbNs, getActiveIntegrationDoName } from "./integration-isolation.js";
-import { integrationIsolationHeaders } from "./integration-env-sync.js";
 import { chatLimitsDoName } from "./limits-do-env.js";
+
+function integrationIsolationHeaders(ns, doName) {
+  return { "X-Sc-Rtdb-Ns": ns, "X-Sc-Lim-Do": doName };
+}
 
 const AUTH_HOST = "127.0.0.1";
 const AUTH_PORT = 9099;

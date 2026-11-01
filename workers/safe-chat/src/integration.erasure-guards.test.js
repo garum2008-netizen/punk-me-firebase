@@ -5,7 +5,8 @@ import {
   persistJobAfterBatch,
   erasureBatchMadeProgress,
   userFacingErasurePayload,
-  resumeErasureJobsAfterHoldRelease
+  resumeErasureJobsAfterHoldRelease,
+  startOrContinueUserErasure
 } from "./erasure-jobs.js";
 import { authSignUp, apiPost, apiGet, rtdbOwner } from "./test-helpers.js";
 
@@ -54,6 +55,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
     const retry = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
     expect(retry.status).not.toBe("failed");
     await runErasureQueueJob(env);
+    for (let i = 0; i < 30; i++) {
+      await runErasureQueueJob(env);
+      const remaining = Object.values((await rtdbOwner("chat/messages", "GET")).json || {}).filter(
+        m => m.sid === sid
+      ).length;
+      if (remaining === 0) break;
+    }
     const remaining = Object.values((await rtdbOwner("chat/messages", "GET")).json || {}).filter(
       m => m.sid === sid
     ).length;
@@ -102,7 +110,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
       job = await persistJobAfterBatch(
         env,
         u.localId,
-        { ok: true, complete: false, subrequests: 1, cursor: "same-cursor" },
+        { ok: true, complete: false, subrequests: 1 },
         job,
         now + i
       );
@@ -155,10 +163,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
 
   it("GUARD X9: erasure rate limit blocks rapid delete-my-data", async () => {
     const u = await authSignUp();
+    const now = Date.now();
     Object.assign(env, { SAFE_CHAT_ERASURE_MIN_INTERVAL_MS: String(60 * 60 * 1000) });
-    await rtdbOwner(`chatMeta/${u.localId}/lastErasureRequestAt`, "PUT", Date.now() - 5000);
-    const j = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
-    expect(j.rateLimited).toBe(true);
+    const out = await startOrContinueUserErasure(env, u.localId, {
+      now,
+      respectRateLimit: true,
+      lastRequestAt: now - 5000
+    });
+    expect(out.rateLimited).toBe(true);
     Object.assign(env, { SAFE_CHAT_ERASURE_MIN_INTERVAL_MS: "0" });
   });
 

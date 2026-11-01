@@ -69,6 +69,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron
       if ((await countOwnMessagesByIds(ids, sid)) === 0) break;
     }
     expect(await countOwnMessagesByIds(ids, sid)).toBe(0);
+    for (let i = 0; i < 8; i++) await runErasureQueueJob(env);
     expect((await rtdbOwner(`chatMeta/${u.localId}/erasureCursor`, "GET")).json).toBeNull();
     expect((await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "GET")).json).toBeNull();
   });

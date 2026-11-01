@@ -373,9 +373,11 @@ async function tryClaimQueuedJob(config, token, emu, ns, uid, job, now) {
 }
 
 async function withErasureQueueLock(env, fn) {
+  let stub;
+  let lockToken = null;
   try {
     const id = env.CHAT_LIMITS.idFromName(chatLimitsDoName(env));
-    const stub = env.CHAT_LIMITS.get(id);
+    stub = env.CHAT_LIMITS.get(id);
     const acquire = await stub.fetch(
       new Request("http://do/erasure-queue-lock", {
         method: "POST",
@@ -383,19 +385,26 @@ async function withErasureQueueLock(env, fn) {
       })
     );
     const lock = await acquire.json();
-    if (!lock?.ok) return { ok: true, processed: 0, skipped: "queue_locked" };
-    try {
-      return await fn(lock.token);
-    } finally {
-      await stub.fetch(
-        new Request("http://do/erasure-queue-lock", {
-          method: "POST",
-          body: JSON.stringify({ op: "release", token: lock.token })
-        })
-      );
+    if (lock?.ok) lockToken = lock.token;
+    else if (lock?.reason === "locked") {
+      return { ok: true, processed: 0, skipped: "queue_locked" };
     }
   } catch (_) {
-    return { ok: true, processed: 0, skipped: "lock_error" };
+    /* proceed without DO mutex if lock endpoint unavailable */
+  }
+  try {
+    return await fn(lockToken);
+  } finally {
+    if (stub && lockToken) {
+      try {
+        await stub.fetch(
+          new Request("http://do/erasure-queue-lock", {
+            method: "POST",
+            body: JSON.stringify({ op: "release", token: lockToken })
+          })
+        );
+      } catch (_) {}
+    }
   }
 }
 
