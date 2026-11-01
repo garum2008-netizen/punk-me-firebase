@@ -196,6 +196,7 @@ function runTests(dest, mod) {
   return spawnSync("npm", ["test"], {
     cwd: dest,
     encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
     env: {
       ...process.env,
       SAFE_CHAT_INTEGRATION: "1",
