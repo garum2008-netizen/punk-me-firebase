@@ -221,49 +221,15 @@ const mutations = [
   {
     id: "MUT-G",
     expectFailTest: "PROTECT maxHold:",
+    expectFailAlt: "retention escalates when maxHoldUntil",
     patches: [
       {
         file: "src/index.js",
         replacements: [
           {
-            from: `      if (
-        cap != null &&
-        now > cap &&
-        !q?.modResolvedAt
-      ) {
-        await rtdbRequest(
-          config,
-          "chat/internal/safetyDecisions",
-          "POST",
-          {
-            msgId,
-            action: "evidence_hold_expired",
-            at: now,
-            moderatorUid: null,
-            note: "Automatic escalation: legal/max hold reached without moderator decision"
-          },
-          token,
-          emu,
-          ns
-        );
-        bump();
-        await rtdbRequest(
-          config,
-          rtdbPath("chat", "internal", "safetyQueue", msgId),
-          "PUT",
-          {
-            ...q,
-            overdue: true,
-            evidenceHoldExpiredAt: now,
-            nextEscalateAt: now + config.safetyQueueEscalateMs
-          },
-          token,
-          emu,
-          ns
-        );
-        bump();
-      }`,
-            to: `      if (false) { /* MUT-G disabled hold expiry escalation */ }`
+            from: `        cap != null &&
+        now > cap &&`,
+            to: `        false && /* MUT-G */`
           }
         ]
       }
@@ -548,7 +514,8 @@ function runIntegrationInCopy(mut, mod, dest) {
       SAFE_CHAT_TEST_MOD_UID: mod.localId,
       SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken
     },
-    encoding: "utf8"
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024
   });
   rmSync(dest, { recursive: true, force: true });
   return r;
@@ -586,6 +553,7 @@ function mutationCaught(mut, result) {
   const out = `${result.stdout || ""}${result.stderr || ""}`;
   if (result.status === 0) return false;
   if (out.includes(mut.expectFailTest)) return true;
+  if (mut.expectFailAlt && out.includes(mut.expectFailAlt)) return true;
   return out.includes("not ok") && mut.unitOnly;
 }
 
