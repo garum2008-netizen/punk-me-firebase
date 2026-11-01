@@ -396,10 +396,38 @@ const mutations = [
         replacements: [
           {
             from: `async function recordErasureJobAlert(config, token, emu, ns, env, uid, note, batchError) {
-  await rtdbRequest(`,
+  await rtdbRequest(
+    config,
+    "chat/internal/safetyDecisions",
+    "POST",
+    {
+      msgId: null,
+      action: "erasure_job_failed",
+      at: Date.now(),
+      moderatorUid: null,
+      note
+    },
+    token,
+    emu,
+    ns
+  );`,
             to: `async function recordErasureJobAlert(config, token, emu, ns, env, uid, note, batchError) {
   return; /* MUT-X5 */
-  await rtdbRequest(`
+  await rtdbRequest(
+    config,
+    "chat/internal/safetyDecisions",
+    "POST",
+    {
+      msgId: null,
+      action: "erasure_job_failed",
+      at: Date.now(),
+      moderatorUid: null,
+      note
+    },
+    token,
+    emu,
+    ns
+  );`
           }
         ]
       }
@@ -515,7 +543,7 @@ function copyWorker(dest) {
 function runIntegrationInCopy(mut, mod, dest) {
   prepareWorkerCopy(dest);
   applyPatches(mut, dest);
-  const r = spawnSync("npm", ["test"], {
+  const r = spawnSync("npx", ["vitest", "run", "--reporter=verbose"], {
     cwd: dest,
     env: {
       ...process.env,
