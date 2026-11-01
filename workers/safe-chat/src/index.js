@@ -762,6 +762,18 @@ async function handleDeleteMyData(request, env) {
     env.FIREBASE_EMULATOR_NS
   );
   const lastAt = typeof lastReq.json === "number" ? lastReq.json : 0;
+  if (lastAt && now - lastAt < config.erasureMinIntervalMs) {
+    return err(request, env, "erasure_rate_limit", 429);
+  }
+  await rtdbRequest(
+    config,
+    pathChatMeta(auth.uid, "lastErasureRequestAt"),
+    "PUT",
+    now,
+    token,
+    env.FIREBASE_EMULATOR_HOST,
+    env.FIREBASE_EMULATOR_NS
+  );
   const preJob = await loadUserErasureJob(env, auth.uid);
   if (
     preJob?.status === "queued" &&
@@ -795,7 +807,7 @@ async function handleDeleteMyData(request, env) {
   const { rateLimited, job, batch, error, jobStatusOnly, requestSubrequests } =
     await startOrContinueUserErasure(env, auth.uid, {
       now,
-      respectRateLimit: true,
+      respectRateLimit: false,
       lastRequestAt: lastAt
     });
   if (error) return err(request, env, error, error === "erasure_rate_limit" ? 429 : 400);
@@ -823,11 +835,11 @@ async function handleDeleteMyData(request, env) {
       id => typeof id === "string" && /^[-A-Za-z0-9]+$/.test(String(id))
     );
   } else if (
-    Array.isArray(job?.holdMsgIds) &&
-    job.holdMsgIds.length > 0 &&
+    Array.isArray(effectiveJob?.holdMsgIds) &&
+    effectiveJob.holdMsgIds.length > 0 &&
     (!payload.erasureDeferred || payload.erasureDeferred.length === 0)
   ) {
-    payload.erasureDeferred = job.holdMsgIds.filter(
+    payload.erasureDeferred = effectiveJob.holdMsgIds.filter(
       id => typeof id === "string" && /^[-A-Za-z0-9]+$/.test(String(id))
     );
   }
@@ -1072,7 +1084,8 @@ async function handleModSafetyQueue(request, env) {
       if (pa !== pb) return pa - pb;
       return (b.at || 0) - (a.at || 0);
     });
-    return json(request, env, { ok: true, queue: entries });
+    const MOD_SAFETY_QUEUE_MAX = 256;
+    return json(request, env, { ok: true, queue: entries.slice(0, MOD_SAFETY_QUEUE_MAX) });
   } catch (e) {
     return err(
       request,

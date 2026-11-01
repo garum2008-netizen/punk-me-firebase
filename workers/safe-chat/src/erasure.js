@@ -178,6 +178,44 @@ async function deleteErasureMeta(config, token, emu, ns, authUid, spend) {
   return true;
 }
 
+function collectBlockedOwnMessageIds(entries, sid, authUid, cache) {
+  const ids = [];
+  for (const [id, m] of entries) {
+    if (!isOwnMessage(m, sid, authUid)) continue;
+    try {
+      assertFirebaseId(id);
+    } catch {
+      continue;
+    }
+    if (messageBlockedInCache(id, m, cache)) ids.push(id);
+  }
+  return ids;
+}
+
+async function ensureDeferredOwnBlockedMessages(
+  config,
+  token,
+  emu,
+  ns,
+  entries,
+  sid,
+  authUid,
+  cache,
+  now,
+  spend,
+  deferred
+) {
+  const out = [...deferred];
+  for (const id of collectBlockedOwnMessageIds(entries, sid, authUid, cache)) {
+    if (out.includes(id)) continue;
+    const m = entries.find(([mid]) => mid === id)?.[1];
+    if (!m) continue;
+    await deferMessageErasure(config, token, emu, ns, id, m, now, config, spend);
+    out.push(id);
+  }
+  return out;
+}
+
 /** Resume index for batched erasure (exported for unit tests). */
 export function erasureBatchStartIndex(entries, cursorMsgId) {
   if (!cursorMsgId) return 0;
@@ -358,12 +396,12 @@ export async function runUserErasureBatch({
 
     if (messageBlockedInCache(id, m, cache)) {
       await deferMessageErasure(config, token, emu, ns, id, m, now, config, spend);
+      deferred.push(id);
       if (budgetExceeded) {
         nextCursor = id;
         processedAll = false;
         break;
       }
-      deferred.push(id);
       continue;
     }
 
@@ -437,6 +475,19 @@ export async function runUserErasureBatch({
     allOwn.count === 0;
 
   if (workDone && deferred.length === 0 && remaining.count === 0 && allOwn.count > 0) {
+    const heldIds = await ensureDeferredOwnBlockedMessages(
+      config,
+      token,
+      emu,
+      ns,
+      entries,
+      sid,
+      authUid,
+      cache,
+      now,
+      spend,
+      deferred
+    );
     return {
       ok: true,
       complete: false,
@@ -444,7 +495,7 @@ export async function runUserErasureBatch({
       status: "complete_with_holds",
       continueScheduled: false,
       deleted,
-      erasureDeferred: [],
+      erasureDeferred: heldIds,
       cursor: null,
       remainingDeletable: 0,
       subrequests,

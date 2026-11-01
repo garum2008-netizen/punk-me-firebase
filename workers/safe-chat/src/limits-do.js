@@ -102,21 +102,23 @@ export class ChatLimitsDO {
       return Response.json({ ok: true });
     }
     if (request.method === "POST" && url.pathname === "/erasure-queue-lock") {
-      const body = await request.json().catch(() => ({}));
-      const op = body.op || "acquire";
-      const now = Date.now();
-      const lock = await this.state.storage.get("erasureQueueLock");
-      if (op === "release") {
-        if (lock?.token === body.token) await this.state.storage.delete("erasureQueueLock");
-        return Response.json({ ok: true });
-      }
-      if (lock && lock.until > now) return Response.json({ ok: false, reason: "locked" });
-      const token = `${now}-${Math.random().toString(36).slice(2, 10)}`;
-      await this.state.storage.put("erasureQueueLock", {
-        until: now + (body.ttlMs || 90_000),
-        token
+      return await this.state.blockConcurrencyWhile(async () => {
+        const body = await request.json().catch(() => ({}));
+        const op = body.op || "acquire";
+        const now = Date.now();
+        const lock = await this.state.storage.get("erasureQueueLock");
+        if (op === "release") {
+          if (lock?.token === body.token) await this.state.storage.delete("erasureQueueLock");
+          return Response.json({ ok: true });
+        }
+        if (lock && lock.until > now) return Response.json({ ok: false, reason: "locked" });
+        const token = `${now}-${Math.random().toString(36).slice(2, 10)}`;
+        await this.state.storage.put("erasureQueueLock", {
+          until: now + (body.ttlMs || 90_000),
+          token
+        });
+        return Response.json({ ok: true, token });
       });
-      return Response.json({ ok: true, token });
     }
     return new Response("not found", { status: 404 });
   }

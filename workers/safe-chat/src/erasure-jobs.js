@@ -416,6 +416,7 @@ async function tryClaimQueuedJob(config, token, emu, ns, uid, job, now) {
   if (fresh.retryAfter && now < fresh.retryAfter) return null;
   if (fresh.processingUntil && fresh.processingUntil > now) return null;
   const tokenLease = `${now}-${Math.random().toString(36).slice(2, 10)}`;
+  const priorUpdatedAt = fresh.updatedAt ?? 0;
   await writeJob(config, token, emu, ns, uid, {
     ...fresh,
     status: "in_progress",
@@ -425,12 +426,12 @@ async function tryClaimQueuedJob(config, token, emu, ns, uid, job, now) {
   });
   const verify = await readJob(config, token, emu, ns, uid);
   if (verify?.processingToken !== tokenLease || verify.status !== "in_progress") return null;
+  if (verify.updatedAt !== now && verify.updatedAt !== priorUpdatedAt) return null;
   return verify;
 }
 
 async function withErasureQueueLock(env, fn) {
   let stub;
-  let lockToken = null;
   try {
     const id = env.CHAT_LIMITS.idFromName(chatLimitsDoName(env));
     stub = env.CHAT_LIMITS.get(id);
@@ -441,26 +442,19 @@ async function withErasureQueueLock(env, fn) {
       })
     );
     const lock = await acquire.json();
-    if (lock?.ok) lockToken = lock.token;
-    else if (lock?.reason === "locked") {
+    if (lock?.ok) {
+      try {
+        return await fn(lock.token);
+      } finally {
+        /* Hold lock until TTL — do not release early or a queued waiter can drain twice. */
+      }
+    }
+    if (lock?.reason === "locked") {
       return { ok: true, processed: 0, skipped: "queue_locked" };
     }
+    return { ok: true, processed: 0, skipped: "queue_lock_unavailable" };
   } catch (_) {
-    /* proceed without DO mutex if lock endpoint unavailable */
-  }
-  try {
-    return await fn(lockToken);
-  } finally {
-    if (stub && lockToken) {
-      try {
-        await stub.fetch(
-          new Request("http://do/erasure-queue-lock", {
-            method: "POST",
-            body: JSON.stringify({ op: "release", token: lockToken })
-          })
-        );
-      } catch (_) {}
-    }
+    return { ok: true, processed: 0, skipped: "queue_lock_unavailable" };
   }
 }
 
