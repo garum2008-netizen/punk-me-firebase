@@ -18,7 +18,8 @@ import {
   waitForChatMessage,
   apiSend,
   apiSendJson,
-  waitForSafetyQueue
+  waitForSafetyQueue,
+  waitForMessageHidden
 } from "./test-helpers.js";
 
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms (must fail if disabled)", () => {
@@ -78,7 +79,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
       expect(r1.status).toBe(200);
       const r2 = await apiPostReport(SELF, repB.idToken, { msgId, category: "grooming" }, clusterHdr);
       expect(r2.status).toBe(200);
-      expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
+      await waitForMessageHidden(msgId);
     }
     const m4 = msgIds[3];
     const repA4 = await authSignUp();
@@ -265,6 +266,24 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     await apiPost(SELF, "/api/mod/resolve-safety", modToken, { msgId, action: "restore_visibility" });
     expect((await rtdbOwner(`chat/messages/${msgId}/text`, "GET")).json).toBe("restore me please");
   });
+
+  it("PROTECT GEN-RET: genericAutoHideEvidence removed on author erasure", async () => {
+    const author = await authSignUp();
+    const sid = (await (await apiGet(SELF, "/api/chat/config", author.idToken)).json()).mySid;
+    const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "gg" });
+    for (let i = 0; i < 3; i++) {
+      const r = await authSignUp();
+      await apiPostReport(SELF, r.idToken, { msgId, category: "generic" });
+    }
+    expect((await rtdbOwner(`chat/internal/genericAutoHideEvidence/${msgId}`, "GET")).json?.snapshot).toBeTruthy();
+    await (await apiPost(SELF, "/api/chat/delete-my-data", author.idToken, {})).json();
+    for (let t = 0; t < 60; t++) {
+      await runErasureQueueJob(env);
+      if (!(await rtdbOwner(`chat/internal/genericAutoHideEvidence/${msgId}`, "GET")).json) break;
+    }
+    expect((await rtdbOwner(`chat/internal/genericAutoHideEvidence/${msgId}`, "GET")).json).toBeNull();
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.sid).not.toBe(sid);
+  }, 120000);
 
   it("PROTECT EV-SNAP: second child_safety report keeps evidence snapshot text", async () => {
     const author = await authSignUp();

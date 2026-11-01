@@ -24,7 +24,15 @@ export default defineWorkersConfig({
   resolve: {
     alias: {
       [path.resolve(__dirname, "src/auth-prod.js")]: path.resolve(__dirname, "src/auth.integration.js"),
-      [path.resolve(__dirname, "src/admin-token.js")]: path.resolve(__dirname, "src/admin-token.integration.js")
+      [path.resolve(__dirname, "src/admin-token.js")]: path.resolve(__dirname, "src/admin-token.integration.js"),
+      ...(integration
+        ? {
+            [path.resolve(__dirname, "src/limits-do-env.js")]: path.resolve(
+              __dirname,
+              "src/limits-do-env.integration.js"
+            )
+          }
+        : {})
     }
   },
   test: {
@@ -37,6 +45,7 @@ export default defineWorkersConfig({
         ? ["src/integration.newbie.test.js"]
         : [
             "src/integration.erasure.test.js",
+            "src/integration.erasure-guards.test.js",
             "src/integration.protections.test.js",
             "src/integration.emulator.test.js",
             "src/integration.t139u.test.js"

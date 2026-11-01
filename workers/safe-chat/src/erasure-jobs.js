@@ -4,10 +4,11 @@ import { loadConfig } from "./config.js";
 import { getCachedAdminToken } from "./admin-token.js";
 import { runUserErasureBatch } from "./erasure.js";
 import { chatLimitsDoName } from "./limits-do-env.js";
-import { syncIntegrationEnvBindings } from "./integration-isolation.js";
+import { sendModeratorAlert } from "./mod-alert.js";
 
 const JOBS_ROOT = "chat/internal/erasureJobs";
 const MAX_JOB_ATTEMPTS = 48;
+const JOB_LEASE_MS = 90_000;
 
 async function eraseUserLimits(env, uid) {
   try {
@@ -42,6 +43,17 @@ export function mapBatchToJobStatus(result) {
 /** True only when batch honestly reports zero own messages left (unit-tested guard). */
 export function erasureJobMayDeleteFromBatch(batch) {
   return mapBatchToJobStatus(batch) === "complete" && batch.complete === true;
+}
+
+export function erasureBatchMadeProgress(batch, existingJob) {
+  if (!batch || batch.ok === false) return false;
+  if ((batch.deleted ?? 0) > 0) return true;
+  if (batch.staleCursorCleared) return true;
+  if (batch.complete === true) return true;
+  const prev = existingJob?.cursor ?? null;
+  const cur = batch.cursor ?? null;
+  if (cur != null && cur !== prev) return true;
+  return false;
 }
 
 export function userFacingErasurePayload(job, batch) {
@@ -163,6 +175,29 @@ async function rtdbSpendGet(config, token, emu, ns, path, spendPre) {
   return rtdbRequest(config, path, "GET", null, token, emu, ns);
 }
 
+async function recordErasureJobAlert(config, token, emu, ns, env, uid, note, batchError) {
+  await rtdbRequest(
+    config,
+    "chat/internal/safetyDecisions",
+    "POST",
+    {
+      msgId: null,
+      action: "erasure_job_failed",
+      at: Date.now(),
+      moderatorUid: null,
+      note
+    },
+    token,
+    emu,
+    ns
+  );
+  await sendModeratorAlert(env, {
+    kind: "erasure_job_failed",
+    uidPrefix: uid.slice(0, 8),
+    error: batchError || note
+  });
+}
+
 export async function persistJobAfterBatch(env, uid, batch, existingJob, now) {
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
@@ -171,7 +206,37 @@ export async function persistJobAfterBatch(env, uid, batch, existingJob, now) {
   const status = mapBatchToJobStatus(batch);
   const attempts = existingJob?.attempts || 0;
   let nextAttempts = attempts;
-  if (status === "queued") nextAttempts = attempts + 1;
+  const progressed = erasureBatchMadeProgress(batch, existingJob);
+
+  if (status === "failed" && batch?.ok === false) {
+    nextAttempts = progressed ? attempts : attempts + 1;
+    const note = `Erasure batch failed (${batch.error || "unknown"}); will retry`;
+    if (nextAttempts >= MAX_JOB_ATTEMPTS) {
+      await recordErasureJobAlert(config, token, emu, ns, env, uid, note, batch.error);
+      await writeJob(config, token, emu, ns, uid, {
+        status: "failed",
+        attempts: nextAttempts,
+        updatedAt: now,
+        failedAt: now,
+        lastError: batch.error || "unknown"
+      });
+      return readJob(config, token, emu, ns, uid);
+    }
+    await writeJob(config, token, emu, ns, uid, {
+      status: "queued",
+      cursor: existingJob?.cursor || batch?.cursor || null,
+      attempts: nextAttempts,
+      updatedAt: now,
+      requestedAt: existingJob?.requestedAt || now,
+      holdMsgIds: existingJob?.holdMsgIds || null,
+      lastError: batch.error || "unknown",
+      retryAfter: now + Math.min(600_000, 5000 * nextAttempts)
+    });
+    return readJob(config, token, emu, ns, uid);
+  }
+
+  if (status === "queued" && !progressed) nextAttempts = attempts + 1;
+  else if (status === "queued") nextAttempts = attempts;
 
   const holdMsgIds =
     batch.erasureDeferred?.length > 0 ? batch.erasureDeferred : existingJob?.holdMsgIds || null;
@@ -215,20 +280,15 @@ export async function persistJobAfterBatch(env, uid, batch, existingJob, now) {
   }
 
   if (status === "queued" && nextAttempts > MAX_JOB_ATTEMPTS) {
-    await rtdbRequest(
+    await recordErasureJobAlert(
       config,
-      "chat/internal/safetyDecisions",
-      "POST",
-      {
-        msgId: null,
-        action: "erasure_job_failed",
-        at: now,
-        moderatorUid: null,
-        note: `Erasure job for uid ${uid.slice(0, 8)}… exceeded attempt cap`
-      },
       token,
       emu,
-      ns
+      ns,
+      env,
+      uid,
+      `Erasure job for uid ${uid.slice(0, 8)}… exceeded attempt cap`,
+      "attempt_cap"
     );
     await writeJob(config, token, emu, ns, uid, {
       status: "failed",
@@ -246,7 +306,9 @@ export async function persistJobAfterBatch(env, uid, batch, existingJob, now) {
     updatedAt: now,
     requestedAt: existingJob?.requestedAt || now,
     holdMsgIds,
-    subrequestsLast: batch.subrequests
+    subrequestsLast: batch.subrequests,
+    processingUntil: null,
+    processingToken: null
   };
   await writeJob(config, token, emu, ns, uid, job);
   return job;
@@ -292,8 +354,53 @@ export async function resumeErasureJobsAfterHoldRelease(env, msgId) {
   }
 }
 
+async function tryClaimQueuedJob(config, token, emu, ns, uid, job, now) {
+  const fresh = await readJob(config, token, emu, ns, uid);
+  if (!fresh || fresh.status !== "queued") return null;
+  if (fresh.retryAfter && now < fresh.retryAfter) return null;
+  if (fresh.processingUntil && fresh.processingUntil > now) return null;
+  const tokenLease = `${now}-${Math.random().toString(36).slice(2, 10)}`;
+  await writeJob(config, token, emu, ns, uid, {
+    ...fresh,
+    status: "in_progress",
+    processingUntil: now + JOB_LEASE_MS,
+    processingToken: tokenLease,
+    updatedAt: now
+  });
+  const verify = await readJob(config, token, emu, ns, uid);
+  if (verify?.processingToken !== tokenLease || verify.status !== "in_progress") return null;
+  return verify;
+}
+
+async function withErasureQueueLock(env, fn) {
+  try {
+    const id = env.CHAT_LIMITS.idFromName(chatLimitsDoName(env));
+    const stub = env.CHAT_LIMITS.get(id);
+    const acquire = await stub.fetch(
+      new Request("http://do/erasure-queue-lock", {
+        method: "POST",
+        body: JSON.stringify({ op: "acquire", ttlMs: JOB_LEASE_MS })
+      })
+    );
+    const lock = await acquire.json();
+    if (!lock?.ok) return { ok: true, processed: 0, skipped: "queue_locked" };
+    try {
+      return await fn(lock.token);
+    } finally {
+      await stub.fetch(
+        new Request("http://do/erasure-queue-lock", {
+          method: "POST",
+          body: JSON.stringify({ op: "release", token: lock.token })
+        })
+      );
+    }
+  } catch (_) {
+    return { ok: true, processed: 0, skipped: "lock_error" };
+  }
+}
+
 export async function runErasureQueueJob(env, nowOverride) {
-  syncIntegrationEnvBindings(env);
+  return withErasureQueueLock(env, async () => {
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
@@ -308,9 +415,12 @@ export async function runErasureQueueJob(env, nowOverride) {
   candidates.sort((a, b) => (a[1].updatedAt || 0) - (b[1].updatedAt || 0));
   const [uid, job] = candidates[0];
   assertFirebaseId(uid);
+  const claimed = await tryClaimQueuedJob(config, token, emu, ns, uid, job, now);
+  if (!claimed) return { ok: true, processed: 0, skipped: "not_claimed" };
   const batch = await runErasureJobStep(env, uid, { now, bypassRateLimit: true });
-  await persistJobAfterBatch(env, uid, batch, job, now);
+  await persistJobAfterBatch(env, uid, batch, claimed, now);
   return { ok: true, processed: 1, uid, subrequests: batch.subrequests, status: mapBatchToJobStatus(batch) };
+  });
 }
 
 /** Used by delete-my-data and tests. */
@@ -319,7 +429,19 @@ export async function startOrContinueUserErasure(env, authUid, { now, respectRat
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
-  const existing = await readJob(config, token, emu, ns, authUid);
+  const existingRaw = await readJob(config, token, emu, ns, authUid);
+  let existing = existingRaw;
+
+  if (existing?.status === "failed") {
+    await writeJob(config, token, emu, ns, authUid, {
+      ...existing,
+      status: "queued",
+      failedAt: null,
+      lastError: null,
+      updatedAt: now
+    });
+    existing = { ...existing, status: "queued", failedAt: null, lastError: null };
+  }
 
   if (
     respectRateLimit &&
@@ -330,12 +452,15 @@ export async function startOrContinueUserErasure(env, authUid, { now, respectRat
     return { rateLimited: true, job: { status: "queued" }, batch: null };
   }
 
+  if (existing?.retryAfter && now < existing.retryAfter) {
+    return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
+  }
+
   if (
     existing &&
     (existing.status === "queued" ||
       existing.status === "in_progress" ||
-      existing.status === "complete_with_holds" ||
-      existing.status === "failed")
+      existing.status === "complete_with_holds")
   ) {
     return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
   }

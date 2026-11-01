@@ -28,7 +28,19 @@ if (!fs.existsSync(bundlePath)) {
   process.exit(1);
 }
 const bundle = fs.readFileSync(bundlePath, "utf8");
-const forbidden = ["SAFE_CHAT_TEST_DISABLE", "test-mutation-flags", "auth.integration", "admin-token.integration"];
+const forbidden = [
+  "SAFE_CHAT_TEST_DISABLE",
+  "test-mutation-flags",
+  "auth.integration",
+  "admin-token.integration",
+  "X-Safe-Chat-Integration-Ns",
+  "X-Safe-Chat-Integration-Do",
+  "SAFE_CHAT_TEST_DO_NAME",
+  "integration-reset-hide-counters",
+  "integration-isolation.js",
+  "integration-env-sync.js",
+  "integration-rtdb-rules.js"
+];
 let failed = 0;
 for (const needle of forbidden) {
   const hit = bundle.includes(needle);

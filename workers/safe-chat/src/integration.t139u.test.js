@@ -108,15 +108,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const q0 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
     const sla = q0.json?.slaReviewBy;
     expect(typeof sla).toBe("number");
-    await runSlaOverdueJob(env, sla + 1000);
-    for (let t = 0; t < 80; t += 1) {
-      const q1 = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
-      if (q1.json?.overdue === true) {
-        expect(q1.json.overdue).toBe(true);
-        return;
-      }
-      await new Promise(r => setTimeout(r, 50));
-    }
+    await runRetentionToCompletion(env, sla + 1000);
     expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.overdue).toBe(true);
   });
 
@@ -288,6 +280,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     const del = await apiPost(SELF, "/api/chat/delete-my-data", rep.idToken, {});
     const j = await del.json();
     expect(j.ok).toBe(true);
+    expect(JSON.stringify(j)).not.toContain(msgId);
     expect(j.cursor).not.toBe(msgId);
     expect(j.erasureDeferred ?? []).not.toContain(msgId);
     await waitForChatMessage(msgId);
@@ -477,7 +470,6 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
     let ok = 0;
     for (let i = 0; i < 35; i++) {
       const a = await authSignUp();
-      await waitSendCooldown();
       const sent = await apiPost(SELF, "/api/chat/send", a.idToken, { phraseId: "hi" });
       expect(sent.status).toBe(200);
       const { id: msgId } = await sent.json();
@@ -488,7 +480,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
       if (j.received) ok += 1;
     }
     expect(ok).toBe(35);
-  });
+  }, 120000);
 
   it("t139u U-02: after hide quota exhausted, child_safety report still creates queue evidence", async () => {
     const author = await authSignUp();

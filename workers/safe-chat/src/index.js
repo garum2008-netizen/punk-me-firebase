@@ -40,8 +40,6 @@ import {
   messagePassesFilter
 } from "./child-safety-risk.js";
 import { reporterTrustForChildSafety } from "./player-profile.js";
-import { bindIntegrationIsolationFromRequest } from "./integration-env-sync.js";
-import { syncIntegrationEnvBindings } from "./integration-isolation.js";
 import { chatLimitsDoName } from "./limits-do-env.js";
 
 function secretsEqual(a, b) {
@@ -393,25 +391,7 @@ async function handleReport(request, env, ctx) {
 
   const emu = env.FIREBASE_EMULATOR_HOST;
   const ns = env.FIREBASE_EMULATOR_NS;
-
-  let msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
-  for (let i = 0; i < 8 && !msgRes.json; i += 1) {
-    await new Promise(r => setTimeout(r, 50));
-    msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
-  }
-  if (!msgRes.json) return err(request, env, "message_not_found", 404);
-  const msgSidOrUid = msgRes.json.sid || msgRes.json.uid || "";
-  if (!msgSidOrUid) return err(request, env, "message_not_found", 404);
-
   const now = getNow(env);
-  const salt = env.SAFE_CHAT_HASH_SALT || "";
-  const reporter = assertReportHash(await anonymizeUid(auth.uid, salt));
-  const dedupPath = rtdbPath("chat", "internal", "reportDedup", msgId, reporter);
-  const existing = await rtdbRequest(config, dedupPath, "GET", null, token, emu, ns);
-  if (existing.json) {
-    if (isChildSafety) return json(request, env, { ...CHILD_SAFETY_REPORT_RECEIVED, duplicate: true });
-    return json(request, env, { ok: true, duplicate: true });
-  }
 
   if (!isChildSafety) {
     const repLimits = await checkReportLimits(env, auth.uid, config);
@@ -422,9 +402,27 @@ async function handleReport(request, env, ctx) {
     }
   }
 
+  let msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
+  for (let i = 0; i < 2 && !msgRes.json; i += 1) {
+    await new Promise(r => setTimeout(r, 50));
+    msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
+  }
+  if (!msgRes.json) return err(request, env, "message_not_found", 404);
+  const msgSidOrUid = msgRes.json.sid || msgRes.json.uid || "";
+  if (!msgSidOrUid) return err(request, env, "message_not_found", 404);
+
+  const salt = env.SAFE_CHAT_HASH_SALT || "";
+  const reporter = assertReportHash(await anonymizeUid(auth.uid, salt));
+  const dedupPath = rtdbPath("chat", "internal", "reportDedup", msgId, reporter);
+  const existing = await rtdbRequest(config, dedupPath, "GET", null, token, emu, ns);
+  if (existing.json) {
+    if (isChildSafety) return json(request, env, { ...CHILD_SAFETY_REPORT_RECEIVED, duplicate: true });
+    return json(request, env, { ok: true, duplicate: true });
+  }
+
   const report = {
     msgId,
-    time: getNow(env),
+    time: now,
     reporterHash: reporter,
     msgUidHash: assertReportHash(
       msgRes.json.sid ? msgRes.json.sid : await anonymizeUid(String(msgRes.json.uid), salt)
@@ -722,33 +720,13 @@ async function handleUnblock(request, env) {
   return json(request, env, { ok: true });
 }
 
-async function sanitizeErasurePayloadForUser(payload, config, env, token, authUid) {
-  const sid = await chatPublicSid(authUid, env.SAFE_CHAT_HASH_SALT || "");
-  const emu = env.FIREBASE_EMULATOR_HOST;
-  const ns = env.FIREBASE_EMULATOR_NS;
-  const own = (m) => m && (m.sid === sid || m.uid === authUid);
-  let out = payload;
-  if (out.cursor) {
-    try {
-      assertFirebaseId(String(out.cursor));
-      const cur = await rtdbRequest(config, pathChatMessage(out.cursor), "GET", null, token, emu, ns);
-      if (!own(cur.json)) out = { ...out, cursor: null };
-    } catch {
-      out = { ...out, cursor: null };
-    }
-  }
+async function sanitizeErasurePayloadForUser(payload) {
+  const out = { ...payload };
   if (out.erasureDeferred?.length) {
-    const kept = [];
-    for (const id of out.erasureDeferred) {
-      try {
-        assertFirebaseId(String(id));
-        const m = await rtdbRequest(config, pathChatMessage(id), "GET", null, token, emu, ns);
-        if (own(m.json)) kept.push(id);
-      } catch {
-        /* drop invalid ids from user-visible payload */
-      }
-    }
-    out = { ...out, erasureDeferred: kept.length ? kept : undefined };
+    out.erasureDeferred = out.erasureDeferred.filter(
+      id => typeof id === "string" && /^[-A-Za-z0-9]+$/.test(String(id))
+    );
+    if (!out.erasureDeferred.length) delete out.erasureDeferred;
   }
   return out;
 }
@@ -782,7 +760,10 @@ async function handleDeleteMyData(request, env) {
   });
   if (error) return err(request, env, error, error === "erasure_rate_limit" ? 429 : 400);
   let payload = userFacingErasurePayload(job, batch);
-  payload = await sanitizeErasurePayloadForUser(payload, config, env, token, auth.uid);
+  payload = await sanitizeErasurePayloadForUser(payload);
+  if (batch?.subrequests != null && batch.subrequests > config.erasureMaxSubrequests) {
+    return err(request, env, "erasure_budget_exceeded", 503);
+  }
   if (rateLimited) {
     return json(request, env, { ...payload, rateLimited: true });
   }
@@ -1266,7 +1247,6 @@ async function handleModResolveSafety(request, env) {
 }
 
 export async function runSlaOverdueJob(env, nowOverride) {
-  syncIntegrationEnvBindings(env);
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
@@ -1299,7 +1279,6 @@ export async function runSlaOverdueJob(env, nowOverride) {
 }
 
 export async function runRetentionJob(env, nowOverride) {
-  syncIntegrationEnvBindings(env);
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
   const emu = env.FIREBASE_EMULATOR_HOST;
@@ -1354,6 +1333,46 @@ export async function runRetentionJob(env, nowOverride) {
       }
       if (m?.time && now - m.time > config.msgRetentionMs) {
         await rtdbRequest(config, pathChatMessage(id), "DELETE", null, token, emu, ns);
+        bump();
+        if (!budgetExceeded) {
+          await rtdbRequest(
+            config,
+            rtdbPath("chat", "internal", "genericAutoHideEvidence", id),
+            "DELETE",
+            null,
+            token,
+            emu,
+            ns
+          );
+          bump();
+        }
+      }
+    }
+  }
+
+  const genericEv = await rtdbRequest(config, "chat/internal/genericAutoHideEvidence", "GET", null, token, emu, ns);
+  bump();
+  if (genericEv.json && typeof genericEv.json === "object") {
+    for (const [msgId, ev] of Object.entries(genericEv.json)) {
+      if (budgetExceeded) break;
+      if (subrequests >= budget) break;
+      if (protectedMsgIds.has(msgId)) continue;
+      try {
+        assertFirebaseId(msgId);
+      } catch {
+        continue;
+      }
+      const snapTime = ev?.snapshot?.time ?? ev?.at;
+      if (typeof snapTime === "number" && now - snapTime > config.msgRetentionMs) {
+        await rtdbRequest(
+          config,
+          rtdbPath("chat", "internal", "genericAutoHideEvidence", msgId),
+          "DELETE",
+          null,
+          token,
+          emu,
+          ns
+        );
         bump();
       }
     }
@@ -1598,7 +1617,6 @@ export async function runRetentionJob(env, nowOverride) {
 
 export default {
   async fetch(request, env, ctx) {
-    bindIntegrationIsolationFromRequest(request, env);
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }

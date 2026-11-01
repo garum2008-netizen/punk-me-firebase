@@ -5,7 +5,6 @@ import {
   authSignUp,
   apiPost,
   rtdbOwner,
-  drainErasureCronLoop,
   seedOwnMessagesForErasure
 } from "./test-helpers.js";
 
@@ -40,8 +39,15 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron
     const u = await authSignUp();
     const { sid, ids } = await seedOwnMessagesForErasure(SELF, u, 50);
     await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
-    const out = await drainErasureCronLoop(env, u, runErasureQueueJob, null, { ownSid: sid });
-    expect(out.complete).toBe(true);
+    let guard = 0;
+    while (guard < 500) {
+      guard += 1;
+      const hop = await runErasureQueueJob(env);
+      if (hop.processed && hop.subrequests != null) {
+        expect(hop.subrequests).toBeLessThanOrEqual(40);
+      }
+      if ((await countOwnMessagesByIds(ids, sid)) === 0) break;
+    }
     expect(await countOwnMessagesByIds(ids, sid)).toBe(0);
     expect((await rtdbOwner(`chatMeta/${u.localId}/chatSendCount`, "GET")).json).toBeNull();
   }, 120000);
@@ -52,10 +58,37 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron
     expect(await countOwnMessagesByIds(ids, sid)).toBe(25);
     const first = await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
     expect(first.ok).toBe(true);
-    const out = await drainErasureCronLoop(env, u, runErasureQueueJob, null, { ownSid: sid });
-    expect(out.complete).toBe(true);
+    if (first.subrequests != null) expect(first.subrequests).toBeLessThanOrEqual(40);
+    let guard = 0;
+    while (guard < 500) {
+      guard += 1;
+      const hop = await runErasureQueueJob(env);
+      if (hop.processed && hop.subrequests != null) {
+        expect(hop.subrequests).toBeLessThanOrEqual(40);
+      }
+      if ((await countOwnMessagesByIds(ids, sid)) === 0) break;
+    }
     expect(await countOwnMessagesByIds(ids, sid)).toBe(0);
     expect((await rtdbOwner(`chatMeta/${u.localId}/erasureCursor`, "GET")).json).toBeNull();
     expect((await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "GET")).json).toBeNull();
   });
+
+  it("H-1: erasure job record stays queued until own messages are gone", async () => {
+    const u = await authSignUp();
+    const { sid, ids } = await seedOwnMessagesForErasure(SELF, u, 8);
+    await (await apiPost(SELF, "/api/chat/delete-my-data", u.idToken, {})).json();
+    let sawQueued = false;
+    for (let i = 0; i < 40; i++) {
+      const remaining = await countOwnMessagesByIds(ids, sid);
+      const job = (await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "GET")).json;
+      if (remaining > 0 && job) {
+        expect(["queued", "in_progress"]).toContain(job.status);
+        sawQueued = true;
+      }
+      if (remaining === 0) break;
+      await runErasureQueueJob(env);
+    }
+    expect(sawQueued).toBe(true);
+    expect(await countOwnMessagesByIds(ids, sid)).toBe(0);
+  }, 120000);
 });

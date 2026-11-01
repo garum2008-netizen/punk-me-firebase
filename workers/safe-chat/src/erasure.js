@@ -346,6 +346,16 @@ export async function runUserErasureBatch({
     if (!cur.json || !isOwnMessage(cur.json, sid, authUid)) continue;
 
     await rtdbSpend(config, token, emu, ns, pathChatMessage(id), "DELETE", null, spend);
+    await rtdbSpend(
+      config,
+      token,
+      emu,
+      ns,
+      rtdbPath("chat", "internal", "genericAutoHideEvidence", id),
+      "DELETE",
+      null,
+      spend
+    );
     if (budgetExceeded) {
       nextCursor = id;
       processedAll = false;

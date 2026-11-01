@@ -7,7 +7,7 @@ import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
-import { cpSync, mkdtempSync, rmSync } from "fs";
+import { cpSync, mkdtempSync, rmSync, symlinkSync, existsSync } from "fs";
 import os from "os";
 import { withSafeChatRulesEmulator } from "./lib/safe-chat-emulator.mjs";
 import { authSignUp } from "./lib/safe-chat-emulator-auth.mjs";
@@ -364,18 +364,116 @@ const mutations = [
         ]
       }
     ]
+  },
+  {
+    id: "MUT-X4",
+    expectFailTest: "GUARD X4: attempt cap fails job",
+    patches: [
+      {
+        file: "src/erasure-jobs.js",
+        replacements: [
+          {
+            from: `const MAX_JOB_ATTEMPTS = 48;`,
+            to: `const MAX_JOB_ATTEMPTS = 9999; /* MUT-X4 */`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-X5",
+    expectFailTest: "GUARD X5: permanent erasure failure records",
+    patches: [
+      {
+        file: "src/erasure-jobs.js",
+        replacements: [
+          {
+            from: `async function recordErasureJobAlert(config, token, emu, ns, env, uid, note, batchError) {
+  await rtdbRequest(`,
+            to: `async function recordErasureJobAlert(config, token, emu, ns, env, uid, note, batchError) {
+  return; /* MUT-X5 */
+  await rtdbRequest(`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-X6",
+    expectFailTest: "GUARD X6: hold release resumes",
+    patches: [
+      {
+        file: "src/erasure-jobs.js",
+        replacements: [
+          {
+            from: `export async function resumeErasureJobsAfterHoldRelease(env, msgId) {`,
+            to: `export async function resumeErasureJobsAfterHoldRelease(env, msgId) {
+  return; /* MUT-X6 */`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-X9",
+    expectFailTest: "GUARD X9: erasure rate limit blocks",
+    patches: [
+      {
+        file: "src/erasure.js",
+        replacements: [
+          {
+            from: `  if (!jobActive && !bypassRateLimit && !staleRetry && lastAt && now - lastAt < config.erasureMinIntervalMs) {`,
+            to: `  if (false && !jobActive && !bypassRateLimit && !staleRetry && lastAt && now - lastAt < config.erasureMinIntervalMs) { /* MUT-X9 */`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-X10",
+    expectFailTest: "GUARD X10: job status honesty",
+    patches: [
+      {
+        file: "src/erasure-jobs.js",
+        replacements: [
+          {
+            from: `  if (
+    status === "complete" &&
+    batch &&
+    typeof batch.allOwnRemaining === "number" &&
+    batch.allOwnRemaining > 0
+  ) {
+    status = "queued";
+  }`,
+            to: `  /* MUT-X10 removed honesty guard */`
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "MUT-X12",
+    expectFailTest: "GUARD X12: delete-my-data with active queued job",
+    patches: [
+      {
+        file: "src/erasure-jobs.js",
+        replacements: [
+          {
+            from: `  if (
+    existing &&
+    (existing.status === "queued" ||
+      existing.status === "in_progress" ||
+      existing.status === "complete_with_holds")
+  ) {
+    return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
+  }`,
+            to: `  if (false) { /* MUT-X12 */ return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true }; }`
+          }
+        ]
+      }
+    ]
   }
 ];
-
-function runErasureHonestyInCopy(mut, dest) {
-  copyWorker(dest);
-  applyPatches(mut, dest);
-  return spawnSync("npx", ["vitest", "run", "src/erasure-honesty.test.js"], {
-    cwd: dest,
-    env: { ...process.env, SAFE_CHAT_INTEGRATION: "0" },
-    encoding: "utf8"
-  });
-}
 
 function applyPatches(mut, destRoot) {
   for (const p of mut.patches) {
@@ -391,16 +489,23 @@ function applyPatches(mut, destRoot) {
   }
 }
 
-function copyWorker(dest) {
+function prepareWorkerCopy(dest) {
   cpSync(workerRoot, dest, { recursive: true, filter: src => !src.includes("node_modules") });
-  cpSync(path.join(workerRoot, "node_modules"), path.join(dest, "node_modules"), { recursive: true });
+  const nmDest = path.join(dest, "node_modules");
+  if (!existsSync(nmDest)) {
+    symlinkSync(path.join(workerRoot, "node_modules"), nmDest, "dir");
+  }
   fs.copyFileSync(path.join(root, "database.rules.json"), path.join(dest, "database.rules.json"));
 }
 
+function copyWorker(dest) {
+  prepareWorkerCopy(dest);
+}
+
 function runIntegrationInCopy(mut, mod, dest) {
-  copyWorker(dest);
+  prepareWorkerCopy(dest);
   applyPatches(mut, dest);
-  return spawnSync("npm", ["test"], {
+  const r = spawnSync("npm", ["test"], {
     cwd: dest,
     env: {
       ...process.env,
@@ -410,13 +515,27 @@ function runIntegrationInCopy(mut, mod, dest) {
     },
     encoding: "utf8"
   });
+  rmSync(dest, { recursive: true, force: true });
+  return r;
+}
+
+function runErasureHonestyInCopy(mut, dest) {
+  prepareWorkerCopy(dest);
+  applyPatches(mut, dest);
+  const r = spawnSync("npx", ["vitest", "run", "src/erasure-honesty.test.js"], {
+    cwd: dest,
+    env: { ...process.env, SAFE_CHAT_INTEGRATION: "0" },
+    encoding: "utf8"
+  });
+  rmSync(dest, { recursive: true, force: true });
+  return r;
 }
 
 function runUnitInCopy(mut, dest) {
-  copyWorker(dest);
+  prepareWorkerCopy(dest);
   applyPatches(mut, dest);
   const limitsPath = path.join(dest, "src/limits-do.js");
-  return spawnSync("node", [alarmTest], {
+  const r = spawnSync("node", [alarmTest], {
     cwd: root,
     encoding: "utf8",
     env: {
@@ -424,6 +543,8 @@ function runUnitInCopy(mut, dest) {
       SAFE_CHAT_LIMITS_DO_PATH: limitsPath
     }
   });
+  rmSync(dest, { recursive: true, force: true });
+  return r;
 }
 
 function mutationCaught(mut, result) {

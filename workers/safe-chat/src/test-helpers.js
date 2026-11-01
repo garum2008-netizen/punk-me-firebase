@@ -286,18 +286,8 @@ async function seedOwnMessagesForErasureOnce(SELF, u, n) {
   throw new Error(`erasure seed: only ${visible}/${n} messages visible with sid`);
 }
 
-/** Integration-only: reset discretionary hide + cluster counters on the global limits DO. */
-export async function resetHideCountersDo(env) {
-  if (env.SAFE_CHAT_INTEGRATION !== "1" || !env.CHAT_LIMITS) return;
-  const name = chatLimitsDoName(env);
-  if (name !== "global") return;
-  const id = env.CHAT_LIMITS.idFromName(name);
-  const stub = env.CHAT_LIMITS.get(id);
-  await fetchWithDoReloadRetry(
-    (req, _init) => stub.fetch(req),
-    new Request("http://do/integration-reset-hide-counters", { method: "POST" })
-  );
-}
+/** Per-test limits DO starts empty; legacy global reset is a no-op under ns isolation. */
+export async function resetHideCountersDo(_env) {}
 
 /** Integration: limits DO is namespaced per test; no shared RTDB wipe (fresh ns each test). */
 export async function resetIntegrationIsolation(env) {

@@ -137,8 +137,8 @@
     },
     "chat": {
       "messages": {
-        ".read": "auth != null",
-        ".write": false,
+      ".read": false,
+      ".write": false,
         "$msgId": {
           ".read": false,
           ".write": false,

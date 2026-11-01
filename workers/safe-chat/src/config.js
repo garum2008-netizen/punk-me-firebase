@@ -5,6 +5,16 @@ export function loadConfig(env) {
   if (env.SAFE_CHAT_INTEGRATION === "1" && !env.FIREBASE_EMULATOR_HOST) {
     throw new Error("SAFE_CHAT_INTEGRATION requires FIREBASE_EMULATOR_HOST (test harness only)");
   }
+  const dbUrl = (env.FIREBASE_DATABASE_URL || "").replace(/\/$/, "");
+  if (
+    env.SAFE_CHAT_INTEGRATION === "1" &&
+    dbUrl &&
+    !dbUrl.includes("127.0.0.1") &&
+    !dbUrl.includes("localhost") &&
+    dbUrl.includes("firebasedatabase.app")
+  ) {
+    throw new Error("SAFE_CHAT_INTEGRATION refused with production FIREBASE_DATABASE_URL");
+  }
   const corsRaw = env.SAFE_CHAT_CORS_ORIGINS || "https://halloween.punk.contractbot.dk";
   const corsOrigins = corsRaw
     .split(",")
