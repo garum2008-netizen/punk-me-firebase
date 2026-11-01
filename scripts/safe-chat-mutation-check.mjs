@@ -500,30 +500,38 @@ const mutations = [
         file: "src/erasure-jobs.js",
         replacements: [
           {
-            from: `      if (ownCount === 0) {
-        await countRtdb(() =>
-          rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
-        );
-        return {
-          rateLimited: false,
-          job: existing,
-          batch: null,
-          jobStatusOnly: true,
-          requestSubrequests
-        };
-      }`,
-            to: `      if (ownCount === 0) {
-        await countRtdb(() =>
-          rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
-        );
-        return {
-          rateLimited: false,
-          job: { ...existing, status: "complete" },
-          batch: null,
-          jobStatusOnly: true,
-          requestSubrequests
-        }; /* MUT-X12 */
-      }`
+            from: `    return {
+      ok: true,
+      status,
+      complete: status === "complete",
+      completeWithHolds: status === "complete_with_holds",
+      subrequests: undefined,
+      deleted: undefined,
+      cursor: job.cursor ?? null,
+      remainingDeletable: undefined,
+      attempts: job.attempts ?? 0,
+      jobInProgress: status === "queued" || status === "in_progress",
+      erasureDeferred: deferred,
+      staleCursorCleared: undefined
+    };
+  }
+  let status = job?.status || mapBatchToJobStatus(batch);`,
+            to: `    return {
+      ok: true,
+      status,
+      complete: true, /* MUT-X12 */
+      completeWithHolds: status === "complete_with_holds",
+      subrequests: undefined,
+      deleted: undefined,
+      cursor: job.cursor ?? null,
+      remainingDeletable: undefined,
+      attempts: job.attempts ?? 0,
+      jobInProgress: status === "queued" || status === "in_progress",
+      erasureDeferred: deferred,
+      staleCursorCleared: undefined
+    };
+  }
+  let status = job?.status || mapBatchToJobStatus(batch);`
           }
         ]
       }
