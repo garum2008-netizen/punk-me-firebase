@@ -357,8 +357,14 @@ const mutations = [
         file: "src/erasure.js",
         replacements: [
           {
-            from: `  await rtdbSpend(config, token, emu, ns, rtdbPath("chat", "clientMessages", msgId), "DELETE", null, spend);`,
-            to: `  /* MUT-DEFER-MIRROR */`
+            from: `  if (blockedOnlyBySafetyHold(msgId, cache)) {
+    await rtdbSpend(config, token, emu, ns, rtdbPath("chat", "clientMessages", msgId), "DELETE", null, spend);
+    return;
+  }`,
+            to: `  if (blockedOnlyBySafetyHold(msgId, cache)) {
+    /* MUT-DEFER-MIRROR */
+    return;
+  }`
           }
         ]
       }
@@ -494,10 +500,30 @@ const mutations = [
         file: "src/erasure-jobs.js",
         replacements: [
           {
-            from: `    if (!pendingWork) {
-      return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
-    }`,
-            to: `    if (false) { /* MUT-X12 */ return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true }; }`
+            from: `      if (ownCount === 0) {
+        await countRtdb(() =>
+          rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
+        );
+        return {
+          rateLimited: false,
+          job: existing,
+          batch: null,
+          jobStatusOnly: true,
+          requestSubrequests
+        };
+      }`,
+            to: `      if (ownCount === 0) {
+        await countRtdb(() =>
+          rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
+        );
+        return {
+          rateLimited: false,
+          job: { ...existing, status: "complete" },
+          batch: null,
+          jobStatusOnly: true,
+          requestSubrequests
+        }; /* MUT-X12 */
+      }`
           }
         ]
       }
