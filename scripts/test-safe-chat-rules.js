@@ -73,7 +73,7 @@ async function run() {
   });
 
   const clientQuery = await fetchJson(
-    dbUrl("chat/clientMessages") + "&orderBy=%22$key%22&limitToLast=5"
+    dbUrl("chat/clientMessages", idToken) + "&orderBy=%22$key%22&limitToLast=5"
   );
   cases.push({
     name: "auth query chat/clientMessages limitToLast",
