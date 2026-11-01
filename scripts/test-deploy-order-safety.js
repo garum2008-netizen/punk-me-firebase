@@ -303,13 +303,15 @@ async function stopEmulator(emu) {
   await new Promise(resolve => {
     emu.once("exit", () => resolve());
     try {
-      emu.kill("SIGKILL");
+      process.kill(-emu.pid, "SIGTERM");
     } catch (_) {
-      resolve();
+      try {
+        emu.kill("SIGTERM");
+      } catch (_2) {}
     }
     setTimeout(resolve, 15000);
   });
-  await freeEmulatorPorts();
+  await freeEmulatorPorts(emu.pid);
 }
 
 async function withEmulatorAndRules(snapshot, fn) {
@@ -317,7 +319,8 @@ async function withEmulatorAndRules(snapshot, fn) {
   useSnapshot(snapshot);
   const emu = spawn("npx", ["firebase", "emulators:start", "--only", "auth,database", "--project", PROJECT_ID], {
     cwd: root,
-    stdio: "pipe"
+    stdio: "pipe",
+    detached: true
   });
   let started = false;
   await new Promise((resolve, reject) => {
@@ -347,15 +350,17 @@ async function withEmulatorAndRules(snapshot, fn) {
   }
 }
 
-async function freeEmulatorPorts() {
-  const { execSync } = require("child_process");
-  try {
-    execSync('pkill -9 -f database-emulator 2>/dev/null; pkill -9 -f "firebase emulators" 2>/dev/null; fuser -k 9000/tcp 9099/tcp 2>/dev/null', {
-      stdio: "ignore",
-      shell: "/bin/bash"
-    });
-  } catch (_) {}
-  await new Promise(r => setTimeout(r, 8000));
+async function freeEmulatorPorts(ownedPid) {
+  if (ownedPid) {
+    try {
+      process.kill(-ownedPid, "SIGTERM");
+    } catch (_) {
+      try {
+        process.kill(ownedPid, "SIGTERM");
+      } catch (_2) {}
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  }
 }
 
 async function ensureOldWorktree(worktree) {

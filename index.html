@@ -135,6 +135,7 @@
     <button type="button" class="chat-toggle" id="chatToggle" aria-expanded="false" aria-controls="chatBody" data-i18n="chat_toggle">Чат</button>
     <div class="chat-body" id="chatBody">
       <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-phrase-row" id="chatPhraseRow" aria-label="Quick phrases"></div>
       <input id="chatInput" data-i18n-ph="chatPh" placeholder="Чат банды..." onkeydown="if(event.key==='Enter')sendChat()">
     </div>
   </div>
@@ -268,6 +269,8 @@
 <script type="module" src="js/char-select.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script type="module" src="js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1"></script>
 <script src="js/life.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/safe-chat-i18n.js?v=living3d-v22r5-accounts-r1"></script>
+<script src="js/safe-chat.js?v=living3d-v22r5-accounts-r1"></script>
 <script src="js/game.js?v=living3d-v22r5-accounts-r1"></script>
 <script type="module">
   import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5-accounts-r1";
