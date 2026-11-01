@@ -72,9 +72,11 @@ const patches = {
     {
       file: "src/erasure-jobs.js",
       from: `export async function runErasureQueueJob(env, nowOverride) {
+  syncIntegrationEnvBindings(env);
   const config = loadConfig(env);`,
       to: `export async function runErasureQueueJob(env, nowOverride) {
   return { ok: true, processed: 0 }; /* M5b */
+  syncIntegrationEnvBindings(env);
   const config = loadConfig(env);`
     }
   ],
@@ -147,6 +149,7 @@ async function main() {
         const dest = path.join(tmp, mutId);
         cpSync(workerRoot, dest, { recursive: true, filter: s => !s.includes("node_modules") });
         cpSync(path.join(workerRoot, "node_modules"), path.join(dest, "node_modules"), { recursive: true });
+        fs.copyFileSync(path.join(root, "database.rules.json"), path.join(dest, "database.rules.json"));
         apply(mutId, dest);
         const r = spawnSync("npm", ["test"], {
           cwd: dest,
