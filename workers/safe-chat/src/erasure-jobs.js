@@ -585,19 +585,30 @@ export async function startOrContinueUserErasure(
       existing.cursor ||
       (Array.isArray(existing.holdMsgIds) && existing.holdMsgIds.length > 0);
     if (!pendingWork) {
-      await countRtdb(() =>
-        rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
+      const sid = await chatPublicSid(authUid, env.SAFE_CHAT_HASH_SALT || "");
+      const msgsRes = await countRtdb(() =>
+        rtdbRequest(config, "chat/messages", "GET", null, token, emu, ns)
       );
-      requestSubrequests += 1;
-      return {
-        rateLimited: false,
-        job: existing,
-        batch: null,
-        jobStatusOnly: true,
-        requestSubrequests
-      };
+      const ownCount =
+        msgsRes.json && typeof msgsRes.json === "object"
+          ? Object.values(msgsRes.json).filter(m => m?.sid === sid).length
+          : 0;
+      if (ownCount === 0) {
+        await countRtdb(() =>
+          rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
+        );
+        return {
+          rateLimited: false,
+          job: existing,
+          batch: null,
+          jobStatusOnly: true,
+          requestSubrequests
+        };
+      }
     }
-    if (existing.retryAfter) {
+    if (!pendingWork) {
+      /* own messages remain — run erasure batch below */
+    } else if (existing.retryAfter) {
       await countRtdb(() =>
         writeJob(config, token, emu, ns, authUid, {
           ...existing,
