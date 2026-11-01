@@ -8,6 +8,7 @@ export function loadConfig(env) {
   const dbUrl = (env.FIREBASE_DATABASE_URL || "").replace(/\/$/, "");
   if (
     env.SAFE_CHAT_INTEGRATION === "1" &&
+    !env.FIREBASE_EMULATOR_HOST &&
     dbUrl &&
     !dbUrl.includes("127.0.0.1") &&
     !dbUrl.includes("localhost") &&
