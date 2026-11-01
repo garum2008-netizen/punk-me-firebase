@@ -62,9 +62,25 @@ async function run() {
 
   const readMsg = await fetchJson(dbUrl("chat/messages", idToken));
   cases.push({
-    name: "auth read chat/messages",
-    pass: readMsg.status === 200
+    name: "auth list read chat/messages denied (no parent cascade)",
+    pass: readMsg.status === 401 || readMsg.status === 403
   });
+
+  const adminSeed = await fetchJson(dbUrl("chat/messages", null, true), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sid: "a".repeat(32), name: "R", text: "hi", time: Date.now() })
+  });
+  const seededId = adminSeed.json?.name;
+  if (seededId) {
+    const leafSid = await fetchJson(dbUrl(`chat/messages/${seededId}/sid`, idToken));
+    cases.push({
+      name: "auth read chat/messages leaf sid",
+      pass: leafSid.status === 200
+    });
+  } else {
+    cases.push({ name: "auth read chat/messages leaf sid", pass: false });
+  }
 
   const writeMsg = await fetchJson(dbUrl("chat/messages", idToken), {
     method: "POST",
