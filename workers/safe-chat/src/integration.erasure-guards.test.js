@@ -122,22 +122,31 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
 
   it("GUARD X5: permanent erasure failure records safetyDecisions alert", async () => {
     const u = await authSignUp();
+    const beforeIds = new Set(
+      Object.keys((await rtdbOwner("chat/internal/safetyDecisions", "GET")).json || {})
+    );
     let job = null;
     const now = Date.now();
     for (let i = 0; i < 60; i++) {
       job = await persistJobAfterBatch(
         env,
         u.localId,
-        { ok: false, error: "simulated", subrequests: 2 },
+        { ok: false, error: "simulated-x5-guard", subrequests: 2 },
         job,
         now + i
       );
       if (job?.status === "failed") break;
     }
     expect(job?.status).toBe("failed");
-    const decisions = Object.values((await rtdbOwner("chat/internal/safetyDecisions", "GET")).json || {});
+    const after = (await rtdbOwner("chat/internal/safetyDecisions", "GET")).json || {};
+    const fresh = Object.entries(after).filter(([id]) => !beforeIds.has(id)).map(([, d]) => d);
     expect(
-      decisions.some(d => d?.action === "erasure_job_failed" && String(d?.note || "").includes("Erasure batch failed"))
+      fresh.some(
+        d =>
+          d?.action === "erasure_job_failed" &&
+          String(d?.note || "").includes("Erasure batch failed") &&
+          String(d?.note || "").includes("simulated-x5-guard")
+      )
     ).toBe(true);
     await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "DELETE");
   });

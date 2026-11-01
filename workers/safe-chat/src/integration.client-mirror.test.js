@@ -44,8 +44,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("chat/clientMessages mirror (
     await waitForMessageHidden(msgId);
     const mirror = (await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json;
     expect(mirror?.hidden).toBe(true);
+    expect(mirror?.textRedacted).toBe(true);
     expect(mirror?.text).toBeUndefined();
-    expect(mirror?.textRedacted === true || mirror?.text === undefined).toBe(true);
     expectMirrorWhitelist(mirror);
   });
 
