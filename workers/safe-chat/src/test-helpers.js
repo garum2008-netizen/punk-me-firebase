@@ -20,6 +20,26 @@ function integrationEnabled() {
   return workerEnv.SAFE_CHAT_INTEGRATION === "1";
 }
 
+function isDoModuleReloadError(err) {
+  return String(err?.message || err).includes("invalidating this Durable Object");
+}
+
+/** Vitest pool-workers may reload the worker module once; retry DO stub fetch on that platform error. */
+async function fetchWithDoReloadRetry(fetchFn, input, init) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      return await fetchFn(input, init);
+    } catch (err) {
+      if (attempt >= 3 || !isDoModuleReloadError(err)) throw err;
+    }
+  }
+  throw new Error("fetchWithDoReloadRetry: unreachable");
+}
+
+async function selfFetchWithDoReloadRetry(SELF, input, init) {
+  return fetchWithDoReloadRetry(SELF.fetch.bind(SELF), input, init);
+}
+
 export async function authSignUp(opts = {}) {
   const res = await fetch(
     `http://${AUTH_HOST}:${AUTH_PORT}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`,
@@ -52,6 +72,10 @@ export async function reseedAuthUsersInActiveNs(users) {
 export function integrationFetchHeaders() {
   if (!integrationEnabled()) return {};
   return integrationIsolationHeaders(getActiveIntegrationRtdbNs(), getActiveIntegrationDoName());
+}
+
+export async function selfIntegrationFetch(SELF, url, init = {}) {
+  return selfFetchWithDoReloadRetry(SELF, url, init);
 }
 
 export async function rtdbOwner(path, method, body) {
@@ -97,7 +121,7 @@ export async function apiPost(SELF, path, idToken, body, extraHeaders = {}) {
   const iso = integrationEnabled()
     ? integrationIsolationHeaders(getActiveIntegrationRtdbNs(), getActiveIntegrationDoName())
     : {};
-  return SELF.fetch(`http://localhost${path}`, {
+  return selfFetchWithDoReloadRetry(SELF, `http://localhost${path}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${idToken}`,
@@ -113,7 +137,7 @@ export async function apiGet(SELF, path, idToken) {
   const iso = integrationEnabled()
     ? integrationIsolationHeaders(getActiveIntegrationRtdbNs(), getActiveIntegrationDoName())
     : {};
-  return SELF.fetch(`http://localhost${path}`, {
+  return selfFetchWithDoReloadRetry(SELF, `http://localhost${path}`, {
     headers: { Authorization: `Bearer ${idToken}`, ...iso }
   });
 }
@@ -269,7 +293,10 @@ export async function resetHideCountersDo(env) {
   if (name !== "global") return;
   const id = env.CHAT_LIMITS.idFromName(name);
   const stub = env.CHAT_LIMITS.get(id);
-  await stub.fetch(new Request("http://do/integration-reset-hide-counters", { method: "POST" }));
+  await fetchWithDoReloadRetry(
+    (req, _init) => stub.fetch(req),
+    new Request("http://do/integration-reset-hide-counters", { method: "POST" })
+  );
 }
 
 /** Integration: limits DO is namespaced per test; no shared RTDB wipe (fresh ns each test). */

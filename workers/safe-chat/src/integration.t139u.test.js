@@ -12,6 +12,7 @@ import {
   resetHideCountersDo,
   reseedAuthUsersInActiveNs,
   integrationFetchHeaders,
+  selfIntegrationFetch,
   putChatMessageText,
   apiPostReport,
   apiSend,
@@ -237,7 +238,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u matrix integration cov
   });
 
   it("t139u BY-08: internal erasure-continue route removed", async () => {
-    const res = await SELF.fetch("http://localhost/api/internal/erasure-continue", {
+    const res = await selfIntegrationFetch(SELF, "http://localhost/api/internal/erasure-continue", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
