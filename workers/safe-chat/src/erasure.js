@@ -60,15 +60,6 @@ function messageBlockedInCache(msgId, msg, cache) {
   return false;
 }
 
-/** safetyHolds alone already block erasure; no erasureDeferred row required. */
-function needsErasureDeferredRecord(msgId, cache) {
-  if (cache.deferredIds.has(msgId)) return false;
-  if (cache.holdIds.has(msgId) && !cache.queueChildHarm.has(msgId) && !cache.evidenceIds.has(msgId)) {
-    return false;
-  }
-  return messageBlockedInCache(msgId, null, cache);
-}
-
 export async function deferMessageErasure(config, token, emu, ns, msgId, msg, now, configObj, spend) {
   await rtdbSpend(
     config,
@@ -87,6 +78,23 @@ export async function deferMessageErasure(config, token, emu, ns, msgId, msg, no
     spend
   );
   await rtdbSpend(config, token, emu, ns, rtdbPath("chat", "clientMessages", msgId), "DELETE", null, spend);
+}
+
+function blockedOnlyBySafetyHold(msgId, cache) {
+  return (
+    cache.holdIds.has(msgId) &&
+    !cache.queueChildHarm.has(msgId) &&
+    !cache.evidenceIds.has(msgId) &&
+    !cache.deferredIds.has(msgId)
+  );
+}
+
+async function deferBlockedOwnMessage(config, token, emu, ns, msgId, msg, now, configObj, cache, spend) {
+  if (blockedOnlyBySafetyHold(msgId, cache)) {
+    await rtdbSpend(config, token, emu, ns, rtdbPath("chat", "clientMessages", msgId), "DELETE", null, spend);
+    return;
+  }
+  await deferMessageErasure(config, token, emu, ns, msgId, msg, now, configObj, spend);
 }
 
 async function openCaseMsgIds(config, token, emu, ns, spend) {
@@ -219,9 +227,7 @@ async function ensureDeferredOwnBlockedMessages(
     if (out.includes(id)) continue;
     const m = entries.find(([mid]) => mid === id)?.[1];
     if (!m) continue;
-    if (needsErasureDeferredRecord(id, cache)) {
-      await deferMessageErasure(config, token, emu, ns, id, m, now, config, spend);
-    }
+    await deferBlockedOwnMessage(config, token, emu, ns, id, m, now, config, cache, spend);
     out.push(id);
   }
   return out;
@@ -406,9 +412,7 @@ export async function runUserErasureBatch({
     }
 
     if (messageBlockedInCache(id, m, cache)) {
-      if (needsErasureDeferredRecord(id, cache)) {
-        await deferMessageErasure(config, token, emu, ns, id, m, now, config, spend);
-      }
+      await deferBlockedOwnMessage(config, token, emu, ns, id, m, now, config, cache, spend);
       deferred.push(id);
       if (budgetExceeded) {
         nextCursor = id;

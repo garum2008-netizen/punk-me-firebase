@@ -765,15 +765,6 @@ async function handleDeleteMyData(request, env) {
   if (lastAt && now - lastAt < config.erasureMinIntervalMs) {
     return err(request, env, "erasure_rate_limit", 429);
   }
-  await rtdbRequest(
-    config,
-    pathChatMeta(auth.uid, "lastErasureRequestAt"),
-    "PUT",
-    now,
-    token,
-    env.FIREBASE_EMULATOR_HOST,
-    env.FIREBASE_EMULATOR_NS
-  );
   const preJob = await loadUserErasureJob(env, auth.uid);
   if (
     preJob?.status === "queued" &&
@@ -808,7 +799,8 @@ async function handleDeleteMyData(request, env) {
     await startOrContinueUserErasure(env, auth.uid, {
       now,
       respectRateLimit: false,
-      lastRequestAt: lastAt
+      lastRequestAt: lastAt,
+      recordRequestAt: true
     });
   if (error) return err(request, env, error, error === "erasure_rate_limit" ? 429 : 400);
   if (jobStatusOnly) {

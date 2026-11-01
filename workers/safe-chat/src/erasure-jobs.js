@@ -416,7 +416,6 @@ async function tryClaimQueuedJob(config, token, emu, ns, uid, job, now) {
   if (fresh.retryAfter && now < fresh.retryAfter) return null;
   if (fresh.processingUntil && fresh.processingUntil > now) return null;
   const tokenLease = `${now}-${Math.random().toString(36).slice(2, 10)}`;
-  const priorUpdatedAt = fresh.updatedAt ?? 0;
   await writeJob(config, token, emu, ns, uid, {
     ...fresh,
     status: "in_progress",
@@ -426,7 +425,6 @@ async function tryClaimQueuedJob(config, token, emu, ns, uid, job, now) {
   });
   const verify = await readJob(config, token, emu, ns, uid);
   if (verify?.processingToken !== tokenLease || verify.status !== "in_progress") return null;
-  if (verify.updatedAt !== now && verify.updatedAt !== priorUpdatedAt) return null;
   return verify;
 }
 
@@ -509,7 +507,7 @@ export async function runErasureQueueJob(env, nowOverride, opts = {}) {
 export async function startOrContinueUserErasure(
   env,
   authUid,
-  { now, respectRateLimit = true, lastRequestAt = 0, initialSubrequests = 0, persistReserve = 2 } = {}
+  { now, respectRateLimit = true, lastRequestAt = 0, initialSubrequests = 0, persistReserve = 2, recordRequestAt = false } = {}
 ) {
   const config = loadConfig(env);
   const token = await getCachedAdminToken(env);
@@ -550,6 +548,12 @@ export async function startOrContinueUserErasure(
   ) {
     if (existing) return { rateLimited: true, job: existing, batch: null, requestSubrequests };
     return { rateLimited: true, job: { status: "queued" }, batch: null, requestSubrequests };
+  }
+
+  if (recordRequestAt) {
+    await countRtdb(() =>
+      rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
+    );
   }
 
   if (existing?.status === "in_progress") {
@@ -642,7 +646,7 @@ export async function startOrContinueUserErasure(
     };
   }
   const job = await persistJobAfterBatch(env, authUid, batch, existing, now);
-  if (respectRateLimit) {
+  if (respectRateLimit && !recordRequestAt) {
     await countRtdb(() =>
       rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
     );
