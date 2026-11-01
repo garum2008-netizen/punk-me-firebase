@@ -1,6 +1,7 @@
 import { REPORT_CATEGORY_CHILD_SAFETY } from "./config.js";
 import { rtdbPath, rtdbRequest } from "./rtdb.js";
 import { reporterTrustForChildSafety } from "./player-profile.js";
+import { pathClientChatMessage, upsertClientMessageMirror } from "./client-message-mirror.js";
 
 function pathChatMessage(msgId) {
   return rtdbPath("chat", "messages", msgId);
@@ -265,6 +266,7 @@ export async function enqueueChildSafetyReview({
 
   if (hideMessage) {
     await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
+    await rtdbRequest(config, `${pathClientChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
     if (snap?.text) {
       await redactPublicMessageText(config, token, emu, ns, msgId);
     }
@@ -356,6 +358,9 @@ export async function enqueueChildSafetyReview({
 export async function redactPublicMessageText(config, token, emu, ns, msgId) {
   await rtdbRequest(config, `${pathChatMessage(msgId)}/text`, "DELETE", null, token, emu, ns);
   await rtdbRequest(config, `${pathChatMessage(msgId)}/textRedacted`, "PUT", true, token, emu, ns);
+  await rtdbRequest(config, `${pathClientChatMessage(msgId)}/text`, "DELETE", null, token, emu, ns);
+  await rtdbRequest(config, `${pathClientChatMessage(msgId)}/textRedacted`, "PUT", true, token, emu, ns);
+  await rtdbRequest(config, `${pathClientChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
 }
 
 /** Discretionary reporter-triggered auto-hide quota (mandatory risk hides skip this). */

@@ -1,5 +1,5 @@
 /**
- * Safe gang chat client — messages via Cloudflare Worker; RTDB read-only for chat/messages.
+ * Safe gang chat client — messages via Cloudflare Worker; RTDB read-only for chat/clientMessages mirror.
  */
 (function () {
   const DEFAULT_WORKER_URL = ""; // set at deploy: window.__PUNK_SAFE_CHAT_URL
@@ -15,7 +15,7 @@
   let config = { freeTextEnabled: false, phrases: DEFAULT_PHRASES, cooldownMs: 3000 };
   let blockedSids = {};
   let mySid = "";
-  let chatPath = "chat/messages";
+  let chatPath = "chat/clientMessages";
 
   function workerBase() {
     const u = window.__PUNK_SAFE_CHAT_URL || workerUrl;

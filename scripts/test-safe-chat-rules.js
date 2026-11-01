@@ -66,6 +66,20 @@ async function run() {
     pass: readMsg.status === 401 || readMsg.status === 403
   });
 
+  const readClient = await fetchJson(dbUrl("chat/clientMessages", idToken));
+  cases.push({
+    name: "auth read chat/clientMessages for live query",
+    pass: readClient.status === 200
+  });
+
+  const clientQuery = await fetchJson(
+    dbUrl("chat/clientMessages") + "&orderBy=%22$key%22&limitToLast=5"
+  );
+  cases.push({
+    name: "auth query chat/clientMessages limitToLast",
+    pass: clientQuery.status === 200
+  });
+
   const adminSeed = await fetchJson(dbUrl("chat/messages", null, true), {
     method: "POST",
     headers: { "Content-Type": "application/json" },

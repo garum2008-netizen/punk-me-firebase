@@ -1,5 +1,6 @@
 import { assertFirebaseId, assertReportHash } from "./ids.js";
 import { anonymizeUid, rtdbPath, rtdbRequest } from "./rtdb.js";
+import { deleteClientMessageMirror } from "./client-message-mirror.js";
 
 function pathChatMessage(msgId) {
   return rtdbPath("chat", "messages", msgId);
@@ -346,6 +347,7 @@ export async function runUserErasureBatch({
     if (!cur.json || !isOwnMessage(cur.json, sid, authUid)) continue;
 
     await rtdbSpend(config, token, emu, ns, pathChatMessage(id), "DELETE", null, spend);
+    await rtdbSpend(config, token, emu, ns, rtdbPath("chat", "clientMessages", id), "DELETE", null, spend);
     await rtdbSpend(
       config,
       token,

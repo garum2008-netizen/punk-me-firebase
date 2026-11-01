@@ -41,6 +41,7 @@ import {
 } from "./child-safety-risk.js";
 import { reporterTrustForChildSafety } from "./player-profile.js";
 import { chatLimitsDoName } from "./limits-do-env.js";
+import { upsertClientMessageMirror, deleteClientMessageMirror, pathClientChatMessage } from "./client-message-mirror.js";
 
 function secretsEqual(a, b) {
   if (typeof a !== "string" || typeof b !== "string") return false;
@@ -324,6 +325,14 @@ async function handleSend(request, env) {
   );
   if (!push.ok) return err(request, env, "rtdb_write_failed", 502);
   const msgId = push.json?.name || push.json;
+  await upsertClientMessageMirror(
+    config,
+    token,
+    env.FIREBASE_EMULATOR_HOST,
+    env.FIREBASE_EMULATOR_NS,
+    msgId,
+    msg
+  );
   if (detectChildHarmSignals(text)) {
     await enqueueChildSafetyReview({
       config,
@@ -870,6 +879,13 @@ async function handleModDelete(request, env) {
       env.FIREBASE_EMULATOR_HOST,
       env.FIREBASE_EMULATOR_NS
     );
+    await deleteClientMessageMirror(
+      config,
+      token,
+      env.FIREBASE_EMULATOR_HOST,
+      env.FIREBASE_EMULATOR_NS,
+      msgId
+    );
     return json(request, env, { ok: true });
   } catch (e) {
     return err(
@@ -1163,6 +1179,10 @@ async function handleModResolveSafety(request, env) {
       await rtdbRequest(config, rtdbPath("chat", "internal", "safetyHolds", msgId), "DELETE", null, token, emu, ns);
       await rtdbRequest(config, rtdbPath("chat", "internal", "erasureDeferred", msgId), "DELETE", null, token, emu, ns);
       await resumeErasureJobsAfterHoldRelease(env, msgId);
+      const restoredSnap = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
+      if (restoredSnap.json) {
+        await upsertClientMessageMirror(config, token, emu, ns, msgId, restoredSnap.json);
+      }
       return json(request, env, { ok: true, restored: true });
     }
 
@@ -1232,8 +1252,10 @@ async function handleModResolveSafety(request, env) {
         );
       }
       await rtdbRequest(config, pathChatMessage(msgId), "DELETE", null, token, emu, ns);
+      await deleteClientMessageMirror(config, token, emu, ns, msgId);
     } else if (action === "dismiss") {
       await rtdbRequest(config, `${pathChatMessage(msgId)}/hidden`, "DELETE", null, token, emu, ns);
+      await rtdbRequest(config, `${pathClientChatMessage(msgId)}/hidden`, "DELETE", null, token, emu, ns);
     }
     return json(request, env, { ok: true });
   } catch (e) {
@@ -1334,6 +1356,7 @@ export async function runRetentionJob(env, nowOverride) {
       if (m?.time && now - m.time > config.msgRetentionMs) {
         await rtdbRequest(config, pathChatMessage(id), "DELETE", null, token, emu, ns);
         bump();
+        await deleteClientMessageMirror(config, token, emu, ns, id);
         if (!budgetExceeded) {
           await rtdbRequest(
             config,

@@ -168,6 +168,15 @@
           }
         }
       },
+      "clientMessages": {
+        ".read": "auth != null",
+        ".write": false,
+        ".indexOn": ["time"],
+        "$msgId": {
+          ".read": "auth != null",
+          ".write": false
+        }
+      },
       "reports": {
         ".read": false,
         ".write": false
