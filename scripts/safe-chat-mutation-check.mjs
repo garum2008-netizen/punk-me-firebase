@@ -221,7 +221,7 @@ const mutations = [
   {
     id: "MUT-G",
     expectFailTest: "PROTECT maxHold:",
-    expectFailAlt: "retention escalates when maxHoldUntil",
+    expectFailAlt: "evidence_hold_expired",
     patches: [
       {
         file: "src/index.js",
@@ -389,6 +389,7 @@ const mutations = [
   {
     id: "MUT-X5",
     expectFailTest: "GUARD X5: permanent erasure failure records",
+    expectFailAlt: "erasure_job_failed",
     patches: [
       {
         file: "src/erasure-jobs.js",
@@ -425,11 +426,19 @@ const mutations = [
     expectFailTest: "GUARD X9: erasure rate limit blocks",
     patches: [
       {
-        file: "src/erasure.js",
+        file: "src/erasure-jobs.js",
         replacements: [
           {
-            from: `  if (!jobActive && !bypassRateLimit && !staleRetry && lastAt && now - lastAt < config.erasureMinIntervalMs) {`,
-            to: `  if (false && !jobActive && !bypassRateLimit && !staleRetry && lastAt && now - lastAt < config.erasureMinIntervalMs) { /* MUT-X9 */`
+            from: `  if (
+    respectRateLimit &&
+    lastRequestAt &&
+    now - lastRequestAt < config.erasureMinIntervalMs
+  ) {`,
+            to: `  if (false && /* MUT-X9 */
+    respectRateLimit &&
+    lastRequestAt &&
+    now - lastRequestAt < config.erasureMinIntervalMs
+  ) {`
           }
         ]
       }

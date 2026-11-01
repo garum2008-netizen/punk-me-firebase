@@ -175,8 +175,14 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("erasure guards (integration)
   });
 
   it("GUARD X10: job status honesty when work remains", async () => {
-    const batch = { ok: true, complete: false, allOwnRemaining: 5, remainingDeletable: 3, subrequests: 10 };
-    const job = { status: "queued", attempts: 0 };
+    const batch = {
+      ok: true,
+      complete: true,
+      allOwnRemaining: 5,
+      remainingDeletable: 0,
+      subrequests: 10
+    };
+    const job = { status: "complete", attempts: 0 };
     const payload = userFacingErasurePayload(job, batch);
     expect(payload.status).toBe("queued");
     expect(payload.complete).toBe(false);
