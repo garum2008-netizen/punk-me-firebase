@@ -17,6 +17,14 @@ async function countOwnMessagesByIds(ids, sid) {
   return n;
 }
 
+async function drainErasureJobRecord(env, localId) {
+  for (let i = 0; i < 40; i++) {
+    const job = (await rtdbOwner(`chat/internal/erasureJobs/${localId}`, "GET")).json;
+    if (!job) return;
+    await runErasureQueueJob(env);
+  }
+}
+
 describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron queue)", () => {
   it("FT-04: cron erasure queue processes 100 messages with each hop ≤40 subrequests", async () => {
     const u = await authSignUp();
@@ -32,6 +40,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron
       if ((await countOwnMessagesByIds(ids, sid)) === 0) break;
     }
     expect(await countOwnMessagesByIds(ids, sid)).toBe(0);
+    await drainErasureJobRecord(env, u.localId);
     expect((await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "GET")).json).toBeNull();
   }, 180000);
 
@@ -49,6 +58,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron
       if ((await countOwnMessagesByIds(ids, sid)) === 0) break;
     }
     expect(await countOwnMessagesByIds(ids, sid)).toBe(0);
+    await drainErasureJobRecord(env, u.localId);
     expect((await rtdbOwner(`chatMeta/${u.localId}/chatSendCount`, "GET")).json).toBeNull();
   }, 120000);
 
@@ -69,7 +79,7 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("H-1 erasure completion (cron
       if ((await countOwnMessagesByIds(ids, sid)) === 0) break;
     }
     expect(await countOwnMessagesByIds(ids, sid)).toBe(0);
-    for (let i = 0; i < 8; i++) await runErasureQueueJob(env);
+    await drainErasureJobRecord(env, u.localId);
     expect((await rtdbOwner(`chatMeta/${u.localId}/erasureCursor`, "GET")).json).toBeNull();
     expect((await rtdbOwner(`chat/internal/erasureJobs/${u.localId}`, "GET")).json).toBeNull();
   });

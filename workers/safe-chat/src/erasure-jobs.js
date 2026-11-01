@@ -461,17 +461,31 @@ export async function startOrContinueUserErasure(env, authUid, { now, respectRat
     return { rateLimited: true, job: { status: "queued" }, batch: null };
   }
 
-  if (existing?.retryAfter && now < existing.retryAfter) {
+  if (existing?.status === "in_progress") {
     return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
   }
 
-  if (
-    existing &&
-    (existing.status === "queued" ||
-      existing.status === "in_progress" ||
-      existing.status === "complete_with_holds")
-  ) {
+  if (existing?.status === "complete_with_holds") {
     return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
+  }
+
+  if (existing?.status === "queued") {
+    const pendingWork =
+      existing.retryAfter ||
+      existing.lastError ||
+      existing.cursor ||
+      (Array.isArray(existing.holdMsgIds) && existing.holdMsgIds.length > 0);
+    if (!pendingWork) {
+      return { rateLimited: false, job: existing, batch: null, jobStatusOnly: true };
+    }
+    if (existing.retryAfter) {
+      await writeJob(config, token, emu, ns, authUid, {
+        ...existing,
+        retryAfter: null,
+        updatedAt: now
+      });
+      existing = { ...existing, retryAfter: null };
+    }
   }
 
   const batch = await runErasureJobStep(env, authUid, { now, bypassRateLimit: !respectRateLimit });
