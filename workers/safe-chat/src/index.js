@@ -802,6 +802,11 @@ async function handleDeleteMyData(request, env) {
     payload.subrequests = batch.subrequests + 1;
   }
   payload = await sanitizeErasurePayloadForUser(payload);
+  if (Array.isArray(batch?.erasureDeferred) && batch.erasureDeferred.length > 0) {
+    payload.erasureDeferred = batch.erasureDeferred.filter(
+      id => typeof id === "string" && /^[-A-Za-z0-9]+$/.test(String(id))
+    );
+  }
   if (rateLimited) {
     return json(request, env, { ...payload, rateLimited: true });
   }
