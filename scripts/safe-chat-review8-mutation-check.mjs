@@ -144,37 +144,37 @@ const patches = {
     list: [
       {
         file: "src/index.js",
-        from: `        bump();
-        await rtdbRequest(
+        from: `        await rtdbRequest(
           config,
-          rtdbPath("chat", "internal", "safetyQueue", msgId),
-          "PUT",
+          "chat/internal/safetyDecisions",
+          "POST",
           {
-            ...q,
-            overdue: true,
-            evidenceHoldExpiredAt: now,
-            nextEscalateAt: now + config.safetyQueueEscalateMs
+            msgId,
+            action: "evidence_hold_expired",
+            at: now,
+            moderatorUid: null,
+            note: "Automatic escalation: legal/max hold reached without moderator decision"
           },
           token,
           emu,
           ns
         );
         bump();`,
-        to: `        bump();
-        if (false) await rtdbRequest(
+        to: `        if (false) await rtdbRequest(
           config,
-          rtdbPath("chat", "internal", "safetyQueue", msgId),
-          "PUT",
+          "chat/internal/safetyDecisions",
+          "POST",
           {
-            ...q,
-            overdue: true,
-            evidenceHoldExpiredAt: now,
-            nextEscalateAt: now + config.safetyQueueEscalateMs
+            msgId,
+            action: "evidence_hold_expired",
+            at: now,
+            moderatorUid: null,
+            note: "Automatic escalation: legal/max hold reached without moderator decision"
           },
           token,
           emu,
           ns
-        ); /* M6b skip overdue queue patch */
+        ); /* M6b */
         bump();`
       }
     ]

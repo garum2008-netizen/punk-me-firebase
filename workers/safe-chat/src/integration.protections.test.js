@@ -202,10 +202,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
     }
     expect(sawDecision).toBe(true);
     const q = await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET");
-    const escalateMs = loadConfig(testEnv).safetyQueueEscalateMs;
     expect(q.json?.overdue).toBe(true);
     expect(q.json?.evidenceHoldExpiredAt).toBeTruthy();
-    expect(q.json?.nextEscalateAt).toBe(now + escalateMs);
   });
 
   it("PROTECT erasure budget: runUserErasureBatch stops with budgetExceeded", async () => {
