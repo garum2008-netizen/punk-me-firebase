@@ -5,7 +5,7 @@ import { PHRASES, phraseText } from "./phrases.js";
 import { anonymizeUid, chatPublicSid, rtdbPath, rtdbRequest } from "./rtdb.js";
 import { ChatLimitsDO } from "./limits-do.js";
 import { resolveSendLimits } from "./limits-policy.js";
-import { assertFirebaseId, assertReportHash } from "./ids.js";
+import { assertFirebaseId, assertReportHash, isValidFirebaseId } from "./ids.js";
 import { loadPlayerProfileForChat } from "./player-profile.js";
 import { getCachedAdminToken } from "./admin-token.js";
 import { corsHeaders } from "./cors.js";
@@ -733,7 +733,7 @@ async function sanitizeErasurePayloadForUser(payload) {
   const out = { ...payload };
   if (out.erasureDeferred?.length) {
     out.erasureDeferred = out.erasureDeferred.filter(
-      id => typeof id === "string" && /^[-A-Za-z0-9]+$/.test(String(id))
+      id => typeof id === "string" && isValidFirebaseId(id)
     );
     if (!out.erasureDeferred.length) delete out.erasureDeferred;
   }
@@ -832,7 +832,7 @@ async function handleDeleteMyData(request, env) {
   payload = await sanitizeErasurePayloadForUser(payload);
   if (Array.isArray(batch?.erasureDeferred) && batch.erasureDeferred.length > 0) {
     payload.erasureDeferred = batch.erasureDeferred.filter(
-      id => typeof id === "string" && /^[-A-Za-z0-9]+$/.test(String(id))
+      id => typeof id === "string" && isValidFirebaseId(id)
     );
   } else if (
     Array.isArray(effectiveJob?.holdMsgIds) &&
@@ -840,7 +840,7 @@ async function handleDeleteMyData(request, env) {
     (!payload.erasureDeferred || payload.erasureDeferred.length === 0)
   ) {
     payload.erasureDeferred = effectiveJob.holdMsgIds.filter(
-      id => typeof id === "string" && /^[-A-Za-z0-9]+$/.test(String(id))
+      id => typeof id === "string" && isValidFirebaseId(id)
     );
   }
   if (rateLimited) {

@@ -632,9 +632,11 @@ export async function startOrContinueUserErasure(
     };
   }
   const job = await persistJobAfterBatch(env, authUid, batch, existing, now);
-  await countRtdb(() =>
-    rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
-  );
+  if (respectRateLimit) {
+    await countRtdb(() =>
+      rtdbRequest(config, rtdbPath("chatMeta", authUid, "lastErasureRequestAt"), "PUT", now, token, emu, ns)
+    );
+  }
   const totalSubrequests = requestSubrequests + (batch.subrequests || 0);
   batch.subrequests = totalSubrequests;
   return { rateLimited: false, job, batch, requestSubrequests: totalSubrequests };
