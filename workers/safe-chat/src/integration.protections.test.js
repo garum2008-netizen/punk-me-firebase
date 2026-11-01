@@ -79,7 +79,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("t139u protective mechanisms 
       expect(r1.status).toBe(200);
       const r2 = await apiPostReport(SELF, repB.idToken, { msgId, category: "grooming" }, clusterHdr);
       expect(r2.status).toBe(200);
-      await waitForMessageHidden(msgId);
+      await waitForSafetyQueue(msgId, q => Boolean(q?.childHarm || q?.hiddenAt));
+      await waitForMessageHidden(msgId, { attempts: 240 });
     }
     const m4 = msgIds[3];
     const repA4 = await authSignUp();

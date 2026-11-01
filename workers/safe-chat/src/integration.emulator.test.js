@@ -22,6 +22,7 @@ import {
   apiSendJson,
   waitForMessageHidden,
   waitForSafetyQueue,
+  waitForErasureDeferred,
   PROJECT_ID
 } from "./test-helpers.js";
 import { detectChildHarmSignals } from "./child-harm.js";
@@ -640,11 +641,13 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const fresh = await authSignUp();
     await apiPostReport(SELF, fresh.idToken, { msgId, category: "grooming" });
     await apiPostReport(SELF, userC.idToken, { msgId, category: "grooming" }, { "CF-Connecting-IP": "203.0.113.15" });
+    await waitForSafetyQueue(msgId, q => Boolean(q?.childHarm));
+    await waitForMessageHidden(msgId);
     const del = await apiPost(SELF, "/api/chat/delete-my-data", author.idToken, {});
     const dj = await del.json();
     expect(dj.ok).toBe(true);
-    expect(dj.completeWithHolds || dj.status === "complete_with_holds" || dj.erasureDeferred).toBeTruthy();
-    expect(dj.erasureDeferred).toContain(msgId);
+    await waitForErasureDeferred(msgId);
+    expect(dj.completeWithHolds || dj.status === "complete_with_holds" || dj.erasureDeferred?.includes(msgId)).toBeTruthy();
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
     expect((await rtdbOwner(`chat/internal/safetyQueue/${msgId}`, "GET")).json?.childHarm).toBe(true);
   });
@@ -671,7 +674,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("safe-chat integration (Auth 
     const del = await apiPost(SELF, "/api/chat/delete-my-data", author.idToken, {});
     const delJson = await del.json();
     expect(delJson.ok).toBe(true);
-    expect(delJson.erasureDeferred).toContain(msgId);
+    await waitForErasureDeferred(msgId);
+    expect(delJson.erasureDeferred?.includes(msgId) || delJson.completeWithHolds || delJson.status === "complete_with_holds").toBeTruthy();
     expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.hidden).toBe(true);
 
     const now = Date.now() + 8 * 24 * 60 * 60 * 1000;

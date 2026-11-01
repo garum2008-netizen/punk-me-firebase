@@ -203,6 +203,18 @@ export async function waitForSafetyQueue(msgId, predicate, { attempts = 240, del
   throw new Error(`safetyQueue ${msgId} not ready`);
 }
 
+/** Harness barrier: message is on erasure hold (API payload or internal deferred node). */
+export async function waitForErasureDeferred(msgId, { attempts = 160, delayMs = 50 } = {}) {
+  for (let i = 0; i < attempts; i += 1) {
+    const leaf = await rtdbOwner(`chat/internal/erasureDeferred/${msgId}`, "GET");
+    if (leaf.json) return leaf.json;
+    const all = await rtdbOwner("chat/internal/erasureDeferred", "GET");
+    if (all.json?.[msgId]) return all.json[msgId];
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  throw new Error(`erasureDeferred ${msgId} not set in RTDB`);
+}
+
 /** Harness barrier: message.hidden === true (async hide after filter/report). */
 export async function waitForMessageHidden(msgId, { attempts = 120, delayMs = 100 } = {}) {
   for (let i = 0; i < attempts; i += 1) {
