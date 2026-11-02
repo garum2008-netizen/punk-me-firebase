@@ -356,9 +356,20 @@ export async function enqueueChildSafetyReview({
 export async function redactPublicMessageText(config, token, emu, ns, msgId) {
   await rtdbRequest(config, `${pathChatMessage(msgId)}/text`, "DELETE", null, token, emu, ns);
   await rtdbRequest(config, `${pathChatMessage(msgId)}/textRedacted`, "PUT", true, token, emu, ns);
-  await rtdbRequest(config, `${pathClientChatMessage(msgId)}/text`, "DELETE", null, token, emu, ns);
-  await rtdbRequest(config, `${pathClientChatMessage(msgId)}/textRedacted`, "PUT", true, token, emu, ns);
-  await rtdbRequest(config, `${pathClientChatMessage(msgId)}/hidden`, "PUT", true, token, emu, ns);
+  const mirrorRes = await rtdbRequest(config, pathClientChatMessage(msgId), "GET", null, token, emu, ns);
+  const msgRes = await rtdbRequest(config, pathChatMessage(msgId), "GET", null, token, emu, ns);
+  const mirror = mirrorRes.json && typeof mirrorRes.json === "object" ? mirrorRes.json : {};
+  const msg = msgRes.json && typeof msgRes.json === "object" ? msgRes.json : {};
+  await upsertClientMessageMirror(config, token, emu, ns, msgId, {
+    sid: mirror.sid || msg.sid,
+    name: mirror.name || msg.name,
+    text: mirror.text ?? msg.text,
+    time: mirror.time ?? msg.time,
+    phraseId: mirror.phraseId ?? msg.phraseId ?? null,
+    loc: mirror.loc || msg.loc,
+    hidden: true,
+    textRedacted: true
+  });
 }
 
 /** Discretionary reporter-triggered auto-hide quota (mandatory risk hides skip this). */

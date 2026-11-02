@@ -39,10 +39,23 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("chat/clientMessages mirror (
   it("PROTECT MIRROR: hidden message mirror omits body text", async () => {
     const author = await authSignUp();
     const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
-    await putChatMessageText(`${msgId}`, "kill the kid");
+    const toxic = "kill the kid";
+    await putChatMessageText(`${msgId}`, toxic);
+    const beforeHide = (await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json;
+    expect(beforeHide?.text).toContain(toxic);
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     await waitForMessageHidden(msgId);
+    for (let i = 0; i < 120; i++) {
+      const mirror = (await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json;
+      if (mirror?.hidden === true && mirror?.textRedacted === true && mirror?.text === undefined) break;
+      if (i === 119) {
+        throw new Error(
+          `clientMessages ${msgId} still exposes text after hide: ${JSON.stringify(mirror?.text ?? mirror)}`
+        );
+      }
+      await new Promise(r => setTimeout(r, 50));
+    }
     const mirror = (await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json;
     expect(mirror?.hidden).toBe(true);
     expect(mirror?.textRedacted).toBe(true);
