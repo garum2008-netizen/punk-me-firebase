@@ -88,9 +88,9 @@ const patches = {
     expectFailTest: "PROTECT GEN-SNAP:",
     list: [
       {
-        file: "src/child-safety-abuse.js",
-        from: `    if (snap?.text) {`,
-        to: `    if (false) {`
+        file: "src/index.js",
+        from: `        if (gen.json?.snapshot?.text) {`,
+        to: `        if (false) {`
       }
     ]
   },
@@ -99,8 +99,14 @@ const patches = {
     list: [
       {
         file: "src/erasure.js",
-        from: `    if (subrequests + n > budget) {`,
-        to: `    if (false) {`
+        from: `      if (subrequests + 1 > budget) {
+        budgetExceeded = true;
+        return false;
+      }`,
+        to: `      if (false) {
+        budgetExceeded = true;
+        return false;
+      }`
       }
     ]
   },
