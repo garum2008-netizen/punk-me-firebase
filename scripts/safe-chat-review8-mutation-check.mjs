@@ -128,9 +128,11 @@ const patches = {
     list: [
       {
         file: "src/erasure-jobs.js",
-        from: `  await persistJobAfterBatch(env, uid, batch, claimed, now);
-  return { ok: true, processed: 1, uid, subrequests: batch.subrequests, status: mapBatchToJobStatus(batch) };`,
-        to: `  return { ok: true, processed: 0 }; /* M5c */`
+        from: `  await persistJobAfterBatch(stepEnv, uid, batch, claimed, now);
+  return { ok: true, processed: 1, uid, subrequests: batch.subrequests, status: mapBatchToJobStatus(batch) };
+  });`,
+        to: `  return { ok: true, processed: 0 }; /* M5c */
+  });`
       }
     ]
   },
