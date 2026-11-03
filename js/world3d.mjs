@@ -2699,7 +2699,7 @@ const api = {
   },
   countVisibleProps: (opts = {}) => countVisiblePropsInScene(opts),
   countVisiblePropsInScene: (opts = {}) => countVisiblePropsInScene(opts),
-  getSceneLocation: () => currentLoc,
+  getSceneLocation: () => currentLoc || null,
   auditLargeMeshes: (minSize = 1.5) => {
     const rows = [];
     if (!locationRoot) return rows;
@@ -2806,12 +2806,7 @@ function isPropRootVisible(root, frustumOnly = false) {
 }
 
 function sceneLocationForAudit() {
-  if (currentLoc) return currentLoc;
-  try {
-    return hooks?.getMe?.()?.location || "";
-  } catch {
-    return "";
-  }
+  return currentLoc || null;
 }
 
 function countVisiblePropsInScene(opts = {}) {

@@ -583,6 +583,9 @@ function applyFirebasePlayerSnapshot(snap) {
   } else {
     me = me || defaultPlayer();
   }
+  if (Array.isArray(me.cityBuilds)) {
+    me.cityBuilds = sanitizeCityBuildsForSave(me.cityBuilds);
+  }
   window.me = me;
   window.__playerLoaded = true;
   if (window.LifeCh1Slice?.ensureLifeCh1) window.LifeCh1Slice.ensureLifeCh1(me);
@@ -1091,6 +1094,11 @@ function saveMe() {
   pushPresence();
 }
 
+function sanitizeCityBuildsForSave(list) {
+  const fn = window.PunkCityBuildSanitize?.sanitizeCityBuildsList;
+  return fn ? fn(list) : [];
+}
+
 function sanitizePlayer(p) {
   const out = {
     name: p.name,
@@ -1128,7 +1136,9 @@ function sanitizePlayer(p) {
   const lifePayload = window.LifeCh1Slice?.lifeCh1PayloadForSave?.(p);
   if (lifePayload !== undefined) out.lifeCh1 = lifePayload;
   else if (isPreviewBuild() && p.lifeCh1 != null) out.lifeCh1 = p.lifeCh1;
-  if (isPreviewBuild() && Array.isArray(p.cityBuilds)) out.cityBuilds = p.cityBuilds;
+  if (isPreviewBuild() && Array.isArray(p.cityBuilds)) {
+    out.cityBuilds = sanitizeCityBuildsForSave(p.cityBuilds);
+  }
   return out;
 }
 
@@ -1887,17 +1897,35 @@ function toggleBuildMode() {
 }
 
 function tryPlaceBuild(x, y) {
+  const san = window.PunkCityBuildSanitize;
   const type = selectedBuild;
+  if (san && !san.isAllowedBuildType(type)) {
+    toast(t("buy_materials"));
+    return;
+  }
   const count = me.inventory.materials[type] || 0;
   if (count < 1) { toast(t("buy_materials")); return; }
+  const coords = san ? san.clampBuildPlacement(x, y) : null;
+  if (!coords) { toast(t("loading_boot_error")); return; }
+  if (!Array.isArray(me.cityBuilds)) me.cityBuilds = [];
+  const max = san?.CITY_BUILDS_MAX ?? 200;
+  if (me.cityBuilds.length >= max) {
+    toast(t("loading_boot_error"));
+    return;
+  }
   me.inventory.materials[type]--;
-  const piece = { type, x, y, owner: uid, ts: Date.now() };
+  const piece = {
+    type,
+    x: coords.x,
+    y: coords.y,
+    id: "local_" + Date.now().toString(36),
+    ts: Date.now()
+  };
+  const normalized = san?.normalizeCityBuildEntry?.(piece) || piece;
   if (isPreviewBuild() || !db) {
-    if (!Array.isArray(me.cityBuilds)) me.cityBuilds = [];
-    const local = { ...piece, id: "local_" + Date.now() };
-    me.cityBuilds.push(local);
+    me.cityBuilds = sanitizeCityBuildsForSave([...me.cityBuilds, normalized]);
     if (LOCATIONS[me.location]?.buildZone === "city") {
-      buildings = me.cityBuilds.map((b, i) => ({ id: b.id || "cb" + i, ...b }));
+      buildings = me.cityBuilds.map(b => ({ id: b.id, ...b }));
       renderBuildings();
     }
     me.built = (me.built || 0) + 1;
@@ -1906,7 +1934,7 @@ function tryPlaceBuild(x, y) {
     toast(t("built"));
     return;
   }
-  db.ref("buildings/city").push(piece).catch(err => {
+  db.ref("buildings/city").push({ type: piece.type, x: piece.x, y: piece.y, owner: uid, ts: piece.ts }).catch(err => {
     console.warn("tryPlaceBuild", err);
     toast(t("loading_boot_error"));
   });
@@ -2145,7 +2173,11 @@ window.castWorldSpell = castWorldSpell;
 window.startNpcFight = startNpcFight;
 window.acceptQuest = acceptQuest;
 window.tryDecorPlace = tryDecorPlace;
-window.setBuildType = function (bt) { selectedBuild = bt; toast(t("building") + " " + bt); };
+window.setBuildType = function (bt) {
+  if (window.PunkCityBuildSanitize?.isAllowedBuildType?.(bt)) selectedBuild = bt;
+  else selectedBuild = "crypt";
+  toast(t("building") + " " + selectedBuild);
+};
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
 

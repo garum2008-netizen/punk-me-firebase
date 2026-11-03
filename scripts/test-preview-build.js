@@ -170,7 +170,7 @@ async function runBrowserTest(base) {
 
   try {
     await page.goto(`${base}/?lifeCh1E2e=1&v=preview-build-test`, {
-      waitUntil: "domcontentloaded",
+      waitUntil: "load",
       timeout: 120000
     });
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 10000 });

@@ -94,11 +94,15 @@ function transformIndex(html) {
   }
   html = html.replace(/<script src="https:\/\/www\.gstatic\.com\/firebase[^"]+"[^>]*><\/script>\s*/g, "");
   html = html.replace(
-    /<script src="js\/game\.js[^"]*"><\/script>/,
-    `<script>window.__PUNK_PREVIEW__=true;</script>
-<script src="js/preview-save.js?v=preview"></script>
-<script src="js/game.js?v=preview"></script>`
+    /<script type="module" src="js\/city-builds-sanitize-boot\.mjs[^"]*"><\/script>\s*/i,
+    ""
   );
+  const previewGameScripts = `<script type="module" src="js/city-builds-sanitize-boot.mjs?v=preview"></script>
+<script>window.__PUNK_PREVIEW__=true;</script>
+<script src="js/preview-save.js?v=preview"></script>
+<script defer src="js/game.js?v=preview"></script>`;
+  html = html.replace(/<script defer src="js\/game\.js[^"]*"><\/script>/, previewGameScripts);
+  html = html.replace(/<script src="js\/game\.js[^"]*"><\/script>/, previewGameScripts);
   html = html.replace(
     /<script type="module">\s*import \{ initAccountAuth \}[\s\S]*?<\/script>\s*/m,
     ""
