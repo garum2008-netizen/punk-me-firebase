@@ -106,12 +106,15 @@ function assertBundleNoProdSecrets() {
   console.log("preview-bundle-secrets: PASS (0 prod config hits)");
 }
 
+const HOWTO_SEEN_KEY = "punkme_howto_seen";
+
 async function dismissHowToPlay(page) {
-  await page.evaluate(() => {
+  await page.evaluate(key => {
     try {
-      localStorage.setItem("punkme_howto_seen", "1");
+      localStorage.setItem(key, "1");
     } catch (_) {}
-  });
+  }, HOWTO_SEEN_KEY);
+  await page.waitForTimeout(1000);
   const overlayIdle = () =>
     page.waitForFunction(
       () => {
@@ -119,7 +122,7 @@ async function dismissHowToPlay(page) {
         return !ov || !ov.classList.contains("active");
       },
       undefined,
-      { timeout: 2000, polling: 150 }
+      { timeout: 3000, polling: 150 }
     );
 
   if (await overlayIdle().catch(() => false)) return;
@@ -150,10 +153,21 @@ async function dismissOverlays(page) {
   await dismissHowToPlay(page);
 }
 
-async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
+async function clickStage3d(page, position = { x: 195, y: 300 }) {
   await dismissOverlays(page);
-  const canvas = page.locator("#stage3d");
-  await canvas.click({ position: { x: 195, y: 300 } });
+  await page.waitForFunction(
+    () => {
+      const ov = document.getElementById("howToOverlay");
+      return !ov?.classList.contains("active");
+    },
+    undefined,
+    { timeout: 15000, polling: 150 }
+  );
+  await page.locator("#stage3d").click({ position });
+}
+
+async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
+  await clickStage3d(page);
   const start = Date.now();
   while (Date.now() - start < maxMs) {
     const pos = await page.evaluate(() => window.World3D?.getPlayerWorldPosition?.());
@@ -173,10 +187,48 @@ async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
   throw new Error("walkNear timeout");
 }
 
+async function testHowToOverlayFreshProfile(base) {
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${base}/?solo=1&v=howto-fresh-test`, { waitUntil: "load", timeout: 120000 });
+    await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
+    await page.evaluate(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (_) {}
+    }, HOWTO_SEEN_KEY);
+    await page.reload({ waitUntil: "load" });
+    await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
+    await page.waitForSelector(".char-pick", { timeout: 90000 });
+    await page.click('.char-pick[data-id="cobalt"]');
+    await page.click("#charSelectConfirm");
+    await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+    await page.waitForSelector("#howToOverlay.active", { timeout: 10000 });
+    await page.locator(".howto-close").click();
+    await page.waitForFunction(
+      () => !document.getElementById("howToOverlay")?.classList.contains("active"),
+      undefined,
+      { timeout: 8000 }
+    );
+    console.log("preview-howto-fresh-profile: PASS");
+  } finally {
+    await page.close();
+    await context.close();
+    await browser.close();
+  }
+}
+
 async function runBrowserTest(base) {
   let prodAttempts = 0;
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await context.addInitScript(key => {
+    try {
+      localStorage.setItem(key, "1");
+    } catch (_) {}
+  }, HOWTO_SEEN_KEY);
   const page = await context.newPage();
   const consoleErrors = [];
   page.on("pageerror", err => consoleErrors.push(String(err)));
@@ -218,8 +270,7 @@ async function runBrowserTest(base) {
     await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 30000 });
 
     await dismissOverlays(page);
-    const canvas = page.locator("#stage3d");
-    await canvas.click({ position: { x: 195, y: 300 } });
+    await clickStage3d(page);
     for (let i = 0; i < 10; i++) {
       await page.keyboard.down("w");
       await page.waitForTimeout(350);
@@ -229,7 +280,7 @@ async function runBrowserTest(base) {
     await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 1, undefined, { timeout: 15000 });
 
     await walkNear(page, -3.2, 2.5);
-    await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
+    await clickStage3d(page);
     for (let t = 0; t < 12; t++) {
       await page.keyboard.down("e");
       await page.waitForTimeout(320);
@@ -389,6 +440,7 @@ async function main() {
 
   const srv = await serveDist(3765);
   try {
+    await testHowToOverlayFreshProfile("http://127.0.0.1:3765");
     await runBrowserTest("http://127.0.0.1:3765");
   } finally {
     srv.close();

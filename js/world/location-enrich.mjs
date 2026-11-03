@@ -20,6 +20,19 @@ function softRoundPointTexture() {
   return softRoundPointMap;
 }
 
+function softPointsMaterial(color, size, opacity = 0.75) {
+  return new THREE.PointsMaterial({
+    color,
+    size,
+    map: softRoundPointTexture(),
+    transparent: true,
+    opacity,
+    alphaTest: 0.08,
+    depthWrite: false,
+    sizeAttenuation: true
+  });
+}
+
 function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
   list.push({
     minX: cx - halfW - pad,
@@ -57,7 +70,7 @@ export function addSkyDome(root, theme) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(stars, 3));
-  root.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xaaccff, size: 0.12 })));
+  root.add(new THREE.Points(g, softPointsMaterial(0xaaccff, 0.14, 0.9)));
 }
 
 function markCameraOccluder(mesh) {
@@ -191,10 +204,7 @@ export function addEmberParticles(root, count = 70) {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const pts = new THREE.Points(
-    geo,
-    new THREE.PointsMaterial({ color: 0xff6622, size: 0.07, transparent: true, opacity: 0.55 })
-  );
+  const pts = new THREE.Points(geo, softPointsMaterial(0xff6622, 0.16, 0.6));
   pts.userData.drift = true;
   pts.userData.ember = true;
   root.add(pts);
@@ -209,19 +219,7 @@ export function addFireflyParticles(root, count = 55) {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const pts = new THREE.Points(
-    geo,
-    new THREE.PointsMaterial({
-      color: 0xaaffcc,
-      size: 0.22,
-      map: softRoundPointTexture(),
-      transparent: true,
-      opacity: 0.75,
-      alphaTest: 0.08,
-      depthWrite: false,
-      sizeAttenuation: true
-    })
-  );
+  const pts = new THREE.Points(geo, softPointsMaterial(0xaaffcc, 0.22, 0.75));
   pts.userData.drift = true;
   pts.userData.firefly = true;
   root.add(pts);
