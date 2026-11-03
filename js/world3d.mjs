@@ -2698,6 +2698,8 @@ const api = {
     return motionProbe.frames.length;
   },
   countVisibleProps: (opts = {}) => countVisiblePropsInScene(opts),
+  countVisiblePropsInScene: (opts = {}) => countVisiblePropsInScene(opts),
+  getSceneLocation: () => currentLoc,
   auditLargeMeshes: (minSize = 1.5) => {
     const rows = [];
     if (!locationRoot) return rows;
@@ -2803,9 +2805,19 @@ function isPropRootVisible(root, frustumOnly = false) {
   return _propFrustum.containsPoint(_propCenter);
 }
 
+function sceneLocationForAudit() {
+  if (currentLoc) return currentLoc;
+  try {
+    return hooks?.getMe?.()?.location || "";
+  } catch {
+    return "";
+  }
+}
+
 function countVisiblePropsInScene(opts = {}) {
+  const locTag = sceneLocationForAudit();
   const frustumOnly = !!opts.frustumOnly;
-  if (!locationRoot || !camera) return { unique: 0, tags: [], instances: 0, location: currentLoc, frustumOnly };
+  if (!locationRoot || !camera) return { unique: 0, tags: [], instances: 0, location: locTag, frustumOnly };
   camera.updateMatrixWorld();
   _propProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _propFrustum.setFromProjectionMatrix(_propProj);
@@ -2822,7 +2834,7 @@ function countVisiblePropsInScene(opts = {}) {
     tags.add(root.userData.propTag);
     instances++;
   });
-  const out = { unique: tags.size, tags: [...tags].sort(), instances, location: currentLoc, frustumOnly };
+  const out = { unique: tags.size, tags: [...tags].sort(), instances, location: locTag, frustumOnly };
   if (!frustumOnly) {
     const fr = countVisiblePropsInScene({ frustumOnly: true });
     out.frustumUnique = fr.unique;

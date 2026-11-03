@@ -287,7 +287,7 @@ async function runBrowserTest(base) {
     if (cemeteryScene.meLoc !== "cemetery") {
       throw new Error("preview cemetery travel failed me.location: " + JSON.stringify(cemeteryScene));
     }
-    if (cemeteryScene.w3Loc && cemeteryScene.w3Loc !== "cemetery") {
+    if (cemeteryScene.w3Loc !== "cemetery") {
       throw new Error("preview cemetery 3D scene mismatch: " + JSON.stringify(cemeteryScene));
     }
     if (streetLoc !== "street" || roomLoc !== "room") {

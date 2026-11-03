@@ -1128,6 +1128,7 @@ function sanitizePlayer(p) {
   const lifePayload = window.LifeCh1Slice?.lifeCh1PayloadForSave?.(p);
   if (lifePayload !== undefined) out.lifeCh1 = lifePayload;
   else if (isPreviewBuild() && p.lifeCh1 != null) out.lifeCh1 = p.lifeCh1;
+  if (isPreviewBuild() && Array.isArray(p.cityBuilds)) out.cityBuilds = p.cityBuilds;
   return out;
 }
 
@@ -1891,7 +1892,24 @@ function tryPlaceBuild(x, y) {
   if (count < 1) { toast(t("buy_materials")); return; }
   me.inventory.materials[type]--;
   const piece = { type, x, y, owner: uid, ts: Date.now() };
-  db.ref("buildings/city").push(piece);
+  if (isPreviewBuild() || !db) {
+    if (!Array.isArray(me.cityBuilds)) me.cityBuilds = [];
+    const local = { ...piece, id: "local_" + Date.now() };
+    me.cityBuilds.push(local);
+    if (LOCATIONS[me.location]?.buildZone === "city") {
+      buildings = me.cityBuilds.map((b, i) => ({ id: b.id || "cb" + i, ...b }));
+      renderBuildings();
+    }
+    me.built = (me.built || 0) + 1;
+    saveMe();
+    questBump("built", 1);
+    toast(t("built"));
+    return;
+  }
+  db.ref("buildings/city").push(piece).catch(err => {
+    console.warn("tryPlaceBuild", err);
+    toast(t("loading_boot_error"));
+  });
   me.built = (me.built || 0) + 1;
   saveMe();
   questBump("built", 1);
