@@ -97,6 +97,37 @@ async function waitForServer(base, attempts = 60) {
   throw new Error("wrangler pages dev did not become ready (expected 401/200 on /)");
 }
 
+async function stopProcessGroup(child, graceMs = 4000) {
+  if (!child?.pid) return;
+  await new Promise(resolve => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    child.once("exit", finish);
+    child.once("error", finish);
+    try {
+      process.kill(-child.pid, "SIGTERM");
+    } catch (_) {
+      try {
+        child.kill("SIGTERM");
+      } catch (_) {}
+    }
+    setTimeout(() => {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch (_) {
+        try {
+          child.kill("SIGKILL");
+        } catch (_) {}
+      }
+      setTimeout(finish, 800);
+    }, graceMs);
+  });
+}
+
 async function runPagesDevSmoke() {
   const devVarsPath = path.join(ROOT, ".dev.vars");
   const hadDevVars = fs.existsSync(devVarsPath);
@@ -119,7 +150,7 @@ async function runPagesDevSmoke() {
       "--compatibility-date",
       "2024-09-23"
     ],
-    { cwd: ROOT, env, stdio: ["ignore", "pipe", "pipe"] }
+    { cwd: ROOT, env, stdio: ["ignore", "pipe", "pipe"], detached: true }
   );
 
   let log = "";
@@ -161,7 +192,7 @@ async function runPagesDevSmoke() {
     console.error(log.slice(-4000));
     process.exit(1);
   } finally {
-    child.kill("SIGTERM");
+    await stopProcessGroup(child);
     if (hadDevVars) fs.writeFileSync(devVarsPath, prevDevVars, "utf8");
     else {
       try {
