@@ -40,18 +40,22 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("chat/clientMessages mirror (
     const author = await authSignUp();
     const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     const seeded = (await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json;
-    expect(typeof seeded?.text).toBe("string");
+    expect(Object.hasOwn(seeded ?? {}, "text")).toBe(true);
+    expect(typeof seeded.text).toBe("string");
     expect(seeded.text.length).toBeGreaterThan(0);
+    const mirrorTextBeforeHide = seeded.text;
     await putChatMessageText(`${msgId}`, "kill the kid");
-    expect((await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json?.text).toBe(seeded.text);
+    const mirrorAfterCanonicalEdit = (await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json;
+    expect(Object.hasOwn(mirrorAfterCanonicalEdit ?? {}, "text")).toBe(true);
+    expect(mirrorAfterCanonicalEdit.text).toBe(mirrorTextBeforeHide);
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     await waitForMessageHidden(msgId);
     const mirror = (await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json;
     expect(mirror?.hidden).toBe(true);
     expect(mirror?.textRedacted).toBe(true);
-    expect(mirror?.text).toBeUndefined();
     expect(Object.hasOwn(mirror ?? {}, "text")).toBe(false);
+    expect(mirror?.text).toBeUndefined();
     expectMirrorWhitelist(mirror);
   });
 
