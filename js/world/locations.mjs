@@ -449,7 +449,7 @@ export function buildLocationScene(locId, texLoader) {
     sign.position.set(3.8, 2.6, -5.65);
     root.add(sign);
     addSofa(root, -1, 3.2, colliders);
-    addBeanbag(root, -2.8, 4.2);
+    addBeanbag(root, -5.2, 4.8);
     addNeonTube(root, -4, 2.8, -5.5, 2.5, 0xff00ff);
     addNeonTube(root, 4, 2.5, -5.5, 2, 0x00ffff);
     addPumpkin(root, 4.5, 2.5, colliders);

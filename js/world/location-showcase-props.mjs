@@ -21,6 +21,10 @@ function tagged(tag, obj) {
   const g = obj.isGroup ? obj : new THREE.Group();
   if (!obj.isGroup) g.add(obj);
   g.userData.propTag = tag;
+  const tagStr = String(tag);
+  if (tagStr.startsWith("fg_") || tagStr.includes("_clutter_") || tagStr.startsWith("room_floor_")) {
+    g.userData.decorOnly = true;
+  }
   return g;
 }
 
@@ -280,10 +284,7 @@ function addPerimeterDressing(locId, root) {
     return;
   }
   if (locId === "room") {
-    root.add(streetLamp(-4.5, zBack, "fg_room_lamp"));
-    root.add(tagged("fg_room_poster", box(0.9, 1.2, 0.03, mat(0x442266, 0x220044)).translateY(1.4).translateX(5).translateZ(zBack)));
-    root.add(tagged("fg_room_guitar", box(0.35, 0.12, 0.1, mat(0xcc2222)).translateY(0.55).translateX(-5).translateZ(-2)));
-    root.add(trashBin(5.2, 2.5, "fg_room_trash"));
+    root.add(streetLamp(-5.5, -4.2, "fg_room_lamp"));
     return;
   }
   if (locId === "construction") {
@@ -321,16 +322,7 @@ function addForegroundCluster(locId, root) {
     return;
   }
   if (locId === "city") {
-    for (let i = 0; i < 24; i++) {
-      const g = tagged(
-        `city_fg_sidewalk_${i}`,
-        i % 3 === 0
-          ? new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 5), mat(0x3a5a38))
-          : box(0.12, 0.08, 0.12, mat(0x8a6030))
-      );
-      g.position.set(-3.5 + i * 0.45, i % 3 === 0 ? 0.08 : 0.04, 1.8 + (i % 4) * 0.55);
-      root.add(g);
-    }
+    return;
   }
   const z = -4.8;
   root.add(parkBench(-4, z));
@@ -464,20 +456,8 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("room_trash_bin", box(0.32, 0.55, 0.32, mat(0x3a4048)).translateY(0.275).translateX(4.8).translateZ(-2.5)));
     root.add(tagged("room_plant_pot", box(0.28, 0.55, 0.28, mat(0x228844)).translateY(0.28).translateX(-4.5).translateZ(1.8)));
     root.add(tagged("room_chain_lamp", box(0.08, 1.2, 0.08, mat(0x888899, 0xffcc00)).translateY(1.8).translateX(1.5).translateZ(0.5)));
-    root.add(streetLamp(-5.5, -2.5, "room_floor_lamp_w"));
     root.add(streetLamp(5.5, -1.8, "room_floor_lamp_e"));
-    root.add(parkBench(-4.8, -3.5));
     root.add(tagged("room_sticker_cluster", box(0.4, 0.35, 0.02, mat(0xff00ff, 0xff00ff)).translateY(1.7).translateX(5.2).translateZ(-5.6)));
-    for (let i = 0; i < 8; i++) {
-      const g = tagged(`room_floor_clutter_${i}`, box(0.12, 0.08, 0.12, mat(0x8a6030 + (i * 9137) % 0x111111)));
-      g.position.set(-3.5 + i * 0.42, 0.04, -3.8 + (i % 3) * 0.35);
-      root.add(g);
-    }
-    for (let i = 0; i < 12; i++) {
-      const g = tagged(`room_wall_tag_${i}`, box(0.22, 0.28, 0.03, mat(0x442266 + (i * 11_371) % 0x111111)));
-      g.position.set(-5.2 + (i % 6) * 0.55, 0.9 + Math.floor(i / 6) * 0.65, -5.68);
-      root.add(g);
-    }
   } else if (locId === "street") {
     const benchNeonW = framedNeonPanel(1.55, 0.82, ["PUNK", "☠"], 0xff00ff, 0x00ffff);
     benchNeonW.position.set(-3.55, 0.45, -4.95);
@@ -587,14 +567,6 @@ export function addShowcaseProps(locId, root) {
       root.add(g);
     }
   } else if (locId === "city") {
-    for (let i = 0; i < 22; i++) {
-      const g = tagged(
-        `city_view_row_${i}`,
-        box(0.22, 0.45, 0.22, mat(0x445566 + (i * 97_391) % 0x111111))
-      );
-      g.position.set(-3.2 + (i % 11) * 0.62, 0.22, 0.4 + Math.floor(i / 11) * 0.75);
-      root.add(g);
-    }
     root.add(streetLamp(-2, 3, "street_lamp_n"));
     root.add(streetLamp(2, 3, "street_lamp_e"));
     root.add(streetLamp(-5, -1, "street_lamp_w"));

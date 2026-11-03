@@ -46,6 +46,12 @@ export function initTouchControls(opts = {}) {
 
   interact?.addEventListener("click", () => touchInteract());
 
+  const jumpBtn = document.getElementById("touchJump");
+  jumpBtn?.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    touchJump();
+  });
+
   const stage = document.getElementById("stage3d");
   stage?.addEventListener("pointerdown", e => {
     if (window.matchMedia("(min-width: 901px)").matches) return;

@@ -20,6 +20,7 @@ let onPickCb = null;
 let templatesReady = false;
 let previewPhase = 0;
 let previewLights = null;
+let pendingSliceSkin = "A";
 
 function framePreviewActor(root, cam, canvas) {
   root.updateMatrixWorld(true);
@@ -113,27 +114,72 @@ function loop() {
 }
 
 function isSliceAngelinaPlayer() {
+  if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
   return window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() === true;
+}
+
+function portraitUrl(manifest, skinId) {
+  const rel = manifest?.skins?.[skinId]?.portrait?.path;
+  return rel ? rel : "";
+}
+
+async function buildSlicePortraitUi() {
+  const canvas = document.getElementById("charSelect3d");
+  const portraits = document.getElementById("charSelectPortraits");
+  if (canvas) {
+    canvas.hidden = true;
+    canvas.setAttribute("aria-hidden", "true");
+  }
+  if (!portraits) return;
+  portraits.hidden = false;
+  portraits.removeAttribute("aria-hidden");
+  let manifest = null;
+  try {
+    const r = await fetch("data/story/angelina-skin-manifest.json", { cache: "no-store" });
+    manifest = await r.json();
+  } catch (_) {}
+  pendingSliceSkin = "A";
+  const confirmLabel = typeof t === "function" ? t("char_select_confirm") : "Play";
+  const title = typeof t === "function" ? t("char_select_angelina") : "Angelina";
+  portraits.innerHTML =
+    `<p class="char-select-slice-title" data-testid="char-select-angelina">${escapeHtml(title)}</p>` +
+    `<div class="char-select-portrait-grid">` +
+    ["A", "B", "C"]
+      .map(
+        id =>
+          `<button type="button" class="char-portrait-pick${id === "A" ? " selected" : ""}" data-skin="${id}">` +
+          `<img src="${portraitUrl(manifest, id)}" alt="Angelina ${id}" loading="eager">` +
+          `<span>${id}</span></button>`
+      )
+      .join("") +
+    `</div>` +
+    `<button type="button" class="btn" id="charSelectConfirm">${confirmLabel}</button>`;
+  portraits.querySelectorAll(".char-portrait-pick").forEach(btn => {
+    btn.onclick = () => {
+      pendingSliceSkin = btn.dataset.skin || "A";
+      portraits.querySelectorAll(".char-portrait-pick").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+    };
+  });
+  const meshId = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
+  document.getElementById("charSelectConfirm").onclick = () => {
+    close();
+    onPickCb?.(meshId, pendingSliceSkin);
+  };
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function buildUi() {
   const ui = document.getElementById("charSelectUi");
   if (!ui) return;
   if (isSliceAngelinaPlayer()) {
-    selectedIdx = Math.max(0, PLAYABLE_CHARACTER_IDS.indexOf("cobalt"));
-    const meshId = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
-    const confirmLabel =
-      typeof t === "function" ? t("char_select_confirm") : "Play";
-    ui.innerHTML =
-      `<p class="char-select-slice-hint" data-testid="char-select-angelina">Angelina</p>` +
-      `<button type="button" class="btn" id="charSelectConfirm">${confirmLabel}</button>`;
-    const confirmBtn = document.getElementById("charSelectConfirm");
-    if (confirmBtn) {
-      confirmBtn.onclick = () => {
-        close();
-        onPickCb?.(meshId);
-      };
-    }
+    ui.innerHTML = "";
     return;
   }
   ui.innerHTML = getPlayableCharacters().map((c, i) =>
@@ -167,7 +213,21 @@ function open(onPick) {
   const wrap = document.getElementById("charSelect");
   if (!wrap) return;
   wrap.classList.add("active");
+  if (isSliceAngelinaPlayer()) {
+    buildUi();
+    buildSlicePortraitUi();
+    return;
+  }
   const canvas = document.getElementById("charSelect3d");
+  const portraits = document.getElementById("charSelectPortraits");
+  if (canvas) {
+    canvas.hidden = false;
+    canvas.removeAttribute("aria-hidden");
+  }
+  if (portraits) {
+    portraits.hidden = true;
+    portraits.setAttribute("aria-hidden", "true");
+  }
   if (!renderer) {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -183,18 +243,15 @@ function open(onPick) {
   resize();
   loadAllCc0Templates().then(() => {
     templatesReady = true;
-    const previewId = isSliceAngelinaPlayer()
-      ? window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy"
-      : PLAYABLE_CHARACTER_IDS[selectedIdx];
     buildUi();
-    showCharacter(previewId);
+    showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
     if (!raf) loop();
   });
 }
 
 function resize() {
   const canvas = document.getElementById("charSelect3d");
-  if (!canvas || !renderer) return;
+  if (!canvas || !renderer || canvas.hidden) return;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
   renderer.setSize(w, h, false);
@@ -214,4 +271,4 @@ function close() {
   document.getElementById("charSelect")?.classList.remove("active");
 }
 
-window.CharSelect = { open, close, resize };
+window.CharSelect = { open, close, resize, getPendingSliceSkin: () => pendingSliceSkin };

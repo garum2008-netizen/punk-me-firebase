@@ -653,7 +653,9 @@ function getNpcVisibilitySnapshot() {
 
 async function loadModels() {
   await loadAllCc0Templates();
-  punkDogTemplate = await loadPunkDogTemplate();
+  if (!window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) {
+    punkDogTemplate = await loadPunkDogTemplate();
+  }
   modelsReady = true;
 }
 

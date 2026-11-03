@@ -367,14 +367,42 @@ function grantCoins(n) {
   hooks.toast?.(`+${n} ${L({ ru: "монет", en: "coins", da: "mønter" })}`);
 }
 
-export function claimStepReward(st, stepIndex, amount) {
-  if (!amount || !st) return 0;
-  const key =
-    typeof stepIndex === "number" ? rewardClaimKey(stepIndex) : String(stepIndex);
-  if (st.claimedSteps[key]) return 0;
-  st.claimedSteps[key] = true;
-  grantCoins(amount);
-  return amount;
+function grantXp(n) {
+  if (!n || window.isOwner) return;
+  const p = me();
+  p.xp = (p.xp || 0) + n;
+  if (typeof document !== "undefined") {
+    const el = document.getElementById("xp");
+    if (el) el.textContent = String(p.xp);
+    if (typeof levelFromXp === "function") {
+      p.level = levelFromXp(p.xp);
+      const lv = document.getElementById("level");
+      if (lv) lv.textContent = String(p.level);
+    }
+  }
+}
+
+export function claimStepReward(st, stepIndex, amount, xpAmount = 0) {
+  if (!st) return 0;
+  let gained = 0;
+  if (amount) {
+    const key =
+      typeof stepIndex === "number" ? rewardClaimKey(stepIndex) : String(stepIndex);
+    if (!st.claimedSteps[key]) {
+      st.claimedSteps[key] = true;
+      grantCoins(amount);
+      gained += amount;
+    }
+  }
+  if (xpAmount) {
+    const xpKey =
+      (typeof stepIndex === "number" ? rewardClaimKey(stepIndex) : String(stepIndex)) + "_xp";
+    if (!st.claimedSteps[xpKey]) {
+      st.claimedSteps[xpKey] = true;
+      grantXp(xpAmount);
+    }
+  }
+  return gained;
 }
 
 function trustChoiceReflectBonus(st) {
@@ -390,7 +418,7 @@ function advanceStep(extraReward = 0) {
   const step = currentStep();
   if (!step) return;
   const idx = st.stepIndex;
-  if (step?.rewardCoins) claimStepReward(st, idx, step.rewardCoins);
+  if (step?.rewardCoins || step?.rewardXp) claimStepReward(st, idx, step.rewardCoins || 0, step.rewardXp || 0);
   if (step?.id === "reflect") {
     claimStepReward(st, rewardClaimKey(idx, "trust_bonus"), trustChoiceReflectBonus(st));
   }
@@ -491,6 +519,9 @@ export function onBoot() {
       renderObjectivePanel();
       updateChatPresetMode();
       applyMusicSceneClass();
+      syncPlayerLifeCh1Skin();
+    } else if (me()?.onboarding?.done && isCompleted()) {
+      renderObjectivePanel();
       syncPlayerLifeCh1Skin();
     } else if (me()?.onboarding?.done && !isCompleted()) {
       tryStartAfterOnboarding();
@@ -757,17 +788,28 @@ export function tryInteract() {
 }
 
 export function renderObjectivePanel() {
-  if (!isActive()) return false;
+  if (!isLifeCh1SliceEnabled()) return false;
+  const st = ensureLifeCh1(me());
+  if (!st) return false;
   const box = document.getElementById("questBox");
   if (!box) return false;
-  const step = currentStep();
   const title = L({
     ru: "Новенькая в городе",
     en: "New in Town",
     da: "Ny i byen"
   });
+  if (st.completed) {
+    box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker life-ch1-done" data-testid="life-ch1-quest-panel">
+      <b>${escapeHtml(title)}</b> <span class="quest-step-num">✓</span>
+      <div class="quest-step-title">${escapeHtml(L({ ru: "Глава пройдена", en: "Chapter complete", da: "Kapitel fuldført" }))}</div>
+      <div class="quest-step-text life-ch1-sub">${escapeHtml(L({ ru: "Можно исследовать город и лавку", en: "Explore the city and shop", da: "Udforsk byen og butikken" }))}</div>
+    </div>`;
+    syncBeacon();
+    return true;
+  }
+  if (!isActive()) return false;
+  const step = currentStep();
   const objective = step ? L(step.objective) : L({ ru: "Готово", en: "Done", da: "Færdig" });
-  const st = ensureLifeCh1();
   const i = (st.stepIndex || 0) + 1;
   const n = spec?.steps?.length || 4;
   box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker" data-testid="life-ch1-quest-panel">

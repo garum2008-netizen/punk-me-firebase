@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-ch1-angelina-r4";
+const GAME_VERSION = "living3d-v22r5-ch1-angelina-r5";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -334,32 +334,32 @@ const NPCS = {
 
 const SHOP = {
   clothes: [
-    { id: "jacket_neon", cat: "clothes", name: "Неоновая куртка", price: 220, img: "imagine_images/LTPb8.jpg", stat: { def: 3 } },
-    { id: "mohawk_dye", cat: "clothes", name: "Краситель ирокеза", price: 180, img: "imagine_images/KY3Sa.jpg", stat: { rep: 5 } },
-    { id: "boots_spike", cat: "clothes", name: "Шипованные ботинки", price: 200, img: "imagine_images/9iBXD.jpg", stat: { chain: 2 } },
-    { id: "hat_spike", cat: "clothes", name: "Шипастая шляпа", price: 160, img: "imagine_images/KY3Sa.jpg", stat: { rep: 3 } }
+    { id: "jacket_neon", cat: "clothes", name: "Неоновая куртка", price: 220, img: "assets/ui/angelina-skins/shipped/angelina-teen-A-portrait.webp", stat: { def: 3 } },
+    { id: "mohawk_dye", cat: "clothes", name: "Краситель ирокеза", price: 180, img: "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp", stat: { rep: 5 } },
+    { id: "boots_spike", cat: "clothes", name: "Шипованные ботинки", price: 200, img: "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp", stat: { chain: 2 } },
+    { id: "hat_spike", cat: "clothes", name: "Шипастая шляпа", price: 160, img: "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp", stat: { rep: 3 } }
   ],
   chains: [
-    { id: "chain_rust", cat: "chains", name: "Ржавая цепь", price: 120, img: "imagine_images/C34xz.jpg", stat: { chain: 8 } },
-    { id: "chain_neon", cat: "chains", name: "Неоновая цепь", price: 280, img: "imagine_images/Lix06.jpg", stat: { chain: 15 } },
-    { id: "chain_vienna", cat: "chains", name: "Венская цепь", price: 400, img: "imagine_images/QTaiE.jpg", stat: { chain: 22 } }
+    { id: "chain_rust", cat: "chains", name: "Ржавая цепь", price: 120, img: "assets/ui/angelina-skins/shipped/angelina-teen-A-world.webp", stat: { chain: 8 } },
+    { id: "chain_neon", cat: "chains", name: "Неоновая цепь", price: 280, img: "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-world.webp", stat: { chain: 15 } },
+    { id: "chain_vienna", cat: "chains", name: "Венская цепь", price: 400, img: "assets/ui/angelina-skins/shipped/angelina-teen-A-world.webp", stat: { chain: 22 } }
   ],
   magic: [
-    { id: "spell_neon_flash", cat: "magic", name: "Свиток: Неоновый всплеск", price: 150, img: "imagine_images/VlJGD.jpg", spell: "neon_flash" },
-    { id: "spell_graffiti", cat: "magic", name: "Свиток: Граффити-щит", price: 130, img: "imagine_images/aWXpu.jpg", spell: "graffiti_shield" },
-    { id: "spell_shadow", cat: "magic", name: "Свиток: Теневой рывок", price: 170, img: "imagine_images/iVbon.jpg", spell: "shadow_dash" },
-    { id: "spell_spark", cat: "magic", name: "Свиток: Искра цепи", price: 190, img: "imagine_images/ercEN.jpg", spell: "chain_spark" }
+    { id: "spell_neon_flash", cat: "magic", name: "Свиток: Неоновый всплеск", price: 150, img: "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp", spell: "neon_flash" },
+    { id: "spell_graffiti", cat: "magic", name: "Свиток: Граффити-щит", price: 130, img: "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp", spell: "graffiti_shield" },
+    { id: "spell_shadow", cat: "magic", name: "Свиток: Теневой рывок", price: 170, img: "assets/ui/angelina-skins/shipped/angelina-teen-A-portrait.webp", spell: "shadow_dash" },
+    { id: "spell_spark", cat: "magic", name: "Свиток: Искра цепи", price: 190, img: "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp", spell: "chain_spark" }
   ],
   pets: [
-    { id: "pet_dog", cat: "pets", name: "Панковый пёс", price: 280, img: "imagine_images/sgz0l.jpg", bonus: { follow: true } },
-    { id: "pet_cat", cat: "pets", name: "Ночной кот", price: 300, img: "imagine_images/q4BXV.jpg", bonus: { job: 1.15 } },
-    { id: "pet_rat", cat: "pets", name: "Канализационная крыса", price: 250, img: "imagine_images/p5uQj.jpg", bonus: { coins: 1.1 } },
-    { id: "pet_crow", cat: "pets", name: "Кладбищенская ворона", price: 320, img: "imagine_images/R5cVh.jpg", bonus: { magic: 1.2 } }
+    { id: "pet_dog", cat: "pets", name: "Панковый пёс", price: 280, img: "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp", bonus: { follow: true } },
+    { id: "pet_cat", cat: "pets", name: "Ночной кот", price: 300, img: "assets/ui/angelina-skins/shipped/angelina-teen-A-portrait.webp", bonus: { job: 1.15 } },
+    { id: "pet_rat", cat: "pets", name: "Канализационная крыса", price: 250, img: "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp", bonus: { coins: 1.1 } },
+    { id: "pet_crow", cat: "pets", name: "Кладбищенская ворона", price: 320, img: "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-world.webp", bonus: { magic: 1.2 } }
   ],
   materials: [
-    { id: "mat_crypt", cat: "materials", name: "Камень склепа", price: 80, img: "imagine_images/DBvDX.jpg", build: "crypt" },
-    { id: "mat_neon", cat: "materials", name: "Неоновая панель", price: 60, img: "imagine_images/cV5Em.jpg", build: "neon_sign" },
-    { id: "mat_brick", cat: "materials", name: "Кирпич из мусора", price: 45, img: "imagine_images/BtmE4.jpg", build: "shack" }
+    { id: "mat_crypt", cat: "materials", name: "Камень склепа", price: 80, img: "assets/ui/angelina-skins/shipped/angelina-teen-A-world.webp", build: "crypt" },
+    { id: "mat_neon", cat: "materials", name: "Неоновая панель", price: 60, img: "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp", build: "neon_sign" },
+    { id: "mat_brick", cat: "materials", name: "Кирпич из мусора", price: 45, img: "assets/ui/angelina-skins/shipped/angelina-teen-B-world.webp", build: "shack" }
   ]
 };
 
@@ -776,7 +776,9 @@ function syncStage3D() {
   if (window.World3D?.isMotionProbeActive?.()) return;
   const loc = LOCATIONS[me.location];
   const heroId = me.characterId || "vienna";
-  const npcData = (loc.npcs || []).filter(nid => nid !== heroId).map((nid, i) => ({
+  let npcIds = loc.npcs || [];
+  if (window.LifeCh1Slice?.isActive?.() && me.location === "room") npcIds = [];
+  const npcData = npcIds.filter(nid => nid !== heroId).map((nid, i) => ({
     id: nid,
     characterId: NPCS[nid]?.visualId || nid,
     img: NPCS[nid]?.img || "imagine_images/77Mdp.jpg",
@@ -798,6 +800,9 @@ function syncStage3D() {
 }
 
 function init() {
+  if (typeof performance !== "undefined" && !window.__punkPageLoadStart) {
+    window.__punkPageLoadStart = performance.now();
+  }
   me = defaultPlayer();
   window.me = me;
   window.__playerLoaded = false;
@@ -967,14 +972,14 @@ function loadMe() {
     });
 }
 
-function pickCharacterAndContinue(id) {
+function pickCharacterAndContinue(id, sliceSkin) {
   if (window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) {
     id = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
     window.LifeCh1Slice.ensureLifeCh1?.(me);
     const st = me.lifeCh1;
     if (st) {
       st.playerCutout = true;
-      st.angelinaSkin = st.angelinaSkin || "A";
+      st.angelinaSkin = sliceSkin || window.CharSelect?.getPendingSliceSkin?.() || st.angelinaSkin || "A";
     }
     window.LifeCh1Slice.applySliceAngelinaPlayerChrome?.();
   } else if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
@@ -984,13 +989,29 @@ function pickCharacterAndContinue(id) {
   me.avatar = def.poster;
   me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
   window.__playerLoaded = true;
+  if (typeof performance !== "undefined") {
+    window.__punkTimeToPlayerMs = Math.round(performance.now() - (window.__punkPageLoadStart || 0));
+  }
   saveMe();
   continueGameBoot();
+}
+
+function previewSliceEconomyActive() {
+  return isPreviewBuild() || window.LifeCh1Slice?.isLifeCh1SliceEnabled?.();
+}
+
+/** Preview / life-ch1 slice only — production shop prices unchanged. */
+function effectiveShopPrice(it) {
+  if (!it || !previewSliceEconomyActive()) return it?.price ?? 0;
+  if (it.id === "hat_spike") return 90;
+  if (it.id === "mat_brick") return 40;
+  return it.price;
 }
 
 function continueGameBoot() {
   try {
     hideLoading();
+    if (isPreviewBuild()) document.body.classList.add("punk-preview-solo");
     initResponsiveHud();
     if (window.Onboarding) Onboarding.init();
     window.Onboarding?.adaptSpawnLocation?.();
@@ -1749,7 +1770,7 @@ function renderShop() {
     return `<div class="card">
       <img src="${it.img}" alt="">
       <div><b>${escapeHtml(tShop(it.id))}</b></div>
-      <div class="price">${isOwner ? t("free") : it.price + " " + t("coins_word")}</div>
+      <div class="price">${isOwner ? t("free") : effectiveShopPrice(it) + " " + t("coins_word")}</div>
       <button class="btn" ${own && it.cat !== "materials" ? "disabled" : ""} onclick="buyItem('${it.id}')">
         ${own && it.cat !== "materials" ? t("owned") : t("buy")}
       </button></div>`;
@@ -1764,13 +1785,14 @@ function buyItem(id) {
   const it = ALL_SHOP.find(x => x.id === id);
   if (!it) return;
   if (it.cat !== "materials" && me.owned.includes(id)) return;
-  if (!isOwner && me.coins < it.price) {
-    const short = it.price - me.coins;
+  const price = effectiveShopPrice(it);
+  if (!isOwner && me.coins < price) {
+    const short = price - me.coins;
     toast(t("notEnough") + " — " + short + " " + (t("coins_short") || ""));
     window.StoryEngine?.beginEarnCoins?.(short, { returnLabel: tShop(id) });
     return;
   }
-  if (!isOwner) me.coins -= it.price;
+  if (!isOwner) me.coins -= price;
   if (it.cat === "materials") {
     me.inventory.materials[it.build] = (me.inventory.materials[it.build] || 0) + 1;
   } else if (it.cat === "magic") {

@@ -30,8 +30,8 @@ function ensureGateModal() {
     <button type="button" class="close" id="previewParentGateClose">✕</button>
     <h2 data-testid="preview-parent-gate-title">${L({ ru: "Покупка с согласия взрослого", en: "Purchase with adult consent" })}</h2>
     <p class="preview-parent-gate-note">${L({
-      ru: "Косметика за реальные деньги — только тест Stripe. Мы не собираем персональные данные.",
-      en: "Real-money cosmetics — Stripe TEST only. We collect no personal data."
+      ru: "Монеты зарабатываются в игре. Платные скины доступны только в тестовом preview.",
+      en: "Earn coins in-game. Paid skins are preview-test only."
     })}</p>
     <label class="preview-parent-gate-check"><input type="checkbox" id="previewAgeGate"> ${L({
       ru: "Мне 13+ лет",

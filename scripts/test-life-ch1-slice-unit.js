@@ -63,6 +63,14 @@ async function main() {
   assert(coinMe.coins === 75, "step coin grant idempotent");
   assert(coinMe.lifeCh1.claimedSteps.s1 === true, "claimedSteps uses s1 key");
 
+  const xpMe = { coins: 50, xp: 0, lifeCh1: { v: 1, active: true, stepIndex: 2, flags: {}, claimedSteps: {} } };
+  global.levelFromXp = xp => Math.floor((xp || 0) / 100) + 1;
+  window.me = xpMe;
+  claimStepReward(xpMe.lifeCh1, 2, 0, 15);
+  claimStepReward(xpMe.lifeCh1, 2, 0, 15);
+  assert(xpMe.xp === 15, "step XP grant idempotent");
+  delete global.levelFromXp;
+
   const fromArray = normalizeClaimedSteps([false, true, true]);
   assert(fromArray.s1 && fromArray.s2, "RTDB array maps to s1/s2");
 

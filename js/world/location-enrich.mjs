@@ -576,6 +576,7 @@ export function addCityDressing(root, helpers) {
     const lamp = new THREE.Group();
     const pole = wall(0.1, 3.2, 0.1, new THREE.MeshStandardMaterial({ color: 0x444455 }));
     pole.position.y = 1.6;
+    pole.userData.decorOnly = true;
     const bulb = new THREE.Mesh(
       new THREE.SphereGeometry(0.14, 8, 8),
       new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffcc66, emissiveIntensity: 1.3 })

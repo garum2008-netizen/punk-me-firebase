@@ -137,6 +137,10 @@ async function assertSkinAtLocation(page, loc, skinLetter, label) {
 }
 
 async function assertNpcsVisible(page, loc, expectedIds) {
+  if (loc === "room") {
+    const ch1Room = await page.evaluate(() => window.LifeCh1Slice?.isActive?.());
+    if (ch1Room) expectedIds = [];
+  }
   await page.evaluate(id => goLocation(id), loc);
   await page.waitForFunction(l => window.me?.location === l, loc, { timeout: 20000 });
   await page.waitForTimeout(900);
@@ -243,7 +247,7 @@ async function testHowToOverlayFreshProfile(base) {
     }, HOWTO_SEEN_KEY);
     await page.reload({ waitUntil: "load" });
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
-    await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
+    await page.waitForSelector('[data-testid="char-select-angelina"], #charSelectConfirm', { timeout: 90000 });
     const sliceChar = await page.locator('[data-testid="char-select-angelina"]').isVisible().catch(() => false);
     if (!sliceChar) {
       await page.click('.char-pick[data-id="cobalt"]');
@@ -301,13 +305,20 @@ async function runBrowserTest(base) {
     const banner = await page.textContent("#previewBuildBanner");
     if (!banner.includes("PREVIEW")) throw new Error("preview banner missing");
 
-    await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
+    await page.waitForSelector('[data-testid="char-select-angelina"], #charSelectConfirm', { timeout: 90000 });
     const sliceChar = await page.locator('[data-testid="char-select-angelina"]').isVisible().catch(() => false);
     if (!sliceChar) {
       await page.click('.char-pick[data-id="cobalt"]');
     }
     await page.click("#charSelectConfirm");
+    const tConfirm = Date.now();
     await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+    const msToPlayer = Date.now() - tConfirm;
+    if (msToPlayer > 4000) {
+      throw new Error(`time-to-player after confirm ${msToPlayer}ms (max 4000)`);
+    }
+    const jumpVisible = await page.locator("#touchJump").isVisible();
+    if (!jumpVisible) throw new Error("touch jump button not visible on 390 viewport");
 
     await page.evaluate(async () => {
       window.me.onboarding = { step: 6, progress: {}, done: true };

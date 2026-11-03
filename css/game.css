@@ -66,6 +66,53 @@ body.mode-world3d .room-layer { background: #050008; }
 .char-intro { min-height: 2.5em; text-align: center; max-width: 520px; opacity: 0.9; }
 .char-select-ui { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 640px; }
 .char-select-ui .char-pick.active { border-color: #0ff; color: #0ff; }
+.char-select-portraits {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: min(520px, 94vw);
+}
+.char-select-slice-title {
+  font-size: clamp(16px, 4vw, 20px);
+  font-weight: 800;
+  color: #0ff;
+  text-align: center;
+  margin: 0;
+}
+.char-select-portrait-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.char-portrait-pick {
+  border: 2px solid rgba(255, 0, 255, 0.45);
+  border-radius: 12px;
+  padding: 6px;
+  background: rgba(10, 6, 22, 0.85);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #f0c4ff;
+  font-weight: 700;
+  font-size: 13px;
+}
+.char-portrait-pick.selected {
+  border-color: #0ff;
+  box-shadow: 0 0 16px rgba(0, 255, 255, 0.35);
+}
+.char-portrait-pick img {
+  width: min(28vw, 112px);
+  height: auto;
+  border-radius: 8px;
+  object-fit: cover;
+}
+body.punk-preview-solo #playersSide {
+  display: none !important;
+}
 .legal-footer {
   position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
   z-index: 50; display: flex; align-items: center; gap: 12px;
@@ -457,6 +504,22 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   background: linear-gradient(135deg, #ff00ff, #7c3aed); color: #fff;
   pointer-events: auto;
 }
+.touch-jump {
+  display: none;
+  position: absolute;
+  right: 12px;
+  bottom: calc(var(--dock-h, 150px) + 88px);
+  min-width: 52px;
+  min-height: 52px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 255, 255, 0.45);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1;
+  background: rgba(20, 10, 40, 0.72);
+  color: #0ff;
+  pointer-events: auto;
+}
 .hud-quests-wrap { display: flex; flex-direction: column; gap: 4px; }
 .hud-quests-toggle {
   display: none;
@@ -477,6 +540,21 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 @media (max-width: 900px) {
   #game { --dock-h: 168px; }
   .touch-controls { display: block; }
+  .touch-jump { display: block; }
+  .touch-joystick {
+    left: 6px;
+    bottom: calc(var(--dock-h, 168px) + 4px);
+    width: 96px;
+    height: 96px;
+  }
+  .nav-quick .btn,
+  .nav-quick button {
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
   .dock-scroll-row {
     display: flex;
     flex-wrap: nowrap;
@@ -744,12 +822,20 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
     );
   }
   #storyDialog.story-dialog-cinematic .story-dialog-panel {
-    max-height: 40vh;
-    min-height: 28vh;
+    max-height: min(46vh, 340px);
+    min-height: 24vh;
     max-width: 94vw;
     margin-bottom: calc(var(--dock-h, 168px) + 6px);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     background: rgba(14, 8, 28, 0.97);
+  }
+  #storyDialog.story-dialog-cinematic .story-dialog-body {
+    max-height: none;
+    overflow: visible;
+  }
+  #storyDialog.story-dialog-cinematic .story-choice {
+    flex-shrink: 0;
   }
 }
 #storyDialog.active.life-ch1-dialog {

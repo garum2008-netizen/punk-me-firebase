@@ -252,9 +252,9 @@
           "id": "n1",
           "speaker": "npc_tony",
           "text": {
-            "ru": "Тони: Пицца не ждёт — бери заказ!",
-            "en": "Tony: Pizza won't wait — grab an order!",
-            "da": "Tony: Pizzaen venter ikke — tag en ordre!"
+            "ru": "Пицца не ждёт — бери заказ!",
+            "en": "Pizza won't wait — grab an order!",
+            "da": "Pizzaen venter ikke — tag en ordre!"
           },
           "next": "END"
         }

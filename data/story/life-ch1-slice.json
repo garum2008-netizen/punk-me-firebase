@@ -20,7 +20,8 @@
       "beacon": { "loc": "room", "wx": -3.2, "wz": 2.5 },
       "interact": { "loc": "room", "wx": -3.2, "wz": 2.5, "radius": 2.8 },
       "dialogue": "dlg_life_ch1_outfit",
-      "rewardCoins": 25
+      "rewardCoins": 25,
+      "rewardXp": 12
     },
     {
       "id": "trust",
@@ -32,7 +33,8 @@
       "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
       "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
       "dialogue": "dlg_life_ch1_trust",
-      "rewardCoins": 30
+      "rewardCoins": 30,
+      "rewardXp": 15
     },
     {
       "id": "reflect",
@@ -44,7 +46,8 @@
       "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
       "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
       "dialogue": "dlg_life_ch1_reflect",
-      "rewardCoins": 45
+      "rewardCoins": 45,
+      "rewardXp": 20
     }
   ],
   "dialogues": {
