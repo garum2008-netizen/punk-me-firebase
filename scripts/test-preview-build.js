@@ -112,12 +112,37 @@ async function dismissHowToPlay(page) {
       localStorage.setItem("punkme_howto_seen", "1");
     } catch (_) {}
   });
+  const overlayIdle = () =>
+    page.waitForFunction(
+      () => {
+        const ov = document.getElementById("howToOverlay");
+        return !ov || !ov.classList.contains("active");
+      },
+      undefined,
+      { timeout: 2000, polling: 150 }
+    );
+
+  if (await overlayIdle().catch(() => false)) return;
+
   const close = page.locator(".howto-close");
-  if (await close.isVisible({ timeout: 2500 }).catch(() => false)) await close.click();
+  const deadline = Date.now() + 45000;
+  while (Date.now() < deadline) {
+    if (await overlayIdle().catch(() => false)) return;
+    if (await close.isVisible({ timeout: 1200 }).catch(() => false)) {
+      await close.click({ timeout: 8000, force: false }).catch(() => {});
+      await page.waitForTimeout(250);
+      if (await overlayIdle().catch(() => false)) return;
+    }
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(350);
+  }
   await page.waitForFunction(
-    () => !document.getElementById("howToOverlay")?.classList.contains("active"),
+    () => {
+      const ov = document.getElementById("howToOverlay");
+      return !ov || !ov.classList.contains("active");
+    },
     undefined,
-    { timeout: 8000 }
+    { timeout: 15000, polling: 200 }
   );
 }
 

@@ -1,5 +1,25 @@
 import * as THREE from "three";
 
+let softRoundPointMap = null;
+
+function softRoundPointTexture() {
+  if (softRoundPointMap) return softRoundPointMap;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.45, "rgba(255,255,255,0.55)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  softRoundPointMap = new THREE.CanvasTexture(canvas);
+  softRoundPointMap.needsUpdate = true;
+  return softRoundPointMap;
+}
+
 function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
   list.push({
     minX: cx - halfW - pad,
@@ -191,7 +211,16 @@ export function addFireflyParticles(root, count = 55) {
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   const pts = new THREE.Points(
     geo,
-    new THREE.PointsMaterial({ color: 0xaaffcc, size: 0.08, transparent: true, opacity: 0.65 })
+    new THREE.PointsMaterial({
+      color: 0xaaffcc,
+      size: 0.22,
+      map: softRoundPointTexture(),
+      transparent: true,
+      opacity: 0.75,
+      alphaTest: 0.08,
+      depthWrite: false,
+      sizeAttenuation: true
+    })
   );
   pts.userData.drift = true;
   pts.userData.firefly = true;
