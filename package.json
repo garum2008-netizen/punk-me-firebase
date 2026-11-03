@@ -23,7 +23,7 @@
     "test:checkout-api": "node scripts/test-checkout-api-unit.js",
     "test:preview-shop": "node scripts/test-parent-gate-unit.js && node scripts/test-checkout-api-unit.js",
     "test:preview-wrangler": "node scripts/test-preview-wrangler.js",
-    "test:cemetery-job": "node scripts/test-cemetery-job-unit.js"
+    "test:cemetery-job": "node scripts/test-cemetery-job-unit.js && node scripts/test-cemetery-showcase-ghost.js"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",

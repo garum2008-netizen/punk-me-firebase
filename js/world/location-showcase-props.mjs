@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { cemeteryGhostMesh } from "./cemetery-ghost-mesh.mjs";
 
 function mat(color, emi = 0, rough = 0.72) {
   return new THREE.MeshStandardMaterial({
@@ -640,7 +641,10 @@ export function addShowcaseProps(locId, root) {
     }
     root.add(tagged("cemetery_gate_arch", box(2.5, 0.15, 0.2, mat(0x3a4a40)).translateY(2.3).translateZ(-7.8)));
     root.add(tagged("cemetery_pumpkin", new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.25).translateX(-5).translateZ(4)));
-    root.add(tagged("cemetery_ghost_float", box(0.35, 0.5, 0.15, mat(0xaaddff, 0x88ccff)).translateY(1).translateX(2).translateZ(3)));
+    const floatGhost = cemeteryGhostMesh();
+    floatGhost.position.set(2, 1, 3);
+    floatGhost.scale.setScalar(1.15);
+    root.add(tagged("cemetery_ghost_float", floatGhost));
     const deadTree = new THREE.Group();
     deadTree.add(box(0.22, 2.5, 0.22, mat(0x2a1810)).translateY(1.25));
     deadTree.add(box(1.4, 0.08, 0.08, mat(0x1a1010)).translateY(2.6).rotateZ(0.5));

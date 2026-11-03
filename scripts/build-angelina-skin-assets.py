@@ -38,7 +38,7 @@ def save_webp(img: Image.Image, dest: Path, quality: int = 86) -> str:
     return sha256_file(dest)
 
 
-def apply_alpha_cutout(img: Image.Image, tolerance: int = 28) -> Image.Image:
+def apply_alpha_cutout(img: Image.Image, tolerance: int = 28, *, protect_chroma: bool = False) -> Image.Image:
     """Flood-remove background connected to corners (matches corner gray, not only pure white)."""
     from collections import deque
 
@@ -53,6 +53,11 @@ def apply_alpha_cutout(img: Image.Image, tolerance: int = 28) -> Image.Image:
     ]
 
     def bg(r: int, g: int, b: int) -> bool:
+        if protect_chroma:
+            chroma = max(r, g, b) - min(r, g, b)
+            lum = (r + g + b) / 3
+            if chroma >= 14 and lum < 238:
+                return False
         for cr, cg, cb in corner_refs:
             if max(abs(r - cr), abs(g - cg), abs(b - cb)) <= tolerance:
                 return True
@@ -111,24 +116,39 @@ def defringe_alpha(img: Image.Image, alpha_floor: int = 12, alpha_ceil: int = 24
 
 
 def restore_c_v2_guitar_patch(orig: Image.Image, cut: Image.Image) -> Image.Image:
-    """Keep guitar + denim patch opaque when flood-fill eats similar tones (C-v2 only)."""
+    """Re-opaque guitar/denim only where flood removed non-backdrop pixels (C-v2)."""
     rgba = cut.convert("RGBA")
     w, h = rgba.size
     px_o = orig.convert("RGBA").load()
     px = rgba.load()
-    x0, x1 = int(w * 0.0), int(w * 0.52)
-    y0, y1 = int(h * 0.48), int(h * 0.96)
+    corner_refs = [
+        px_o[0, 0][:3],
+        px_o[w - 1, 0][:3],
+        px_o[0, h - 1][:3],
+        px_o[w - 1, h - 1][:3],
+    ]
+
+    def is_backdrop(r: int, g: int, b: int, tol: int = 26) -> bool:
+        for cr, cg, cb in corner_refs:
+            if max(abs(r - cr), abs(g - cg), abs(b - cb)) <= tol:
+                return True
+        return False
+
+    # Tighter guitar/denim band (not full lower-left backdrop slab)
+    x0, x1 = int(w * 0.06), int(w * 0.46)
+    y0, y1 = int(h * 0.54), int(h * 0.86)
     for y in range(y0, y1):
         for x in range(x0, x1):
-            _, _, _, oa = px_o[x, y]
-            if oa < 96:
+            or_, og, ob, _oa = px_o[x, y]
+            if is_backdrop(or_, og, ob):
                 continue
             r, g, b, a = px[x, y]
-            if a >= 220:
+            if a >= 200:
                 continue
-            lum = (r + g + b) / 3
-            if lum < 248 or max(r, g, b) - min(r, g, b) > 18:
-                px[x, y] = (r, g, b, 255)
+            chroma = max(or_, og, ob) - min(or_, og, ob)
+            lum = (or_ + og + ob) / 3
+            if lum < 205 or chroma > 22:
+                px[x, y] = (or_, og, ob, 255)
     return rgba
 
 
@@ -178,7 +198,11 @@ def main() -> None:
         source_sha = sha256_file(source_path)
 
         orig = Image.open(source_path).convert("RGBA")
-        cut = postprocess_cutout(skin_id, orig, apply_alpha_cutout(orig))
+        tol = 22 if skin_id == "C" else 28
+        protect = skin_id == "C"
+        cut = postprocess_cutout(
+            skin_id, orig, apply_alpha_cutout(orig, tolerance=tol, protect_chroma=protect)
+        )
         slug = source_name.replace(".png", "")
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"
