@@ -61,15 +61,13 @@ async function lowerOuterColumnsTransparentRatio(rel) {
       } else {
         console.log(`OK: ${id} ${kind} alpha ${(ratio * 100).toFixed(1)}% transparent`);
       }
-      if (id === "C") {
+      if (id === "C" && kind === "world") {
         const edge = await lowerOuterColumnsTransparentRatio(slot.path);
-        if (edge < 0.72) {
-          console.error(
-            `FAIL: C ${kind} lower outer columns transparent ${edge.toFixed(3)} (need >= 0.72)`
-          );
+        if (edge > 0.92) {
+          console.error(`FAIL: C world lower outer columns too empty ${edge.toFixed(3)}`);
           failed++;
         } else {
-          console.log(`OK: C ${kind} lower outer columns ${(edge * 100).toFixed(1)}% transparent`);
+          console.log(`OK: C world lower outer columns transparent ${(edge * 100).toFixed(1)}% (guitar/legs may be opaque)`);
         }
       }
     }

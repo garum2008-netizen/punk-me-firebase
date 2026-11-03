@@ -112,6 +112,28 @@ async function assertSkinAtLocation(page, loc, skinLetter, label) {
   await page.waitForTimeout(700);
   await clickStage3d(page);
   await assertSkinRenderNow(page, skinLetter, label);
+  if (loc === "kitchen") {
+    const frame = await page.evaluate(() => window.World3D?.getShowcaseScreenProjection?.());
+    if (!frame?.ok || frame.location !== "kitchen") {
+      throw new Error(`kitchen framing: bad projection ${JSON.stringify(frame)}`);
+    }
+    const footY = frame.hero?.y;
+    const footX = frame.hero?.x;
+    const headY = frame.heroHead?.y;
+    if (footY == null || footX == null || headY == null) {
+      throw new Error(`kitchen framing: missing hero projection ${JSON.stringify(frame)}`);
+    }
+    if (footY > 562) {
+      throw new Error(`kitchen framing: feet under joystick band y=${footY} ${JSON.stringify(frame)}`);
+    }
+    if (footX < 132) {
+      throw new Error(`kitchen framing: hero overlaps joystick x=${footX}`);
+    }
+    if (headY < 90) {
+      throw new Error(`kitchen framing: head too low y=${headY}`);
+    }
+    console.log("preview-kitchen-framing: PASS", JSON.stringify({ footX, footY, headY }));
+  }
 }
 
 async function assertNpcsVisible(page, loc, expectedIds) {

@@ -36,14 +36,34 @@ const Voice = (() => {
     return l === "ru" ? "ru" : l === "da" ? "da" : "en";
   }
 
+  function resolveSpeakerLabel(characterId) {
+    if (!characterId) return "";
+    const id = String(characterId).replace(/^npc_/, "");
+    return typeof tNpcName === "function" ? tNpcName(id) : id;
+  }
+
+  function formatSubtitleLine(text, characterId) {
+    const raw = (text || "").trim();
+    if (!raw) return "";
+    const name = resolveSpeakerLabel(characterId);
+    if (!name) return raw;
+    const prefix = `${name}:`;
+    if (raw.startsWith(prefix)) return raw;
+    const bare = `${name} `;
+    if (raw.startsWith(bare)) return raw;
+    return `${prefix} ${raw}`;
+  }
+
   function showSubtitle(text, characterId) {
     const el = document.getElementById("voiceSubtitle");
     if (el) {
-      const name = characterId && typeof tNpcName === "function" ? tNpcName(characterId) : "";
-      el.textContent = name ? `${name}: ${text}` : text;
-      el.classList.add("visible");
+      const line = formatSubtitleLine(text, characterId);
+      el.textContent = line;
+      el.classList.toggle("visible", !!line);
       clearTimeout(el._hideT);
-      el._hideT = setTimeout(() => el.classList.remove("visible"), Math.max(2200, text.length * 45));
+      if (line) {
+        el._hideT = setTimeout(() => el.classList.remove("visible"), Math.max(2200, line.length * 45));
+      }
     }
   }
 
@@ -108,7 +128,8 @@ const Voice = (() => {
     setVolume,
     isSpeaking,
     getVolume: () => volume,
-    getMuted: () => muted
+    getMuted: () => muted,
+    formatSubtitleLine
   };
 })();
 

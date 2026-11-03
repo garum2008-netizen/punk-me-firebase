@@ -53,7 +53,7 @@
         "n0": {
           "speaker": "player",
           "text": {
-            "ru": "Какой образ мне сегодня? В зеркале — только стиль.",
+            "ru": "Стою у зеркала — какой образ на сегодня?",
             "en": "What look do I want today? At the mirror — style only.",
             "da": "Hvilket look vil jeg have i dag?"
           },
@@ -132,7 +132,7 @@
         "n_after_bright": {
           "speaker": "player",
           "text": {
-            "ru": "Ярко! Записка на тумбочке — не для всех глаз. Решу сама.",
+            "ru": "Ярко! Записка на тумбочке — не для всех глаз. Сначала решу сама, что с ней делать.",
             "en": "Bold colors! The note on the nightstand isn't for everyone. My call.",
             "da": "Klar stil! Der ligger en seddel."
           },

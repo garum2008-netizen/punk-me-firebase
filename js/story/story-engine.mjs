@@ -195,7 +195,16 @@ function playSfx(id) {
 function setSubtitle(text, speaker) {
   const el = document.getElementById("voiceSubtitle");
   if (!el) return;
-  const line = speaker ? `${speaker}: ${text}` : text || "";
+  const format =
+    window.Voice?.formatSubtitleLine ||
+    ((t, sp) => {
+      const raw = (t || "").trim();
+      if (!raw) return "";
+      if (!sp) return raw;
+      const prefix = `${sp}:`;
+      return raw.startsWith(prefix) ? raw : `${prefix} ${raw}`;
+    });
+  const line = speaker ? format(text, speaker) : (text || "").trim();
   el.textContent = line;
   el.classList.toggle("visible", !!line.trim());
 }
@@ -787,7 +796,7 @@ function triggerCalloutDialogue(d) {
   const text = L(node.text);
   playSfx(d.callout?.sound || "sfx_whistle");
   showBubble(speaker, text);
-  setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker);
+  setSubtitle(text, speaker);
   const ind = document.getElementById("storyDirection");
   if (ind) {
     ind.textContent = d.callout?.icon || "!";
@@ -890,7 +899,7 @@ export function canOpenStoryModal() {
 export function showNpcProximityCallout(npcId, text) {
   if (!canOpenStoryModal()) return;
   showBubble(npcId, text);
-  setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(npcId) : npcId);
+  setSubtitle(text, npcId);
 }
 
 export function tryStoryNpc(npcId) {

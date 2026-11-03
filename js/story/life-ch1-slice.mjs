@@ -560,9 +560,9 @@ function openWardrobePanel() {
     da: "Garderobe"
   });
   document.getElementById("lifeCh1WardrobeHint").textContent = L({
-    ru: "Выбери образ и стиль — в мире это моё отражение.",
-    en: "Pick my look and style — that's how I appear in the world.",
-    da: "Vælg mit look — sådan ser jeg ud i verden."
+    ru: "Выберу, в чём сегодня выйду.",
+    en: "I'll choose what to wear today.",
+    da: "Jeg vælger, hvad jeg tager på i dag."
   });
   document.getElementById("lifeCh1OutfitLabel").textContent = L({
     ru: "Стиль на сегодня:",

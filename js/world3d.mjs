@@ -157,8 +157,15 @@ function layoutLifeCh1PlayerSprite(sp, tex) {
 function tickLifeCh1PlayerSpritePlacement(pl) {
   const holder = lifeCh1PlayerSkin.holder;
   if (!holder || !pl?.isPlayer) return;
-  holder.position.z = currentLoc === "kitchen" ? 0.35 : 0;
-  holder.position.x = currentLoc === "kitchen" ? 0.08 : 0;
+  if (currentLoc === "kitchen") {
+    if (mobileQuality) {
+      holder.position.set(0, 0.08, -0.42);
+    } else {
+      holder.position.set(0.08, 0, 0.35);
+    }
+  } else {
+    holder.position.set(0, 0, 0);
+  }
 }
 
 function enforceLifeCh1PlayerMeshVisibility(actor) {
@@ -1091,10 +1098,10 @@ const LOCATION_CAMERA = {
     dog: { dx: 0.82, dz: 0.22 },
     mobile: {
       portraitFromPlayer: true,
-      fov: 48,
-      camOffset: [0.12, 2.38, 6.46],
-      lookAtPlayerY: 0.92,
-      player: { x: 0, z: -2.12, yaw: 0 },
+      fov: 46,
+      camOffset: [0.04, 2.68, 7.55],
+      lookAtPlayerY: 1.12,
+      player: { x: 0.02, z: -2.55, yaw: 0.05 },
       dog: { dx: 0.7, dz: -0.04 }
     }
   }
@@ -1514,7 +1521,10 @@ function sync(data) {
     }
   }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
-    const g = worldToGameLoc(-0.12, 0.36, bounds);
+    const shot = getFixedLocationShot();
+    const wx = shot?.player?.x ?? -0.12;
+    const wz = shot?.player?.z ?? 0.36;
+    const g = worldToGameLoc(wx, wz, bounds);
     hooks.onMove?.(g.x, g.y);
   }
 
