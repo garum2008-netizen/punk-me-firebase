@@ -299,6 +299,46 @@ async function runBrowserTest(base) {
     }
     console.log("preview-cemetery-travel: PASS", JSON.stringify(cemeteryScene));
 
+    const cityBuildErrorsBefore = consoleErrors.length;
+    await page.evaluate(() => {
+      goLocation("city");
+      window.me.inventory = window.me.inventory || { materials: {}, spells: [] };
+      window.me.inventory.materials = window.me.inventory.materials || {};
+      window.me.inventory.materials.crypt = 2;
+      window.me.inventory.materials.neon_sign = 2;
+      window.setBuildType("crypt");
+      window.tryPlaceBuild(42, 55);
+      window.setBuildType("neon_sign");
+      window.tryPlaceBuild(58, 62);
+    });
+    const placed = await page.evaluate(() => ({
+      saved: window.me?.cityBuilds?.length || 0,
+      rendered: document.querySelectorAll("#buildLayer .build-piece").length
+    }));
+    if (placed.saved < 2 || placed.rendered < 2) {
+      throw new Error("preview city builds not placed: " + JSON.stringify(placed));
+    }
+    await page.reload({ waitUntil: "load" });
+    await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+    await dismissHowToPlay(page);
+    await page.evaluate(() => {
+      goLocation("street");
+      goLocation("city");
+    });
+    await page.waitForFunction(() => window.me?.location === "city", undefined, { timeout: 15000 });
+    const afterCityReturn = await page.evaluate(() => ({
+      saved: window.me?.cityBuilds?.length || 0,
+      rendered: document.querySelectorAll("#buildLayer .build-piece").length
+    }));
+    if (afterCityReturn.saved < 2 || afterCityReturn.rendered < 2) {
+      throw new Error("preview city builds missing after reload/travel: " + JSON.stringify(afterCityReturn));
+    }
+    const cityBuildErrors = consoleErrors.slice(cityBuildErrorsBefore);
+    if (cityBuildErrors.length) {
+      throw new Error("console errors during city build e2e: " + cityBuildErrors.join(" | "));
+    }
+    console.log("preview-city-builds-persist: PASS", JSON.stringify(afterCityReturn));
+
     if (prodAttempts !== 0) {
       throw new Error(`expected 0 prod Firebase requests, saw ${prodAttempts}`);
     }

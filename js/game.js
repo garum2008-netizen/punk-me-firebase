@@ -407,6 +407,13 @@ let others = {};
 let buildings = [];
 let buildMode = false;
 let selectedBuild = "crypt";
+let cityBuildLocalSeq = 0;
+
+function nextCityBuildLocalId() {
+  cityBuildLocalSeq = (cityBuildLocalSeq + 1) % 1_000_000;
+  const r = Math.random().toString(36).slice(2, 10);
+  return "local_" + Date.now().toString(36) + "_" + cityBuildLocalSeq + "_" + r;
+}
 let fight = null;
 let spellCooldowns = {};
 let ambients = [];
@@ -1095,8 +1102,9 @@ function saveMe() {
 }
 
 function sanitizeCityBuildsForSave(list) {
+  if (!Array.isArray(list)) return [];
   const fn = window.PunkCityBuildSanitize?.sanitizeCityBuildsList;
-  return fn ? fn(list) : [];
+  return fn ? fn(list) : list;
 }
 
 function sanitizePlayer(p) {
@@ -1326,7 +1334,7 @@ function listenChat() {
 
 function listenBuildings() {
   if (isPreviewBuild()) {
-    loadPrivateDecor();
+    loadPreviewBuildings();
     return;
   }
   const zone = LOCATIONS[me.location]?.buildZone;
@@ -1339,6 +1347,18 @@ function listenBuildings() {
     buildings = Object.entries(v).map(([id, b]) => ({ id, ...b }));
     renderBuildings();
   });
+}
+
+function loadPreviewBuildings() {
+  const zone = LOCATIONS[me.location]?.buildZone;
+  if (zone === "city") {
+    if (!Array.isArray(me.cityBuilds)) me.cityBuilds = [];
+    me.cityBuilds = sanitizeCityBuildsForSave(me.cityBuilds);
+    buildings = me.cityBuilds.map(b => ({ id: b.id, ...b }));
+    renderBuildings();
+    return;
+  }
+  loadPrivateDecor();
 }
 
 function loadPrivateDecor() {
@@ -1918,7 +1938,7 @@ function tryPlaceBuild(x, y) {
     type,
     x: coords.x,
     y: coords.y,
-    id: "local_" + Date.now().toString(36),
+    id: nextCityBuildLocalId(),
     ts: Date.now()
   };
   const normalized = san?.normalizeCityBuildEntry?.(piece) || piece;
@@ -2180,5 +2200,6 @@ window.setBuildType = function (bt) {
 };
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
+window.tryPlaceBuild = tryPlaceBuild;
 
 document.addEventListener("DOMContentLoaded", init);
