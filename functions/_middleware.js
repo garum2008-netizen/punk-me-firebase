@@ -6,10 +6,12 @@ export async function onRequest(context) {
   const user = context.env.PREVIEW_USER;
   const pass = context.env.PREVIEW_PASS;
   if (!user || !pass) {
-    return new Response("Preview closed — authentication is not configured.", {
-      status: 403,
-      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }
-    });
+    return withNoindex(
+      new Response("Preview closed — authentication is not configured.", {
+        status: 403,
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }
+      })
+    );
   }
 
   const authHeader = context.request.headers.get("Authorization") || "";
@@ -30,16 +32,29 @@ export async function onRequest(context) {
     return unauthorized();
   }
 
-  return context.next();
+  const response = await context.next();
+  return withNoindex(response);
 }
 
 function unauthorized() {
-  return new Response("Authentication required.", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="PUNK ME Preview", charset="UTF-8"',
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-store"
-    }
+  return withNoindex(
+    new Response("Authentication required.", {
+      status: 401,
+      headers: {
+        "WWW-Authenticate": 'Basic realm="PUNK ME Preview", charset="UTF-8"',
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store"
+      }
+    })
+  );
+}
+
+function withNoindex(response) {
+  const headers = new Headers(response.headers);
+  headers.set("X-Robots-Tag", "noindex, nofollow");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
   });
 }

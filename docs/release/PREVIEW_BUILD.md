@@ -8,7 +8,7 @@
 npm run build:preview
 ```
 
-Output: `dist-preview/` (~144 files, ~50 MB — mostly GLB models).
+Output: `dist-preview/` static assets only (~144 files). **Do not** put `functions/` inside `dist-preview/` — that would expose worker source as static files.
 
 ## Runtime
 
@@ -21,15 +21,20 @@ Output: `dist-preview/` (~144 files, ~50 MB — mostly GLB models).
 
 ## Pages deploy (Game Bot)
 
-1. Project output directory: `dist-preview`
-2. Env vars: `PREVIEW_USER`, `PREVIEW_PASS` (Basic Auth via `functions/_middleware.js`; unset = 403 all)
-3. `robots.txt`: `Disallow: /`
-4. `index.html`: `<meta name="robots" content="noindex">`
+1. **Build output directory:** `dist-preview` (static only)
+2. **Functions directory:** repo-root `functions/` ( `_middleware.js`, `api/checkout.js`, etc.) — configured automatically when deploying from the repository root.
+3. Env vars: `PREVIEW_USER`, `PREVIEW_PASS` (Basic Auth via `functions/_middleware.js`; unset = 403 all)
+4. Optional: `STRIPE_SECRET_KEY` must be `sk_test_…` for `/api/checkout` and `/api/checkout-status`
+5. `robots.txt`: `Disallow: /`
+6. `dist-preview/_headers`: `X-Robots-Tag: noindex, nofollow` (middleware also sets the header)
 
 ## Verify locally
 
 ```bash
 npm run test:preview-build
+npm run test:preview-wrangler
 ```
+
+`test:preview-wrangler` runs `wrangler pages functions build`, asserts the bundle has no `createRequire`, then `wrangler pages dev dist-preview` and checks **401** without Basic Auth and **200** with test creds.
 
 Asserts 0 production Firebase requests, no prod config strings in bundle, 390×844 slice + reload persistence (coins ×3 reload).

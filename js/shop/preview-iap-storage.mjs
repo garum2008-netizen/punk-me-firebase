@@ -34,19 +34,35 @@ export function hasPreviewIapItem(itemId) {
   return loadPreviewIapOwned().includes(itemId);
 }
 
-export function applyPreviewCheckoutReturn() {
+function stripCheckoutQueryParams() {
+  const q = new URLSearchParams(location.search);
+  q.delete("previewCheckout");
+  q.delete("session_id");
+  q.delete("item");
+  const next = `${location.pathname}${q.toString() ? "?" + q.toString() : ""}`;
+  history.replaceState({}, "", next);
+}
+
+/** Grant only after server confirms Stripe session is paid + catalog item. */
+export async function applyPreviewCheckoutReturn() {
   try {
     const q = new URLSearchParams(location.search);
     if (q.get("previewCheckout") !== "success") return null;
-    const itemId = q.get("item");
-    if (!itemId) return null;
-    grantPreviewIapItem(itemId);
-    q.delete("previewCheckout");
-    q.delete("item");
-    const next = `${location.pathname}${q.toString() ? "?" + q.toString() : ""}`;
-    history.replaceState({}, "", next);
-    return itemId;
+    const sessionId = q.get("session_id");
+    if (!sessionId) {
+      stripCheckoutQueryParams();
+      return null;
+    }
+    const res = await fetch(`/api/checkout-status?session_id=${encodeURIComponent(sessionId)}`, {
+      cache: "no-store"
+    });
+    const data = await res.json().catch(() => ({}));
+    stripCheckoutQueryParams();
+    if (!res.ok || !data.paid || !data.itemId) return null;
+    grantPreviewIapItem(data.itemId);
+    return data.itemId;
   } catch (_) {
+    stripCheckoutQueryParams();
     return null;
   }
 }

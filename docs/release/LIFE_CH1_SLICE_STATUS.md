@@ -29,4 +29,6 @@ Set `STRIPE_SECRET_KEY` (`sk_test_…` only) on Pages for checkout. Without it t
 |------|--------|
 | Production deploy / live slice auto-start | Forbidden without GO |
 | Full honest E2E walk (no nav aid) | `faceWorldTargetForE2e` for tests only |
+| Parent gate for € cosmetics | Client-only 13+ + adult + simple sum; session-sticky — not fraud-resistant |
+| End-to-end Stripe checkout | Requires `sk_test_` on Pages; IAP grant after `/api/checkout-status` confirms `paid` |
 | Owner coin grant in preview | `isOwner` false in preview |

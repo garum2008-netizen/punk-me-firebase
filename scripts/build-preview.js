@@ -110,20 +110,12 @@ function writeRobots() {
   fs.writeFileSync(path.join(OUT, "robots.txt"), "User-agent: *\nDisallow: /\n", "utf8");
 }
 
-function copyMiddleware() {
-  const src = path.join(ROOT, "functions", "_middleware.js");
-  const dest = path.join(OUT, "functions", "_middleware.js");
-  copyFile(src, dest);
-}
-
-function copyPreviewFunctions() {
-  const apiSrc = path.join(ROOT, "functions", "api");
-  const apiDest = path.join(OUT, "functions", "api");
-  if (!fs.existsSync(apiSrc)) return;
-  for (const name of fs.readdirSync(apiSrc)) {
-    if (!/\.(js|mjs)$/i.test(name)) continue;
-    copyFile(path.join(apiSrc, name), path.join(apiDest, name));
-  }
+function writeHeaders() {
+  fs.writeFileSync(
+    path.join(OUT, "_headers"),
+    "/*\n  X-Robots-Tag: noindex, nofollow\n",
+    "utf8"
+  );
 }
 
 function main() {
@@ -144,8 +136,7 @@ function main() {
   fs.writeFileSync(path.join(OUT, "index.html"), transformIndex(indexHtml), "utf8");
 
   writeRobots();
-  copyMiddleware();
-  copyPreviewFunctions();
+  writeHeaders();
 
   const files = [];
   function walk(d, prefix = "") {

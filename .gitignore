@@ -5,3 +5,5 @@ database-debug.log
 firebase-debug.log
 .worktrees/
 dist-preview/
+.dev.vars
+.wrangler-preview-functions-out/

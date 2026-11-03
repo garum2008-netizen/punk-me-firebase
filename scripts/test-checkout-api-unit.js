@@ -6,7 +6,7 @@ const root = path.join(__dirname, "..");
 
 async function main() {
   const mod = await import(pathToFileURL(path.join(root, "functions/api/checkout-logic.mjs")).href);
-  const { assertStripeTestSecretKey, parseCheckoutBody, CHECKOUT_TEST_UNAVAILABLE_RU } = mod;
+  const { assertStripeTestSecretKey, parseCheckoutBody, CHECKOUT_TEST_UNAVAILABLE_RU, verifyStripeCheckoutSessionPaid } = mod;
   let failed = 0;
   function assert(c, msg) {
     if (!c) {
@@ -24,6 +24,12 @@ async function main() {
 
   const ok = assertStripeTestSecretKey("sk_test_abc");
   assert(ok.ok, "test ok");
+
+  const badSession = await mod.verifyStripeCheckoutSessionPaid({
+    secretKey: "sk_test_x",
+    sessionId: "not-a-session"
+  });
+  assert(!badSession.ok && badSession.status === 400, "bad session id");
 
   assert(!parseCheckoutBody(null).ok, "bad body");
   assert(parseCheckoutBody({ itemId: "neon_halo" }).ok, "item ok");

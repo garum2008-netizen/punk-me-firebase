@@ -21,7 +21,8 @@
     "test:life-ch1": "node scripts/test-angelina-skin-manifest.js && node scripts/test-angelina-skin-alpha.js && node scripts/test-life-ch1-slice-unit.js && node scripts/test-life-ch1-claimed-rtdb-roundtrip.js",
     "test:parent-gate": "node scripts/test-parent-gate-unit.js",
     "test:checkout-api": "node scripts/test-checkout-api-unit.js",
-    "test:preview-shop": "node scripts/test-parent-gate-unit.js && node scripts/test-checkout-api-unit.js"
+    "test:preview-shop": "node scripts/test-parent-gate-unit.js && node scripts/test-checkout-api-unit.js",
+    "test:preview-wrangler": "node scripts/test-preview-wrangler.js"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",

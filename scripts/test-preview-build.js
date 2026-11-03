@@ -96,9 +96,12 @@ function assertBundleNoProdSecrets() {
   if (fs.existsSync(path.join(DIST, "js/owner-admin.mjs"))) {
     throw new Error("owner-admin.mjs must not ship in preview");
   }
-  const checkoutFn = path.join(DIST, "functions/api/checkout.js");
-  if (!fs.existsSync(checkoutFn)) {
-    throw new Error("functions/api/checkout.js must ship in dist-preview");
+  if (fs.existsSync(path.join(DIST, "functions"))) {
+    throw new Error("dist-preview must not contain functions/ (use repo-root functions/ on deploy)");
+  }
+  const headers = fs.readFileSync(path.join(DIST, "_headers"), "utf8");
+  if (!/X-Robots-Tag:\s*noindex/i.test(headers)) {
+    throw new Error("_headers must set X-Robots-Tag noindex");
   }
   console.log("preview-bundle-secrets: PASS (0 prod config hits)");
 }

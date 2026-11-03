@@ -148,12 +148,13 @@ function renderPreviewPremiumGrid() {
 export function initPreviewShop({ renderShop }) {
   if (window.__PUNK_PREVIEW__ !== true) return;
 
-  const granted = applyPreviewCheckoutReturn();
-  if (granted) {
-    window.toast?.(
-      L({ ru: `Тестовая покупка сохранена локально: ${granted}`, en: `Test purchase saved locally: ${granted}` })
-    );
-  }
+  void applyPreviewCheckoutReturn().then(granted => {
+    if (granted) {
+      window.toast?.(
+        L({ ru: `Тестовая покупка сохранена локально: ${granted}`, en: `Test purchase saved locally: ${granted}` })
+      );
+    }
+  });
 
   const tabs = document.querySelector("#shopModal .tabs");
   if (tabs && !document.getElementById("shopTabPremium")) {
