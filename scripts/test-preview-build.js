@@ -96,6 +96,10 @@ function assertBundleNoProdSecrets() {
   if (fs.existsSync(path.join(DIST, "js/owner-admin.mjs"))) {
     throw new Error("owner-admin.mjs must not ship in preview");
   }
+  const checkoutFn = path.join(DIST, "functions/api/checkout.js");
+  if (!fs.existsSync(checkoutFn)) {
+    throw new Error("functions/api/checkout.js must ship in dist-preview");
+  }
   console.log("preview-bundle-secrets: PASS (0 prod config hits)");
 }
 

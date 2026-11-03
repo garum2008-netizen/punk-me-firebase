@@ -77,6 +77,7 @@
       <p class="life-ch1-outfit-label" id="lifeCh1OutfitLabel"></p>
       <div class="life-ch1-outfit-row" id="lifeCh1OutfitRow"></div>
       <button type="button" class="btn" id="lifeCh1WardrobeConfirm" disabled></button>
+      <button type="button" class="btn secondary" id="lifeCh1WardrobeDefault" data-testid="life-ch1-skin-default"></button>
       <button type="button" class="btn secondary" id="lifeCh1WardrobeClose"></button>
     </div>
   </div>
@@ -193,6 +194,9 @@
       <span class="tab" data-tab="materials" data-i18n="tab_materials">Материалы</span>
     </div>
     <div class="grid-shop" id="shopGrid"></div>
+    <p id="previewShopNote" hidden style="margin-top:10px;font-size:12px;opacity:.85" data-testid="preview-shop-note">
+      Монеты зарабатываются в игре. Косметика за € — только в preview, с согласия взрослого, Stripe TEST.
+    </p>
     <p style="margin-top:10px;font-size:12px;opacity:.75"><span data-i18n="build_hint">Стройка: купи материалы → Город → Стройка → клик по земле.</span>
       <button class="btn secondary" onclick="setBuildType('crypt')" data-i18n="build_crypt">Склеп</button>
       <button class="btn secondary" onclick="setBuildType('shack')" data-i18n="build_shack">Дом</button>

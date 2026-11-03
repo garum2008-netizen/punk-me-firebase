@@ -18,7 +18,10 @@
     "test:preview-build": "node scripts/test-preview-build.js",
     "test:angelina-skin-manifest": "node scripts/test-angelina-skin-manifest.js",
     "test:angelina-skin-alpha": "node scripts/test-angelina-skin-alpha.js",
-    "test:life-ch1": "node scripts/test-angelina-skin-manifest.js && node scripts/test-angelina-skin-alpha.js && node scripts/test-life-ch1-slice-unit.js && node scripts/test-life-ch1-claimed-rtdb-roundtrip.js"
+    "test:life-ch1": "node scripts/test-angelina-skin-manifest.js && node scripts/test-angelina-skin-alpha.js && node scripts/test-life-ch1-slice-unit.js && node scripts/test-life-ch1-claimed-rtdb-roundtrip.js",
+    "test:parent-gate": "node scripts/test-parent-gate-unit.js",
+    "test:checkout-api": "node scripts/test-checkout-api-unit.js",
+    "test:preview-shop": "node scripts/test-parent-gate-unit.js && node scripts/test-checkout-api-unit.js"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",
@@ -26,5 +29,8 @@
     "firebase-tools": "^13.29.1",
     "playwright": "^1.64.1",
     "sharp": "^0.33.5"
+  },
+  "optionalDependencies": {
+    "fsevents": "2.3.3"
   }
 }

@@ -91,6 +91,7 @@ export function defaultLifeCh1State() {
     flags: {},
     claimedSteps: {},
     angelinaSkin: "A",
+    playerCutout: true,
     completed: false,
     startedAt: 0
   };
@@ -149,6 +150,7 @@ export function ensureLifeCh1(player) {
   if (st.flags == null || typeof st.flags !== "object" || Array.isArray(st.flags)) st.flags = {};
   st.claimedSteps = normalizeClaimedSteps(st.claimedSteps);
   st.angelinaSkin = normalizeSkinId(st.angelinaSkin || "A");
+  if (typeof st.playerCutout !== "boolean") st.playerCutout = st.playerCutout !== false;
   clampStepIndex(st);
   return st;
 }
@@ -158,11 +160,22 @@ export function getAngelinaSkin() {
 }
 
 export function setAngelinaSkin(skinId) {
-  const id = writeSelectedSkin(ensureLifeCh1(), skinId);
+  const st = ensureLifeCh1();
+  if (st) st.playerCutout = true;
+  const id = writeSelectedSkin(st, skinId);
   persistLocalOverlay();
   hooks.save?.();
   syncPlayerLifeCh1Skin();
   return id;
+}
+
+export function setDefaultPlayerLook() {
+  const st = ensureLifeCh1();
+  if (!st) return;
+  st.playerCutout = false;
+  persistLocalOverlay();
+  hooks.save?.();
+  syncPlayerLifeCh1Skin();
 }
 
 function dialogPortraitHtml(skinId) {
@@ -179,6 +192,10 @@ export function syncPlayerLifeCh1Skin() {
 function previewPlayerLifeCh1Skin(skinId) {
   const st = ensureLifeCh1();
   if (!st) {
+    window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
+    return;
+  }
+  if (st.playerCutout === false) {
     window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
     return;
   }
@@ -572,6 +589,21 @@ function openWardrobePanel() {
   };
   document.getElementById("lifeCh1WardrobeClose").textContent = L({ ru: "Закрыть", en: "Close", da: "Luk" });
   document.getElementById("lifeCh1WardrobeClose").onclick = () => closeWardrobePanel();
+  const defBtn = document.getElementById("lifeCh1WardrobeDefault");
+  if (defBtn) {
+    defBtn.textContent = L({
+      ru: "Вернуть стандартного героя (3D)",
+      en: "Back to default hero (3D)",
+      da: "Standard helt (3D)"
+    });
+    defBtn.onclick = () => {
+      setDefaultPlayerLook();
+      wardrobePending.skin = readSelectedSkin(ensureLifeCh1());
+      grid.querySelectorAll(".life-ch1-skin-tile").forEach(b => b.classList.remove("selected"));
+      closeWardrobePanel();
+      hooks.toast?.(L({ ru: "Стандартный герой", en: "Default hero", da: "Standard" }));
+    };
+  }
   updateWardrobeConfirmState();
   syncPlayerLifeCh1Skin();
 }
@@ -781,6 +813,7 @@ export async function initLifeCh1Slice(h) {
     getMusicVolumeFactor,
     getAngelinaSkin,
     setAngelinaSkin,
+    setDefaultPlayerLook,
     syncPlayerLifeCh1Skin,
     isLifeCh1SliceEnabled,
     isLifeCh1TestMode,

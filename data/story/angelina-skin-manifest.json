@@ -66,11 +66,11 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp",
-        "sha256": "7ab8719452166383d06de2b821c5e629ec2c0ce124469f219d296bdbacbe65f0"
+        "sha256": "52619930e15c2bcecb6ba38ac831edde63a6aa64e18c26edb21d5cb0d9264588"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-world.webp",
-        "sha256": "7c79b7ea6a992ad0a1ba2c2370493267d75b56e47ca0da8d22a1d25196999d3f",
+        "sha256": "1dadc4647410a2730b32000aec1d9efa6745b63f0a9e55299bb641c29c5811cc",
         "derivative": "upper-body crop + 256px wide WebP from source"
       }
     }

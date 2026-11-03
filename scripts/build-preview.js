@@ -116,6 +116,16 @@ function copyMiddleware() {
   copyFile(src, dest);
 }
 
+function copyPreviewFunctions() {
+  const apiSrc = path.join(ROOT, "functions", "api");
+  const apiDest = path.join(OUT, "functions", "api");
+  if (!fs.existsSync(apiSrc)) return;
+  for (const name of fs.readdirSync(apiSrc)) {
+    if (!/\.(js|mjs)$/i.test(name)) continue;
+    copyFile(path.join(apiSrc, name), path.join(apiDest, name));
+  }
+}
+
 function main() {
   rmrf(OUT);
   fs.mkdirSync(OUT, { recursive: true });
@@ -135,6 +145,7 @@ function main() {
 
   writeRobots();
   copyMiddleware();
+  copyPreviewFunctions();
 
   const files = [];
   function walk(d, prefix = "") {

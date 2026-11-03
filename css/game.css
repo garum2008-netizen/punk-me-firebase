@@ -826,14 +826,16 @@ body.life-ch1-active .hud-quests-wrap.collapsed .quest-box { display: block !imp
 body.life-ch1-active .hud-quests-wrap.collapsed .life-ch1-tracker { display: block !important; }
 
 .life-ch1-wardrobe {
-  position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,.72);
+  position: fixed; inset: 0; z-index: 160; background: rgba(0,0,0,.72);
   display: flex; align-items: center; justify-content: center;
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 8px calc(16px + env(safe-area-inset-bottom, 0px));
 }
-.life-ch1-wardrobe[hidden] { display: none !important; }
 .life-ch1-wardrobe-panel {
   background: #1a1028; border: 1px solid #7c3aed; border-radius: 12px;
   padding: 16px; max-width: 420px; width: 92%; color: #f5f3ff;
+  max-height: min(88vh, 640px); overflow-y: auto;
 }
+.life-ch1-wardrobe[hidden] { display: none !important; }
 .life-ch1-skin-grid { display: flex; gap: 10px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
 .life-ch1-skin-tile {
   border: 2px solid #4c1d95; border-radius: 8px; background: transparent; padding: 6px; cursor: pointer;
@@ -847,4 +849,22 @@ body.life-ch1-active .hud-quests-wrap.collapsed .life-ch1-tracker { display: blo
 .life-ch1-outfit-row .selected { outline: 2px solid #a78bfa; }
 .life-ch1-dialog-row { display: flex; gap: 12px; align-items: flex-start; }
 .life-ch1-dialog-portrait { border-radius: 8px; border: 2px solid #7c3aed; flex-shrink: 0; background: transparent; }
-.life-ch1-wardrobe-hint, .life-ch1-outfit-label { font-size: 13px; opacity: 0.9; margin: 0; }
+body.life-ch1-active .hud-quests-wrap {
+  max-height: 18vh;
+  overflow: hidden;
+}
+@media (max-width: 520px) {
+  body.life-ch1-active .hud-column {
+    max-height: 16vh;
+  }
+  body.life-ch1-active .life-ch1-tracker {
+    max-width: min(68vw, 240px);
+  }
+}
+
+.preview-parent-gate-modal .preview-parent-gate-check { display: block; margin: 8px 0; font-size: 13px; }
+.preview-parent-gate-modal .preview-parent-challenge { margin: 10px 0 4px; font-weight: 700; }
+.preview-parent-gate-modal .preview-parent-gate-error { color: #fca5a5; font-size: 12px; }
+.preview-iap-card { position: relative; }
+.preview-iap-badge { font-size: 10px; opacity: 0.8; margin-bottom: 4px; }
+.preview-iap-price { font-weight: 700; }

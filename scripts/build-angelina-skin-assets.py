@@ -93,6 +93,53 @@ def apply_alpha_cutout(img: Image.Image, tolerance: int = 28) -> Image.Image:
     return rgba
 
 
+def defringe_alpha(img: Image.Image, alpha_floor: int = 12, alpha_ceil: int = 246) -> Image.Image:
+    """Remove gray halos on cutout edges (P2 fringe fix)."""
+    rgba = img.convert("RGBA")
+    px = rgba.load()
+    w, h = rgba.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a <= alpha_floor:
+                px[x, y] = (r, g, b, 0)
+            elif a >= alpha_ceil:
+                px[x, y] = (r, g, b, 255)
+            elif a < 48 and max(r, g, b) > 235 and min(r, g, b) > 200:
+                px[x, y] = (r, g, b, 0)
+    return rgba
+
+
+def restore_c_v2_guitar_patch(orig: Image.Image, cut: Image.Image) -> Image.Image:
+    """Keep guitar + denim patch opaque when flood-fill eats similar tones (C-v2 only)."""
+    rgba = cut.convert("RGBA")
+    w, h = rgba.size
+    px_o = orig.convert("RGBA").load()
+    px = rgba.load()
+    x0, x1 = int(w * 0.0), int(w * 0.52)
+    y0, y1 = int(h * 0.48), int(h * 0.96)
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            _, _, _, oa = px_o[x, y]
+            if oa < 96:
+                continue
+            r, g, b, a = px[x, y]
+            if a >= 220:
+                continue
+            lum = (r + g + b) / 3
+            if lum < 248 or max(r, g, b) - min(r, g, b) > 18:
+                px[x, y] = (r, g, b, 255)
+    return rgba
+
+
+def postprocess_cutout(skin_id: str, orig: Image.Image, cut: Image.Image) -> Image.Image:
+    out = defringe_alpha(cut)
+    if skin_id == "C":
+        out = restore_c_v2_guitar_patch(orig, out)
+        out = defringe_alpha(out)
+    return out
+
+
 def portrait_variant(img: Image.Image, max_w: int = 372) -> Image.Image:
     w, h = img.size
     if w <= max_w:
@@ -130,7 +177,8 @@ def main() -> None:
             shutil.copy2(src_upload, source_path)
         source_sha = sha256_file(source_path)
 
-        cut = apply_alpha_cutout(Image.open(source_path).convert("RGBA"))
+        orig = Image.open(source_path).convert("RGBA")
+        cut = postprocess_cutout(skin_id, orig, apply_alpha_cutout(orig))
         slug = source_name.replace(".png", "")
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"

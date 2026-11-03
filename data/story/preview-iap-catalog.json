@@ -1,0 +1,19 @@
+{
+  "currencyDefault": "eur",
+  "items": {
+    "neon_halo": {
+      "id": "neon_halo",
+      "label": "PUNK ME — Neon halo (test cosmetic)",
+      "priceCents": 199,
+      "currency": "eur",
+      "priceLabel": "€1.99"
+    },
+    "wing_pins": {
+      "id": "wing_pins",
+      "label": "PUNK ME — Wing pins (test cosmetic)",
+      "priceCents": 299,
+      "currency": "eur",
+      "priceLabel": "€2.99"
+    }
+  }
+}

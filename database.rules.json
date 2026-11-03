@@ -108,6 +108,9 @@
           "angelinaSkin": {
             ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^[ABC]$/) && newData.val().length <= 1)"
           },
+          "playerCutout": {
+            ".validate": "!newData.exists() || newData.isBoolean()"
+          },
           "flags": {
             "$flagKey": {
               ".validate": "newData.isBoolean() && $flagKey.matches(/^[a-z0-9_]{1,32}$/)"

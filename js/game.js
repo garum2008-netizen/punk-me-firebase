@@ -92,6 +92,12 @@ function bootPreviewSession() {
   openSelect();
 }
 
+function initPreviewShopModule() {
+  import("./shop/preview-shop.mjs")
+    .then(m => m.initPreviewShop({ renderShop }))
+    .catch(err => console.warn("preview shop init", err));
+}
+
 function demoPartyMode() {
   try {
     return new URLSearchParams(location.search).has("demo3");
@@ -962,6 +968,7 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
+    if (isPreviewBuild()) initPreviewShopModule();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
   } catch (err) {
     console.error("continueGameBoot", err);
@@ -1637,6 +1644,16 @@ function acceptQuest(qid) {
 }
 
 function renderShop() {
+  if (window.__previewRenderShopHook?.(shopTab)) {
+    document.querySelectorAll("#shopModal .tab").forEach(t => {
+      t.classList.toggle("active", t.dataset.tab === shopTab);
+      t.onclick = () => {
+        shopTab = t.dataset.tab;
+        renderShop();
+      };
+    });
+    return;
+  }
   const items = SHOP[shopTab] || [];
   document.getElementById("shopGrid").innerHTML = items.map(it => {
     const own = me.owned.includes(it.id);
