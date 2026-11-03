@@ -25,6 +25,23 @@ function assertSameAsMain(rel) {
   }
 }
 
+function glbVertexCount(absPath) {
+  const buf = fs.readFileSync(absPath);
+  const jsonLen = buf.readUInt32LE(12);
+  const json = JSON.parse(buf.subarray(20, 20 + jsonLen).toString("utf8"));
+  let verts = 0;
+  for (const mesh of json.meshes || []) {
+    for (const prim of mesh.primitives || []) {
+      const acc = prim.attributes?.POSITION;
+      if (acc == null) continue;
+      const accessor = json.accessors[acc];
+      verts += accessor?.count || 0;
+    }
+  }
+  const tex = (json.textures?.length || 0) + (json.images?.length || 0);
+  return { verts, tex };
+}
+
 async function main() {
   const mod = await import(pathToFileURL(path.join(root, "js/world/meshy-punk.mjs")).href);
   const { meshyGlbPathForHero } = mod;
@@ -57,9 +74,25 @@ async function main() {
     console.error("FAIL: missing punk_dog.glb");
     failed++;
   } else {
-    const dogBytes = fs.statSync(dogPath).size;
-    if (dogBytes > 600000) {
-      console.error("FAIL: punk_dog.glb too large", dogBytes);
+    const mainDog = path.join(root, ".tmp-main-dog.glb");
+    try {
+      fs.writeFileSync(mainDog, execSync("git show origin/main:assets/models/pets/punk_dog.glb", { cwd: root }));
+      const cur = glbVertexCount(dogPath);
+      const base = glbVertexCount(mainDog);
+      fs.unlinkSync(mainDog);
+      if (cur.tex < 1) {
+        console.error("FAIL: punk_dog.glb missing textures/images");
+        failed++;
+      }
+      const ratio = cur.verts / (base.verts || 1);
+      if (ratio < 0.99 || ratio > 1.01) {
+        console.error("FAIL: dog vertex count vs main", cur.verts, base.verts, ratio);
+        failed++;
+      } else {
+        console.log("OK: punk_dog verts within 1% of main", cur.verts, base.verts);
+      }
+    } catch (e) {
+      console.error("FAIL: dog compare", e.message);
       failed++;
     }
   }

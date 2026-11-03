@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v22r5-ch1-angelina-r8">
-<link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r5-ch1-angelina-r8">
+<link rel="stylesheet" href="css/game.css?v=living3d-v22r5-ch1-angelina-r9">
+<link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r5-ch1-angelina-r9">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -153,7 +153,7 @@
     </div>
   </div>
   <button type="button" id="mobileNavFab" class="mobile-nav-fab" aria-expanded="false" aria-controls="mobileNavSheet" data-testid="mobile-nav-fab">
-    <span aria-hidden="true">☰</span> <span class="mobile-nav-fab-label" data-i18n="nav_travel">Карта</span>
+    <span aria-hidden="true">☰</span> <span class="mobile-nav-fab-label" data-i18n="nav_travel">Маршрут</span>
   </button>
   <div id="mobileNavSheet" class="mobile-nav-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="mobileNavSheetTitle">
     <div class="mobile-nav-sheet-panel">
@@ -285,21 +285,21 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script src="js/i18n.js?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script src="js/voice.js?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script src="js/onboarding.js?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script type="module" src="js/context-hints.mjs?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script type="module" src="js/how-to-play.mjs?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script src="js/life.js?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script type="module" src="js/city-builds-sanitize-boot.mjs?v=living3d-v22r5-ch1-angelina-r8"></script>
-<script defer src="js/game.js?v=living3d-v22r5-ch1-angelina-r8"></script>
+<script src="js/characters.js?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script src="js/i18n.js?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script src="js/voice.js?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script src="js/onboarding.js?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script src="js/life.js?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script type="module" src="js/city-builds-sanitize-boot.mjs?v=living3d-v22r5-ch1-angelina-r9"></script>
+<script defer src="js/game.js?v=living3d-v22r5-ch1-angelina-r9"></script>
 <script type="module">
-  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5-ch1-angelina-r8";
-  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r5-ch1-angelina-r8";
+  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r5-ch1-angelina-r9";
+  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r5-ch1-angelina-r9";
   import { initLifeCh1Slice } from "./js/story/life-ch1-slice.mjs?v=life-ch1-slice-m1";
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
@@ -309,12 +309,12 @@
   window.me = window.me || {};
 </script>
 <script type="module">
-  import { initAccountAuth } from "./js/account-auth.mjs?v=living3d-v22r5-ch1-angelina-r8";
+  import { initAccountAuth } from "./js/account-auth.mjs?v=living3d-v22r5-ch1-angelina-r9";
   initAccountAuth().catch(err => console.error("initAccountAuth", err));
   document.getElementById("btnAccountSignOutLoading")?.addEventListener("click", () => window.__punkSignOut?.());
 </script>
-<p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:280px;text-align:right;margin:0">
-  3D-модель создана с помощью <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), CC BY 4.0
+<p class="credits-3d" style="position:fixed;right:8px;bottom:4px;font-size:10px;opacity:.55;z-index:2;max-width:320px;text-align:right;margin:0">
+  Neon Rebel (punk_pink), Mohawk, Cobalt, Razor — созданы в <a href="https://meshy.ai" target="_blank" rel="noopener">Meshy</a> (meshy.ai), лицензия <a href="assets/models/meshy/LICENSE.txt" target="_blank" rel="noopener">CC BY 4.0</a>
 </p>
 </body>
 </html>

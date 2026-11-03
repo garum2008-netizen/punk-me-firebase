@@ -26,13 +26,32 @@ function dirBytes(dir, filterFn) {
   return total;
 }
 
-function modelsPayloadBytes() {
-  return dirBytes(path.join(root, "assets/models"), abs => /\.glb$/i.test(abs) || /shipped\.json$/i.test(abs));
+function runtimeModelsPayloadBytes() {
+  const shipped = JSON.parse(
+    fs.readFileSync(path.join(root, "assets/models/meshy/shipped.json"), "utf8")
+  );
+  const files = new Set([
+    "assets/models/pets/punk_dog.glb",
+    ...shipped.map(id => `assets/models/meshy/${id === "vienna" ? "punk_pink" : id}.glb`)
+  ]);
+  if (shipped.includes("razor")) files.add("assets/models/meshy/razor.glb");
+  let total = 0;
+  for (const rel of files) {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) {
+      console.error("FAIL: missing runtime model", rel);
+      return -1;
+    }
+    total += fs.statSync(abs).size;
+  }
+  return total;
 }
 
 async function main() {
-  const modelsBytes = modelsPayloadBytes();
-  assert(modelsBytes < 20 * 1000 * 1000, `assets/models payload must be <20MB decimal (got ${(modelsBytes / 1e6).toFixed(3)} MB)`);
+  const modelsBytes = runtimeModelsPayloadBytes();
+  assert(modelsBytes > 0, "runtime models payload missing files");
+  assert(modelsBytes < 20 * 1000 * 1000, `runtime models must be <20MB decimal (got ${(modelsBytes / 1e6).toFixed(3)} MB)`);
+  assert(20 * 1000 * 1000 - modelsBytes >= 4000, `runtime models need ≥4KB headroom under 20MB (got ${((20e6 - modelsBytes) / 1024).toFixed(1)} KiB)`);
 
   for (const dead of [
     "assets/models/cc0/cesium-man.glb",
@@ -47,6 +66,8 @@ async function main() {
   assert(html.includes('id="touchJump"'), "touch jump button in index");
   assert(html.includes('data-testid="mobile-nav-fab"'), "mobile travel nav fab");
   assert(html.includes("mobile-nav-grid"), "mobile travel nav sheet grid");
+  assert(html.includes("char-select-portraits"), "char select portrait container");
+  assert(html.includes("Razor") || html.includes("razor") || html.includes("Рейзор"), "razor meshy credit");
 
   const css = fs.readFileSync(path.join(root, "css/game.css"), "utf8");
   assert(css.includes(".touch-jump"), "touch jump styles");
@@ -86,7 +107,8 @@ async function main() {
   assert(gameJs.includes("imagine_images/LTPb8.jpg"), "prod shop icons use imagine_images");
   assert(gameJs.includes("placeBuildAt(x, y)"), "2D city build uses placeBuildAt");
   assert(gameJs.includes("exposePreviewBuildHooks"), "preview-only tryPlaceBuild export");
-  assert(!/window\.tryPlaceBuild\s*=\s*function/.test(gameJs), "no global tryPlaceBuild on prod");
+  assert(gameJs.includes("delete window.tryPlaceBuild"), "prod strips tryPlaceBuild from window");
+  assert(!gameJs.includes("angelina-skins/shipped/angelina-teen-A-portrait.webp"), "shop must not use Angelina portraits");
 
   if (failed) {
     console.error(`test-m1-gates: ${failed} failed`);

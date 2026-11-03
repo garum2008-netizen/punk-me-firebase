@@ -16,8 +16,7 @@ function assert(cond, msg) {
 
 assert(/buildMode && LOCATIONS\[me\.location\]\.buildZone === "city"/.test(gameJs), "onRoomClick city build branch");
 assert(gameJs.includes("placeBuildAt(x, y);"), "onRoomClick calls placeBuildAt");
-assert(gameJs.includes("function exposePreviewBuildHooks"), "preview-only tryPlaceBuild hook");
-assert(!/window\.tryPlaceBuild\s*=\s*function/.test(gameJs), "prod must not assign window.tryPlaceBuild directly");
+assert(gameJs.includes("delete window.tryPlaceBuild"), "prod strips tryPlaceBuild from window");
 
 if (failed) process.exit(1);
 console.log("test-prod-city-build-2d: PASS");

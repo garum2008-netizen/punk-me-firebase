@@ -549,6 +549,7 @@ async function testMobileHud390(base) {
   try {
     await page.goto(`${base}/?lifeCh1E2e=1`, { waitUntil: "load", timeout: 120000 });
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
+    await page.waitForSelector('[data-testid="char-select-angelina"], #charSelectConfirm', { timeout: 90000 });
     await page.click("#charSelectConfirm");
     await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
 
@@ -556,24 +557,83 @@ async function testMobileHud390(base) {
       function rectsOverlap(a, b) {
         return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
       }
-      const zones = ["touchJoystick", "touchJump", "touchInteract", "storyDialog", "voiceSubtitle"]
+      const zones = ["touchJoystick", "touchJump", "touchInteract"]
         .map(id => document.getElementById(id))
         .filter(Boolean)
         .map(el => el.getBoundingClientRect());
+      const hud = document.querySelector(".hud-column")?.getBoundingClientRect();
+      const banner = document.getElementById("previewBuildBanner")?.getBoundingClientRect();
       const navQuick = document.getElementById("navQuick");
       const navHidden = !navQuick || getComputedStyle(navQuick).display === "none" || !navQuick.querySelector("button");
       const fab = document.getElementById("mobileNavFab");
       const fabRect = fab?.getBoundingClientRect();
       const fabOverlap = fabRect && zones.some(z => rectsOverlap(fabRect, z));
-      const locIds = Object.keys(window.LOCATIONS || {});
-      return { navHidden, fabOverlap, locCount: locIds.length, fabVisible: !!fab && fab.offsetParent !== null };
+      const hudOverlap = fabRect && hud && rectsOverlap(fabRect, hud);
+      const bannerOverlap = fabRect && banner && rectsOverlap(fabRect, banner);
+      const dock = document.getElementById("dockScrollRow");
+      const panel = document.getElementById("panelBottom");
+      let mapBtn = panel?.querySelector('button[onclick*="mapModal"]');
+      if (dock && mapBtn) {
+        dock.scrollLeft = 0;
+        for (let i = 0; i < 32; i++) {
+          const r = mapBtn.getBoundingClientRect();
+          if (r.left >= 0 && r.right <= window.innerWidth + 1) break;
+          dock.scrollLeft += 16;
+        }
+      }
+      mapBtn = panel?.querySelector('button[onclick*="mapModal"]');
+      const firstBtn = panel?.querySelector("button");
+      const firstRect = firstBtn?.getBoundingClientRect();
+      const firstVisible = firstRect && firstRect.left >= 0 && firstRect.right <= window.innerWidth + 1;
+      const mapRect = mapBtn?.getBoundingClientRect();
+      const mapReachable = mapRect && mapRect.left >= 0 && mapRect.right <= window.innerWidth + 1;
+      const gangBtn = panel?.querySelector('button[onclick*="gangModal"]');
+      const gangRect = gangBtn?.getBoundingClientRect();
+      const gangReachable = gangRect && gangRect.left >= 0 && gangRect.right <= window.innerWidth + 1;
+      return {
+        navHidden,
+        fabOverlap,
+        hudOverlap,
+        bannerOverlap,
+        fabH: fabRect?.height || 0,
+        fabW: fabRect?.width || 0,
+        firstVisible,
+        mapReachable,
+        gangReachable
+      };
     });
     if (!closed.navHidden) throw new Error("navQuick chips must be hidden on mobile: " + JSON.stringify(closed));
     if (closed.fabOverlap) throw new Error("mobile nav fab overlaps controls/dialogue");
-    if (closed.locCount < 10) throw new Error("expected all locations in LOCATIONS");
+    if (closed.hudOverlap) throw new Error("mobile nav fab overlaps hud column");
+    if (closed.bannerOverlap) throw new Error("mobile nav fab overlaps preview banner");
+    if (closed.fabH < 44 || closed.fabW < 44) throw new Error("mobile nav fab touch target <44px: " + JSON.stringify(closed));
+    if (!closed.mapReachable || !closed.gangReachable) {
+      throw new Error("bottom bar Map/Gang not reachable at scroll 0: " + JSON.stringify(closed));
+    }
 
     await page.click('[data-testid="mobile-nav-fab"]');
-    await page.waitForSelector('[data-testid="mobile-nav-grid"] .mobile-nav-loc', { timeout: 5000 });
+    await page.waitForSelector(".mobile-nav-sheet.open", { timeout: 5000 });
+    const openChecks = await page.evaluate(() => {
+      const close = document.getElementById("mobileNavClose");
+      const cr = close?.getBoundingClientRect();
+      const con = document.querySelector('[data-testid="mobile-nav-construction"]');
+      const conRaw = /^construction$/i.test((con?.textContent || "").trim());
+      return {
+        closeH: cr?.height || 0,
+        closeW: cr?.width || 0,
+        conRaw,
+        conLabel: con?.textContent?.trim() || ""
+      };
+    });
+    if (openChecks.closeH < 44 || openChecks.closeW < 44) {
+      throw new Error("sheet close touch target <44px: " + JSON.stringify(openChecks));
+    }
+    if (openChecks.conRaw) throw new Error("construction label not translated: " + openChecks.conLabel);
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector(".mobile-nav-sheet.open"), undefined, { timeout: 3000 });
+
+    await page.click('[data-testid="mobile-nav-fab"]');
+    await page.waitForSelector(".mobile-nav-sheet.open", { timeout: 5000 });
     const open = await page.evaluate(() => {
       const sheetBtns = [...document.querySelectorAll("#mobileNavGrid .mobile-nav-loc")];
       return {

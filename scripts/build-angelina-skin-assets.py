@@ -361,9 +361,38 @@ def defringe_alpha_edge_only(img: Image.Image) -> Image.Image:
     return rgba
 
 
+def decontaminate_alpha_edges(rgba: Image.Image, bg: tuple[int, int, int] = (240, 242, 245)) -> Image.Image:
+    """Un-premultiply grey matte halos on semi-transparent pixels; opaque RGB untouched."""
+    img = rgba.convert("RGBA")
+    px = img.load()
+    br, bgc, bb = bg
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a <= 0 or a >= 255:
+                continue
+            chroma = max(r, g, b) - min(r, g, b)
+            lum = (r + g + b) / 3
+            if chroma >= 20 or lum < 190:
+                continue
+            af = a / 255.0
+            fr = int((r - br * (1.0 - af)) / max(af, 0.05))
+            fg = int((g - bgc * (1.0 - af)) / max(af, 0.05))
+            fb = int((b - bb * (1.0 - af)) / max(af, 0.05))
+            px[x, y] = (
+                max(0, min(255, fr)),
+                max(0, min(255, fg)),
+                max(0, min(255, fb)),
+                a,
+            )
+    return img
+
+
 def postprocess_cutout(skin_id: str, cut: Image.Image) -> Image.Image:
     out = defringe_gray_halos(cut)
     out = defringe_alpha_edge_only(out)
+    out = decontaminate_alpha_edges(out)
     for _ in range(4):
         out = strip_outline_near_white(out)
     return out

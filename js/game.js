@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-ch1-angelina-r8";
+const GAME_VERSION = "living3d-v22r5-ch1-angelina-r9";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -1113,10 +1113,12 @@ function renderQuickNav() {
   if (!el) return;
   const mobile = window.matchMedia("(max-width: 900px)").matches;
   if (mobile) {
+    el.hidden = true;
     el.innerHTML = "";
     renderMobileNavSheet();
     return;
   }
+  el.hidden = false;
   const picks = ["room", "street", "cemetery", "city", "construction", "roof", "parkour"].filter(id => id !== me.location);
   const navKey = {
     room: "nav_room", street: "nav_street", cemetery: "nav_cemetery", city: "nav_city",
@@ -1131,10 +1133,19 @@ function renderQuickNav() {
 function renderMobileNavSheet() {
   const grid = document.getElementById("mobileNavGrid");
   if (!grid || !me) return;
+  const navKey = {
+    room: "nav_room", street: "nav_street", cemetery: "nav_cemetery", city: "nav_city",
+    construction: "nav_construction", roof: "nav_roof", parkour: "nav_parkour"
+  };
+  const titleFor = locId => {
+    const k = navKey[locId];
+    return k ? t(k) : locTitle(locId);
+  };
   grid.innerHTML = Object.values(LOCATIONS)
     .map(loc => {
       const here = me.location === loc.id;
-      return `<button type="button" class="btn secondary mobile-nav-loc" data-loc="${loc.id}" data-testid="mobile-nav-${loc.id}" ${here ? "disabled" : ""}>${escapeHtml(locTitle(loc.id))}${here ? " ✓" : ""}</button>`;
+      const label = titleFor(loc.id);
+      return `<button type="button" class="btn secondary mobile-nav-loc" data-loc="${loc.id}" data-testid="mobile-nav-${loc.id}" ${here ? "disabled" : ""}>${escapeHtml(label)}${here ? " ✓" : ""}</button>`;
     })
     .join("");
   grid.querySelectorAll(".mobile-nav-loc").forEach(btn => {
@@ -1182,6 +1193,14 @@ function initMobileTravelNav() {
   document.getElementById("mobileNavClose")?.addEventListener("click", () => closeMobileNavSheet());
   document.getElementById("mobileNavSheet")?.addEventListener("click", e => {
     if (e.target.id === "mobileNavSheet") closeMobileNavSheet();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    const sheet = document.getElementById("mobileNavSheet");
+    if (sheet?.classList.contains("open")) {
+      e.preventDefault();
+      closeMobileNavSheet();
+    }
   });
 }
 
@@ -2322,13 +2341,12 @@ window.setBuildType = function (bt) {
 };
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
-function tryPlaceBuild(x, y) {
-  placeBuildAt(x, y);
-}
 
 function exposePreviewBuildHooks() {
-  if (isPreviewBuild() || window.LifeCh1Slice?.isLifeCh1TestMode?.()) {
-    window.tryPlaceBuild = tryPlaceBuild;
+  if (isPreviewBuild()) {
+    window.tryPlaceBuild = (x, y) => placeBuildAt(x, y);
+  } else if ("tryPlaceBuild" in window) {
+    delete window.tryPlaceBuild;
   }
 }
 

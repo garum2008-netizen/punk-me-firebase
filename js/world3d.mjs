@@ -706,6 +706,7 @@ function getNpcVisibilitySnapshot() {
 
 async function loadModels() {
   await loadMeshyTemplateForCharacter("vienna");
+  await Promise.all(["mohawk", "cobalt", "razor"].map(id => loadMeshyTemplateForCharacter(id)));
   modelsReady = true;
   if (pendingSyncData) sync(pendingSyncData);
   void loadAllCc0Templates();
