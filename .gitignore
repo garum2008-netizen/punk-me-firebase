@@ -9,3 +9,4 @@ dist-preview/
 .dev.vars.*
 .wrangler/
 .wrangler-preview-functions-out/
+__pycache__/
