@@ -33,6 +33,7 @@ export function addV21Clutter(locId, root, texLoader, colliders, pushCollider) {
   if (locId === "room") {
     placeProp(root, "room_clutter_guitar", box(0.12, 0.9, 0.35, 0x221111), 4.2, 0.45, -4.2, -0.35);
     placeProp(root, "room_clutter_amp", box(0.55, 0.7, 0.4, 0x111122), 4.8, 0.35, -3.8);
+    placeProp(root, "room_clutter_shelf", box(2.2, 1.6, 0.25, 0x3a2848), -5.2, 0.8, -5.2);
     placeProp(root, "room_clutter_crate", box(0.35, 0.5, 0.35, 0x553322), -4.5, 0.25, -3.5);
     placeProp(root, "room_clutter_bin", box(0.25, 0.55, 0.25, 0x888899), 5, 0.275, -2);
   } else if (locId === "kitchen") {

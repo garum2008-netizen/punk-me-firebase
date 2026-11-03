@@ -447,6 +447,9 @@ export function buildLocationScene(locId, texLoader) {
     pushCollider(colliders, 3.2, -1, 0.8, 0.4);
     addSofa(root, -1, 3.2, colliders);
     addBeanbag(root, -5.2, 4.8);
+    const sign = neonSign("PUNK ME", 0xff00ff);
+    sign.position.set(3.8, 2.6, -5.65);
+    root.add(sign);
     addNeonTube(root, -4, 2.8, -5.5, 2.5, 0xff00ff);
     addNeonTube(root, 4, 2.5, -5.5, 2, 0x00ffff);
     addPumpkin(root, 4.5, 2.5, colliders);

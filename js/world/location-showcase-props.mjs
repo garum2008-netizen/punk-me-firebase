@@ -450,7 +450,10 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("room_amp_stack", box(0.5, 0.75, 0.4, mat(0x111122, 0x00ffff)).translateY(0.38).translateX(5.5).translateZ(1.2)));
     root.add(tagged("room_tv_crt", box(0.75, 0.5, 0.08, mat(0x111118, 0x224466)).translateY(1.05).translateX(-3.5).translateZ(-5.5)));
     root.add(tagged("room_bookshelf_fg", box(0.9, 1.35, 0.28, mat(0x5a4030)).translateY(0.68).translateX(-5).translateZ(1.5)));
-    root.add(tagged("room_rug_fg", new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), mat(0x5a2040)).rotateX(-Math.PI / 2).translateY(0.015).translateZ(1.5)));
+    const roomRug = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), mat(0x5a2040));
+    roomRug.rotation.x = -Math.PI / 2;
+    roomRug.position.set(0, 0.015, 1.5);
+    root.add(tagged("room_rug_fg", roomRug));
     root.add(tagged("room_skull_lamp", box(0.2, 0.32, 0.2, mat(0xddddcc, 0xaaccaa)).translateY(1.6).translateX(-2).translateZ(-5.5)));
     root.add(tagged("room_pumpkin", new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.24).translateX(-4.8).translateZ(-2.8)));
     root.add(tagged("room_trash_bin", box(0.32, 0.55, 0.32, mat(0x3a4048)).translateY(0.275).translateX(4.8).translateZ(-2.5)));

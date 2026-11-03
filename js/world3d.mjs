@@ -706,8 +706,10 @@ function getNpcVisibilitySnapshot() {
 
 async function loadModels() {
   await loadMeshyTemplateForCharacter("vienna");
-  await Promise.all(["mohawk", "cobalt", "razor"].map(id => loadMeshyTemplateForCharacter(id)));
   modelsReady = true;
+  if (pendingSyncData) sync(pendingSyncData);
+  void Promise.all(["mohawk", "cobalt"].map(id => loadMeshyTemplateForCharacter(id)));
+  void loadMeshyTemplateForCharacter("razor");
   if (pendingSyncData) sync(pendingSyncData);
   void loadAllCc0Templates();
   void loadPunkDogTemplate().then(t => {
@@ -840,6 +842,7 @@ function separateActors() {
 }
 
 function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
+  if (!actor?.group) return;
   const offX = isPlayer ? 0 : (actor._visPushX || 0);
   const offZ = isPlayer ? 0 : (actor._visPushZ || 0);
   const c =

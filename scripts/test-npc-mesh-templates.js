@@ -64,9 +64,44 @@ async function main() {
 
   for (const rel of [
     "assets/models/meshy/mohawk.glb",
-    "assets/models/meshy/cobalt.glb"
+    "assets/models/meshy/cobalt.glb",
+    "assets/models/meshy/razor.glb",
+    "assets/models/meshy/punk_pink.glb"
   ]) {
-    if (!assertSameAsMain(rel)) failed++;
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) {
+      console.error("FAIL: missing", rel);
+      failed++;
+      continue;
+    }
+    const mainRel = rel;
+    const mainPath = path.join(root, `.tmp-main-hero-${path.basename(rel)}`);
+    try {
+      execSync(`git show origin/main:${mainRel} > "${mainPath}"`, {
+        cwd: root,
+        shell: true,
+        stdio: "pipe",
+        maxBuffer: 64 * 1024 * 1024
+      });
+      const cur = glbVertexCount(abs);
+      const base = glbVertexCount(mainPath);
+      fs.unlinkSync(mainPath);
+      if (cur.tex < 1) {
+        console.error("FAIL: textures missing in", rel);
+        failed++;
+        continue;
+      }
+      const ratio = cur.verts / (base.verts || 1);
+      if (ratio < 0.99 || ratio > 1.01) {
+        console.error("FAIL: vertex count vs main", rel, cur.verts, base.verts, ratio);
+        failed++;
+      } else {
+        console.log("OK:", path.basename(rel), "verts within 1% of main", cur.verts, base.verts);
+      }
+    } catch (e) {
+      console.error("FAIL: hero compare", rel, e.message);
+      failed++;
+    }
   }
 
   const dogPath = path.join(root, "assets/models/pets/punk_dog.glb");

@@ -6,9 +6,16 @@
 const { chromium, webkit } = require("playwright");
 const fs = require("fs");
 const path = require("path");
+const {
+  assertFirebaseEmulatorTestEnv,
+  firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+
+assertFirebaseEmulatorTestEnv();
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
-const emulatorQs = process.env.FIREBASE_EMULATOR ? "&firebaseEmulator=1" : "";
+const emulatorQs = firebaseEmulatorQueryString();
 const outDir = "/workspace/qa/hotfix-loading";
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -16,6 +23,7 @@ async function runSuite(browserName, browserType) {
   const browser = await browserType.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
+  await installProdFirebaseRouteBlock(page);
   const log = [];
 
   await page.goto(`${base}/?solo=1&v=loadfix2${emulatorQs}`, { waitUntil: "domcontentloaded", timeout: 120000 });

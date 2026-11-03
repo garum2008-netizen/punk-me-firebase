@@ -26,32 +26,28 @@ function dirBytes(dir, filterFn) {
   return total;
 }
 
-function runtimeModelsPayloadBytes() {
-  const shipped = JSON.parse(
-    fs.readFileSync(path.join(root, "assets/models/meshy/shipped.json"), "utf8")
-  );
-  const files = new Set([
-    "assets/models/pets/punk_dog.glb",
-    ...shipped.map(id => `assets/models/meshy/${id === "vienna" ? "punk_pink" : id}.glb`)
-  ]);
-  if (shipped.includes("razor")) files.add("assets/models/meshy/razor.glb");
-  let total = 0;
-  for (const rel of files) {
-    const abs = path.join(root, rel);
-    if (!fs.existsSync(abs)) {
-      console.error("FAIL: missing runtime model", rel);
-      return -1;
-    }
-    total += fs.statSync(abs).size;
-  }
-  return total;
+function modelsFolderPayloadBytes() {
+  const modelsRoot = path.join(root, "assets/models");
+  return dirBytes(modelsRoot, (abs, name) => {
+    if (/LICENSE/i.test(name) || /README/i.test(name)) return false;
+    if (name === ".gitignore") return false;
+    return true;
+  });
 }
 
 async function main() {
-  const modelsBytes = runtimeModelsPayloadBytes();
-  assert(modelsBytes > 0, "runtime models payload missing files");
-  assert(modelsBytes < 20 * 1000 * 1000, `runtime models must be <20MB decimal (got ${(modelsBytes / 1e6).toFixed(3)} MB)`);
-  assert(20 * 1000 * 1000 - modelsBytes >= 4000, `runtime models need ≥4KB headroom under 20MB (got ${((20e6 - modelsBytes) / 1024).toFixed(1)} KiB)`);
+  const modelsBytes = modelsFolderPayloadBytes();
+  const maxPayload = 19 * 1000 * 1000;
+  const headroomMin = 1 * 1000 * 1000;
+  assert(modelsBytes > 0, "assets/models payload missing files");
+  assert(
+    modelsBytes <= maxPayload,
+    `assets/models runtime payload must be ≤19.0 MB decimal (got ${(modelsBytes / 1e6).toFixed(3)} MB)`
+  );
+  assert(
+    20 * 1000 * 1000 - modelsBytes >= headroomMin,
+    `assets/models need ≥1 MB headroom under 20 MB decimal (got ${((20e6 - modelsBytes) / 1e6).toFixed(3)} MB margin)`
+  );
 
   for (const dead of [
     "assets/models/cc0/cesium-man.glb",

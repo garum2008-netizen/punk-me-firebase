@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { buildIdleStandClip } from "./meshy-idle-clip.mjs";
 // PlayerWave builder kept in meshy-wave-clip.mjs (disabled for release — see WAVE_EMOTE_ENABLED).
@@ -175,6 +176,7 @@ export async function loadMeshyTemplateForCharacter(characterId) {
   }
 
   const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
   const shipped = await getShippedMeshyIds();
   const primary = meshyGlbPathForHero(id);
   let url;

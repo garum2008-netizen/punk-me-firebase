@@ -361,39 +361,138 @@ def defringe_alpha_edge_only(img: Image.Image) -> Image.Image:
     return rgba
 
 
-def decontaminate_alpha_edges(rgba: Image.Image, bg: tuple[int, int, int] = (240, 242, 245)) -> Image.Image:
-    """Un-premultiply grey matte halos on semi-transparent pixels; opaque RGB untouched."""
+def _pixel_is_alpha_edge(px, x: int, y: int, w: int, h: int, clear: int = 20) -> bool:
+    _r, _g, _b, a = px[x, y]
+    if a <= 0:
+        return False
+    if a < 255:
+        return True
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        nx, ny = x + dx, y + dy
+        if nx < 0 or ny < 0 or nx >= w or ny >= h:
+            return True
+        if px[nx, ny][3] < clear:
+            return True
+    return False
+
+
+def _nearest_opaque_source_rgb(px, x: int, y: int, w: int, h: int, rpx, max_r: int = 6) -> tuple[int, int, int] | None:
+    for rad in range(1, max_r + 1):
+        rs: list[int] = []
+        gs: list[int] = []
+        bs: list[int] = []
+        for dy in range(-rad, rad + 1):
+            for dx in range(-rad, rad + 1):
+                if dx == 0 and dy == 0:
+                    continue
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                    continue
+                if px[nx, ny][3] >= 250:
+                    sr, sg, sb = rpx[nx, ny]
+                    rs.append(sr)
+                    gs.append(sg)
+                    bs.append(sb)
+        if rs:
+            return (sum(rs) // len(rs), sum(gs) // len(gs), sum(bs) // len(bs))
+    return None
+
+
+def decontaminate_semi_edge_pixel(
+    r: int, g: int, b: int, a: int, bg: tuple[int, int, int]
+) -> tuple[int, int, int, int]:
+    """Un-premultiply grey matte on semi-transparent edge pixels only."""
+    br, bgc, bb = bg
+    af = a / 255.0
+    fr = int((r - br * (1.0 - af)) / max(af, 0.04))
+    fg = int((g - bgc * (1.0 - af)) / max(af, 0.04))
+    fb = int((b - bb * (1.0 - af)) / max(af, 0.04))
+    return (
+        max(0, min(255, fr)),
+        max(0, min(255, fg)),
+        max(0, min(255, fb)),
+        a,
+    )
+
+
+def finalize_alpha_matte(cut: Image.Image, orig: Image.Image) -> Image.Image:
+    """
+    Interior: alpha 255, RGB byte-identical to approved source.
+    Edge semi-transparent pixels only: decontaminate / extend interior hair colour.
+    """
+    rgb = orig.convert("RGB")
+    out = cut.convert("RGBA")
+    px = out.load()
+    rpx = rgb.load()
+    w, h = out.size
+    edge = [[False] * w for _ in range(h)]
+    for y in range(h):
+        for x in range(w):
+            edge[y][x] = _pixel_is_alpha_edge(px, x, y, w, h)
+
+    for y in range(h):
+        for x in range(w):
+            sr, sg, sb = rpx[x, y]
+            _r, _g, _b, a = px[x, y]
+            if a <= 0:
+                continue
+            if not edge[y][x]:
+                px[x, y] = (sr, sg, sb, 255)
+                continue
+            if a >= 255:
+                px[x, y] = (sr, sg, sb, 255)
+
+    for y in range(h):
+        for x in range(w):
+            if not edge[y][x]:
+                continue
+            r, g, b, a = px[x, y]
+            if a <= 0 or a >= 255:
+                continue
+            near = _nearest_opaque_source_rgb(px, x, y, w, h, rpx)
+            if near:
+                px[x, y] = (near[0], near[1], near[2], a)
+            else:
+                dr, dg, db, _da = decontaminate_semi_edge_pixel(r, g, b, a, (17, 17, 17))
+                px[x, y] = (dr, dg, db, a)
+    return out
+
+
+def strip_grey_matte_outline(rgba: Image.Image) -> Image.Image:
     img = rgba.convert("RGBA")
     px = img.load()
-    br, bgc, bb = bg
     w, h = img.size
     for y in range(h):
         for x in range(w):
             r, g, b, a = px[x, y]
-            if a <= 0 or a >= 255:
+            if a < 240:
                 continue
-            chroma = max(r, g, b) - min(r, g, b)
-            lum = (r + g + b) / 3
-            if chroma >= 20 or lum < 190:
+            if max(r, g, b) - min(r, g, b) > 22:
                 continue
-            af = a / 255.0
-            fr = int((r - br * (1.0 - af)) / max(af, 0.05))
-            fg = int((g - bgc * (1.0 - af)) / max(af, 0.05))
-            fb = int((b - bb * (1.0 - af)) / max(af, 0.05))
-            px[x, y] = (
-                max(0, min(255, fr)),
-                max(0, min(255, fg)),
-                max(0, min(255, fb)),
-                a,
-            )
+            if (r + g + b) / 3 < 210:
+                continue
+            edge = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                    edge = True
+                    break
+                if px[nx, ny][3] < 32:
+                    edge = True
+                    break
+            if edge:
+                px[x, y] = (r, g, b, 0)
     return img
 
 
-def postprocess_cutout(skin_id: str, cut: Image.Image) -> Image.Image:
-    out = defringe_gray_halos(cut)
-    out = defringe_alpha_edge_only(out)
-    out = decontaminate_alpha_edges(out)
-    for _ in range(4):
+def postprocess_cutout(skin_id: str, cut: Image.Image, orig: Image.Image) -> Image.Image:
+    del skin_id
+    return finalize_alpha_matte(cut, orig)
+
+
+def finish_shipped_variant(rgba: Image.Image) -> Image.Image:
+    out = strip_grey_matte_outline(rgba)
+    for _ in range(2):
         out = strip_outline_near_white(out)
     return out
 
@@ -449,6 +548,18 @@ def world_variant(img: Image.Image, out_w: int = 280) -> Image.Image:
     return cropped.resize((out_w, max(1, int(ch * ratio))), Image.Resampling.LANCZOS)
 
 
+def interior_rgb_sha256(rgba: Image.Image) -> str:
+    h = hashlib.sha256()
+    px = rgba.load()
+    w, hgt = rgba.size
+    for y in range(hgt):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a == 255:
+                h.update(bytes((r, g, b)))
+    return h.hexdigest()
+
+
 def alpha_stats(alpha: Image.Image) -> dict:
     px = alpha.load()
     w, h = alpha.size
@@ -470,9 +581,25 @@ def write_alpha_ref(slug: str, kind: str, rgba: Image.Image) -> tuple[str, str, 
     return rel, sha256_file(ref_path), alpha_stats(alpha)
 
 
+def orig_rgb_with_cut_alpha(orig: Image.Image, cut: Image.Image) -> Image.Image:
+    rgb = orig.convert("RGB")
+    alpha = cut.split()[3]
+    out = Image.new("RGBA", rgb.size)
+    out.paste(rgb, (0, 0))
+    out.putalpha(alpha)
+    return out
+
+
+def variant_locked(orig: Image.Image, cut: Image.Image, variant_fn) -> Image.Image:
+    matte = orig_rgb_with_cut_alpha(orig, cut)
+    out = variant_fn(cut)
+    ref = variant_fn(matte)
+    return finalize_alpha_matte(out, ref.convert("RGB"))
+
+
 def build_cutout_from_source(orig: Image.Image, skin_id: str) -> Image.Image:
     cut = rembg_alpha_matte(orig)
-    return postprocess_cutout(skin_id, cut)
+    return postprocess_cutout(skin_id, cut, orig)
 
 
 def write_manifest(skins_out: dict) -> None:
@@ -493,6 +620,10 @@ def write_manifest(skins_out: dict) -> None:
             entry["world"]["alphaRef"] = data["worldAlphaRef"]
             entry["world"]["alphaSha256"] = data["worldAlphaSha256"]
             entry["world"]["alphaStats"] = data["worldAlphaStats"]
+        if data.get("portraitInteriorRgbSha256"):
+            entry["portrait"]["interiorRgbSha256"] = data["portraitInteriorRgbSha256"]
+        if data.get("worldInteriorRgbSha256"):
+            entry["world"]["interiorRgbSha256"] = data["worldInteriorRgbSha256"]
         entry["world"]["derivative"] = "rembg alpha matte + padded bbox crop + 280px wide WebP"
     MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf8")
 
@@ -513,17 +644,15 @@ def main() -> None:
         slug = source_name.replace(".png", "")
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"
-        port_final = strip_outline_near_white(portrait_variant(cut))
-        for _ in range(2):
-            port_final = strip_outline_near_white(port_final)
+        port_final = finish_shipped_variant(variant_locked(orig, cut, portrait_variant))
         port_alpha_ref, port_alpha_sha, port_alpha_stats = write_alpha_ref(slug, "portrait", port_final)
-        port_sha = save_webp(port_final, port_path)
+        port_interior_sha = interior_rgb_sha256(port_final)
+        port_sha = save_webp(port_final, port_path, lossless=True)
 
         world_path = SHIPPED_DIR / f"{slug}-world.webp"
-        world_final = strip_outline_near_white(world_variant(cut))
-        for _ in range(6):
-            world_final = strip_outline_near_white(world_final)
+        world_final = finish_shipped_variant(variant_locked(orig, cut, world_variant))
         world_alpha_ref, world_alpha_sha, world_alpha_stats = write_alpha_ref(slug, "world", world_final)
+        world_interior_sha = interior_rgb_sha256(world_final)
         world_sha = save_webp(world_final, world_path, lossless=True)
 
         skins_out[skin_id] = {
@@ -534,11 +663,13 @@ def main() -> None:
             "portraitAlphaRef": port_alpha_ref,
             "portraitAlphaSha256": port_alpha_sha,
             "portraitAlphaStats": port_alpha_stats,
+            "portraitInteriorRgbSha256": port_interior_sha,
             "worldPath": str(world_path.relative_to(ROOT)).replace("\\", "/"),
             "worldSha256": world_sha,
             "worldAlphaRef": world_alpha_ref,
             "worldAlphaSha256": world_alpha_sha,
             "worldAlphaStats": world_alpha_stats,
+            "worldInteriorRgbSha256": world_interior_sha,
         }
         print(skin_id, source_sha[:12], "portrait", port_sha[:12], "world", world_sha[:12])
 
