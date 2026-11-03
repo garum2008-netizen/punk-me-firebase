@@ -143,9 +143,36 @@ export function isDedicatedShippedHero(characterId) {
   return shippedMeshyIds.includes(id);
 }
 
+async function loadGltfOnce(loader, url) {
+  return loader.loadAsync(url);
+}
+
+async function loadGltfWithRetry(loader, url) {
+  try {
+    return await loadGltfOnce(loader, url);
+  } catch (_) {
+    await new Promise(r => setTimeout(r, 450));
+    return loadGltfOnce(loader, url);
+  }
+}
+
+function markTemplateLoadFailed(id, url) {
+  templateByCharacter.set(id, {
+    loadFailed: true,
+    failedUrl: url,
+    usesFallback: false,
+    def: { url, scale: 1.0, yRot: 0, clips: CLIPS_MESHY_IDLE }
+  });
+  notifyTemplateLoaded(id);
+}
+
 export async function loadMeshyTemplateForCharacter(characterId) {
   const id = characterId || DEFAULT_MESHY_CHARACTER;
-  if (templateByCharacter.has(id)) return templateByCharacter.get(id);
+  const existing = templateByCharacter.get(id);
+  if (existing) {
+    if (existing.loadFailed) return null;
+    return existing;
+  }
 
   const loader = new GLTFLoader();
   const shipped = await getShippedMeshyIds();
@@ -164,12 +191,34 @@ export async function loadMeshyTemplateForCharacter(characterId) {
     usesFallback = true;
   }
 
-  const gltf = await loader.loadAsync(url);
-  const entry = buildTemplateFromGltf(gltf, url, usesFallback);
-  if (id === "vienna") entry.usesFallback = false;
-  templateByCharacter.set(id, entry);
-  notifyTemplateLoaded(id);
-  return entry;
+  try {
+    const gltf = await loadGltfWithRetry(loader, url);
+    const entry = buildTemplateFromGltf(gltf, url, usesFallback);
+    if (id === "vienna") entry.usesFallback = false;
+    templateByCharacter.set(id, entry);
+    notifyTemplateLoaded(id);
+    return entry;
+  } catch (_) {
+    if (shipped.includes(id) && id !== "vienna") {
+      markTemplateLoadFailed(id, url.split("?")[0]);
+      return null;
+    }
+    if (!usesFallback && id !== "vienna") {
+      markTemplateLoadFailed(id, url);
+      return null;
+    }
+    try {
+      const gltf = await loadGltfWithRetry(loader, MESHY_FALLBACK_GLB);
+      const entry = buildTemplateFromGltf(gltf, MESHY_FALLBACK_GLB, true);
+      entry.usesFallback = true;
+      templateByCharacter.set(id, entry);
+      notifyTemplateLoaded(id);
+      return entry;
+    } catch (_e) {
+      markTemplateLoadFailed(id, url);
+      return null;
+    }
+  }
 }
 
 /** @deprecated use loadMeshyTemplateForCharacter("vienna") */
@@ -193,8 +242,10 @@ export function getTemplateForCharacter(characterId, opts = {}) {
   const raw = characterId || DEFAULT_MESHY_CHARACTER;
   const id = raw === "life_ch1_proxy" ? "vienna" : raw;
   let t = templateByCharacter.get(raw) || templateByCharacter.get(id);
+  if (t?.loadFailed) return null;
   if (t && !allowFallback && t.usesFallback) t = null;
   if (!t && allowFallback) t = templateByCharacter.get(DEFAULT_MESHY_CHARACTER);
+  if (t?.loadFailed) return null;
   if (!t) return null;
   return { key: raw, characterId: id, ...t };
 }

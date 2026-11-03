@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-ch1-angelina-r7";
+const GAME_VERSION = "living3d-v22r5-ch1-angelina-r8";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -228,6 +228,8 @@ const LOCATIONS = {
     parkour: true, night: true
   }
 };
+
+window.LOCATIONS = LOCATIONS;
 
 const NPCS = {
   razor: {
@@ -1033,6 +1035,8 @@ function continueGameBoot() {
     hideLoading();
     if (isPreviewBuild()) document.body.classList.add("punk-preview-solo");
     initResponsiveHud();
+    initMobileTravelNav();
+    exposePreviewBuildHooks();
     if (window.Onboarding) Onboarding.init();
     window.Onboarding?.adaptSpawnLocation?.();
     if (me.onboarding?.done) {
@@ -1107,6 +1111,12 @@ function renderMapModal() {
 function renderQuickNav() {
   const el = document.getElementById("navQuick");
   if (!el) return;
+  const mobile = window.matchMedia("(max-width: 900px)").matches;
+  if (mobile) {
+    el.innerHTML = "";
+    renderMobileNavSheet();
+    return;
+  }
   const picks = ["room", "street", "cemetery", "city", "construction", "roof", "parkour"].filter(id => id !== me.location);
   const navKey = {
     room: "nav_room", street: "nav_street", cemetery: "nav_cemetery", city: "nav_city",
@@ -1115,6 +1125,64 @@ function renderQuickNav() {
   el.innerHTML = picks.map(id =>
     `<button type="button" class="btn secondary" onclick="goLocation('${id}')">${t(navKey[id])}</button>`
   ).join("");
+  renderMobileNavSheet();
+}
+
+function renderMobileNavSheet() {
+  const grid = document.getElementById("mobileNavGrid");
+  if (!grid || !me) return;
+  grid.innerHTML = Object.values(LOCATIONS)
+    .map(loc => {
+      const here = me.location === loc.id;
+      return `<button type="button" class="btn secondary mobile-nav-loc" data-loc="${loc.id}" data-testid="mobile-nav-${loc.id}" ${here ? "disabled" : ""}>${escapeHtml(locTitle(loc.id))}${here ? " ✓" : ""}</button>`;
+    })
+    .join("");
+  grid.querySelectorAll(".mobile-nav-loc").forEach(btn => {
+    btn.onclick = () => {
+      if (btn.disabled) return;
+      goLocation(btn.dataset.loc);
+      closeMobileNavSheet();
+    };
+  });
+}
+
+function openMobileNavSheet() {
+  const sheet = document.getElementById("mobileNavSheet");
+  const fab = document.getElementById("mobileNavFab");
+  if (!sheet) return;
+  renderMobileNavSheet();
+  sheet.hidden = false;
+  sheet.classList.add("open");
+  document.body.classList.add("mobile-travel-sheet-open");
+  fab?.setAttribute("aria-expanded", "true");
+}
+
+function closeMobileNavSheet() {
+  const sheet = document.getElementById("mobileNavSheet");
+  const fab = document.getElementById("mobileNavFab");
+  sheet?.classList.remove("open");
+  document.body.classList.remove("mobile-travel-sheet-open");
+  fab?.setAttribute("aria-expanded", "false");
+  if (sheet) {
+    setTimeout(() => {
+      if (!sheet.classList.contains("open")) sheet.hidden = true;
+    }, 220);
+  }
+}
+
+function initMobileTravelNav() {
+  if (window._mobileTravelNavInit) return;
+  window._mobileTravelNavInit = true;
+  document.getElementById("mobileNavFab")?.addEventListener("click", e => {
+    e.stopPropagation();
+    const sheet = document.getElementById("mobileNavSheet");
+    if (sheet?.classList.contains("open")) closeMobileNavSheet();
+    else openMobileNavSheet();
+  });
+  document.getElementById("mobileNavClose")?.addEventListener("click", () => closeMobileNavSheet());
+  document.getElementById("mobileNavSheet")?.addEventListener("click", e => {
+    if (e.target.id === "mobileNavSheet") closeMobileNavSheet();
+  });
 }
 
 function hideLoading() {
@@ -1499,7 +1567,7 @@ function onRoomClick(e) {
   const x = ((e.clientX - rect.left) / rect.width) * 100;
   const y = ((e.clientY - rect.top) / rect.height) * 100;
   if (buildMode && LOCATIONS[me.location].buildZone === "city") {
-    tryPlaceBuild(x, y);
+    placeBuildAt(x, y);
     return;
   }
   me.x = Math.max(5, Math.min(95, x));
@@ -2254,9 +2322,14 @@ window.setBuildType = function (bt) {
 };
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
-window.tryPlaceBuild = function (x, y) {
-  if (!isPreviewBuild() && !window.LifeCh1Slice?.isLifeCh1TestMode?.()) return;
+function tryPlaceBuild(x, y) {
   placeBuildAt(x, y);
-};
+}
+
+function exposePreviewBuildHooks() {
+  if (isPreviewBuild() || window.LifeCh1Slice?.isLifeCh1TestMode?.()) {
+    window.tryPlaceBuild = tryPlaceBuild;
+  }
+}
 
 document.addEventListener("DOMContentLoaded", init);

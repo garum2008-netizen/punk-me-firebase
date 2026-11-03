@@ -1370,6 +1370,13 @@ function updateThirdPersonCamera(dt = lastCameraDt) {
   if (pl && !captureFrameLock) dimPropsBetweenCameraAnd(pl.wx, 1.05, pl.wz, 0.22);
 }
 
+function patrolWaypointBlocked(x, z) {
+  if (guideTarget?.wx != null && guideTarget?.wz != null) {
+    if (Math.hypot(x - guideTarget.wx, z - guideTarget.wz) < 2.45) return true;
+  }
+  return false;
+}
+
 function tickNpcPatrols(dt) {
   const pl = actors.get("player");
   actors.forEach((a, id) => {
@@ -1398,6 +1405,12 @@ function tickNpcPatrols(dt) {
     if (!a._patrol?.length) return;
     const path = a._patrol;
     let idx = a._patrolIdx || 0;
+    let guard = 0;
+    while (guard < path.length && patrolWaypointBlocked(path[idx].x, path[idx].z)) {
+      idx = (idx + 1) % path.length;
+      guard++;
+    }
+    a._patrolIdx = idx;
     const tgt = path[idx];
     const dx = tgt.x - a.wx;
     const dz = tgt.z - a.wz;

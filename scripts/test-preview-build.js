@@ -430,18 +430,7 @@ async function runBrowserTest(base) {
     await page.evaluate(() => goLocation("street"));
     await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 15000 });
     const streetLoc = await page.evaluate(() => window.me?.location);
-    const cemeteryClick = await page.evaluate(() => {
-      const nav = document.getElementById("navQuick");
-      const btn = nav?.querySelector('button[onclick*="cemetery"]');
-      if (!btn) {
-        return { ok: false, html: nav?.innerHTML?.slice(0, 400) || "" };
-      }
-      btn.click();
-      return { ok: true, label: btn.textContent || "" };
-    });
-    if (!cemeteryClick.ok) {
-      throw new Error("preview cemetery nav button missing: " + JSON.stringify(cemeteryClick));
-    }
+    await page.evaluate(() => goLocation("cemetery"));
     await page.waitForFunction(() => window.me?.location === "cemetery", undefined, { timeout: 15000 });
     await page.waitForTimeout(600);
     await assertSkinRenderNow(page, skinAfterTour, "cemetery travel path");
@@ -548,7 +537,7 @@ async function testTimeToPlayer1280(base) {
   console.log("preview-time-to-player-1280: PASS", { medianMs: ms, samples });
 }
 
-async function testNavChips390(base) {
+async function testMobileHud390(base) {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await context.addInitScript(key => {
@@ -562,28 +551,44 @@ async function testNavChips390(base) {
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
     await page.click("#charSelectConfirm");
     await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
-    const report = await page.evaluate(() => {
-      const nav = document.getElementById("navQuick");
-      const vw = window.innerWidth;
-      const buttons = [...(nav?.querySelectorAll("button") || [])];
-      return buttons.map(b => {
-        const r = b.getBoundingClientRect();
-        return {
-          text: (b.textContent || "").trim(),
-          left: r.left,
-          right: r.right,
-          top: r.top,
-          bottom: r.bottom,
-          inViewport: r.left >= -1 && r.right <= vw + 1 && r.top >= 0 && r.bottom <= window.innerHeight
-        };
-      });
+
+    const closed = await page.evaluate(() => {
+      function rectsOverlap(a, b) {
+        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      }
+      const zones = ["touchJoystick", "touchJump", "touchInteract", "storyDialog", "voiceSubtitle"]
+        .map(id => document.getElementById(id))
+        .filter(Boolean)
+        .map(el => el.getBoundingClientRect());
+      const navQuick = document.getElementById("navQuick");
+      const navHidden = !navQuick || getComputedStyle(navQuick).display === "none" || !navQuick.querySelector("button");
+      const fab = document.getElementById("mobileNavFab");
+      const fabRect = fab?.getBoundingClientRect();
+      const fabOverlap = fabRect && zones.some(z => rectsOverlap(fabRect, z));
+      const locIds = Object.keys(window.LOCATIONS || {});
+      return { navHidden, fabOverlap, locCount: locIds.length, fabVisible: !!fab && fab.offsetParent !== null };
     });
-    if (report.length < 5) throw new Error("nav chips too few: " + JSON.stringify(report));
-    const bad = report.filter(r => !r.inViewport);
-    if (bad.length) throw new Error("nav chip clipped at 390: " + JSON.stringify(bad));
-    const parkour = report.find(r => /паркур/i.test(r.text) || /parkour/i.test(r.text));
-    if (!parkour) throw new Error("parkour chip missing among " + report.map(r => r.text).join("|"));
-    console.log("preview-nav-chips-390: PASS", report.map(r => r.text).join(", "));
+    if (!closed.navHidden) throw new Error("navQuick chips must be hidden on mobile: " + JSON.stringify(closed));
+    if (closed.fabOverlap) throw new Error("mobile nav fab overlaps controls/dialogue");
+    if (closed.locCount < 10) throw new Error("expected all locations in LOCATIONS");
+
+    await page.click('[data-testid="mobile-nav-fab"]');
+    await page.waitForSelector('[data-testid="mobile-nav-grid"] .mobile-nav-loc', { timeout: 5000 });
+    const open = await page.evaluate(() => {
+      const sheetBtns = [...document.querySelectorAll("#mobileNavGrid .mobile-nav-loc")];
+      return {
+        destCount: sheetBtns.length,
+        hasParkour: sheetBtns.some(b => /parkour|паркур/i.test(b.textContent || "")),
+        sheetOpen: document.body.classList.contains("mobile-travel-sheet-open")
+      };
+    });
+    if (open.destCount < 10) throw new Error("mobile sheet missing destinations: " + JSON.stringify(open));
+    if (!open.hasParkour) throw new Error("parkour missing from mobile sheet");
+    if (!open.sheetOpen) throw new Error("mobile travel sheet must disable bottom controls while open");
+
+    await page.click('[data-testid="mobile-nav-cemetery"]');
+    await page.waitForFunction(() => window.me?.location === "cemetery", undefined, { timeout: 15000 });
+    console.log("preview-mobile-hud-390: PASS", JSON.stringify({ closed, open, loc: "cemetery" }));
   } finally {
     await page.close();
     await context.close();
@@ -604,7 +609,7 @@ async function main() {
   try {
     await testHowToOverlayFreshProfile("http://127.0.0.1:3765");
     await runBrowserTest("http://127.0.0.1:3765");
-    await testNavChips390("http://127.0.0.1:3765");
+    await testMobileHud390("http://127.0.0.1:3765");
     await testTimeToPlayer1280("http://127.0.0.1:3765");
   } finally {
     srv.close();

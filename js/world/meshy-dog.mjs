@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 export const PUNK_DOG_GLB = "assets/models/pets/punk_dog.glb";
 const TARGET_HEIGHT = 0.57;
@@ -13,7 +14,9 @@ function footLift(scene, scale) {
 
 export async function loadPunkDogTemplate() {
   if (dogTemplate) return dogTemplate;
-  const gltf = await new GLTFLoader().loadAsync(PUNK_DOG_GLB);
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  const gltf = await loader.loadAsync(PUNK_DOG_GLB);
   gltf.scene.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(gltf.scene);
   const h = Math.max(box.max.y - box.min.y, 0.001);

@@ -47,10 +47,21 @@ async function main() {
 
   for (const rel of [
     "assets/models/meshy/mohawk.glb",
-    "assets/models/meshy/cobalt.glb",
-    "assets/models/pets/punk_dog.glb"
+    "assets/models/meshy/cobalt.glb"
   ]) {
     if (!assertSameAsMain(rel)) failed++;
+  }
+
+  const dogPath = path.join(root, "assets/models/pets/punk_dog.glb");
+  if (!fs.existsSync(dogPath)) {
+    console.error("FAIL: missing punk_dog.glb");
+    failed++;
+  } else {
+    const dogBytes = fs.statSync(dogPath).size;
+    if (dogBytes > 600000) {
+      console.error("FAIL: punk_dog.glb too large", dogBytes);
+      failed++;
+    }
   }
 
   const gameJs = fs.readFileSync(path.join(root, "js/game.js"), "utf8");

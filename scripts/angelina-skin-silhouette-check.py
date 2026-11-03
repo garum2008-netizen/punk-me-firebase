@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate shipped Angelina WebP cutouts (PIL only — no rembg / rebuild import)."""
+"""Validate shipped WebP alpha vs rebuild-time alpha-ref PNGs (no rembg at test time)."""
 from __future__ import annotations
 
 import json
@@ -32,7 +32,6 @@ def content_bbox(alpha: Image.Image, alpha_min: int = 32) -> tuple[int, int, int
 
 
 def outline_near_white_halos(rgba: Image.Image, limit: int = 800) -> int:
-    """Opaque near-white RGB pixels touching transparent background (matte fringing)."""
     img = rgba.convert("RGBA")
     w, h = img.size
     px = img.load()
@@ -58,7 +57,6 @@ def outline_near_white_halos(rgba: Image.Image, limit: int = 800) -> int:
 
 
 def feet_opaque_rectangle(alpha: Image.Image, band_ratio: float = 0.16) -> bool:
-    """Detect a wide opaque bar under the feet (contact shadow rectangle)."""
     w, h = alpha.size
     px = alpha.load()
     y0 = int(h * (1 - band_ratio))
@@ -89,6 +87,20 @@ def bbox_margins(alpha) -> dict:
     return {"left": minx, "top": miny, "right": w - maxx, "bottom": h - maxy}
 
 
+def mask_dropouts(expected, actual) -> int:
+    w, h = expected.size
+    if expected.size != actual.size:
+        return w * h
+    ep = expected.load()
+    ap = actual.load()
+    bad = 0
+    for y in range(h):
+        for x in range(w):
+            if ep[x, y] >= SOLID and ap[x, y] < SOLID - WEBP_SLACK:
+                bad += 1
+    return bad
+
+
 def main() -> int:
     manifest = json.loads(MANIFEST.read_text(encoding="utf8"))
     failed = 0
@@ -97,7 +109,29 @@ def main() -> int:
         for kind in ("portrait", "world"):
             shipped = Image.open(ROOT / entry[kind]["path"]).convert("RGBA")
             act_a = shipped.split()[3]
-            m = bbox_margins(act_a)
+            ref_rel = entry[kind].get("alphaRef")
+            ref_sha = entry[kind].get("alphaSha256")
+            if not ref_rel or not ref_sha:
+                print(f"FAIL {skin_id} {kind}: missing alphaRef in manifest")
+                failed += 1
+                continue
+            ref_path = ROOT / ref_rel
+            if sha256_file(ref_path) != ref_sha:
+                print(f"FAIL {skin_id} {kind}: alphaRef sha mismatch")
+                failed += 1
+                continue
+            exp_a = Image.open(ref_path).convert("L")
+            if exp_a.size != act_a.size:
+                print(f"FAIL {skin_id} {kind}: alpha size {act_a.size} != ref {exp_a.size}")
+                failed += 1
+                continue
+            drops = mask_dropouts(exp_a, act_a)
+            if drops > 0:
+                print(f"FAIL {skin_id} {kind}: silhouette dropouts vs alpha-ref {drops}")
+                failed += 1
+            else:
+                print(f"OK {skin_id} {kind}: alpha matches rebuild ref")
+            m = bbox_margins(exp_a)
             if m["top"] < 4 or m["bottom"] < 4:
                 print(f"FAIL {skin_id} {kind}: vertical margin {m}")
                 failed += 1
@@ -115,6 +149,16 @@ def main() -> int:
             else:
                 print(f"OK {skin_id} {kind}: no feet rectangle")
     return 1 if failed else 0
+
+
+def sha256_file(p: Path) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 if __name__ == "__main__":

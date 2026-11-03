@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SKIN_DIR = ROOT / "assets/ui/angelina-skins"
 SOURCE_DIR = SKIN_DIR / "source"
 SHIPPED_DIR = SKIN_DIR / "shipped"
+REF_DIR = SKIN_DIR / "alpha-ref"
 MANIFEST_PATH = ROOT / "data/story/angelina-skin-manifest.json"
 
 SOURCES = {
@@ -419,6 +420,27 @@ def world_variant(img: Image.Image, out_w: int = 280) -> Image.Image:
     return cropped.resize((out_w, max(1, int(ch * ratio))), Image.Resampling.LANCZOS)
 
 
+def alpha_stats(alpha: Image.Image) -> dict:
+    px = alpha.load()
+    w, h = alpha.size
+    opaque = 0
+    for y in range(h):
+        for x in range(w):
+            if px[x, y] >= 230:
+                opaque += 1
+    return {"width": w, "height": h, "opaquePixels": opaque}
+
+
+def write_alpha_ref(slug: str, kind: str, rgba: Image.Image) -> tuple[str, str, dict]:
+    REF_DIR.mkdir(parents=True, exist_ok=True)
+    alpha = rgba.split()[3]
+    ref_name = f"{slug}-{kind}-alpha.png"
+    ref_path = REF_DIR / ref_name
+    alpha.save(ref_path, optimize=True)
+    rel = str(ref_path.relative_to(ROOT)).replace("\\", "/")
+    return rel, sha256_file(ref_path), alpha_stats(alpha)
+
+
 def build_cutout_from_source(orig: Image.Image, skin_id: str) -> Image.Image:
     cut = rembg_alpha_matte(orig)
     return postprocess_cutout(skin_id, cut)
@@ -434,6 +456,14 @@ def write_manifest(skins_out: dict) -> None:
         entry = manifest["skins"][skin_id]
         entry["portrait"]["sha256"] = data["portraitSha256"]
         entry["world"]["sha256"] = data["worldSha256"]
+        if data.get("portraitAlphaRef"):
+            entry["portrait"]["alphaRef"] = data["portraitAlphaRef"]
+            entry["portrait"]["alphaSha256"] = data["portraitAlphaSha256"]
+            entry["portrait"]["alphaStats"] = data["portraitAlphaStats"]
+        if data.get("worldAlphaRef"):
+            entry["world"]["alphaRef"] = data["worldAlphaRef"]
+            entry["world"]["alphaSha256"] = data["worldAlphaSha256"]
+            entry["world"]["alphaStats"] = data["worldAlphaStats"]
         entry["world"]["derivative"] = "rembg alpha matte + padded bbox crop + 280px wide WebP"
     MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf8")
 
@@ -457,12 +487,14 @@ def main() -> None:
         port_final = strip_outline_near_white(portrait_variant(cut))
         for _ in range(2):
             port_final = strip_outline_near_white(port_final)
+        port_alpha_ref, port_alpha_sha, port_alpha_stats = write_alpha_ref(slug, "portrait", port_final)
         port_sha = save_webp(port_final, port_path)
 
         world_path = SHIPPED_DIR / f"{slug}-world.webp"
         world_final = strip_outline_near_white(world_variant(cut))
         for _ in range(6):
             world_final = strip_outline_near_white(world_final)
+        world_alpha_ref, world_alpha_sha, world_alpha_stats = write_alpha_ref(slug, "world", world_final)
         world_sha = save_webp(world_final, world_path, lossless=True)
 
         skins_out[skin_id] = {
@@ -470,8 +502,14 @@ def main() -> None:
             "sourceSha256": source_sha,
             "portraitPath": str(port_path.relative_to(ROOT)).replace("\\", "/"),
             "portraitSha256": port_sha,
+            "portraitAlphaRef": port_alpha_ref,
+            "portraitAlphaSha256": port_alpha_sha,
+            "portraitAlphaStats": port_alpha_stats,
             "worldPath": str(world_path.relative_to(ROOT)).replace("\\", "/"),
             "worldSha256": world_sha,
+            "worldAlphaRef": world_alpha_ref,
+            "worldAlphaSha256": world_alpha_sha,
+            "worldAlphaStats": world_alpha_stats,
         }
         print(skin_id, source_sha[:12], "portrait", port_sha[:12], "world", world_sha[:12])
 

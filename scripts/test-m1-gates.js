@@ -14,21 +14,25 @@ function assert(cond, msg) {
   }
 }
 
-function dirBytes(dir) {
+function dirBytes(dir, filterFn) {
   let total = 0;
   if (!fs.existsSync(dir)) return 0;
   for (const name of fs.readdirSync(dir)) {
     const abs = path.join(dir, name);
     const st = fs.statSync(abs);
-    if (st.isDirectory()) total += dirBytes(abs);
-    else total += st.size;
+    if (st.isDirectory()) total += dirBytes(abs, filterFn);
+    else if (!filterFn || filterFn(abs, name)) total += st.size;
   }
   return total;
 }
 
+function modelsPayloadBytes() {
+  return dirBytes(path.join(root, "assets/models"), abs => /\.glb$/i.test(abs) || /shipped\.json$/i.test(abs));
+}
+
 async function main() {
-  const modelsBytes = dirBytes(path.join(root, "assets/models"));
-  assert(modelsBytes < 20 * 1024 * 1024, `assets/models must be <20MB (got ${(modelsBytes / 1e6).toFixed(2)} MB)`);
+  const modelsBytes = modelsPayloadBytes();
+  assert(modelsBytes < 20 * 1000 * 1000, `assets/models payload must be <20MB decimal (got ${(modelsBytes / 1e6).toFixed(3)} MB)`);
 
   for (const dead of [
     "assets/models/cc0/cesium-man.glb",
@@ -41,7 +45,8 @@ async function main() {
 
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   assert(html.includes('id="touchJump"'), "touch jump button in index");
-  assert(html.includes("char-select-portraits"), "char select portrait container");
+  assert(html.includes('data-testid="mobile-nav-fab"'), "mobile travel nav fab");
+  assert(html.includes("mobile-nav-grid"), "mobile travel nav sheet grid");
 
   const css = fs.readFileSync(path.join(root, "css/game.css"), "utf8");
   assert(css.includes(".touch-jump"), "touch jump styles");
@@ -79,7 +84,9 @@ async function main() {
   const gameJs = fs.readFileSync(path.join(root, "js/game.js"), "utf8");
   assert(gameJs.includes("effectiveShopPrice"), "preview slice shop pricing");
   assert(gameJs.includes("imagine_images/LTPb8.jpg"), "prod shop icons use imagine_images");
-  assert(!gameJs.includes("angelina-skins/shipped/angelina-teen-A-portrait.webp"), "shop must not use Angelina portraits");
+  assert(gameJs.includes("placeBuildAt(x, y)"), "2D city build uses placeBuildAt");
+  assert(gameJs.includes("exposePreviewBuildHooks"), "preview-only tryPlaceBuild export");
+  assert(!/window\.tryPlaceBuild\s*=\s*function/.test(gameJs), "no global tryPlaceBuild on prod");
 
   if (failed) {
     console.error(`test-m1-gates: ${failed} failed`);

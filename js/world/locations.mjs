@@ -107,7 +107,7 @@ export const NPC_WORLD = {
   room: {
     vienna: { x: -4.9, z: -1.1 },
     mohawk: { x: 5.4, z: 2.6 },
-    cobalt: { x: 2.0, z: -3.6 }
+    cobalt: { x: -2.2, z: -4.4 }
   },
   street: {
     razor: { x: -4.6, z: -3.4 },
@@ -162,10 +162,10 @@ export const NPC_PATROL = {
       { x: 5.4, z: 2.6 }
     ],
     cobalt: [
-      { x: 2.0, z: -3.6 },
-      { x: 0.6, z: -3.0 },
-      { x: 2.6, z: -2.5 },
-      { x: 2.0, z: -3.6 }
+      { x: -2.2, z: -4.4 },
+      { x: -3.4, z: -3.6 },
+      { x: -1.0, z: -3.8 },
+      { x: -2.2, z: -4.4 }
     ]
   },
   street: {
