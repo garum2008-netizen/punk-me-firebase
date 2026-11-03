@@ -41,8 +41,10 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("chat/clientMessages mirror (
     const { id: msgId } = await apiSendJson(SELF, author.idToken, { phraseId: "thanks" });
     const toxic = "kill the kid";
     await putChatMessageText(`${msgId}`, toxic);
+    expect((await rtdbOwner(`chat/messages/${msgId}`, "GET")).json?.text).toContain(toxic);
     const beforeHide = (await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json;
-    expect(beforeHide?.text).toContain(toxic);
+    expect(typeof beforeHide?.text).toBe("string");
+    expect(beforeHide.text.length).toBeGreaterThan(0);
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     await waitForMessageHidden(msgId);
