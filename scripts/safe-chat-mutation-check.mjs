@@ -339,23 +339,11 @@ const mutations = [
     expectFailTest: "PROTECT MIRROR: hidden message mirror omits body text",
     patches: [
       {
-        file: "src/client-message-mirror.js",
+        file: "src/child-safety-abuse.js",
         replacements: [
           {
-            from: `  if (canonical.hidden === true) {
-    out.hidden = true;
-    delete out.text;
-  }
-  if (canonical.textRedacted === true) {
-    out.textRedacted = true;
-    delete out.text;
-  }`,
-            to: `  if (canonical.hidden === true) {
-    out.hidden = true;
-  }
-  if (canonical.textRedacted === true) {
-    out.textRedacted = true;
-  } /* MUT-MIRROR-HIDDEN: keep text on client mirror */`
+            from: `  await rtdbRequest(config, \`\${pathClientChatMessage(msgId)}/text\`, "DELETE", null, token, emu, ns);`,
+            to: `  /* MUT-MIRROR-HIDDEN: leave toxic text on client mirror */`
           }
         ]
       }
