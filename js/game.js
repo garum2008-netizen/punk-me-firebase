@@ -968,7 +968,16 @@ function loadMe() {
 }
 
 function pickCharacterAndContinue(id) {
-  if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
+  if (window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) {
+    id = "cobalt";
+    window.LifeCh1Slice.ensureLifeCh1?.(me);
+    const st = me.lifeCh1;
+    if (st) {
+      st.playerCutout = true;
+      st.angelinaSkin = st.angelinaSkin || "A";
+    }
+    window.LifeCh1Slice.applySliceAngelinaPlayerChrome?.();
+  } else if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
   me.characterId = id;
   writeStoredCharacterId(id);
   const def = getCharacterDef(id);
@@ -1432,6 +1441,7 @@ function goLocation(id, fromHash) {
   refreshLifeScene();
   renderAll();
   syncStage3D();
+  window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
   toast(locTitle(id));
   if (pendingJobAction) {
     const act = pendingJobAction;
@@ -1695,6 +1705,7 @@ function openNpcDialog(nid) {
 }
 
 window.changeCharacter = function () {
+  if (window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) return;
   if (!window.CharSelect) return;
   CharSelect.open(id => {
     if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;

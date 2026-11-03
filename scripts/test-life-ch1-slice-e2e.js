@@ -161,8 +161,11 @@ async function run() {
   try {
     await page.goto(`${base}/${qs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForFunction(() => typeof firebase !== "undefined", undefined, { timeout: 60000 });
-    await page.waitForSelector(".char-pick", { timeout: 90000 });
-    await page.click('.char-pick[data-id="cobalt"]');
+    await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
+    const sliceChar = await page.locator('[data-testid="char-select-angelina"]').isVisible().catch(() => false);
+    if (!sliceChar) {
+      await page.click('.char-pick[data-id="cobalt"]');
+    }
     await page.click("#charSelectConfirm");
     await page.waitForFunction(
       () => window.__playerLoaded === true && window.me?.characterId === "cobalt",

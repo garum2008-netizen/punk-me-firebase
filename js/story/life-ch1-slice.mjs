@@ -202,6 +202,10 @@ function previewPlayerLifeCh1Skin(skinId) {
   const skin = normalizeSkinId(skinId);
   const url = worldUrl(skin, skinManifest);
   window.World3D?.clearAngelinaLifeBillboard?.();
+  if (isLifeCh1SliceEnabled()) {
+    window.World3D?.setPlayerLifeCh1Skin?.({ visible: true, url });
+    return;
+  }
   const show =
     (isActive() && !st.completed) ||
     st.completed ||
@@ -211,11 +215,21 @@ function previewPlayerLifeCh1Skin(skinId) {
     window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
     return;
   }
-  if (me()?.location !== "room") {
-    window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
+  window.World3D?.setPlayerLifeCh1Skin?.({ visible: true, url });
+}
+
+/** Slice: player is Angelina cutout — hide 3D hero swap UI. */
+export function applySliceAngelinaPlayerChrome() {
+  if (!isLifeCh1SliceEnabled()) {
+    document.body.classList.remove("life-ch1-angelina-player");
     return;
   }
-  window.World3D?.setPlayerLifeCh1Skin?.({ visible: true, url });
+  document.body.classList.add("life-ch1-angelina-player");
+  const st = ensureLifeCh1();
+  if (st) {
+    st.playerCutout = true;
+    st.angelinaSkin = normalizeSkinId(st.angelinaSkin || "A");
+  }
 }
 
 function useLocalOverlay() {
@@ -432,7 +446,9 @@ export async function tryStartAfterOnboarding() {
   st.active = true;
   st.startedAt = Date.now();
   st.stepIndex = 0;
+  st.playerCutout = true;
   document.body.classList.add("life-ch1-active");
+  applySliceAngelinaPlayerChrome();
   persistLocalOverlay();
   hooks.save?.();
   setSubtitle(
@@ -452,8 +468,10 @@ export async function tryStartAfterOnboarding() {
 
 export function onBoot() {
   restoreLocalOverlay();
+  applySliceAngelinaPlayerChrome();
   loadSpec().then(() => {
     if (!isLifeCh1SliceEnabled()) return;
+    applySliceAngelinaPlayerChrome();
     if (me()?.onboarding?.done && ensureLifeCh1()?.active) {
       syncBeacon();
       renderObjectivePanel();
@@ -523,9 +541,9 @@ function openWardrobePanel() {
   wardrobePending.outfitFlag = null;
   panel.hidden = false;
   document.getElementById("lifeCh1WardrobeTitle").textContent = L({
-    ru: "Ангелина — гардероб",
-    en: "Angelina — wardrobe",
-    da: "Angelina — garderobe"
+    ru: "Гардероб",
+    en: "Wardrobe",
+    da: "Garderobe"
   });
   document.getElementById("lifeCh1WardrobeHint").textContent = L({
     ru: "Выбери вид героя — в мире меняется твой персонаж.",
@@ -590,7 +608,8 @@ function openWardrobePanel() {
   document.getElementById("lifeCh1WardrobeClose").textContent = L({ ru: "Закрыть", en: "Close", da: "Luk" });
   document.getElementById("lifeCh1WardrobeClose").onclick = () => closeWardrobePanel();
   const defBtn = document.getElementById("lifeCh1WardrobeDefault");
-  if (defBtn) {
+  if (defBtn && !isLifeCh1SliceEnabled()) {
+    defBtn.hidden = false;
     defBtn.textContent = L({
       ru: "Вернуть стандартного героя (3D)",
       en: "Back to default hero (3D)",
@@ -603,6 +622,8 @@ function openWardrobePanel() {
       closeWardrobePanel();
       hooks.toast?.(L({ ru: "Стандартный герой", en: "Default hero", da: "Standard" }));
     };
+  } else if (defBtn) {
+    defBtn.hidden = true;
   }
   updateWardrobeConfirmState();
   syncPlayerLifeCh1Skin();
@@ -635,17 +656,20 @@ function showDialogue(dlgId) {
   window.StoryEngine?.dismissAllStoryUi?.();
   panel.classList.add("active", "life-ch1-dialog", "story-dialog-cinematic");
   if (title) {
-    title.textContent = L({
-      ru: "Ангелина",
-      en: "Angelina",
-      da: "Angelina"
-    });
+    if (node.speaker === "mira") {
+      title.textContent = L({ ru: "Мира", en: "Mira", da: "Mira" });
+    } else if (node.speaker === "player") {
+      title.textContent = L({ ru: "Ангелина", en: "Angelina", da: "Angelina" });
+    } else {
+      title.textContent = L({ ru: "Ангелина", en: "Angelina", da: "Angelina" });
+    }
   }
   const speakerLine = L(node.text);
   setSubtitle(speakerLine, 8000);
   playUiBlip();
   const skin = readSelectedSkin(ensureLifeCh1());
-  const portrait = node.speaker === "angelina" ? dialogPortraitHtml(skin) : "";
+  const portrait =
+    node.speaker === "player" || node.speaker === "angelina" ? dialogPortraitHtml(skin) : "";
 
   if (node.choices?.length) {
     body.innerHTML =
@@ -796,6 +820,7 @@ export async function initLifeCh1Slice(h) {
   hooks = h || {};
   skinManifest = await loadAngelinaSkinManifest();
   await loadSpec();
+  applySliceAngelinaPlayerChrome();
   window.LifeCh1Slice = {
     tryStartAfterOnboarding,
     onBoot,
@@ -815,6 +840,7 @@ export async function initLifeCh1Slice(h) {
     setAngelinaSkin,
     setDefaultPlayerLook,
     syncPlayerLifeCh1Skin,
+    applySliceAngelinaPlayerChrome,
     isLifeCh1SliceEnabled,
     isLifeCh1TestMode,
     pickReflectNode,

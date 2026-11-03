@@ -23,9 +23,15 @@ async function main() {
   assert(spec.dialogues.dlg_life_ch1_outfit.nodes.n0.choices.length === 3, "three outfit choices");
 
   const dlgReflect = spec.dialogues.dlg_life_ch1_reflect;
-  assert(pickReflectNode(dlgReflect, { mystery_open: true }).text.ru.includes("Мира"), "open flag consequence line");
-  assert(pickReflectNode(dlgReflect, { mystery_secret: true }).text.ru.includes("между"), "secret flag line");
+  assert(pickReflectNode(dlgReflect, { mystery_open: true }).text.ru.includes("Ангелина"), "open flag Mira addresses Angelina");
+  assert(pickReflectNode(dlgReflect, { mystery_secret: true }).text.ru.includes("никому"), "secret flag player line");
   assert(pickReflectNode(dlgReflect, {}).text.ru.includes("выбор"), "fallback line");
+  assert(pickReflectNode(dlgReflect, { mystery_trust_angelina: true }).speaker === "mira", "trust reflect is Mira");
+
+  const ruBlob = JSON.stringify(spec);
+  assert(!/Поговори с Ангелиной/i.test(ruBlob), "no talk-to-Angelina objective");
+  assert(!/Довериться Ангелине/i.test(ruBlob), "no trust Angelina choice");
+  assert(!/"speaker"\s*:\s*"angelina"/.test(ruBlob), "no angelina NPC speaker in slice JSON");
 
   const p = { lifeCh1: { v: 1, active: true, stepIndex: 1, angelinaSkin: "B" } };
   const st = ensureLifeCh1(p);

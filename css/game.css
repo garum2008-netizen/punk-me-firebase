@@ -864,6 +864,12 @@ body.life-ch1-active .hud-quests-wrap.collapsed .life-ch1-tracker { display: blo
 .life-ch1-outfit-row .selected { outline: 2px solid #a78bfa; }
 .life-ch1-dialog-row { display: flex; gap: 12px; align-items: flex-start; }
 .life-ch1-dialog-portrait { border-radius: 8px; border: 2px solid #7c3aed; flex-shrink: 0; background: transparent; }
+body.life-ch1-angelina-player button.lang-btn[onclick="changeCharacter()"],
+body.life-ch1-angelina-player #howtoChangeChar,
+body.life-ch1-angelina-player #lifeCh1WardrobeDefault {
+  display: none !important;
+}
+
 body.life-ch1-active .hud-quests-wrap {
   max-height: 18vh;
   overflow: hidden;

@@ -201,8 +201,11 @@ async function testHowToOverlayFreshProfile(base) {
     }, HOWTO_SEEN_KEY);
     await page.reload({ waitUntil: "load" });
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
-    await page.waitForSelector(".char-pick", { timeout: 90000 });
-    await page.click('.char-pick[data-id="cobalt"]');
+    await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
+    const sliceChar = await page.locator('[data-testid="char-select-angelina"]').isVisible().catch(() => false);
+    if (!sliceChar) {
+      await page.click('.char-pick[data-id="cobalt"]');
+    }
     await page.click("#charSelectConfirm");
     await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
     await page.waitForSelector("#howToOverlay.active", { timeout: 10000 });
@@ -256,8 +259,11 @@ async function runBrowserTest(base) {
     const banner = await page.textContent("#previewBuildBanner");
     if (!banner.includes("PREVIEW")) throw new Error("preview banner missing");
 
-    await page.waitForSelector(".char-pick", { timeout: 90000 });
-    await page.click('.char-pick[data-id="cobalt"]');
+    await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
+    const sliceChar = await page.locator('[data-testid="char-select-angelina"]').isVisible().catch(() => false);
+    if (!sliceChar) {
+      await page.click('.char-pick[data-id="cobalt"]');
+    }
     await page.click("#charSelectConfirm");
     await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
 
@@ -296,6 +302,36 @@ async function runBrowserTest(base) {
       { timeout: 15000 }
     );
     await waitUntilSkinRendered(page, "A");
+
+    await assertSkinRenderNow(page, "A", "room after wardrobe");
+    await page.evaluate(() => goLocation("street"));
+    await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 15000 });
+    await page.waitForTimeout(800);
+    await assertSkinRenderNow(page, "A", "street");
+    await page.evaluate(() => goLocation("cemetery"));
+    await page.waitForFunction(() => window.me?.location === "cemetery", undefined, { timeout: 15000 });
+    await page.waitForTimeout(800);
+    await assertSkinRenderNow(page, "A", "cemetery");
+    await page.evaluate(() => goLocation("room"));
+    await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 15000 });
+
+    const npcAngelinaUi = await page.evaluate(() => {
+      const slice = window.LifeCh1Slice?.isLifeCh1SliceEnabled?.();
+      if (!slice) return { ok: true };
+      const bad = [];
+      const q = document.getElementById("questBox");
+      const qt = q?.textContent || "";
+      if (/Поговори с Ангелиной/i.test(qt)) bad.push("quest:" + qt.slice(0, 80));
+      if (/Довериться Ангелине/i.test(qt)) bad.push("quest-trust");
+      const charBtn = document.querySelector('[data-i18n="char_change_btn"]');
+      if (charBtn && getComputedStyle(charBtn).display !== "none") bad.push("char_change visible");
+      const defBtn = document.getElementById("lifeCh1WardrobeDefault");
+      if (defBtn && !defBtn.hidden && getComputedStyle(defBtn).display !== "none") bad.push("wardrobe-default visible");
+      return { ok: bad.length === 0, bad };
+    });
+    if (!npcAngelinaUi.ok) {
+      throw new Error("slice Angelina player UI: " + JSON.stringify(npcAngelinaUi));
+    }
 
     const beforeReload = await page.evaluate(() => ({
       coins: window.me.coins,
@@ -356,6 +392,8 @@ async function runBrowserTest(base) {
       throw new Error("preview cemetery nav button missing: " + JSON.stringify(cemeteryClick));
     }
     await page.waitForFunction(() => window.me?.location === "cemetery", undefined, { timeout: 15000 });
+    await page.waitForTimeout(600);
+    await assertSkinRenderNow(page, "A", "cemetery travel path");
     const cemeteryScene = await page.evaluate(() => ({
       meLoc: window.me?.location,
       w3Loc: window.World3D?.countVisiblePropsInScene?.()?.location || null

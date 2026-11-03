@@ -112,9 +112,29 @@ function loop() {
   renderer?.render(scene, camera);
 }
 
+function isSliceAngelinaPlayer() {
+  return window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() === true;
+}
+
 function buildUi() {
   const ui = document.getElementById("charSelectUi");
   if (!ui) return;
+  if (isSliceAngelinaPlayer()) {
+    selectedIdx = Math.max(0, PLAYABLE_CHARACTER_IDS.indexOf("cobalt"));
+    const confirmLabel =
+      typeof t === "function" ? t("char_select_confirm") : "Play";
+    ui.innerHTML =
+      `<p class="char-select-slice-hint" data-testid="char-select-angelina">Angelina</p>` +
+      `<button type="button" class="btn" id="charSelectConfirm">${confirmLabel}</button>`;
+    const confirmBtn = document.getElementById("charSelectConfirm");
+    if (confirmBtn) {
+      confirmBtn.onclick = () => {
+        close();
+        onPickCb?.("cobalt");
+      };
+    }
+    return;
+  }
   ui.innerHTML = getPlayableCharacters().map((c, i) =>
     `<button type="button" class="btn char-pick ${i === selectedIdx ? "active" : ""}" data-idx="${i}" data-id="${c.id}">${c.id.toUpperCase()}</button>`
   ).join("") + `<button type="button" class="btn" id="charSelectConfirm">${typeof t === "function" ? t("char_select_confirm") : "Play"}</button>`;
@@ -162,6 +182,9 @@ function open(onPick) {
   resize();
   loadAllCc0Templates().then(() => {
     templatesReady = true;
+    if (isSliceAngelinaPlayer()) {
+      selectedIdx = Math.max(0, PLAYABLE_CHARACTER_IDS.indexOf("cobalt"));
+    }
     buildUi();
     showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
     if (!raf) loop();

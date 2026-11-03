@@ -25,9 +25,9 @@
     {
       "id": "trust",
       "objective": {
-        "ru": "Поговори с Ангелиной (метка в комнате) — выбери, кому доверяешь",
-        "en": "Talk to Angelina (marker in room) — choose who to trust",
-        "da": "Tal med Angelina — vælg hvem du stoler på"
+        "ru": "Подойди к метке в комнате — реши, кому доверишься",
+        "en": "Go to the marker in your room — decide who to trust",
+        "da": "Gå til markøren — vælg hvem du stoler på"
       },
       "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
       "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
@@ -37,9 +37,9 @@
     {
       "id": "reflect",
       "objective": {
-        "ru": "Снова поговори с Ангелиной — посмотри, что изменилось",
-        "en": "Talk to Angelina again — see what changed",
-        "da": "Tal med Angelina igen"
+        "ru": "Снова подойди к метке — оглянись на свой выбор",
+        "en": "Return to the marker — look back at your choice",
+        "da": "Gå tilbage til markøren — se på dit valg"
       },
       "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
       "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
@@ -51,9 +51,9 @@
     "dlg_life_ch1_outfit": {
       "nodes": {
         "n0": {
-          "speaker": "angelina",
+          "speaker": "player",
           "text": {
-            "ru": "Выбери, как ты хочешь выглядеть сегодня. Это только стиль — без давления.",
+            "ru": "Выбери, как ты хочешь выглядеть сегодня. Только стиль — без давления.",
             "en": "Pick how you want to look today. Style only — no pressure.",
             "da": "Vælg dit look i dag."
           },
@@ -80,11 +80,11 @@
     "dlg_life_ch1_trust": {
       "nodes": {
         "n0": {
-          "speaker": "angelina",
+          "speaker": "player",
           "text": {
-            "ru": "Я нашла записку на тумбочке. Что сделаем?",
-            "en": "I found a note on the desk. What should we do?",
-            "da": "Jeg fandt en seddel. Hvad gør vi?"
+            "ru": "На тумбочке лежит записка. Что делать?",
+            "en": "There's a note on the desk. What should I do?",
+            "da": "Der ligger en seddel. Hvad gør jeg?"
           },
           "choices": [
             {
@@ -98,18 +98,18 @@
               "flag": "mystery_open"
             },
             {
-              "id": "trust_angelina",
-              "text": { "ru": "Довериться Ангелине", "en": "Trust Angelina", "da": "Stol på Angelina" },
+              "id": "trust_mira",
+              "text": { "ru": "Довериться Мире", "en": "Trust Mira", "da": "Stol på Mira" },
               "flag": "mystery_trust_angelina"
             }
           ]
         },
         "n_after_calm": {
-          "speaker": "angelina",
+          "speaker": "player",
           "text": {
-            "ru": "Спокойный образ — хороший знак. Я нашла записку на тумбочке. Что сделаем?",
-            "en": "Calm look suits you. I found a note on the desk. What should we do?",
-            "da": "Roligt look. Jeg fandt en seddel."
+            "ru": "Спокойный образ — хороший знак. На тумбочке записка. Что делать?",
+            "en": "Calm look suits me. There's a note on the desk. What should I do?",
+            "da": "Roligt look. Der ligger en seddel."
           },
           "choices": [
             {
@@ -123,17 +123,17 @@
               "flag": "mystery_open"
             },
             {
-              "id": "trust_angelina",
-              "text": { "ru": "Довериться Ангелине", "en": "Trust Angelina", "da": "Stol på Angelina" },
+              "id": "trust_mira",
+              "text": { "ru": "Довериться Мире", "en": "Trust Mira", "da": "Stol på Mira" },
               "flag": "mystery_trust_angelina"
             }
           ]
         },
         "n_after_bright": {
-          "speaker": "angelina",
+          "speaker": "player",
           "text": {
-            "ru": "Ярко! Записка на тумбочке — не для всех глаз. Решай.",
-            "en": "Bold colors! There's a note on the desk — not for everyone. Your call.",
+            "ru": "Ярко! Записка на тумбочке — не для всех глаз. Решай сама.",
+            "en": "Bold colors! The note on the desk isn't for everyone. My call.",
             "da": "Klar stil! Der ligger en seddel."
           },
           "choices": [
@@ -148,16 +148,16 @@
               "flag": "mystery_open"
             },
             {
-              "id": "trust_angelina",
-              "text": { "ru": "Довериться Ангелине", "en": "Trust Angelina", "da": "Stol på Angelina" },
+              "id": "trust_mira",
+              "text": { "ru": "Довериться Мире", "en": "Trust Mira", "da": "Stol på Mira" },
               "flag": "mystery_trust_angelina"
             }
           ]
         },
         "n_after_bold": {
-          "speaker": "angelina",
+          "speaker": "player",
           "text": {
-            "ru": "Смело. Записка ждёт — если ошибёмся, последствия будут позже.",
+            "ru": "Смело. Записка ждёт — если ошибусь, последствия будут позже.",
             "en": "Brave look. The note can wait — but wrong moves echo later.",
             "da": "Modigt look. Sedlen venter."
           },
@@ -173,8 +173,8 @@
               "flag": "mystery_open"
             },
             {
-              "id": "trust_angelina",
-              "text": { "ru": "Довериться Ангелине", "en": "Trust Angelina", "da": "Stol på Angelina" },
+              "id": "trust_mira",
+              "text": { "ru": "Довериться Мире", "en": "Trust Mira", "da": "Stol på Mira" },
               "flag": "mystery_trust_angelina"
             }
           ]
@@ -184,36 +184,36 @@
     "dlg_life_ch1_reflect": {
       "nodes": {
         "n_secret": {
-          "speaker": "angelina",
+          "speaker": "player",
           "text": {
-            "ru": "Хорошо. Тайна останется между нами — пока ты не решишь иначе.",
-            "en": "Okay. It stays between us until you decide otherwise.",
-            "da": "Okay. Det bliver mellem os."
+            "ru": "Хорошо. Пока никому — пока сама не решишь иначе.",
+            "en": "Okay. No one else for now — until I decide otherwise.",
+            "da": "Okay. Ingen andre endnu."
           },
           "requiresFlag": "mystery_secret"
         },
         "n_open": {
-          "speaker": "angelina",
+          "speaker": "mira",
           "text": {
-            "ru": "Ладно… но Мира может обидеться, если узнает не от тебя.",
-            "en": "Alright… but Mira might be hurt if she hears it second-hand.",
-            "da": "Okay… men Mira kan blive ked af det."
+            "ru": "Ангелина, лучше расскажи мне сама — обидно узнать от других.",
+            "en": "Angelina, tell me yourself — it hurts to hear it second-hand.",
+            "da": "Angelina, fortæl mig det selv."
           },
           "requiresFlag": "mystery_open"
         },
         "n_trust": {
-          "speaker": "angelina",
+          "speaker": "mira",
           "text": {
-            "ru": "Спасибо. Я помогу — без геройства, обещаю.",
-            "en": "Thanks. I'll help — no heroics, I promise.",
-            "da": "Tak. Jeg hjælper dig."
+            "ru": "Спасибо, Ангелина. Я рядом — без геройства, обещаю.",
+            "en": "Thanks, Angelina. I'm here for you — no heroics, I promise.",
+            "da": "Tak, Angelina. Jeg er her."
           },
           "requiresFlag": "mystery_trust_angelina"
         },
         "n_fallback": {
-          "speaker": "angelina",
+          "speaker": "player",
           "text": {
-            "ru": "Ты уже сделал выбор — помни его.",
+            "ru": "Ты уже сделала выбор — помни его.",
             "en": "You already chose — remember it.",
             "da": "Du har allerede valgt."
           }
