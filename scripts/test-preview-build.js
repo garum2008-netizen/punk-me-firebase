@@ -137,10 +137,6 @@ async function assertSkinAtLocation(page, loc, skinLetter, label) {
 }
 
 async function assertNpcsVisible(page, loc, expectedIds) {
-  if (loc === "room") {
-    const ch1Room = await page.evaluate(() => window.LifeCh1Slice?.isActive?.());
-    if (ch1Room) expectedIds = [];
-  }
   await page.evaluate(id => goLocation(id), loc);
   await page.waitForFunction(l => window.me?.location === l, loc, { timeout: 20000 });
   await page.waitForTimeout(900);
@@ -522,6 +518,31 @@ async function runBrowserTest(base) {
   }
 }
 
+async function testTimeToPlayer1280(base) {
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await context.addInitScript(key => {
+    try {
+      localStorage.setItem(key, "1");
+    } catch (_) {}
+  }, HOWTO_SEEN_KEY);
+  const page = await context.newPage();
+  try {
+    await page.goto(`${base}/?lifeCh1E2e=1&v=ttp-1280`, { waitUntil: "load", timeout: 120000 });
+    await page.waitForSelector('[data-testid="char-select-angelina"], #charSelectConfirm', { timeout: 90000 });
+    const t0 = Date.now();
+    await page.click("#charSelectConfirm");
+    await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+    const ms = Date.now() - t0;
+    if (ms > 4000) throw new Error(`1280 time-to-player after confirm ${ms}ms (max 4000)`);
+    console.log("preview-time-to-player-1280: PASS", ms);
+  } finally {
+    await page.close();
+    await context.close();
+    await browser.close();
+  }
+}
+
 async function main() {
   runBuild();
   assertBundleNoProdSecrets();
@@ -535,6 +556,7 @@ async function main() {
   try {
     await testHowToOverlayFreshProfile("http://127.0.0.1:3765");
     await runBrowserTest("http://127.0.0.1:3765");
+    await testTimeToPlayer1280("http://127.0.0.1:3765");
   } finally {
     srv.close();
   }

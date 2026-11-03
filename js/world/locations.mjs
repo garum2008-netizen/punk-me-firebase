@@ -105,9 +105,9 @@ export const LOCATION_BOUNDS = {
 
 export const NPC_WORLD = {
   room: {
-    vienna: { x: -2.2, z: 1.2 },
-    mohawk: { x: 3.5, z: -1.5 },
-    cobalt: { x: 0.5, z: -2.2 }
+    vienna: { x: -5.4, z: 4.6 },
+    mohawk: { x: 5.6, z: 3.2 },
+    cobalt: { x: 5.2, z: -4.8 }
   },
   street: {
     razor: { x: -4.6, z: -3.4 },

@@ -18,7 +18,7 @@
     "test:preview-build": "node scripts/test-preview-build.js",
     "test:angelina-skin-manifest": "node scripts/test-angelina-skin-manifest.js",
     "test:angelina-skin-alpha": "node scripts/test-angelina-skin-alpha.js",
-    "test:life-ch1": "node scripts/test-angelina-skin-manifest.js && node scripts/test-angelina-skin-alpha.js && node scripts/test-angelina-skin-silhouette.js && node scripts/test-life-ch1-slice-unit.js && node scripts/test-life-ch1-claimed-rtdb-roundtrip.js && node scripts/test-m1-gates.js",
+    "test:life-ch1": "node scripts/test-angelina-skin-manifest.js && node scripts/test-angelina-skin-alpha.js && node scripts/test-angelina-skin-silhouette.js && node scripts/test-life-ch1-slice-unit.js && node scripts/test-life-ch1-claimed-rtdb-roundtrip.js && node scripts/test-m1-gates.js && node scripts/test-npc-mesh-templates.js",
     "test:parent-gate": "node scripts/test-parent-gate-unit.js",
     "test:checkout-api": "node scripts/test-checkout-api-unit.js",
     "test:preview-shop": "node scripts/test-parent-gate-unit.js && node scripts/test-checkout-api-unit.js",

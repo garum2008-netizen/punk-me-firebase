@@ -78,7 +78,8 @@ async function main() {
 
   const gameJs = fs.readFileSync(path.join(root, "js/game.js"), "utf8");
   assert(gameJs.includes("effectiveShopPrice"), "preview slice shop pricing");
-  assert(gameJs.includes("assets/ui/angelina-skins/shipped"), "shop uses shipped skin icons");
+  assert(gameJs.includes("imagine_images/LTPb8.jpg"), "prod shop icons use imagine_images");
+  assert(!gameJs.includes("angelina-skins/shipped/angelina-teen-A-portrait.webp"), "shop must not use Angelina portraits");
 
   if (failed) {
     console.error(`test-m1-gates: ${failed} failed`);

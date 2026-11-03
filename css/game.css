@@ -554,6 +554,11 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
     max-width: none;
     overflow: visible;
     text-overflow: clip;
+    padding-right: 12px;
+  }
+  #navQuick.nav-quick {
+    padding-right: 14px;
+    scroll-padding-right: 14px;
   }
   .dock-scroll-row {
     display: flex;

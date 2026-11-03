@@ -16,6 +16,7 @@ import {
 import { updateProcedural, markActorVisibleWhenReady, setPlayerRootVisibilityGuard } from "./character-rig.mjs";
 import {
   loadAllCc0Templates,
+  loadMeshyTemplateForCharacter,
   getTemplateForCharacter,
   createCc0Actor,
   updateLocomotionTimeScale,
@@ -652,11 +653,12 @@ function getNpcVisibilitySnapshot() {
 }
 
 async function loadModels() {
-  await loadAllCc0Templates();
-  if (!window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) {
-    punkDogTemplate = await loadPunkDogTemplate();
-  }
+  await loadMeshyTemplateForCharacter("vienna");
   modelsReady = true;
+  void loadAllCc0Templates();
+  void loadPunkDogTemplate().then(t => {
+    punkDogTemplate = t;
+  });
 }
 
 function clearLocation() {

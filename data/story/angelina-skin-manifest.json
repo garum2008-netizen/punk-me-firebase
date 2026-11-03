@@ -2,7 +2,7 @@
   "version": 2,
   "sliceOnly": true,
   "promoDeployForbidden": true,
-  "notes": "Owner t569u approved PNGs. Border flood alpha + padded bbox crop; world WebP ~280px wide. Rebuild: python3 scripts/build-angelina-skin-assets.py",
+  "notes": "Owner t569u approved PNGs. Alpha via offline rembg isnet-general-use matte (RGB identical to source); defringe 1–2px. Rebuild: python3 scripts/build-angelina-skin-assets.py",
   "forbiddenAssets": [
     "angelina-teen-C.png"
   ],
@@ -21,12 +21,12 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-portrait.webp",
-        "sha256": "87916570fa58d92ece7599b4a53f3278d061d35da139f4bdd29f0a25772f33b5"
+        "sha256": "5b76126603a16f8c8b07a21e1215f412ceeb463d1d2a2df681ebd68248ea4e86"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-world.webp",
-        "sha256": "df389ee73fd02652ddbda33ac3206df746b748f85f330d7ab918f94656e82a93",
-        "derivative": "padded bbox crop + 280px wide WebP; border-flood alpha"
+        "sha256": "46b8258c50fcefa16a38c6a0ade12a6701e245e7c814b557f50c7dd69e05af62",
+        "derivative": "rembg alpha matte + padded bbox crop + 280px wide WebP"
       }
     },
     "B": {
@@ -43,12 +43,12 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp",
-        "sha256": "d254e18f60dc1123b169d5207a8e8623705a6699fc182f2f29a3493cb568e24e"
+        "sha256": "7ad53a17a741cad101568eefc1a17348588c63387ad2e9b79a00b446231d3907"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-world.webp",
-        "sha256": "742e5c818efc3021bb7f40fcb0b205743688fcaccab57ff63ed0455845d9d837",
-        "derivative": "padded bbox crop + 280px wide WebP; border-flood alpha"
+        "sha256": "2809687d4bee259bfaa1371f382e9f22c197c397ad58228081cd8db0c83f648c",
+        "derivative": "rembg alpha matte + padded bbox crop + 280px wide WebP"
       }
     },
     "C": {
@@ -66,12 +66,12 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp",
-        "sha256": "92a4fa8d39710b21bf74bda5656d07d1d3a17b034a9436e997e00a57af74306d"
+        "sha256": "1613039430b6418b30760528f6bf86efe4ebc3745209b568dbefc4a7682609cc"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-world.webp",
-        "sha256": "2a8c84df467b4a8ff34a23c4576d6b69ddc13867f2fc0008669083957cad177e",
-        "derivative": "padded bbox crop + 280px wide WebP; border-flood alpha"
+        "sha256": "a3b81b77dd2a6ceb0a5c3728f05b68b3a025d473d7883095f69f6098f74b162e",
+        "derivative": "rembg alpha matte + padded bbox crop + 280px wide WebP"
       }
     }
   }

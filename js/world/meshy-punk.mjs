@@ -146,13 +146,10 @@ export async function loadMeshyPunkTemplate() {
 }
 
 export async function loadAllCc0Templates() {
-  let ids =
+  const ids =
     typeof PLAYABLE_CHARACTER_IDS !== "undefined"
       ? PLAYABLE_CHARACTER_IDS
       : ["razor", "vienna", "cobalt", "mohawk"];
-  if (typeof window !== "undefined" && window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) {
-    ids = ["vienna", "razor"];
-  }
   await Promise.all(ids.map(id => loadMeshyTemplateForCharacter(id)));
   const proxy = templateByCharacter.get("vienna");
   if (proxy) templateByCharacter.set("life_ch1_proxy", proxy);

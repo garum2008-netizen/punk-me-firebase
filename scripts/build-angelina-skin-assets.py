@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build shipped WebP assets from Owner-approved source PNGs (t569u). No AI — resize/crop/alpha only."""
+"""Build shipped WebP assets from Owner-approved source PNGs (t569u). Alpha via local rembg matte; RGB unchanged."""
 from __future__ import annotations
 
 import hashlib
@@ -13,12 +13,43 @@ ROOT = Path(__file__).resolve().parents[1]
 SKIN_DIR = ROOT / "assets/ui/angelina-skins"
 SOURCE_DIR = SKIN_DIR / "source"
 SHIPPED_DIR = SKIN_DIR / "shipped"
+MANIFEST_PATH = ROOT / "data/story/angelina-skin-manifest.json"
 
 SOURCES = {
     "A": "angelina-teen-A.png",
     "B": "angelina-teen-B.png",
     "C": "angelina-teen-C-v2.png",
 }
+
+_rembg_session = None
+
+
+def get_rembg_session():
+    global _rembg_session
+    if _rembg_session is None:
+        from rembg import new_session
+
+        _rembg_session = new_session("isnet-general-use")
+    return _rembg_session
+
+
+def rembg_alpha_matte(orig: Image.Image) -> Image.Image:
+    """Apply rembg alpha only; RGB pixels copied from approved source."""
+    from rembg import remove
+
+    rgb = orig.convert("RGB")
+    rb = remove(rgb, session=get_rembg_session())
+    alpha = rb.split()[3]
+    out = Image.new("RGBA", orig.size)
+    opx = out.load()
+    rpx = rgb.load()
+    apx = alpha.load()
+    w, h = orig.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b = rpx[x, y]
+            opx[x, y] = (r, g, b, apx[x, y])
+    return out
 
 
 def sha256_file(p: Path) -> str:
@@ -29,11 +60,14 @@ def sha256_file(p: Path) -> str:
     return h.hexdigest()
 
 
-def save_webp(img: Image.Image, dest: Path, quality: int = 86) -> str:
+def save_webp(img: Image.Image, dest: Path, quality: int = 90, *, lossless: bool = False) -> str:
     dest.parent.mkdir(parents=True, exist_ok=True)
     if img.mode != "RGBA":
         img = img.convert("RGBA")
-    img.save(dest, format="WEBP", quality=quality, method=6)
+    if lossless:
+        img.save(dest, format="WEBP", lossless=True, method=6)
+    else:
+        img.save(dest, format="WEBP", quality=quality, method=6)
     return sha256_file(dest)
 
 
@@ -255,6 +289,34 @@ def feather_alpha_edges(img: Image.Image, radius: int = 2) -> Image.Image:
     return rgba
 
 
+NEAR_WHITE_LUM = 244
+
+
+def strip_outline_near_white(rgba: Image.Image) -> Image.Image:
+    img = rgba.convert("RGBA")
+    w, h = img.size
+    px = img.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 48:
+                continue
+            if (r + g + b) / 3 < NEAR_WHITE_LUM:
+                continue
+            edge = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                    edge = True
+                    break
+                if px[nx, ny][3] < 32:
+                    edge = True
+                    break
+            if edge:
+                px[x, y] = (r, g, b, 0)
+    return img
+
+
 def defringe_gray_halos(img: Image.Image) -> Image.Image:
     rgba = img.convert("RGBA")
     px = rgba.load()
@@ -272,8 +334,9 @@ def defringe_gray_halos(img: Image.Image) -> Image.Image:
 
 
 def postprocess_cutout(skin_id: str, cut: Image.Image) -> Image.Image:
-    tol = 14 if skin_id == "C" else 16
-    out = feather_alpha_edges(defringe_gray_halos(cut), radius=2)
+    out = defringe_gray_halos(cut)
+    for _ in range(4):
+        out = strip_outline_near_white(out)
     return out
 
 
@@ -329,9 +392,22 @@ def world_variant(img: Image.Image, out_w: int = 280) -> Image.Image:
 
 
 def build_cutout_from_source(orig: Image.Image, skin_id: str) -> Image.Image:
-    tol = 14 if skin_id == "C" else 16
-    cut = apply_alpha_cutout(orig, tolerance=tol)
+    cut = rembg_alpha_matte(orig)
     return postprocess_cutout(skin_id, cut)
+
+
+def write_manifest(skins_out: dict) -> None:
+    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf8"))
+    manifest["notes"] = (
+        "Owner t569u approved PNGs. Alpha via offline rembg isnet-general-use matte "
+        "(RGB identical to source); defringe 1–2px. Rebuild: python3 scripts/build-angelina-skin-assets.py"
+    )
+    for skin_id, data in skins_out.items():
+        entry = manifest["skins"][skin_id]
+        entry["portrait"]["sha256"] = data["portraitSha256"]
+        entry["world"]["sha256"] = data["worldSha256"]
+        entry["world"]["derivative"] = "rembg alpha matte + padded bbox crop + 280px wide WebP"
+    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf8")
 
 
 def main() -> None:
@@ -350,10 +426,16 @@ def main() -> None:
         slug = source_name.replace(".png", "")
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"
-        port_sha = save_webp(portrait_variant(cut), port_path)
+        port_final = strip_outline_near_white(portrait_variant(cut))
+        for _ in range(2):
+            port_final = strip_outline_near_white(port_final)
+        port_sha = save_webp(port_final, port_path)
 
         world_path = SHIPPED_DIR / f"{slug}-world.webp"
-        world_sha = save_webp(world_variant(cut), world_path, quality=82)
+        world_final = strip_outline_near_white(world_variant(cut))
+        for _ in range(6):
+            world_final = strip_outline_near_white(world_final)
+        world_sha = save_webp(world_final, world_path, lossless=True)
 
         skins_out[skin_id] = {
             "sourcePath": str(source_path.relative_to(ROOT)).replace("\\", "/"),
@@ -365,6 +447,7 @@ def main() -> None:
         }
         print(skin_id, source_sha[:12], "portrait", port_sha[:12], "world", world_sha[:12])
 
+    write_manifest(skins_out)
     print(json.dumps(skins_out, indent=2))
 
 
