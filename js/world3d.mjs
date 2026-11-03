@@ -84,7 +84,75 @@ let guideTarget = null;
 /** Deprecated billboard — slice uses player cutout; kept for clear API. */
 let lifeAngelinaBillboard = { sprite: null, url: "", wx: 0, wz: 0, loc: "room", visible: false };
 /** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
-let lifeCh1PlayerSkin = { sprite: null, url: "", rootVisible: true, pending: null };
+let lifeCh1PlayerSkin = {
+  sprite: null,
+  shadow: null,
+  holder: null,
+  url: "",
+  rootVisible: true,
+  pending: null
+};
+let lifeCh1ContactShadowTex = null;
+
+function getLifeCh1ContactShadowTexture() {
+  if (lifeCh1ContactShadowTex) return lifeCh1ContactShadowTex;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, "rgba(0,0,0,0.42)");
+  g.addColorStop(0.55, "rgba(0,0,0,0.1)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  lifeCh1ContactShadowTex = new THREE.CanvasTexture(canvas);
+  lifeCh1ContactShadowTex.colorSpace = THREE.SRGBColorSpace;
+  return lifeCh1ContactShadowTex;
+}
+
+function disposeLifeCh1PlayerSprite() {
+  const sp = lifeCh1PlayerSkin.sprite;
+  const sh = lifeCh1PlayerSkin.shadow;
+  const holder = lifeCh1PlayerSkin.holder;
+  if (holder?.parent) holder.parent.remove(holder);
+  else {
+    sp?.parent?.remove(sp);
+    sh?.parent?.remove(sh);
+  }
+  sp?.material?.map?.dispose?.();
+  sp?.material?.dispose?.();
+  sh?.material?.dispose?.();
+  lifeCh1PlayerSkin.sprite = null;
+  lifeCh1PlayerSkin.shadow = null;
+  lifeCh1PlayerSkin.holder = null;
+}
+
+function isLifeCh1SpriteAttachedToPlayer(sp, pl) {
+  if (!sp || !pl?.group || !scene) return false;
+  let o = sp;
+  while (o) {
+    if (o === pl.group) return true;
+    o = o.parent;
+  }
+  return false;
+}
+
+function layoutLifeCh1PlayerSprite(sp, tex) {
+  if (!sp) return;
+  const img = tex?.image;
+  const h = 1.42;
+  let w = 0.92;
+  if (img?.width && img?.height) w = h * (img.width / img.height);
+  sp.scale.set(w, h, 1);
+  sp.position.set(0, h * 0.5, 0);
+  const shadow = lifeCh1PlayerSkin.shadow;
+  if (shadow) {
+    shadow.position.set(0, 0.035, 0);
+    shadow.scale.set(Math.min(0.72, w * 0.58), 0.17, 1);
+  }
+}
 
 function enforceLifeCh1PlayerMeshVisibility(actor) {
   const pending = lifeCh1PlayerSkin.pending;
@@ -110,6 +178,7 @@ function applyPlayerLifeCh1SkinOpts(opts = {}) {
   if (!opts.visible || !opts.url) {
     sp.visible = false;
     sp.material.opacity = 0;
+    if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = false;
     lifeCh1PlayerSkin.url = "";
     if (pl.root && !lifeCh1PlayerSkin.rootVisible) {
       pl.root.visible = true;
@@ -124,9 +193,11 @@ function applyPlayerLifeCh1SkinOpts(opts = {}) {
     lifeCh1PlayerSkin.rootVisible = false;
   }
   sp.visible = true;
+  if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = true;
   const tail = url.split("/").pop() || url;
   const loaded = sp.material.map?.image?.currentSrc || sp.material.map?.image?.src || "";
   if (loaded && loaded.includes(tail) && sp.material.opacity >= 1) {
+    layoutLifeCh1PlayerSprite(sp, sp.material.map);
     return true;
   }
   sp.material.opacity = 0;
@@ -137,6 +208,7 @@ function applyPlayerLifeCh1SkinOpts(opts = {}) {
       tex.colorSpace = THREE.SRGBColorSpace;
       sp.material.map = tex;
       sp.material.needsUpdate = true;
+      layoutLifeCh1PlayerSprite(sp, tex);
       sp.material.opacity = 1;
       if (pl.root) {
         pl.root.visible = false;
@@ -161,11 +233,18 @@ function getPlayerLifeCh1SkinRenderState() {
   const pl = actors.get("player");
   const sp = lifeCh1PlayerSkin.sprite;
   const mapSrc = sp?.material?.map?.image?.currentSrc || sp?.material?.map?.image?.src || "";
+  const attached = isLifeCh1SpriteAttachedToPlayer(sp, pl);
+  const opacity = sp?.material?.opacity ?? 0;
+  const inScene =
+    attached &&
+    !!(sp?.visible && opacity > 0.5) &&
+    !!(sp.parent && (sp.parent === pl?.group || sp.parent.parent === pl?.group));
   return {
     url: lifeCh1PlayerSkin.url || "",
-    spriteVisible: !!(sp?.visible && (sp.material?.opacity ?? 0) > 0.5),
+    spriteVisible: inScene,
+    sceneAttached: attached,
     rootHidden: !!(pl?.root && pl.root.visible === false),
-    textureReady: !!(sp?.material?.map && (sp.material?.opacity ?? 0) >= 1),
+    textureReady: !!(sp?.material?.map && opacity >= 1),
     mapSrc
   };
 }
@@ -191,14 +270,34 @@ function faceWorldTargetForE2e(wx, wz) {
 }
 
 function ensureLifeCh1PlayerSprite(pl) {
-  if (lifeCh1PlayerSkin.sprite || !pl?.group) return lifeCh1PlayerSkin.sprite;
+  if (!pl?.group) return null;
+  const existing = lifeCh1PlayerSkin.sprite;
+  if (existing && isLifeCh1SpriteAttachedToPlayer(existing, pl)) return existing;
+  if (existing) disposeLifeCh1PlayerSprite();
+
+  const holder = new THREE.Group();
+  holder.name = "lifeCh1Cutout";
+  pl.group.add(holder);
+
+  const shadowMat = new THREE.SpriteMaterial({
+    map: getLifeCh1ContactShadowTexture(),
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.88
+  });
+  const shadow = new THREE.Sprite(shadowMat);
+  shadow.renderOrder = 7;
+  holder.add(shadow);
+
   const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true, opacity: 0 });
   const sp = new THREE.Sprite(mat);
-  sp.scale.set(0.95, 1.45, 1);
-  sp.position.set(0, 0.92, 0);
   sp.renderOrder = 8;
-  pl.group.add(sp);
+  holder.add(sp);
+
+  lifeCh1PlayerSkin.holder = holder;
+  lifeCh1PlayerSkin.shadow = shadow;
   lifeCh1PlayerSkin.sprite = sp;
+  layoutLifeCh1PlayerSprite(sp, sp.material.map);
   return sp;
 }
 
@@ -518,6 +617,19 @@ function ensureCar(show) {
   car = { group, wheels, dir: 1, x: -4, flash: 0 };
 }
 
+function getNpcVisibilitySnapshot() {
+  const out = [];
+  actors.forEach((a, actorId) => {
+    if (!actorId.startsWith("npc_")) return;
+    const cid = a.characterId || actorId.replace(/^npc_/, "");
+    out.push({
+      id: cid,
+      visible: !!(a.group?.visible && a.root?.visible !== false)
+    });
+  });
+  return out;
+}
+
 async function loadModels() {
   await loadAllCc0Templates();
   punkDogTemplate = await loadPunkDogTemplate();
@@ -535,6 +647,7 @@ function clearLocation() {
 function rebuildLocation(locId) {
   if (locId !== currentLoc) onGameplayLocationChanged(locId, currentLoc);
   clearLocation();
+  disposeLifeCh1PlayerSprite();
   actors.forEach((a, id) => {
     scene.remove(a.group);
     a.mixer?.stopAllAction();
@@ -1751,6 +1864,7 @@ const api = {
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
   setPlayerLifeCh1Skin,
   getPlayerLifeCh1SkinRenderState,
+  getNpcVisibilitySnapshot,
   clearPlayerLifeCh1Skin: () => setPlayerLifeCh1Skin({ visible: false }),
   /** E2E only: rotate camera toward a world point (movement still uses real WASD). */
   faceWorldTargetForE2e,

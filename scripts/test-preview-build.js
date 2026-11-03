@@ -106,6 +106,26 @@ function assertBundleNoProdSecrets() {
   console.log("preview-bundle-secrets: PASS (0 prod config hits)");
 }
 
+async function assertSkinAtLocation(page, loc, skinLetter, label) {
+  await page.evaluate(id => goLocation(id), loc);
+  await page.waitForFunction(l => window.me?.location === l, loc, { timeout: 20000 });
+  await page.waitForTimeout(700);
+  await clickStage3d(page);
+  await assertSkinRenderNow(page, skinLetter, label);
+}
+
+async function assertNpcsVisible(page, loc, expectedIds) {
+  await page.evaluate(id => goLocation(id), loc);
+  await page.waitForFunction(l => window.me?.location === l, loc, { timeout: 20000 });
+  await page.waitForTimeout(900);
+  const snap = await page.evaluate(() => window.World3D?.getNpcVisibilitySnapshot?.() || []);
+  const visible = new Set(snap.filter(n => n.visible).map(n => n.id));
+  const missing = expectedIds.filter(id => !visible.has(id));
+  if (missing.length) {
+    throw new Error(`NPC missing at ${loc}: ${missing.join(", ")} among ${JSON.stringify(snap)}`);
+  }
+}
+
 const HOWTO_SEEN_KEY = "punkme_howto_seen";
 
 async function dismissHowToPlay(page) {
@@ -303,17 +323,17 @@ async function runBrowserTest(base) {
     );
     await waitUntilSkinRendered(page, "A");
 
-    await assertSkinRenderNow(page, "A", "room after wardrobe");
-    await page.evaluate(() => goLocation("street"));
-    await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 15000 });
-    await page.waitForTimeout(800);
-    await assertSkinRenderNow(page, "A", "street");
-    await page.evaluate(() => goLocation("cemetery"));
-    await page.waitForFunction(() => window.me?.location === "cemetery", undefined, { timeout: 15000 });
-    await page.waitForTimeout(800);
-    await assertSkinRenderNow(page, "A", "cemetery");
-    await page.evaluate(() => goLocation("room"));
-    await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 15000 });
+    await assertSkinAtLocation(page, "room", "A", "room after wardrobe");
+    await assertNpcsVisible(page, "room", ["vienna", "mohawk", "cobalt"]);
+    await assertSkinAtLocation(page, "street", "A", "street");
+    await assertNpcsVisible(page, "street", ["razor", "vienna", "cobalt", "mohawk"]);
+    await assertSkinAtLocation(page, "cemetery", "A", "cemetery");
+    await assertSkinAtLocation(page, "city", "A", "city");
+    await assertSkinAtLocation(page, "room", "A", "room return");
+
+    await page.evaluate(() => window.LifeCh1Slice?.setAngelinaSkin?.("B"));
+    await waitUntilSkinRendered(page, "B");
+    await assertSkinAtLocation(page, "street", "B", "street after skin B");
 
     const npcAngelinaUi = await page.evaluate(() => {
       const slice = window.LifeCh1Slice?.isLifeCh1SliceEnabled?.();
@@ -339,6 +359,7 @@ async function runBrowserTest(base) {
       skin: window.me?.lifeCh1?.angelinaSkin
     }));
     const coinsAfterWardrobe = beforeReload.coins;
+    const skinAfterTour = beforeReload.skin || "A";
     for (let r = 0; r < 3; r++) {
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
@@ -348,10 +369,10 @@ async function runBrowserTest(base) {
         throw new Error(`preview coins reset reload ${r + 1}: ${coinsAfterWardrobe} -> ${coins}`);
       }
       const skin = await page.evaluate(() => window.me?.lifeCh1?.angelinaSkin);
-      if (skin !== "A") throw new Error("reload lost skin " + skin);
-      await assertSkinAfterReloadSchedule(page, "A");
+      if (skin !== skinAfterTour) throw new Error("reload lost skin " + skin + " expected " + skinAfterTour);
+      await assertSkinAfterReloadSchedule(page, skinAfterTour);
       await walkNear(page, -3.2, 2.5);
-      await assertSkinRenderNow(page, "A", `preview after walk reload ${r + 1}`);
+      await assertSkinRenderNow(page, skinAfterTour, `preview after walk reload ${r + 1}`);
     }
 
     const afterReload = await page.evaluate(() => ({
@@ -362,7 +383,7 @@ async function runBrowserTest(base) {
     }));
     if (afterReload.step < 2) throw new Error("reload regressed step: " + JSON.stringify(afterReload));
     if (!afterReload.flags?.outfit_calm) throw new Error("reload lost outfit flag");
-    if (afterReload.skin !== "A") throw new Error("reload lost skin");
+    if (afterReload.skin !== skinAfterTour) throw new Error("reload lost skin");
 
     const chatHidden = await page.evaluate(() => {
       const p = document.getElementById("chatPanel");
@@ -393,7 +414,7 @@ async function runBrowserTest(base) {
     }
     await page.waitForFunction(() => window.me?.location === "cemetery", undefined, { timeout: 15000 });
     await page.waitForTimeout(600);
-    await assertSkinRenderNow(page, "A", "cemetery travel path");
+    await assertSkinRenderNow(page, skinAfterTour, "cemetery travel path");
     const cemeteryScene = await page.evaluate(() => ({
       meLoc: window.me?.location,
       w3Loc: window.World3D?.countVisiblePropsInScene?.()?.location || null

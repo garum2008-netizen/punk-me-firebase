@@ -152,8 +152,27 @@ def restore_c_v2_guitar_patch(orig: Image.Image, cut: Image.Image) -> Image.Imag
     return rgba
 
 
+def clean_a_right_edge_alpha(img: Image.Image) -> Image.Image:
+    """Remove dark fringe on right edge of skin A (alpha only, no repaint)."""
+    rgba = img.convert("RGBA")
+    w, h = rgba.size
+    px = rgba.load()
+    strip = max(6, int(w * 0.045))
+    for x in range(w - strip, w):
+        for y in range(h):
+            r, g, b, a = px[x, y]
+            if a < 240 and max(r, g, b) - min(r, g, b) < 18 and (r + g + b) / 3 < 210:
+                px[x, y] = (r, g, b, 0)
+            elif a < 255 and x >= w - strip // 2 and max(r, g, b) > 180:
+                px[x, y] = (r, g, b, max(0, a - 40))
+    return rgba
+
+
 def postprocess_cutout(skin_id: str, orig: Image.Image, cut: Image.Image) -> Image.Image:
     out = defringe_alpha(cut)
+    if skin_id == "A":
+        out = clean_a_right_edge_alpha(out)
+        out = defringe_alpha(out)
     if skin_id == "C":
         out = restore_c_v2_guitar_patch(orig, out)
         out = defringe_alpha(out)

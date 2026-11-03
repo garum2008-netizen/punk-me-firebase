@@ -150,14 +150,17 @@ export async function loadAllCc0Templates() {
     ? PLAYABLE_CHARACTER_IDS
     : ["razor", "vienna", "cobalt", "mohawk"];
   await Promise.all(ids.map(id => loadMeshyTemplateForCharacter(id)));
+  const proxy = templateByCharacter.get("vienna");
+  if (proxy) templateByCharacter.set("life_ch1_proxy", proxy);
   return templateByCharacter;
 }
 
 export function getTemplateForCharacter(characterId) {
-  const id = characterId || DEFAULT_MESHY_CHARACTER;
-  const t = templateByCharacter.get(id) || templateByCharacter.get(DEFAULT_MESHY_CHARACTER);
+  const raw = characterId || DEFAULT_MESHY_CHARACTER;
+  const id = raw === "life_ch1_proxy" ? "vienna" : raw;
+  const t = templateByCharacter.get(raw) || templateByCharacter.get(id) || templateByCharacter.get(DEFAULT_MESHY_CHARACTER);
   if (!t) return null;
-  return { key: id, characterId: id, ...t };
+  return { key: raw, characterId: id, ...t };
 }
 
 export function findBone(root, shortName) {

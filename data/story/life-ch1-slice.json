@@ -37,9 +37,9 @@
     {
       "id": "reflect",
       "objective": {
-        "ru": "Снова подойди к метке — оглянись на свой выбор",
-        "en": "Return to the marker — look back at your choice",
-        "da": "Gå tilbage til markøren — se på dit valg"
+        "ru": "Снова подойди к метке — вспомни, что ты решила",
+        "en": "Return to the marker — remember what you decided",
+        "da": "Gå tilbage til markøren — husk dit valg"
       },
       "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
       "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
@@ -53,9 +53,9 @@
         "n0": {
           "speaker": "player",
           "text": {
-            "ru": "Выбери, как ты хочешь выглядеть сегодня. Только стиль — без давления.",
-            "en": "Pick how you want to look today. Style only — no pressure.",
-            "da": "Vælg dit look i dag."
+            "ru": "Как я хочу выглядеть сегодня? Только стиль — настроение моё.",
+            "en": "How do I want to look today? Style only — my mood.",
+            "da": "Hvordan vil jeg se ud i dag?"
           },
           "choices": [
             {
@@ -82,8 +82,8 @@
         "n0": {
           "speaker": "player",
           "text": {
-            "ru": "На тумбочке лежит записка. Что делать?",
-            "en": "There's a note on the desk. What should I do?",
+            "ru": "На тумбочке лежит записка. Что мне делать?",
+            "en": "There's a note on the nightstand. What should I do?",
             "da": "Der ligger en seddel. Hvad gør jeg?"
           },
           "choices": [
@@ -107,8 +107,8 @@
         "n_after_calm": {
           "speaker": "player",
           "text": {
-            "ru": "Спокойный образ — хороший знак. На тумбочке записка. Что делать?",
-            "en": "Calm look suits me. There's a note on the desk. What should I do?",
+            "ru": "Спокойный образ — хороший знак. На тумбочке записка. Что мне делать?",
+            "en": "Calm look suits me. There's a note on the nightstand. What should I do?",
             "da": "Roligt look. Der ligger en seddel."
           },
           "choices": [
@@ -132,8 +132,8 @@
         "n_after_bright": {
           "speaker": "player",
           "text": {
-            "ru": "Ярко! Записка на тумбочке — не для всех глаз. Решай сама.",
-            "en": "Bold colors! The note on the desk isn't for everyone. My call.",
+            "ru": "Ярко! Записка на тумбочке — не для всех глаз. Решу сама.",
+            "en": "Bold colors! The note on the nightstand isn't for everyone. My call.",
             "da": "Klar stil! Der ligger en seddel."
           },
           "choices": [
@@ -157,8 +157,8 @@
         "n_after_bold": {
           "speaker": "player",
           "text": {
-            "ru": "Смело. Записка ждёт — если ошибусь, последствия будут позже.",
-            "en": "Brave look. The note can wait — but wrong moves echo later.",
+            "ru": "Смело. Записка ждёт — если ошибусь, это скажется позже.",
+            "en": "Brave look. The note can wait — if I slip up, it will show later.",
             "da": "Modigt look. Sedlen venter."
           },
           "choices": [
@@ -186,25 +186,25 @@
         "n_secret": {
           "speaker": "player",
           "text": {
-            "ru": "Хорошо. Пока никому — пока сама не решишь иначе.",
-            "en": "Okay. No one else for now — until I decide otherwise.",
+            "ru": "Хорошо. Никому, пока сама не решу иначе.",
+            "en": "Okay. No one else — until I decide otherwise.",
             "da": "Okay. Ingen andre endnu."
           },
           "requiresFlag": "mystery_secret"
         },
         "n_open": {
-          "speaker": "mira",
+          "speaker": "player",
           "text": {
-            "ru": "Ангелина, лучше расскажи мне сама — обидно узнать от других.",
-            "en": "Angelina, tell me yourself — it hurts to hear it second-hand.",
-            "da": "Angelina, fortæl mig det selv."
+            "ru": "Напишу Мире, когда соберусь с мыслями — сама, своими словами.",
+            "en": "I'll text Mira when I'm ready — in my own words.",
+            "da": "Jeg skriver til Mira, når jeg er klar."
           },
           "requiresFlag": "mystery_open"
         },
         "n_trust": {
           "speaker": "mira",
           "text": {
-            "ru": "Спасибо, Ангелина. Я рядом — без геройства, обещаю.",
+            "ru": "Спасибо, Ангелина. Я на связи — без геройства, обещаю.",
             "en": "Thanks, Angelina. I'm here for you — no heroics, I promise.",
             "da": "Tak, Angelina. Jeg er her."
           },
@@ -213,8 +213,8 @@
         "n_fallback": {
           "speaker": "player",
           "text": {
-            "ru": "Ты уже сделала выбор — помни его.",
-            "en": "You already chose — remember it.",
+            "ru": "Я уже решила — не забывай.",
+            "en": "I already decided — don't forget.",
             "da": "Du har allerede valgt."
           }
         }

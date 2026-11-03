@@ -121,6 +121,7 @@ function buildUi() {
   if (!ui) return;
   if (isSliceAngelinaPlayer()) {
     selectedIdx = Math.max(0, PLAYABLE_CHARACTER_IDS.indexOf("cobalt"));
+    const meshId = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
     const confirmLabel =
       typeof t === "function" ? t("char_select_confirm") : "Play";
     ui.innerHTML =
@@ -130,7 +131,7 @@ function buildUi() {
     if (confirmBtn) {
       confirmBtn.onclick = () => {
         close();
-        onPickCb?.("cobalt");
+        onPickCb?.(meshId);
       };
     }
     return;
@@ -182,11 +183,11 @@ function open(onPick) {
   resize();
   loadAllCc0Templates().then(() => {
     templatesReady = true;
-    if (isSliceAngelinaPlayer()) {
-      selectedIdx = Math.max(0, PLAYABLE_CHARACTER_IDS.indexOf("cobalt"));
-    }
+    const previewId = isSliceAngelinaPlayer()
+      ? window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy"
+      : PLAYABLE_CHARACTER_IDS[selectedIdx];
     buildUi();
-    showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
+    showCharacter(previewId);
     if (!raf) loop();
   });
 }

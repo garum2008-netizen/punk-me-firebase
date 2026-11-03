@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-/** Screenshots: Angelina 2D player in room / street / cemetery (preview slice). */
+/** Screenshots: Angelina player + core NPCs at 1280×800 (preview slice). */
 const path = require("path");
 const fs = require("fs");
 const { chromium } = require("playwright");
 
-const root = path.join(__dirname, "..");
 const outDir = process.env.PUNK_ARTIFACTS || "/opt/cursor/artifacts";
 const HOWTO_SEEN_KEY = "punkme_howto_seen";
 
@@ -19,16 +18,16 @@ async function dismissHowTo(page) {
 
 async function main() {
   fs.mkdirSync(outDir, { recursive: true });
-  const base = process.env.PUNK_PREVIEW_URL || "http://127.0.0.1:3765";
+  const base = process.env.PUNK_PREVIEW_URL || "http://127.0.0.1:3766";
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   await context.addInitScript(key => {
     try {
       localStorage.setItem(key, "1");
     } catch (_) {}
   }, HOWTO_SEEN_KEY);
   const page = await context.newPage();
-  await page.goto(`${base}/?lifeCh1E2e=1&v=angelina-capture`, { waitUntil: "load", timeout: 120000 });
+  await page.goto(`${base}/?lifeCh1E2e=1&v=angelina-capture-r2`, { waitUntil: "load", timeout: 120000 });
   await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
   await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
   await page.click("#charSelectConfirm");
@@ -49,17 +48,22 @@ async function main() {
     window.saveMe?.();
   });
   await dismissHowTo(page);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2000);
 
-  const locs = ["room", "street", "cemetery"];
-  for (const loc of locs) {
+  for (const loc of ["room", "street", "cemetery", "city"]) {
     await page.evaluate(id => goLocation(id), loc);
-    await page.waitForFunction(l => window.me?.location === l, loc, { timeout: 15000 });
+    await page.waitForFunction(l => window.me?.location === l, loc, { timeout: 20000 });
     await page.waitForTimeout(1200);
-    const file = path.join(outDir, `angelina-player-${loc}.png`);
-    await page.screenshot({ path: file, fullPage: false });
-    console.log("wrote", file);
+    await page.screenshot({ path: path.join(outDir, `angelina-1280-${loc}.png`) });
+    console.log("wrote", `angelina-1280-${loc}.png`);
   }
+
+  await page.evaluate(() => goLocation("street"));
+  await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 15000 });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: path.join(outDir, "angelina-1280-street-npcs.png") });
+  console.log("wrote angelina-1280-street-npcs.png");
+
   await browser.close();
 }
 

@@ -6,7 +6,7 @@ function skinRenderOk(skinLetter) {
   if (!rs) return false;
   const slug = `angelina-teen-${skinLetter}`;
   const hit = rs.url.includes(slug) || rs.mapSrc.includes(slug);
-  return hit && rs.textureReady && rs.spriteVisible && rs.rootHidden;
+  return hit && rs.textureReady && rs.spriteVisible && rs.rootHidden && rs.sceneAttached !== false;
 }
 
 async function waitUntilSkinRendered(page, skinLetter, timeoutMs = 60000) {
@@ -17,7 +17,7 @@ async function waitUntilSkinRendered(page, skinLetter, timeoutMs = 60000) {
       if (!rs) return false;
       const slug = `angelina-teen-${letter}`;
       const hit = rs.url.includes(slug) || rs.mapSrc.includes(slug);
-      return hit && rs.textureReady && rs.spriteVisible && rs.rootHidden;
+      return hit && rs.textureReady && rs.spriteVisible && rs.rootHidden && rs.sceneAttached !== false;
     },
     skinLetter,
     { timeout: timeoutMs, polling: 250 }
@@ -38,7 +38,7 @@ async function assertSkinRenderNow(page, skinLetter, label) {
     throw new Error(`skin render [${label}]: bad skin/state ${JSON.stringify(rs)}`);
   }
   const hit = st.url.includes(slug) || st.mapSrc.includes(slug);
-  if (!hit || !st.textureReady || !st.spriteVisible || !st.rootHidden) {
+  if (!hit || !st.textureReady || !st.spriteVisible || !st.rootHidden || st.sceneAttached === false) {
     throw new Error(`skin render [${label}]: ${JSON.stringify(st)}`);
   }
 }

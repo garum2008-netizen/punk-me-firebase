@@ -17,16 +17,17 @@ function assert(cond, msg) {
 
 async function main() {
   const mod = await import(pathToFileURL(path.join(root, "js/story/life-ch1-slice.mjs")).href);
-  const { ensureLifeCh1, defaultLifeCh1State, pickReflectNode, claimStepReward, normalizeClaimedSteps, clampStepIndex, rewardClaimKey } = mod;
+  const { ensureLifeCh1, defaultLifeCh1State, pickReflectNode, claimStepReward, normalizeClaimedSteps, clampStepIndex, rewardClaimKey, isLifeCh1SliceEnabled } = mod;
 
   assert(spec.steps.length === 4, "four steps");
   assert(spec.dialogues.dlg_life_ch1_outfit.nodes.n0.choices.length === 3, "three outfit choices");
 
   const dlgReflect = spec.dialogues.dlg_life_ch1_reflect;
-  assert(pickReflectNode(dlgReflect, { mystery_open: true }).text.ru.includes("Ангелина"), "open flag Mira addresses Angelina");
-  assert(pickReflectNode(dlgReflect, { mystery_secret: true }).text.ru.includes("никому"), "secret flag player line");
-  assert(pickReflectNode(dlgReflect, {}).text.ru.includes("выбор"), "fallback line");
+  assert(pickReflectNode(dlgReflect, { mystery_open: true }).speaker === "player", "open flag is player thought");
+  assert(pickReflectNode(dlgReflect, { mystery_secret: true }).text.ru.includes("Никому"), "secret flag player line");
+  assert(pickReflectNode(dlgReflect, {}).text.ru.includes("решила"), "fallback line");
   assert(pickReflectNode(dlgReflect, { mystery_trust_angelina: true }).speaker === "mira", "trust reflect is Mira");
+  assert(pickReflectNode(dlgReflect, { mystery_trust_angelina: true }).text.ru.includes("на связи"), "Mira message wording");
 
   const ruBlob = JSON.stringify(spec);
   assert(!/Поговори с Ангелиной/i.test(ruBlob), "no talk-to-Angelina objective");
@@ -66,7 +67,14 @@ async function main() {
   const engineSrc = fs.readFileSync(path.join(root, "js/story/story-engine.mjs"), "utf8");
   assert(!engineSrc.includes("startingCoins + 50"), "story engine must not clamp coins");
 
+  global.window = { __PUNK_PREVIEW__: false };
+  global.location = { hostname: "halloween.punk.contractbot.dk", search: "?lifeCh1Slice=1" };
+  assert(!isLifeCh1SliceEnabled(), "production host ignores lifeCh1Slice=1");
+  global.location = { hostname: "127.0.0.1", search: "?lifeCh1Slice=1" };
+  assert(isLifeCh1SliceEnabled(), "localhost allows lifeCh1Slice=1");
+
   delete global.window;
+  delete global.location;
 
   const manifest = JSON.parse(
     fs.readFileSync(path.join(root, "data/story/angelina-skin-manifest.json"), "utf8")

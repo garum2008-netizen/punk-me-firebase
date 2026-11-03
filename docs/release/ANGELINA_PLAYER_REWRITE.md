@@ -46,9 +46,15 @@ EN/DA strings updated in the same nodes (player POV / Mira addresses Angelina).
 | `js/story/life-ch1-slice.mjs` → wardrobe | Hides `#lifeCh1WardrobeDefault` in slice; title «Гардероб». |
 | `js/story/life-ch1-slice.mjs` → `showDialogue` | Speaker titles: player / Mira; portrait on `player` lines. |
 
-Assets: existing shipped webp world/portrait paths from `data/story/angelina-skin-manifest.json` (A, B, C-v2 only). No new 3D Angelina model.
+## Follow-up (post ce47a57)
 
-## Tests
+| Area | Change |
+|------|--------|
+| `js/world3d.mjs` | Dispose/re-parent life-ch1 cutout on `rebuildLocation`; `getPlayerLifeCh1SkinRenderState` checks `sceneAttached`; floor grounding + contact shadow blob. |
+| Player mesh id | `life_ch1_proxy` (Vienna template) — Cobalt NPC no longer stolen. |
+| `data/story/life-ch1-slice.json` | Mira lines as messages; player 1st person; copy polish (see table rows in git diff). |
+| Production | `?lifeCh1Slice=1` inert on `punk.contractbot.dk` / Firebase hosts; `tryPlaceBuild` preview/test only; cache bump `living3d-v22r5-ch1-angelina-r2`. |
+
 
 - `scripts/test-life-ch1-slice-unit.js` — no NPC Angelina objectives/choices; reflect speakers.
 - `scripts/test-preview-build.js` — cutout visible room/street/cemetery; UI hidden; reload + wardrobe path unchanged.

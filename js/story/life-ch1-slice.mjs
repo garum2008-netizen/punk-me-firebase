@@ -97,13 +97,28 @@ export function defaultLifeCh1State() {
   };
 }
 
+/** Production static host — slice query flag stays inert until owner enables. */
+function isProductionGameHost() {
+  try {
+    if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return false;
+    const h = location.hostname.toLowerCase();
+    if (h === "localhost" || h === "127.0.0.1" || h.endsWith(".localhost")) return false;
+    return h.includes("punk.contractbot.dk") || h.endsWith(".web.app");
+  } catch (_) {
+    return false;
+  }
+}
+
 /** Internal QA only — slice OFF by default on main (never auto-start for live players). */
 export function isLifeCh1SliceEnabled() {
   try {
     if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
     const q = new URLSearchParams(location.search);
-    if (q.get("lifeCh1Slice") === "1") return true;
     if (q.get("lifeCh1E2e") === "1") return true;
+    if (q.get("lifeCh1Slice") === "1") {
+      if (isProductionGameHost()) return false;
+      return true;
+    }
   } catch (_) {}
   return false;
 }
@@ -657,14 +672,22 @@ function showDialogue(dlgId) {
   panel.classList.add("active", "life-ch1-dialog", "story-dialog-cinematic");
   if (title) {
     if (node.speaker === "mira") {
-      title.textContent = L({ ru: "Мира", en: "Mira", da: "Mira" });
+      title.textContent = L({
+        ru: "Мира (сообщение)",
+        en: "Mira (message)",
+        da: "Mira (besked)"
+      });
     } else if (node.speaker === "player") {
       title.textContent = L({ ru: "Ангелина", en: "Angelina", da: "Angelina" });
     } else {
       title.textContent = L({ ru: "Ангелина", en: "Angelina", da: "Angelina" });
     }
   }
-  const speakerLine = L(node.text);
+  let speakerLine = L(node.text);
+  if (node.speaker === "mira") {
+    const prefix = L({ ru: "Мира (сообщение): ", en: "Mira (message): ", da: "Mira (besked): " });
+    if (!speakerLine.startsWith(prefix.trim())) speakerLine = prefix + speakerLine;
+  }
   setSubtitle(speakerLine, 8000);
   playUiBlip();
   const skin = readSelectedSkin(ensureLifeCh1());

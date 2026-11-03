@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-accounts-r1";
+const GAME_VERSION = "living3d-v22r5-ch1-angelina-r2";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -969,7 +969,7 @@ function loadMe() {
 
 function pickCharacterAndContinue(id) {
   if (window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) {
-    id = "cobalt";
+    id = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
     window.LifeCh1Slice.ensureLifeCh1?.(me);
     const st = me.lifeCh1;
     if (st) {
@@ -1927,7 +1927,7 @@ function toggleBuildMode() {
   toast(buildMode ? t("build_mode_on") : t("build_mode_off"));
 }
 
-function tryPlaceBuild(x, y) {
+function placeBuildAt(x, y) {
   const san = window.PunkCityBuildSanitize;
   const type = selectedBuild;
   if (san && !san.isAllowedBuildType(type)) {
@@ -2211,6 +2211,9 @@ window.setBuildType = function (bt) {
 };
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
-window.tryPlaceBuild = tryPlaceBuild;
+window.tryPlaceBuild = function (x, y) {
+  if (!isPreviewBuild() && !window.LifeCh1Slice?.isLifeCh1TestMode?.()) return;
+  placeBuildAt(x, y);
+};
 
 document.addEventListener("DOMContentLoaded", init);
