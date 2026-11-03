@@ -6,4 +6,6 @@ firebase-debug.log
 .worktrees/
 dist-preview/
 .dev.vars
+.dev.vars.*
+.wrangler/
 .wrangler-preview-functions-out/

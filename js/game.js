@@ -55,7 +55,8 @@ function installPreviewBanner() {
   el.id = "previewBuildBanner";
   el.className = "preview-build-banner";
   el.setAttribute("role", "status");
-  el.textContent = "PREVIEW — test build, progress saved only on this device";
+  el.dataset.i18n = "preview_banner";
+  el.textContent = t("preview_banner");
   document.body.prepend(el);
 }
 
@@ -121,6 +122,20 @@ function devCoinsEnabled() {
   try {
     return new URLSearchParams(location.search).has("dev") || localStorage.getItem("punkme_dev") === "1";
   } catch (e) { return false; }
+}
+
+function hudDebugMetricsEnabled() {
+  if (isOwner) return true;
+  if (devCoinsEnabled()) return true;
+  try {
+    return new URLSearchParams(location.search).has("debugHud");
+  } catch (e) {
+    return false;
+  }
+}
+
+function syncHudDebugVisibility() {
+  document.body.classList.toggle("hud-debug-on", hudDebugMetricsEnabled());
 }
 
 const LOCATIONS = {
@@ -776,6 +791,7 @@ function init() {
   if (isPreviewBuild()) {
     bootPreviewSession();
     bindGameShell();
+    syncHudDebugVisibility();
     const ver = document.getElementById("gameVersion");
     if (ver) ver.textContent = GAME_VERSION + "-preview";
     return;
@@ -803,6 +819,7 @@ function init() {
       } catch (_) {}
       window.isOwner = isOwner;
       window.__punkUpdateAccountUi?.(u);
+      syncHudDebugVisibility();
       try {
         if (new URLSearchParams(location.search).get("loadtest") !== "timeout") loadMe();
       } catch (e) {
@@ -1440,6 +1457,7 @@ function renderAll() {
   renderDailyQuestHud();
   renderNpcMarkers();
   applyI18nDom();
+  syncHudDebugVisibility();
 }
 
 function renderDailyQuestHud() {

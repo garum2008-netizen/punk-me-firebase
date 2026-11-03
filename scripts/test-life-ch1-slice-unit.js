@@ -72,6 +72,16 @@ async function main() {
   );
   assert(manifest.sliceOnly === true, "slice only flag");
 
+  const sliceJson = JSON.parse(fs.readFileSync(path.join(root, "data/story/life-ch1-slice.json"), "utf8"));
+  const walk = obj => {
+    if (!obj || typeof obj !== "object") return;
+    if (obj.ru && typeof obj.ru === "string" && /\bAngelina\b/.test(obj.ru)) {
+      assert(false, "Latin Angelina in ru string: " + obj.ru.slice(0, 60));
+    }
+    for (const v of Object.values(obj)) walk(v);
+  };
+  walk(sliceJson.dialogues);
+
   if (failed) {
     console.error(`life-ch1-unit: ${failed} failed`);
     process.exit(1);

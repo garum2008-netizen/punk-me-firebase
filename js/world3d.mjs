@@ -1319,9 +1319,32 @@ function getNearestNpcId() {
   actors.forEach((a, id) => {
     if (!id.startsWith("npc_")) return;
     const d = Math.hypot(pl.wx - a.wx, pl.wz - a.wz);
-    if (d < bestD) { bestD = d; best = id.replace("npc_", ""); }
+    if (d < bestD) {
+      bestD = d;
+      best = id.replace("npc_", "");
+    }
   });
   return best;
+}
+
+/** Nearest prop with `userData.interact` (arcade, jukebox) within range. */
+function getNearestPropInteract(maxDist = 2.35) {
+  const pl = actors.get("player");
+  if (!pl?.group || !locationRoot) return null;
+  const pos = new THREE.Vector3();
+  let bestKind = null;
+  let bestD = maxDist;
+  locationRoot.traverse(o => {
+    const kind = o.userData?.interact;
+    if (!kind) return;
+    o.getWorldPosition(pos);
+    const d = Math.hypot(pl.wx - pos.x, pl.wz - pos.z);
+    if (d < bestD) {
+      bestD = d;
+      bestKind = kind;
+    }
+  });
+  return bestKind;
 }
 
 function getNearPortal() {
@@ -1703,6 +1726,7 @@ const api = {
   },
   getLocation: () => currentLoc,
   getNearestNpc: getNearestNpcId,
+  getNearestPropInteract,
   getNearestDog: getNearestDogId,
   getNearPortal,
   getPlayerWorldPosition: () => {

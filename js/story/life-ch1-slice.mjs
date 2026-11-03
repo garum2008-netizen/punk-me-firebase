@@ -523,9 +523,9 @@ function openWardrobePanel() {
   wardrobePending.outfitFlag = null;
   panel.hidden = false;
   document.getElementById("lifeCh1WardrobeTitle").textContent = L({
-    ru: "Твой образ — A / B / C",
-    en: "Your look — A / B / C",
-    da: "Dit look — A / B / C"
+    ru: "Ангелина — гардероб",
+    en: "Angelina — wardrobe",
+    da: "Angelina — garderobe"
   });
   document.getElementById("lifeCh1WardrobeHint").textContent = L({
     ru: "Выбери вид героя (Owner PNG) — в мире меняется твой персонаж.",
@@ -633,7 +633,7 @@ function showDialogue(dlgId) {
   const body = panel?.querySelector(".story-dialog-body");
   if (!panel || !body) return;
   window.StoryEngine?.dismissAllStoryUi?.();
-  panel.classList.add("active", "life-ch1-dialog");
+  panel.classList.add("active", "life-ch1-dialog", "story-dialog-cinematic");
   if (title) {
     title.textContent = L({
       ru: "Ангелина",
@@ -676,7 +676,7 @@ function showDialogue(dlgId) {
 export function closeDialogue() {
   activeDlg = null;
   const panel = document.getElementById("storyDialog");
-  panel?.classList.remove("active", "life-ch1-dialog");
+  panel?.classList.remove("active", "life-ch1-dialog", "story-dialog-cinematic");
 }
 
 function outfitInteractTarget() {

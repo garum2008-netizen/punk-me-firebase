@@ -35,6 +35,19 @@ export function initPlayV21(ctx) {
   const api = {
     tryInteract(me, hooks) {
       const loc = me.location;
+      const prop = window.World3D?.getNearestPropInteract?.();
+      if (prop === "arcade") {
+        hooks.toast(t("interact_arcade"));
+        if (!window.isOwner) me.coins += 12;
+        me.xp += 5;
+        hooks.save();
+        return true;
+      }
+      if (prop === "jukebox") {
+        const track = window.World3D?.cycleJukebox?.();
+        hooks.toast(t("interact_jukebox") + " #" + ((track ?? 0) + 1));
+        return true;
+      }
       if (loc === "room") {
         const nearSofa = me.x < 55 && me.y > 45;
         if (nearSofa) {
@@ -53,18 +66,6 @@ export function initPlayV21(ctx) {
           window.StoryEngine.ensureStoryState(me).earn = null;
           window.StoryEngine.renderObjectivePanel?.();
         }
-        return true;
-      }
-      if (loc === "kitchen" && me.y >= 40) {
-        const track = window.World3D?.cycleJukebox?.();
-        hooks.toast(t("interact_jukebox") + " #" + ((track ?? 0) + 1));
-        return true;
-      }
-      if (loc === "street") {
-        hooks.toast(t("interact_arcade"));
-        me.coins += 12;
-        me.xp += 5;
-        hooks.save();
         return true;
       }
       if (loc === "room" && me.x > 70) {

@@ -741,8 +741,23 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
     background: rgba(14, 8, 28, 0.97);
   }
 }
-#storyDialog.story-dialog-cinematic .story-dialog-panel {
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+#storyDialog.active.life-ch1-dialog {
+  pointer-events: none;
+  background: rgba(4, 2, 12, 0.22);
+}
+#storyDialog.active.life-ch1-dialog .story-dialog-panel {
+  pointer-events: auto;
+}
+.hud-version,
+.hud-online-combined {
+  display: none !important;
+}
+body.hud-debug-on .hud-version,
+body.hud-debug-on .hud-online-combined {
+  display: inline-flex !important;
+}
+body.hud-debug-on .hud-actions .hud-version {
+  display: inline-block !important;
 }
 .story-dialog-panel {
   max-width: min(420px, 92vw); background: rgba(14, 8, 28, 0.96); border: 2px solid #ff00ff;
