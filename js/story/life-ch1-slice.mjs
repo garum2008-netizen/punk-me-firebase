@@ -528,8 +528,8 @@ function openWardrobePanel() {
     da: "Angelina — garderobe"
   });
   document.getElementById("lifeCh1WardrobeHint").textContent = L({
-    ru: "Выбери вид героя (Owner PNG) — в мире меняется твой персонаж.",
-    en: "Pick your hero look (Owner PNG) — your character updates in the world.",
+    ru: "Выбери вид героя — в мире меняется твой персонаж.",
+    en: "Pick your hero look — your character updates in the world.",
     da: "Vælg dit helte-look."
   });
   document.getElementById("lifeCh1OutfitLabel").textContent = L({
@@ -731,7 +731,7 @@ export function renderObjectivePanel() {
   box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker" data-testid="life-ch1-quest-panel">
     <b>${escapeHtml(title)}</b> <span class="quest-step-num">${i}/${n}</span>
     <div class="quest-step-title">${escapeHtml(objective)}</div>
-    <div class="quest-step-text life-ch1-sub">${escapeHtml(L({ ru: "Жизненная глава · отдельное сохранение lifeCh1", en: "Life chapter · lifeCh1 save namespace", da: "Liv kapitel" }))}</div>
+    <div class="quest-step-text life-ch1-sub">${escapeHtml(L({ ru: "Жизненная глава · история первых дней", en: "Life chapter · first days story", da: "Liv kapitel · de første dage" }))}</div>
   </div>`;
   syncBeacon();
   const qw = document.getElementById("hudQuestsWrap");

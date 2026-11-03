@@ -101,7 +101,10 @@ function enforceLifeCh1PlayerMeshVisibility(actor) {
 
 function applyPlayerLifeCh1SkinOpts(opts = {}) {
   const pl = actors.get("player");
-  if (!pl?.group) return false;
+  if (!pl?.group) {
+    lifeCh1PlayerSkin.pending = { ...opts };
+    return false;
+  }
   const sp = ensureLifeCh1PlayerSprite(pl);
   if (!sp) return false;
   if (!opts.visible || !opts.url) {

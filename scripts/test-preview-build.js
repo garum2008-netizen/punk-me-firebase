@@ -153,6 +153,11 @@ async function runBrowserTest(base) {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
+  const consoleErrors = [];
+  page.on("pageerror", err => consoleErrors.push(String(err)));
+  page.on("console", msg => {
+    if (msg.type() === "error") consoleErrors.push(msg.text());
+  });
   await page.route("**/*", route => {
     const url = route.request().url();
     const rt = route.request().resourceType();
@@ -252,6 +257,47 @@ async function runBrowserTest(base) {
       return p?.hidden === true || getComputedStyle(p).display === "none";
     });
     if (!chatHidden) throw new Error("chat must stay off in preview");
+
+    const travelErrorsBefore = consoleErrors.length;
+    await page.evaluate(() => {
+      if (window.me.location !== "room") goLocation("room");
+    });
+    await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 15000 });
+    const roomLoc = await page.evaluate(() => window.me?.location);
+    await page.evaluate(() => goLocation("street"));
+    await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 15000 });
+    const streetLoc = await page.evaluate(() => window.me?.location);
+    const cemeteryClick = await page.evaluate(() => {
+      const nav = document.getElementById("navQuick");
+      const btn = nav?.querySelector('button[onclick*="cemetery"]');
+      if (!btn) {
+        return { ok: false, html: nav?.innerHTML?.slice(0, 400) || "" };
+      }
+      btn.click();
+      return { ok: true, label: btn.textContent || "" };
+    });
+    if (!cemeteryClick.ok) {
+      throw new Error("preview cemetery nav button missing: " + JSON.stringify(cemeteryClick));
+    }
+    await page.waitForFunction(() => window.me?.location === "cemetery", undefined, { timeout: 15000 });
+    const cemeteryScene = await page.evaluate(() => ({
+      meLoc: window.me?.location,
+      w3Loc: window.World3D?.countVisiblePropsInScene?.()?.location || null
+    }));
+    if (cemeteryScene.meLoc !== "cemetery") {
+      throw new Error("preview cemetery travel failed me.location: " + JSON.stringify(cemeteryScene));
+    }
+    if (cemeteryScene.w3Loc && cemeteryScene.w3Loc !== "cemetery") {
+      throw new Error("preview cemetery 3D scene mismatch: " + JSON.stringify(cemeteryScene));
+    }
+    if (streetLoc !== "street" || roomLoc !== "room") {
+      throw new Error(`preview travel path bad room=${roomLoc} street=${streetLoc}`);
+    }
+    const travelErrors = consoleErrors.slice(travelErrorsBefore);
+    if (travelErrors.length) {
+      throw new Error("console errors during preview travel: " + travelErrors.join(" | "));
+    }
+    console.log("preview-cemetery-travel: PASS", JSON.stringify(cemeteryScene));
 
     if (prodAttempts !== 0) {
       throw new Error(`expected 0 prod Firebase requests, saw ${prodAttempts}`);

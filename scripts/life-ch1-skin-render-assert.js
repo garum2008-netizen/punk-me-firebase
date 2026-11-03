@@ -43,11 +43,16 @@ async function assertSkinRenderNow(page, skinLetter, label) {
   }
 }
 
-async function assertSkinAfterReloadSchedule(page, skinLetter) {
-  for (const ms of [2000, 10000]) {
-    await page.waitForTimeout(ms);
-    await assertSkinRenderNow(page, skinLetter, `${ms}ms after reload`);
-  }
+async function assertSkinAfterReloadSchedule(page, skinLetter, timeoutMs = 15000) {
+  await page.waitForFunction(
+    () =>
+      typeof window.World3D?.getPlayerLifeCh1SkinRenderState === "function" &&
+      window.__playerLoaded === true,
+    undefined,
+    { timeout: 60000 }
+  );
+  await waitUntilSkinRendered(page, skinLetter, timeoutMs);
+  await assertSkinRenderNow(page, skinLetter, "after reload (texture ready)");
 }
 
 module.exports = {

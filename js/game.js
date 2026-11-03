@@ -69,6 +69,7 @@ function disablePreviewChatUi() {
 function bootPreviewSession() {
   installPreviewBanner();
   disablePreviewChatUi();
+  presenceOk = false;
   uid = window.PunkPreviewSave?.getDeviceId?.() || "preview_local";
   window.uid = uid;
   isOwner = false;
@@ -120,9 +121,18 @@ function othersForStage3D() {
 
 function devCoinsEnabled() {
   try {
-    return new URLSearchParams(location.search).has("dev") || localStorage.getItem("punkme_dev") === "1";
-  } catch (e) { return false; }
+    const devFlag =
+      new URLSearchParams(location.search).has("dev") || localStorage.getItem("punkme_dev") === "1";
+    if (!devFlag) return false;
+    if (window.__PUNK_PREVIEW__ === true) return true;
+    const host = location.hostname || "";
+    if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") return true;
+    return false;
+  } catch (e) {
+    return false;
+  }
 }
+window.__punkDevCoinsEnabled = devCoinsEnabled;
 
 function hudDebugMetricsEnabled() {
   if (isOwner) return true;
@@ -1187,6 +1197,13 @@ function listenPresence() {
     listenPlayersInLocation();
     return;
   }
+  if (isPreviewBuild() || !db) {
+    others = {};
+    renderPlayers();
+    renderPlayersList();
+    updateOnlineCount();
+    return;
+  }
   if (presenceListenRef) presenceListenRef.off();
   const loc = me.location;
   if (isPrivateRoomLoc(loc)) {
@@ -1221,6 +1238,13 @@ function listenPresence() {
 }
 
 function listenPlayersInLocation() {
+  if (isPreviewBuild() || !db) {
+    others = {};
+    renderPlayers();
+    renderPlayersList();
+    updateOnlineUI({});
+    return;
+  }
   if (playersListenRef) playersListenRef.off();
   if (isPrivateRoomLoc(me.location)) {
     others = {};
@@ -1366,7 +1390,12 @@ function goLocation(id, fromHash) {
   portalCooldown = Date.now() + 1600;
   window.World3D?.setPortalGrace?.(1600);
   saveMe();
-  if (presenceOk) listenPresence();
+  if (isPreviewBuild() || !db) {
+    others = {};
+    renderPlayers();
+    renderPlayersList();
+    updateOnlineCount();
+  } else if (presenceOk) listenPresence();
   else listenPlayersInLocation();
   listenBuildings();
   refreshLifeScene();

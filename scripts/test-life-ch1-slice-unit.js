@@ -82,6 +82,10 @@ async function main() {
   };
   walk(sliceJson.dialogues);
 
+  const sliceSrc = fs.readFileSync(path.join(root, "js/story/life-ch1-slice.mjs"), "utf8");
+  assert(!sliceSrc.includes("Owner PNG"), "wardrobe hint must not mention Owner PNG");
+  assert(!/lifeCh1 save namespace/.test(sliceSrc), "quest subline must not expose lifeCh1 id");
+
   if (failed) {
     console.error(`life-ch1-unit: ${failed} failed`);
     process.exit(1);
