@@ -537,6 +537,9 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .hud-quests-wrap.collapsed .daily-quest-hud { display: none; }
 .hud-desktop-only { display: flex; }
 .dock-scroll-row { display: contents; }
+.dock-scroll-row::after {
+  content: none;
+}
 @media (max-width: 900px) {
   #game { --dock-h: 168px; }
   .touch-controls { display: block; }
@@ -557,28 +560,43 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
     padding-right: 12px;
   }
   #navQuick.nav-quick {
-    padding-right: 14px;
-    scroll-padding-right: 14px;
+    padding-right: 0;
+    scroll-padding-right: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 4px;
+    max-width: min(100vw, 390px);
+    overflow: visible;
   }
   .dock-scroll-row {
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-direction: column;
+    align-items: stretch;
+    overflow: visible;
     gap: 6px;
     width: 100%;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 2px;
+    max-width: 100%;
+  }
+  .dock-scroll-row.nav-scroll-hint::after {
+    content: "";
+    display: block;
+    height: 3px;
+    margin: 0 auto;
+    width: 48px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.45), transparent);
+    opacity: 0.85;
   }
   .dock-scroll-row > .nav-quick,
   .dock-scroll-row > .panel-bottom {
     display: flex;
-    flex-wrap: nowrap;
-    flex-shrink: 0;
+    flex-wrap: wrap;
+    flex-shrink: 1;
     gap: 6px;
     overflow: visible;
-    width: auto;
-    max-width: none;
-    justify-content: flex-start;
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
   }
   .hud-column {
     left: 6px; max-width: calc(100% - 112px);

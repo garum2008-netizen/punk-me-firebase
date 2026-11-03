@@ -328,13 +328,41 @@ def defringe_gray_halos(img: Image.Image) -> Image.Image:
                 continue
             if a < 64 and max(r, g, b) - min(r, g, b) < 12 and (r + g + b) / 3 > 200:
                 px[x, y] = (r, g, b, 0)
-            elif 0 < a < 255 and max(r, g, b) - min(r, g, b) < 8 and (r + g + b) / 3 > 215:
-                px[x, y] = (r, g, b, min(255, a + 40))
+            elif 0 < a < 96 and max(r, g, b) - min(r, g, b) < 10 and (r + g + b) / 3 > 210:
+                px[x, y] = (r, g, b, 0)
+            elif 96 <= a < 200 and max(r, g, b) - min(r, g, b) < 8 and (r + g + b) / 3 > 218:
+                px[x, y] = (r, g, b, min(255, a + 28))
+    return rgba
+
+
+def defringe_alpha_edge_only(img: Image.Image) -> Image.Image:
+    """Reduce dark-background halos by trimming semi-transparent edge alpha only."""
+    rgba = img.convert("RGBA")
+    px = rgba.load()
+    w, h = rgba.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a <= 0 or a >= 250:
+                continue
+            edge = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h or px[nx, ny][3] < 24:
+                    edge = True
+                    break
+            if not edge:
+                continue
+            if a < 72:
+                px[x, y] = (r, g, b, 0)
+            elif a < 140:
+                px[x, y] = (r, g, b, int(a * 0.55))
     return rgba
 
 
 def postprocess_cutout(skin_id: str, cut: Image.Image) -> Image.Image:
     out = defringe_gray_halos(cut)
+    out = defringe_alpha_edge_only(out)
     for _ in range(4):
         out = strip_outline_near_white(out)
     return out

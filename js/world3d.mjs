@@ -18,6 +18,8 @@ import {
   loadAllCc0Templates,
   loadMeshyTemplateForCharacter,
   getTemplateForCharacter,
+  onMeshyTemplateLoaded,
+  isDedicatedShippedHero,
   createCc0Actor,
   updateLocomotionTimeScale,
   WAVE_EMOTE_ENABLED,
@@ -73,6 +75,7 @@ let meLastDx = 0;
 let meLastDy = 0;
 let playerAnimState = "idle";
 let modelsReady = false;
+let pendingSyncData = null;
 let captureFrameLock = false;
 let dialogueLiveMinHead = 0;
 let portalGraceUntil = 0;
@@ -432,11 +435,62 @@ function spawnOffsetForId(id, index) {
   return { x: Math.cos(angle) * r, z: Math.sin(angle) * r };
 }
 
-function createActorFromCatalog(id, characterId) {
-  const def = charDef(characterId || "vienna");
-  const tpl = getTemplateForCharacter(characterId || "vienna");
+function countMeshVertices(root) {
+  if (!root) return 0;
+  let n = 0;
+  root.traverse(o => {
+    if (!o.isMesh || !o.geometry?.attributes?.position) return;
+    if (o.geometry.type === "CircleGeometry") return;
+    n += o.geometry.attributes.position.count;
+  });
+  return n;
+}
+
+function expectedMeshUrlForCharacter(characterId) {
+  const id = characterId || "vienna";
+  const allowFallback = !isDedicatedShippedHero(id) || id === "vienna";
+  const tpl = getTemplateForCharacter(id, { allowFallback });
+  return tpl?.def?.url || "";
+}
+
+function actorNeedsTemplateRebuild(actor, characterId, isNpc) {
+  if (!actor) return false;
+  const cid = characterId || "vienna";
+  if ((actor.characterId || "vienna") !== cid) return true;
+  if (isNpc && isDedicatedShippedHero(cid) && cid !== "vienna") {
+    const dedicated = getTemplateForCharacter(cid, { allowFallback: false });
+    if (dedicated?.def?.url) return (actor._meshUrl || "") !== dedicated.def.url;
+    return !!(actor._meshUrl && !actor._meshUrl.includes("punk_pink.glb"));
+  }
+  const tpl = getTemplateForCharacter(cid, { allowFallback: !isNpc || !isDedicatedShippedHero(cid) });
+  if (!tpl?.def?.url) return false;
+  return (actor._meshUrl || "") !== tpl.def.url;
+}
+
+function destroyActor(id) {
+  const a = actors.get(id);
+  if (!a) return;
+  scene.remove(a.group);
+  a.mixer?.stopAllAction();
+  actors.delete(id);
+}
+
+function rebuildActorsForCharacter(charId) {
+  const ids = [];
+  actors.forEach((a, actorId) => {
+    if ((a.characterId || "") === charId) ids.push(actorId);
+  });
+  ids.forEach(destroyActor);
+  if (pendingSyncData) sync(pendingSyncData);
+}
+
+function createActorFromCatalog(id, characterId, isNpc) {
+  const cid = characterId || "vienna";
+  const allowFallback = !isNpc || !isDedicatedShippedHero(cid);
+  const tpl = getTemplateForCharacter(cid, { allowFallback });
   if (!tpl?.gltf) return null;
-  const built = createCc0Actor(tpl, characterId, def.look || {}, {
+  const def = charDef(cid);
+  const built = createCc0Actor(tpl, cid, def.look || {}, {
     isPlayer: id === "player",
     actorId: id
   });
@@ -447,9 +501,9 @@ function createActorFromCatalog(id, characterId) {
   group.add(root);
   scene.add(group);
   const actor = {
-    id, characterId: characterId || "vienna", group, root, mixer, actions,
+    id, characterId: cid, group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
-    _tplKey: tpl.key, _meshy: built._meshy, _proc: built._proc,
+    _meshUrl: tpl.def.url, _meshy: built._meshy, _proc: built._proc,
     _visPushX: 0, _visPushZ: 0
   };
   for (let i = 0; i < 4; i++) updateProcedural(actor, 1 / 60, null, false);
@@ -458,16 +512,14 @@ function createActorFromCatalog(id, characterId) {
 }
 
 function ensureActor(id, characterId, isNpc) {
-  const tplKey = getTemplateForCharacter(characterId || "vienna")?.key;
+  const cid = characterId || "vienna";
   let a = actors.get(id);
-  if (a && (a.characterId !== characterId || a._tplKey !== tplKey)) {
-    scene.remove(a.group);
-    a.mixer?.stopAllAction();
-    actors.delete(id);
+  if (actorNeedsTemplateRebuild(a, cid, isNpc)) {
+    destroyActor(id);
     a = null;
   }
-  if (!a) a = createActorFromCatalog(id, characterId);
-  a.isNpc = isNpc;
+  if (!a) a = createActorFromCatalog(id, cid, isNpc);
+  if (a) a.isNpc = isNpc;
   return a;
 }
 
@@ -655,6 +707,7 @@ function getNpcVisibilitySnapshot() {
 async function loadModels() {
   await loadMeshyTemplateForCharacter("vienna");
   modelsReady = true;
+  if (pendingSyncData) sync(pendingSyncData);
   void loadAllCc0Templates();
   void loadPunkDogTemplate().then(t => {
     punkDogTemplate = t;
@@ -1505,6 +1558,7 @@ function getNearPortal() {
 }
 
 function sync(data) {
+  pendingSyncData = data;
   if (!modelsReady) return;
   const { player, others, npcs, location, hasDog, carVisible } = data;
   const justChangedLoc = location !== currentLoc;
@@ -1569,6 +1623,7 @@ function sync(data) {
     const id = "npc_" + n.id;
     keep.add(id);
     const a = ensureActor(id, n.characterId || n.id, true);
+    if (!a) return;
     const wp = NPC_WORLD[location]?.[n.id] || gameToWorldLoc(n.x, n.y, bounds);
     const path = NPC_PATROL[location]?.[n.id];
     if (path?.length) {
@@ -1807,6 +1862,8 @@ function init(h) {
   window.addEventListener("resize", resize);
   document.body.classList.add("mode-world3d");
 
+  onMeshyTemplateLoaded(rebuildActorsForCharacter);
+
   return loadModels().then(() => {
     resize();
     loop();
@@ -1896,6 +1953,19 @@ const api = {
   setPlayerLifeCh1Skin,
   getPlayerLifeCh1SkinRenderState,
   getNpcVisibilitySnapshot,
+  getNpcMeshVertexSnapshot: () => {
+    const out = {};
+    actors.forEach((a, actorId) => {
+      if (!actorId.startsWith("npc_")) return;
+      const cid = a.characterId || actorId.replace(/^npc_/, "");
+      out[cid] = {
+        verts: countMeshVertices(a.root),
+        meshUrl: a._meshUrl || "",
+        visible: !!(a.group?.visible && a.root?.visible !== false)
+      };
+    });
+    return { location: currentLoc, npcs: out };
+  },
   clearPlayerLifeCh1Skin: () => setPlayerLifeCh1Skin({ visible: false }),
   /** E2E only: rotate camera toward a world point (movement still uses real WASD). */
   faceWorldTargetForE2e,

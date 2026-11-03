@@ -105,9 +105,9 @@ export const LOCATION_BOUNDS = {
 
 export const NPC_WORLD = {
   room: {
-    vienna: { x: -5.4, z: 4.6 },
-    mohawk: { x: 5.6, z: 3.2 },
-    cobalt: { x: 5.2, z: -4.8 }
+    vienna: { x: -4.9, z: -1.1 },
+    mohawk: { x: 5.4, z: 2.6 },
+    cobalt: { x: 2.0, z: -3.6 }
   },
   street: {
     razor: { x: -4.6, z: -3.4 },
@@ -150,22 +150,22 @@ export const NPC_QUEST_GREET = {
 export const NPC_PATROL = {
   room: {
     vienna: [
-      { x: -2.2, z: 1.2 },
-      { x: -0.5, z: 2.5 },
-      { x: 1, z: 0.8 },
-      { x: -2.2, z: 1.2 }
+      { x: -4.9, z: -1.1 },
+      { x: -3.8, z: 0.4 },
+      { x: -5.3, z: 0.2 },
+      { x: -4.9, z: -1.1 }
     ],
     mohawk: [
-      { x: 3.5, z: -1.5 },
-      { x: 1.2, z: 2.8 },
-      { x: -1.5, z: 0.5 },
-      { x: 3.5, z: -1.5 }
+      { x: 5.4, z: 2.6 },
+      { x: 4.5, z: 1.2 },
+      { x: 5.6, z: 0.5 },
+      { x: 5.4, z: 2.6 }
     ],
     cobalt: [
-      { x: 0.5, z: -2.2 },
-      { x: 2.2, z: 0.5 },
-      { x: -1, z: 1.5 },
-      { x: 0.5, z: -2.2 }
+      { x: 2.0, z: -3.6 },
+      { x: 0.6, z: -3.0 },
+      { x: 2.6, z: -2.5 },
+      { x: 2.0, z: -3.6 }
     ]
   },
   street: {

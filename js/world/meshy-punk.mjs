@@ -35,6 +35,29 @@ const MESHY_DIRECT_URL = {
 };
 
 const templateByCharacter = new Map();
+const templateLoadedListeners = new Set();
+
+export function onMeshyTemplateLoaded(fn) {
+  if (typeof fn !== "function") return () => {};
+  templateLoadedListeners.add(fn);
+  return () => templateLoadedListeners.delete(fn);
+}
+
+function notifyTemplateLoaded(characterId) {
+  templateLoadedListeners.forEach(fn => {
+    try {
+      fn(characterId);
+    } catch (e) {
+      console.warn("onMeshyTemplateLoaded", e);
+    }
+  });
+}
+
+export function meshyTemplateReady(characterId, opts = {}) {
+  const { allowFallback = false } = opts;
+  const t = getTemplateForCharacter(characterId, { allowFallback });
+  return !!t?.gltf;
+}
 
 export function meshyGlbPathForHero(characterId) {
   const id = characterId || DEFAULT_MESHY_CHARACTER;
@@ -112,6 +135,14 @@ async function getShippedMeshyIds() {
   return shippedMeshyIds;
 }
 
+/** Heroes that must use their own GLB when present in shipped.json (not Vienna stand-in). */
+export function isDedicatedShippedHero(characterId) {
+  const id = characterId || DEFAULT_MESHY_CHARACTER;
+  if (id === "vienna" || id === "life_ch1_proxy") return true;
+  if (!shippedMeshyIds) return id === "vienna";
+  return shippedMeshyIds.includes(id);
+}
+
 export async function loadMeshyTemplateForCharacter(characterId) {
   const id = characterId || DEFAULT_MESHY_CHARACTER;
   if (templateByCharacter.has(id)) return templateByCharacter.get(id);
@@ -137,6 +168,7 @@ export async function loadMeshyTemplateForCharacter(characterId) {
   const entry = buildTemplateFromGltf(gltf, url, usesFallback);
   if (id === "vienna") entry.usesFallback = false;
   templateByCharacter.set(id, entry);
+  notifyTemplateLoaded(id);
   return entry;
 }
 
@@ -156,10 +188,13 @@ export async function loadAllCc0Templates() {
   return templateByCharacter;
 }
 
-export function getTemplateForCharacter(characterId) {
+export function getTemplateForCharacter(characterId, opts = {}) {
+  const { allowFallback = true } = opts;
   const raw = characterId || DEFAULT_MESHY_CHARACTER;
   const id = raw === "life_ch1_proxy" ? "vienna" : raw;
-  const t = templateByCharacter.get(raw) || templateByCharacter.get(id) || templateByCharacter.get(DEFAULT_MESHY_CHARACTER);
+  let t = templateByCharacter.get(raw) || templateByCharacter.get(id);
+  if (t && !allowFallback && t.usesFallback) t = null;
+  if (!t && allowFallback) t = templateByCharacter.get(DEFAULT_MESHY_CHARACTER);
   if (!t) return null;
   return { key: raw, characterId: id, ...t };
 }
@@ -291,6 +326,7 @@ export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
     mixer,
     actions,
     templateKey: def.url,
+    meshUrl: def.url,
     _meshy: true,
     _proc: proc,
     _accent: accent

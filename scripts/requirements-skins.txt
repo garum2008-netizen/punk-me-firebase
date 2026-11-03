@@ -1,0 +1,4 @@
+# Python deps for scripts/build-angelina-skin-assets.py (rembg alpha rebuild only).
+# npm tests do not require these packages.
+Pillow>=10.0.0
+rembg>=2.0.50

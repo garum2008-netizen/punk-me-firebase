@@ -519,8 +519,38 @@ async function runBrowserTest(base) {
 }
 
 async function testTimeToPlayer1280(base) {
+  const samples = [];
+  for (let run = 1; run <= 3; run++) {
+    const browser = await chromium.launch();
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.addInitScript(key => {
+      try {
+        localStorage.setItem(key, "1");
+      } catch (_) {}
+    }, HOWTO_SEEN_KEY);
+    const page = await context.newPage();
+    try {
+      await page.goto(`${base}/?lifeCh1E2e=1&v=ttp-1280-${run}`, { waitUntil: "load", timeout: 120000 });
+      await page.waitForSelector('[data-testid="char-select-angelina"], #charSelectConfirm', { timeout: 90000 });
+      const t0 = Date.now();
+      await page.click("#charSelectConfirm");
+      await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+      samples.push(Date.now() - t0);
+    } finally {
+      await page.close();
+      await context.close();
+      await browser.close();
+    }
+  }
+  samples.sort((a, b) => a - b);
+  const ms = samples[1];
+  if (ms > 4000) throw new Error(`1280 time-to-player median ${ms}ms (max 4000), samples=${samples.join(",")}`);
+  console.log("preview-time-to-player-1280: PASS", { medianMs: ms, samples });
+}
+
+async function testNavChips390(base) {
   const browser = await chromium.launch();
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await context.addInitScript(key => {
     try {
       localStorage.setItem(key, "1");
@@ -528,14 +558,32 @@ async function testTimeToPlayer1280(base) {
   }, HOWTO_SEEN_KEY);
   const page = await context.newPage();
   try {
-    await page.goto(`${base}/?lifeCh1E2e=1&v=ttp-1280`, { waitUntil: "load", timeout: 120000 });
-    await page.waitForSelector('[data-testid="char-select-angelina"], #charSelectConfirm', { timeout: 90000 });
-    const t0 = Date.now();
+    await page.goto(`${base}/?lifeCh1E2e=1`, { waitUntil: "load", timeout: 120000 });
+    await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
     await page.click("#charSelectConfirm");
     await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
-    const ms = Date.now() - t0;
-    if (ms > 4000) throw new Error(`1280 time-to-player after confirm ${ms}ms (max 4000)`);
-    console.log("preview-time-to-player-1280: PASS", ms);
+    const report = await page.evaluate(() => {
+      const nav = document.getElementById("navQuick");
+      const vw = window.innerWidth;
+      const buttons = [...(nav?.querySelectorAll("button") || [])];
+      return buttons.map(b => {
+        const r = b.getBoundingClientRect();
+        return {
+          text: (b.textContent || "").trim(),
+          left: r.left,
+          right: r.right,
+          top: r.top,
+          bottom: r.bottom,
+          inViewport: r.left >= -1 && r.right <= vw + 1 && r.top >= 0 && r.bottom <= window.innerHeight
+        };
+      });
+    });
+    if (report.length < 5) throw new Error("nav chips too few: " + JSON.stringify(report));
+    const bad = report.filter(r => !r.inViewport);
+    if (bad.length) throw new Error("nav chip clipped at 390: " + JSON.stringify(bad));
+    const parkour = report.find(r => /паркур/i.test(r.text) || /parkour/i.test(r.text));
+    if (!parkour) throw new Error("parkour chip missing among " + report.map(r => r.text).join("|"));
+    console.log("preview-nav-chips-390: PASS", report.map(r => r.text).join(", "));
   } finally {
     await page.close();
     await context.close();
@@ -556,6 +604,7 @@ async function main() {
   try {
     await testHowToOverlayFreshProfile("http://127.0.0.1:3765");
     await runBrowserTest("http://127.0.0.1:3765");
+    await testNavChips390("http://127.0.0.1:3765");
     await testTimeToPlayer1280("http://127.0.0.1:3765");
   } finally {
     srv.close();

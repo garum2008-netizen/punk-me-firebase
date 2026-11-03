@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-ch1-angelina-r6";
+const GAME_VERSION = "living3d-v22r5-ch1-angelina-r7";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -330,6 +330,28 @@ const NPCS = {
       "Ночью здесь холоднее. Держи куртку."
     ]
   }
+};
+
+/** Preview-only shop art (production SHOP keeps imagine_images posters). */
+const PREVIEW_SHOP_IMG = {
+  jacket_neon: "imagine_images/LTPb8.jpg",
+  mohawk_dye: "imagine_images/KY3Sa.jpg",
+  boots_spike: "imagine_images/9iBXD.jpg",
+  hat_spike: "imagine_images/77Mdp.jpg",
+  chain_rust: "imagine_images/C34xz.jpg",
+  chain_neon: "imagine_images/Lix06.jpg",
+  chain_vienna: "imagine_images/QTaiE.jpg",
+  spell_neon_flash: "imagine_images/VlJGD.jpg",
+  spell_graffiti: "imagine_images/aWXpu.jpg",
+  spell_shadow: "imagine_images/iVbon.jpg",
+  spell_spark: "imagine_images/ercEN.jpg",
+  pet_dog: "imagine_images/sgz0l.jpg",
+  pet_cat: "imagine_images/q4BXV.jpg",
+  pet_rat: "imagine_images/p5uQj.jpg",
+  pet_crow: "imagine_images/R5cVh.jpg",
+  mat_crypt: "imagine_images/DBvDX.jpg",
+  mat_neon: "imagine_images/cV5Em.jpg",
+  mat_brick: "imagine_images/BtmE4.jpg"
 };
 
 const SHOP = {
@@ -1765,8 +1787,9 @@ function renderShop() {
   const items = SHOP[shopTab] || [];
   document.getElementById("shopGrid").innerHTML = items.map(it => {
     const own = me.owned.includes(it.id);
+    const img = isPreviewBuild() ? (PREVIEW_SHOP_IMG[it.id] || it.img) : it.img;
     return `<div class="card">
-      <img src="${it.img}" alt="">
+      <img src="${img}" alt="">
       <div><b>${escapeHtml(tShop(it.id))}</b></div>
       <div class="price">${isOwner ? t("free") : effectiveShopPrice(it) + " " + t("coins_word")}</div>
       <button class="btn" ${own && it.cat !== "materials" ? "disabled" : ""} onclick="buyItem('${it.id}')">
