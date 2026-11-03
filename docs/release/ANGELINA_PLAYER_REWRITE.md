@@ -4,57 +4,54 @@ Owner decision 2026-11-03 (Inna): in the preview/slice gates only, **the player 
 
 ## Dialogue — changed RU lines (`data/story/life-ch1-slice.json`)
 
-| id | old RU | new RU |
-|----|--------|--------|
-| `steps.trust.objective` | Поговори с Ангелиной (метка в комнате) — выбери, кому доверяешь | Подойди к метке в комнате — реши, кому доверишься |
-| `steps.reflect.objective` | Снова поговори с Ангелиной — посмотри, что изменилось | Снова подойди к метке — оглянись на свой выбор |
-| `dlg_life_ch1_outfit.n0` (speaker → `player`) | Выбери, как ты хочешь выглядеть сегодня. Это только стиль — без давления. | Выбери, как ты хочешь выглядеть сегодня. Только стиль — без давления. |
-| `dlg_life_ch1_trust.n0` | Я нашла записку на тумбочке. Что сделаем? | На тумбочке лежит записка. Что делать? |
-| `dlg_life_ch1_trust.n0.choice trust_mira` | Довериться Ангелине | Довериться Мире |
-| `dlg_life_ch1_trust.n_after_calm` | Спокойный образ — хороший знак. Я нашла записку на тумбочке. Что сделаем? | Спокойный образ — хороший знак. На тумбочке записка. Что делать? |
-| `dlg_life_ch1_trust.n_after_calm.choice trust_mira` | Довериться Ангелине | Довериться Мире |
-| `dlg_life_ch1_trust.n_after_bright` | Ярко! Записка на тумбочке — не для всех глаз. Решай. | Ярко! Записка на тумбочке — не для всех глаз. Решай сама. |
-| `dlg_life_ch1_trust.n_after_bright.choice trust_mira` | Довериться Ангелине | Довериться Мире |
-| `dlg_life_ch1_trust.n_after_bold` | Смело. Записка ждёт — если ошибёмся, последствия будут позже. | Смело. Записка ждёт — если ошибусь, последствия будут позже. |
-| `dlg_life_ch1_trust.n_after_bold.choice trust_mira` | Довериться Ангелине | Довериться Мире |
-| `dlg_life_ch1_reflect.n_secret` (speaker → `player`) | Хорошо. Тайна останется между нами — пока ты не решишь иначе. | Хорошо. Пока никому — пока сама не решишь иначе. |
-| `dlg_life_ch1_reflect.n_open` (speaker → `mira`) | Ладно… но Мира может обидеться, если узнает не от тебя. | Ангелина, лучше расскажи мне сама — обидно узнать от других. |
-| `dlg_life_ch1_reflect.n_trust` (speaker → `mira`) | Спасибо. Я помогу — без геройства, обещаю. | Спасибо, Ангелина. Я рядом — без геройства, обещаю. |
-| `dlg_life_ch1_reflect.n_fallback` (speaker → `player`) | Ты уже сделал выбор — помни его. | Ты уже сделала выбор — помни его. |
+Structure unchanged (ids, flags, rewards, step order). Speaker / POV fixes only.
 
-Note: choice flag `mystery_trust_angelina` is unchanged for save compatibility; label now trusts **Mira**.
+| id | new RU (summary) |
+|----|------------------|
+| `steps.trust.objective` | Подойди к метке — реши, что делать с запиской (matches «Спрятать и подумать» / note choices) |
+| `steps.reflect.objective` | Снова подойди к метке — вспомни, что ты решила |
+| `dlg_life_ch1_outfit.n0` | Какой образ мне сегодня? В зеркале — только стиль. |
+| `dlg_life_ch1_trust.*` | Player 1st person; choice label **Довериться Мире** (flag `mystery_trust_angelina` unchanged) |
+| `dlg_life_ch1_reflect.n_secret` | Хорошо. Никому, пока сама не решу иначе. |
+| `dlg_life_ch1_reflect.n_open` | Напишу Мире, когда соберусь с мыслями — сама, своими словами. |
+| `dlg_life_ch1_reflect.n_trust` (mira) | Спасибо, Ангелина. Я на связи. Без геройства — просто поддержу. |
+| `dlg_life_ch1_reflect.n_fallback` | Я уже решила — держу это в голове. |
 
-EN/DA strings updated in the same nodes (player POV / Mira addresses Angelina).
+EN/DA updated in the same nodes.
 
 ## UI copy (code, not JSON)
 
-| location | old RU | new RU |
-|----------|--------|--------|
-| Wardrobe panel title (`life-ch1-slice.mjs`) | Ангелина — гардероб | Гардероб |
+| location | new RU |
+|----------|--------|
+| Quest title (`life-ch1-slice.mjs`) | Новенькая в городе |
+| Wardrobe hint | Выбери образ и стиль — в мире это моё отражение. |
+| Chat input placeholder | Только готовые фразы (no internal D12-A code) |
+| Mira dialogue title | Мира (сообщение) — subtitle pill cleared while dialog open (no double label) |
+| Wardrobe panel title | Гардероб |
 
 ## Player visual — where behaviour changed (slice / preview gates only)
 
 | Area | Change |
 |------|--------|
-| `js/story/life-ch1-slice.mjs` → `previewPlayerLifeCh1Skin` | Removed `location === "room"` gate; when `isLifeCh1SliceEnabled()`, 2D cutout shows in **all** locations (room, kitchen, street, cemetery, city, …). |
-| `js/game.js` → `goLocation` | Calls `LifeCh1Slice.syncPlayerLifeCh1Skin()` after `syncStage3D()` so cutout follows travel. |
-| `js/game.js` → `pickCharacterAndContinue` | Slice: forces mesh id `cobalt` under hidden root, `lifeCh1.playerCutout`, skin A default, `applySliceAngelinaPlayerChrome()`. |
-| `js/char-select.mjs` | Slice: single confirm as Angelina (`data-testid="char-select-angelina"`), picks cobalt for 3D under cutout. |
-| `js/story/life-ch1-slice.mjs` → `applySliceAngelinaPlayerChrome` | Adds `body.life-ch1-angelina-player`. |
-| `css/game.css` | Hides «Сменить героя», how-to change hero, wardrobe «Вернуть стандартного героя (3D)» when `body.life-ch1-angelina-player`. |
-| `js/game.js` → `changeCharacter` | No-op when slice enabled. |
-| `js/story/life-ch1-slice.mjs` → wardrobe | Hides `#lifeCh1WardrobeDefault` in slice; title «Гардероб». |
-| `js/story/life-ch1-slice.mjs` → `showDialogue` | Speaker titles: player / Mira; portrait on `player` lines. |
+| `js/story/life-ch1-slice.mjs` → `previewPlayerLifeCh1Skin` | When `isLifeCh1SliceEnabled()`, 2D cutout in **all** locations. |
+| `js/game.js` → `goLocation` | `LifeCh1Slice.syncPlayerLifeCh1Skin()` after travel. |
+| `js/game.js` → `pickCharacterAndContinue` | Slice: `life_ch1_proxy` mesh, skin A default, Angelina chrome. |
+| `js/world3d.mjs` | Full-height world WebP layout (~1.78m), contact shadow, kitchen placement offset; cutout re-parent on `rebuildLocation`. |
+| `scripts/build-angelina-skin-assets.py` | Full-height crop (280px wide); A variant right-edge alpha cleanup only. |
+| `data/story/angelina-skin-manifest.json` | Updated **world** sha256 for A/B/C-v2 (portraits unchanged). |
+| `css/game.css` | Hide empty `#gameplayHud` / subtitle pill. |
 
-## Follow-up (post ce47a57)
+## Production safety (post 41aad01 verification)
 
-| Area | Change |
+| Item | Change |
 |------|--------|
-| `js/world3d.mjs` | Dispose/re-parent life-ch1 cutout on `rebuildLocation`; `getPlayerLifeCh1SkinRenderState` checks `sceneAttached`; floor grounding + contact shadow blob. |
-| Player mesh id | `life_ch1_proxy` (Vienna template) — Cobalt NPC no longer stolen. |
-| `data/story/life-ch1-slice.json` | Mira lines as messages; player 1st person; copy polish (see table rows in git diff). |
-| Production | `?lifeCh1Slice=1` inert on `punk.contractbot.dk` / Firebase hosts; `tryPlaceBuild` preview/test only; cache bump `living3d-v22r5-ch1-angelina-r2`. |
+| RTDB | `database.rules.json` on slice PR **matches `main`** (no `lifeCh1` writes on production). Draft rules: branch `cursor/life-ch1-database-rules-1430`, `docs/release/LIFE_CH1_RTDB_RULES_DRAFT.md`. |
+| Query flags | `?lifeCh1Slice=1` and `?lifeCh1E2e=1` inert on `*.punk.contractbot.dk` / `*.web.app` (incl. E2E nav aid in `world3d.mjs`). |
+| Coins | `startingCoins + 50` clamp in `story-engine.mjs` when not preview and not slice. |
+| Public hosting | `docs/release/PUBLIC_SERVING_AUDIT.md`; extra ignores in `firebase.json`. |
+| Cache bust | `living3d-v22r5-ch1-angelina-r3` |
 
+## Tests
 
-- `scripts/test-life-ch1-slice-unit.js` — no NPC Angelina objectives/choices; reflect speakers.
-- `scripts/test-preview-build.js` — cutout visible room/street/cemetery; UI hidden; reload + wardrobe path unchanged.
+- `scripts/test-life-ch1-slice-unit.js` — production flags inert, reflect/fallback copy, anti-cheat source assert.
+- `scripts/test-preview-build.js` — cutout locations + kitchen 390×844 placement.

@@ -97,8 +97,8 @@ export function defaultLifeCh1State() {
   };
 }
 
-/** Production static host — slice query flag stays inert until owner enables. */
-function isProductionGameHost() {
+/** Production static host — slice/E2E query flags inert until owner enables. */
+export function isProductionGameHost() {
   try {
     if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return false;
     const h = location.hostname.toLowerCase();
@@ -113,18 +113,17 @@ function isProductionGameHost() {
 export function isLifeCh1SliceEnabled() {
   try {
     if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
+    if (isProductionGameHost()) return false;
     const q = new URLSearchParams(location.search);
+    if (q.get("lifeCh1Slice") === "1") return true;
     if (q.get("lifeCh1E2e") === "1") return true;
-    if (q.get("lifeCh1Slice") === "1") {
-      if (isProductionGameHost()) return false;
-      return true;
-    }
   } catch (_) {}
   return false;
 }
 
 export function isLifeCh1TestMode() {
   try {
+    if (isProductionGameHost()) return false;
     const q = new URLSearchParams(location.search);
     if (q.get("lifeCh1E2e") === "1") return true;
     if (q.get("firebaseEmulator") === "1") return true;
@@ -561,9 +560,9 @@ function openWardrobePanel() {
     da: "Garderobe"
   });
   document.getElementById("lifeCh1WardrobeHint").textContent = L({
-    ru: "Выбери вид героя — в мире меняется твой персонаж.",
-    en: "Pick your hero look — your character updates in the world.",
-    da: "Vælg dit helte-look."
+    ru: "Выбери образ и стиль — в мире это моё отражение.",
+    en: "Pick my look and style — that's how I appear in the world.",
+    da: "Vælg mit look — sådan ser jeg ud i verden."
   });
   document.getElementById("lifeCh1OutfitLabel").textContent = L({
     ru: "Стиль на сегодня:",
@@ -683,12 +682,8 @@ function showDialogue(dlgId) {
       title.textContent = L({ ru: "Ангелина", en: "Angelina", da: "Angelina" });
     }
   }
-  let speakerLine = L(node.text);
-  if (node.speaker === "mira") {
-    const prefix = L({ ru: "Мира (сообщение): ", en: "Mira (message): ", da: "Mira (besked): " });
-    if (!speakerLine.startsWith(prefix.trim())) speakerLine = prefix + speakerLine;
-  }
-  setSubtitle(speakerLine, 8000);
+  const speakerLine = L(node.text);
+  setSubtitle("", 0);
   playUiBlip();
   const skin = readSelectedSkin(ensureLifeCh1());
   const portrait =
@@ -767,7 +762,7 @@ export function renderObjectivePanel() {
   if (!box) return false;
   const step = currentStep();
   const title = L({
-    ru: "Новенький в городе",
+    ru: "Новенькая в городе",
     en: "New in Town",
     da: "Ny i byen"
   });
@@ -813,8 +808,8 @@ function updateChatPresetMode() {
   }
   if (input) {
     input.placeholder = L({
-      ru: "Только готовые фразы (D12-A)",
-      en: "Preset phrases only (D12-A)",
+      ru: "Только готовые фразы",
+      en: "Preset phrases only",
       da: "Kun faste sætninger"
     });
   }
@@ -865,6 +860,7 @@ export async function initLifeCh1Slice(h) {
     syncPlayerLifeCh1Skin,
     applySliceAngelinaPlayerChrome,
     isLifeCh1SliceEnabled,
+    isProductionGameHost,
     isLifeCh1TestMode,
     pickReflectNode,
     portraitUrl: id => portraitUrl(id, skinManifest),

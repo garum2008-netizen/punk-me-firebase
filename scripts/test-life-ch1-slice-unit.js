@@ -17,7 +17,7 @@ function assert(cond, msg) {
 
 async function main() {
   const mod = await import(pathToFileURL(path.join(root, "js/story/life-ch1-slice.mjs")).href);
-  const { ensureLifeCh1, defaultLifeCh1State, pickReflectNode, claimStepReward, normalizeClaimedSteps, clampStepIndex, rewardClaimKey, isLifeCh1SliceEnabled } = mod;
+  const { ensureLifeCh1, defaultLifeCh1State, pickReflectNode, claimStepReward, normalizeClaimedSteps, clampStepIndex, rewardClaimKey, isLifeCh1SliceEnabled, isLifeCh1TestMode } = mod;
 
   assert(spec.steps.length === 4, "four steps");
   assert(spec.dialogues.dlg_life_ch1_outfit.nodes.n0.choices.length === 3, "three outfit choices");
@@ -25,9 +25,20 @@ async function main() {
   const dlgReflect = spec.dialogues.dlg_life_ch1_reflect;
   assert(pickReflectNode(dlgReflect, { mystery_open: true }).speaker === "player", "open flag is player thought");
   assert(pickReflectNode(dlgReflect, { mystery_secret: true }).text.ru.includes("Никому"), "secret flag player line");
-  assert(pickReflectNode(dlgReflect, {}).text.ru.includes("решила"), "fallback line");
+  assert(pickReflectNode(dlgReflect, {}).text.ru.includes("держу"), "fallback line");
   assert(pickReflectNode(dlgReflect, { mystery_trust_angelina: true }).speaker === "mira", "trust reflect is Mira");
   assert(pickReflectNode(dlgReflect, { mystery_trust_angelina: true }).text.ru.includes("на связи"), "Mira message wording");
+
+  global.window = { __PUNK_PREVIEW__: false };
+  global.location = { hostname: "halloween.punk.contractbot.dk", search: "?lifeCh1E2e=1" };
+  assert(!isLifeCh1SliceEnabled(), "production host ignores lifeCh1E2e=1");
+  assert(!isLifeCh1TestMode(), "production host ignores lifeCh1E2e test mode");
+  global.location = { hostname: "halloween.punk.contractbot.dk", search: "?lifeCh1Slice=1" };
+  assert(!isLifeCh1SliceEnabled(), "production host ignores lifeCh1Slice=1");
+  global.location = { hostname: "127.0.0.1", search: "?lifeCh1E2e=1" };
+  assert(isLifeCh1SliceEnabled(), "localhost allows lifeCh1E2e=1");
+  delete global.window;
+  delete global.location;
 
   const ruBlob = JSON.stringify(spec);
   assert(!/Поговори с Ангелиной/i.test(ruBlob), "no talk-to-Angelina objective");
@@ -65,16 +76,7 @@ async function main() {
   assert(ensureLifeCh1(pNoSlice) === null && pNoSlice.lifeCh1 === null, "slice off must not create lifeCh1");
 
   const engineSrc = fs.readFileSync(path.join(root, "js/story/story-engine.mjs"), "utf8");
-  assert(!engineSrc.includes("startingCoins + 50"), "story engine must not clamp coins");
-
-  global.window = { __PUNK_PREVIEW__: false };
-  global.location = { hostname: "halloween.punk.contractbot.dk", search: "?lifeCh1Slice=1" };
-  assert(!isLifeCh1SliceEnabled(), "production host ignores lifeCh1Slice=1");
-  global.location = { hostname: "127.0.0.1", search: "?lifeCh1Slice=1" };
-  assert(isLifeCh1SliceEnabled(), "localhost allows lifeCh1Slice=1");
-
-  delete global.window;
-  delete global.location;
+  assert(engineSrc.includes("startingCoins + 50"), "production coin anti-cheat restored for non-preview");
 
   const manifest = JSON.parse(
     fs.readFileSync(path.join(root, "data/story/angelina-skin-manifest.json"), "utf8")

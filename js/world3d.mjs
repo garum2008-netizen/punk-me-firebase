@@ -142,16 +142,23 @@ function isLifeCh1SpriteAttachedToPlayer(sp, pl) {
 function layoutLifeCh1PlayerSprite(sp, tex) {
   if (!sp) return;
   const img = tex?.image;
-  const h = 1.42;
-  let w = 0.92;
+  const h = 1.78;
+  let w = 1.05;
   if (img?.width && img?.height) w = h * (img.width / img.height);
   sp.scale.set(w, h, 1);
   sp.position.set(0, h * 0.5, 0);
   const shadow = lifeCh1PlayerSkin.shadow;
   if (shadow) {
-    shadow.position.set(0, 0.035, 0);
-    shadow.scale.set(Math.min(0.72, w * 0.58), 0.17, 1);
+    shadow.position.set(0, 0.04, 0);
+    shadow.scale.set(Math.min(0.82, w * 0.62), 0.2, 1);
   }
+}
+
+function tickLifeCh1PlayerSpritePlacement(pl) {
+  const holder = lifeCh1PlayerSkin.holder;
+  if (!holder || !pl?.isPlayer) return;
+  holder.position.z = currentLoc === "kitchen" ? 0.35 : 0;
+  holder.position.x = currentLoc === "kitchen" ? 0.08 : 0;
 }
 
 function enforceLifeCh1PlayerMeshVisibility(actor) {
@@ -255,6 +262,13 @@ function isLifeCh1E2eTeleportEnabled() {
 
 function isLifeCh1E2eNavAid() {
   try {
+    if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) {
+      return new URLSearchParams(location.search).get("lifeCh1E2e") === "1";
+    }
+    const h = location.hostname.toLowerCase();
+    if (h !== "localhost" && h !== "127.0.0.1" && !h.endsWith(".localhost")) {
+      if (h.includes("punk.contractbot.dk") || h.endsWith(".web.app")) return false;
+    }
     return new URLSearchParams(location.search).get("lifeCh1E2e") === "1";
   } catch {
     return false;
@@ -1696,7 +1710,10 @@ function loop() {
       });
     }
     markActorVisibleWhenReady(a);
-    if (a.isPlayer) enforceLifeCh1PlayerMeshVisibility(a);
+    if (a.isPlayer) {
+      enforceLifeCh1PlayerMeshVisibility(a);
+      tickLifeCh1PlayerSpritePlacement(a);
+    }
     if (a._meshyDog) updateMeshyDogAnim(a, dt, a._anim === "hop" ? "hop" : "idle", a._spd || 0);
     if (a.root && !a.isDog) {
       const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));

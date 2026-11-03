@@ -25,9 +25,9 @@
     {
       "id": "trust",
       "objective": {
-        "ru": "Подойди к метке в комнате — реши, кому доверишься",
-        "en": "Go to the marker in your room — decide who to trust",
-        "da": "Gå til markøren — vælg hvem du stoler på"
+        "ru": "Подойди к метке — реши, что делать с запиской",
+        "en": "Go to the marker — decide what to do with the note",
+        "da": "Gå til markøren — vælg hvad du gør med sedlen"
       },
       "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
       "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
@@ -53,9 +53,9 @@
         "n0": {
           "speaker": "player",
           "text": {
-            "ru": "Как я хочу выглядеть сегодня? Только стиль — настроение моё.",
-            "en": "How do I want to look today? Style only — my mood.",
-            "da": "Hvordan vil jeg se ud i dag?"
+            "ru": "Какой образ мне сегодня? В зеркале — только стиль.",
+            "en": "What look do I want today? At the mirror — style only.",
+            "da": "Hvilket look vil jeg have i dag?"
           },
           "choices": [
             {
@@ -204,8 +204,8 @@
         "n_trust": {
           "speaker": "mira",
           "text": {
-            "ru": "Спасибо, Ангелина. Я на связи — без геройства, обещаю.",
-            "en": "Thanks, Angelina. I'm here for you — no heroics, I promise.",
+            "ru": "Спасибо, Ангелина. Я на связи. Без геройства — просто поддержу.",
+            "en": "Thanks, Angelina. I'm here for you. No heroics — just support.",
             "da": "Tak, Angelina. Jeg er her."
           },
           "requiresFlag": "mystery_trust_angelina"
@@ -213,8 +213,8 @@
         "n_fallback": {
           "speaker": "player",
           "text": {
-            "ru": "Я уже решила — не забывай.",
-            "en": "I already decided — don't forget.",
+            "ru": "Я уже решила — держу это в голове.",
+            "en": "I already decided — keeping it in mind.",
             "da": "Du har allerede valgt."
           }
         }

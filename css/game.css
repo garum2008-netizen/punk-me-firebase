@@ -663,6 +663,17 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   .chat-toggle { display: none; }
   .chat { padding: 8px; }
 }
+.gameplay-hud:empty {
+  display: none !important;
+}
+.voice-subtitle:not(.visible),
+.voice-subtitle:empty {
+  opacity: 0 !important;
+  visibility: hidden;
+}
+#storyDialog.active .story-dialog-title:empty {
+  display: none;
+}
 .gameplay-hud {
   position: absolute; left: 50%; top: 18%; transform: translateX(-50%); z-index: 28;
   background: rgba(12,6,22,0.92); border: 1px solid #ff00ff; border-radius: 12px;

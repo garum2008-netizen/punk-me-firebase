@@ -187,13 +187,13 @@ def portrait_variant(img: Image.Image, max_w: int = 372) -> Image.Image:
     return img.resize((max_w, int(h * ratio)), Image.Resampling.LANCZOS)
 
 
-def world_variant(img: Image.Image, out_w: int = 256) -> Image.Image:
-    """Upper-body crop + downscale for in-world sprite (derivative of approved art only)."""
+def world_variant(img: Image.Image, out_w: int = 280) -> Image.Image:
+    """Full-height figure crop for in-world sprite (derivative of approved art only)."""
     w, h = img.size
-    left = int(w * 0.08)
-    right = int(w * 0.92)
-    top = 0
-    bottom = int(h * 0.62)
+    left = int(w * 0.06)
+    right = int(w * 0.94)
+    top = int(h * 0.02)
+    bottom = int(h * 0.93)
     cropped = img.crop((left, top, right, bottom))
     cw, ch = cropped.size
     ratio = out_w / cw

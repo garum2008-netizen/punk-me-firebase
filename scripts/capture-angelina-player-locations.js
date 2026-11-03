@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Screenshots: Angelina player + core NPCs at 1280×800 (preview slice). */
+/** Screenshots: Angelina player (1280×800 + kitchen 390×844). */
 const path = require("path");
 const fs = require("fs");
 const { chromium } = require("playwright");
@@ -16,18 +16,8 @@ async function dismissHowTo(page) {
   }, HOWTO_SEEN_KEY);
 }
 
-async function main() {
-  fs.mkdirSync(outDir, { recursive: true });
-  const base = process.env.PUNK_PREVIEW_URL || "http://127.0.0.1:3766";
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  await context.addInitScript(key => {
-    try {
-      localStorage.setItem(key, "1");
-    } catch (_) {}
-  }, HOWTO_SEEN_KEY);
-  const page = await context.newPage();
-  await page.goto(`${base}/?lifeCh1E2e=1&v=angelina-capture-r2`, { waitUntil: "load", timeout: 120000 });
+async function bootSlice(page, base) {
+  await page.goto(`${base}/?lifeCh1E2e=1&v=angelina-capture-r3`, { waitUntil: "load", timeout: 120000 });
   await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
   await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
   await page.click("#charSelectConfirm");
@@ -49,21 +39,35 @@ async function main() {
   });
   await dismissHowTo(page);
   await page.waitForTimeout(2000);
+}
 
+async function main() {
+  fs.mkdirSync(outDir, { recursive: true });
+  const base = process.env.PUNK_PREVIEW_URL || "http://127.0.0.1:3766";
+  const browser = await chromium.launch({ headless: true });
+
+  const desktop = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await desktop.newPage();
+  await bootSlice(page, base);
   for (const loc of ["room", "street", "cemetery", "city"]) {
     await page.evaluate(id => goLocation(id), loc);
     await page.waitForFunction(l => window.me?.location === l, loc, { timeout: 20000 });
     await page.waitForTimeout(1200);
-    await page.screenshot({ path: path.join(outDir, `angelina-1280-${loc}.png`) });
-    console.log("wrote", `angelina-1280-${loc}.png`);
+    const file = path.join(outDir, `angelina-1280-${loc}.png`);
+    await page.screenshot({ path: file });
+    console.log("wrote", path.basename(file));
   }
+  await desktop.close();
 
-  await page.evaluate(() => goLocation("street"));
-  await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 15000 });
-  await page.waitForTimeout(1500);
-  await page.screenshot({ path: path.join(outDir, "angelina-1280-street-npcs.png") });
-  console.log("wrote angelina-1280-street-npcs.png");
-
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const mpage = await mobile.newPage();
+  await bootSlice(mpage, base);
+  await mpage.evaluate(() => goLocation("kitchen"));
+  await mpage.waitForFunction(() => window.me?.location === "kitchen", undefined, { timeout: 20000 });
+  await mpage.waitForTimeout(1500);
+  await mpage.screenshot({ path: path.join(outDir, "angelina-390-kitchen.png") });
+  console.log("wrote angelina-390-kitchen.png");
+  await mobile.close();
   await browser.close();
 }
 

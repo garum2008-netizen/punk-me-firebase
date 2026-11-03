@@ -325,6 +325,7 @@ async function runBrowserTest(base) {
 
     await assertSkinAtLocation(page, "room", "A", "room after wardrobe");
     await assertNpcsVisible(page, "room", ["vienna", "mohawk", "cobalt"]);
+    await assertSkinAtLocation(page, "kitchen", "A", "kitchen mobile framing");
     await assertSkinAtLocation(page, "street", "A", "street");
     await assertNpcsVisible(page, "street", ["razor", "vienna", "cobalt", "mohawk"]);
     await assertSkinAtLocation(page, "cemetery", "A", "cemetery");

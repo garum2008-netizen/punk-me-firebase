@@ -194,7 +194,10 @@ function playSfx(id) {
 
 function setSubtitle(text, speaker) {
   const el = document.getElementById("voiceSubtitle");
-  if (el) el.textContent = speaker ? `${speaker}: ${text}` : text;
+  if (!el) return;
+  const line = speaker ? `${speaker}: ${text}` : text || "";
+  el.textContent = line;
+  el.classList.toggle("visible", !!line.trim());
 }
 
 function showBubble(npcId, text) {
@@ -869,7 +872,10 @@ export function dismissAllStoryUi() {
   document.getElementById("storyBubbles")?.replaceChildren?.();
   document.getElementById("storyDirection")?.classList.remove("visible");
   const sub = document.getElementById("voiceSubtitle");
-  if (sub) sub.textContent = "";
+  if (sub) {
+    sub.textContent = "";
+    sub.classList.remove("visible");
+  }
 }
 
 export function canOpenStoryModal() {
@@ -971,6 +977,13 @@ export function initStoryEngine(h) {
   return loadStoryData()
     .then(() => {
       ensureStoryState(me());
+      const bal = data.balance;
+      const previewOrSlice =
+        window.__PUNK_PREVIEW__ === true || window.LifeCh1Slice?.isLifeCh1SliceEnabled?.();
+      if (bal?.startingCoins && !window.devCoinsEnabled?.() && !previewOrSlice) {
+        const p = me();
+        if (p.coins > bal.startingCoins + 50) p.coins = bal.startingCoins;
+      }
       renderObjectivePanel();
       window.StoryEngine = api;
       window.StoryEngine.openNoRatChoice = () => Authority.openNoRatChoice?.();
