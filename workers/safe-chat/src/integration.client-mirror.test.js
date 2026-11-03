@@ -42,6 +42,8 @@ describe.skipIf(env.SAFE_CHAT_INTEGRATION !== "1")("chat/clientMessages mirror (
     const seeded = (await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json;
     expect(typeof seeded?.text).toBe("string");
     expect(seeded.text.length).toBeGreaterThan(0);
+    await putChatMessageText(`${msgId}`, "kill the kid");
+    expect((await rtdbOwner(`chat/clientMessages/${msgId}`, "GET")).json?.text).toBe(seeded.text);
     const rep = await authSignUp();
     await apiPostReport(SELF, rep.idToken, { msgId, category: "other_child_safety" });
     await waitForMessageHidden(msgId);
