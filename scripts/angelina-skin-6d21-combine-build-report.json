@@ -1,7 +1,59 @@
 {
-  "pipeline": "6d214651 alpha + guided filter + ML edges; bright semi edge -> nearest core; ab6f∩6d21 interior α=255 boost (dist_in≥8)",
+  "pipeline": "6d214651 α + guided filter + ML; bright semi-edge → nearest core; finish; candidate-only α=255 lock (alpha_ref thresh × dist_in on α≥128 contour, Lanczos RGB); greyMatt band recolor; optional semi exterior decontam (diagnostic only — regresses halo)",
   "shipDecision": "restore_ab6fa302",
-  "shipReason": "Silhouette passes with bright-edge nearest-core fix, but halo gate still fails (A world browser 5, lanczos 1) and α=255 share ~74–86% vs ab6f ~99% (halo test requires ≥90% on fg)",
+  "shipReason": "No sweep combo passes all gates: haloZero (greyMatt bgOpaqueBand) and min α=255 share ≥90% on finished WebPs.",
+  "alpha255Sweep": [
+    {
+      "thresh": 0.8,
+      "inset": 1,
+      "minAlpha255Share": 0.8871,
+      "alpha255Share": {
+        "A_portrait": 0.914,
+        "A_world": 0.8981,
+        "B_portrait": 0.9129,
+        "B_world": 0.8871,
+        "C_portrait": 0.9172,
+        "C_world": 0.8927
+      },
+      "haloZeroBadPx": false,
+      "haloDetail": "A_portrait browser3=3 lanczos3=9; A_world browser3=3 lanczos3=9; B 0; C_world lanczos3=6",
+      "silhouetteNearWhiteOk": true
+    },
+    {
+      "thresh": 0.8,
+      "inset": 2,
+      "minAlpha255Share": 0.8855,
+      "haloZeroBadPx": false,
+      "silhouetteNearWhiteOk": true
+    },
+    {
+      "thresh": 0.8,
+      "inset": 3,
+      "minAlpha255Share": 0.8883,
+      "haloZeroBadPx": false,
+      "silhouetteNearWhiteOk": true
+    },
+    {
+      "thresh": 0.85,
+      "inset": 1,
+      "minAlpha255Share": 0.8676,
+      "haloZeroBadPx": false,
+      "silhouetteNearWhiteOk": true
+    },
+    {
+      "thresh": 0.9,
+      "inset": 1,
+      "minAlpha255Share": 0.8381,
+      "haloZeroBadPx": false,
+      "silhouetteNearWhiteOk": true
+    }
+  ],
+  "alpha255SweepBest": {
+    "thresh": 0.8,
+    "inset": 1,
+    "minAlpha255Share": 0.8871,
+    "note": "Highest min share; still 1.29pp below 90% gate (B_world binding)."
+  },
   "silhouetteNearWhiteHalos": {
     "A_portrait": 0,
     "A_world": 0,
@@ -11,27 +63,26 @@
     "C_world": 0,
     "max": { "portrait": 30, "world": 22 }
   },
-  "haloVsAb6fa": {
-    "A": { "browserSum": 5, "ab6faBrowserSum": 22153, "detail": "P browser 0 lanczos 0; W browser 5 lanczos 1" },
-    "B": { "browserSum": 0, "ab6faBrowserSum": 13396 },
-    "C": { "browserSum": 0, "ab6faBrowserSum": 502 }
-  },
-  "alpha255Share": {
-    "candidate": {
-      "A_portrait": 0.836,
-      "A_world": 0.788,
-      "B_portrait": 0.831,
-      "B_world": 0.778,
-      "C_portrait": 0.792,
-      "C_world": 0.74
+  "aWorldHaloBadPx": {
+    "bestSweep": "thresh=0.80 inset=1 decontam=false",
+    "beforeDecontam": {
+      "browser3": {
+        "count": 3,
+        "pixels": [
+          { "x": 217, "y": 1457, "r": 191, "g": 192, "b": 187, "a": 255, "lum": 190, "distClear": 7 },
+          { "x": 541, "y": 1940, "r": 75, "g": 72, "b": 70, "a": 255, "lum": 72, "distClear": 6 },
+          { "x": 541, "y": 1941, "r": 150, "g": 145, "b": 141, "a": 255, "lum": 145, "distClear": 6 }
+        ]
+      },
+      "lanczos3": { "count": 9 }
     },
-    "ab6f": {
-      "A_portrait": 0.991,
-      "A_world": 0.989,
-      "B_portrait": 0.99,
-      "B_world": 0.987,
-      "C_portrait": 0.99,
-      "C_world": 0.987
+    "afterSemiDecontam": {
+      "browser3": { "count": 216, "note": "semi exterior decontam enabled — do not ship" },
+      "silhouetteNearWhiteBefore": 0,
+      "silhouetteNearWhiteAfter": 0
     }
-  }
+  },
+  "npmTestLifeCh1ExitCode": 1,
+  "npmTestLifeCh1Note": "Fails at angelina-skin-halo.js on shipped ab6fa302 baseline (expected until 6d21 ships).",
+  "browserCompositeArtifacts": "/opt/cursor/artifacts/halo-{A,B,C}-{portrait,world}-browser-{111,white}.png"
 }

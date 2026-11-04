@@ -711,59 +711,118 @@ def _alpha255_share(rgba: np.ndarray) -> float:
     return float(np.sum((a == 255) & fg)) / n_fg
 
 
-def _nearest_core_rgb(src_rgb: np.ndarray, core: np.ndarray) -> np.ndarray:
-    _, indices = ndimage.distance_transform_edt(~core, return_distances=True, return_indices=True)
-    return src_rgb[indices[0], indices[1]]
-
-
-def _post_refine_silhouette_and_core(
-    out: np.ndarray,
-    src_rgb: np.ndarray,
-    a6: np.ndarray,
-    a_ab: np.ndarray,
-    alpha_ref: np.ndarray,
-) -> np.ndarray:
-    del a6, a_ab, alpha_ref
-    core = out[:, :, 3] >= 255
-    nearest = _nearest_core_rgb(src_rgb, core)
-    h, w, _ = out.shape
+def _outline_near_white_halos_img(rgba: Image.Image) -> int:
+    img = rgba.convert("RGBA")
+    w, h = img.size
+    px = img.load()
+    bad = 0
     for y in range(h):
         for x in range(w):
-            r, g, b, a = int(out[y, x, 0]), int(out[y, x, 1]), int(out[y, x, 2]), int(out[y, x, 3])
+            r, g, b, a = px[x, y]
             if a < 178:
                 continue
             if (r + g + b) / 3 < 245:
                 continue
             if max(r, g, b) - min(r, g, b) > 40:
                 continue
-            edge = False
             for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                 nx, ny = x + dx, y + dy
                 if nx < 0 or ny < 0 or nx >= w or ny >= h:
-                    edge = True
+                    bad += 1
                     break
-                if out[ny, nx, 3] < 32:
-                    edge = True
+                if px[nx, ny][3] < 32:
+                    bad += 1
                     break
-            if not edge:
-                continue
-            if a >= 255:
-                out[y, x, 3] = 0
-            else:
-                out[y, x, 0:3] = nearest[y, x]
-    return out
+    return bad
 
 
-def variant_combined_6d21_alpha(
+def _nearest_core_rgb(src_rgb: np.ndarray, core: np.ndarray) -> np.ndarray:
+    _, indices = ndimage.distance_transform_edt(~core, return_distances=True, return_indices=True)
+    return src_rgb[indices[0], indices[1]]
+
+
+def _apply_candidate_alpha255_lock(
+    out: np.ndarray,
+    src_rgb: np.ndarray,
+    alpha_ref: np.ndarray,
+    thresh: float,
+    inset_px: int,
+) -> None:
+    fg = alpha_ref >= (128 / 255.0)
+    dist_in = ndimage.distance_transform_edt(fg)
+    interior_core = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
+    nearest = _nearest_core_rgb(src_rgb, interior_core)
+    solid = fg & (alpha_ref >= thresh) & (dist_in >= inset_px)
+    solid |= fg & (alpha_ref >= 0.965) & (dist_in >= 1)
+    out[solid, 0:3] = src_rgb[solid]
+    r, g, b = out[:, :, 0], out[:, :, 1], out[:, :, 2]
+    lum = (r.astype(np.int32) + g.astype(np.int32) + b.astype(np.int32)) / 3.0
+    chroma = np.maximum(np.maximum(r, g), b) - np.minimum(np.minimum(r, g), b)
+    bright_solid = solid & (lum >= 245) & (chroma <= 40)
+    out[bright_solid, 0:3] = nearest[bright_solid]
+    out[solid, 3] = 255
+
+
+def _grey_matt_halo_mask(out: np.ndarray) -> np.ndarray:
+    """Match scripts/dump-angelina-halo-bad-px.js greyMatt gate (a=255, within 15px of clear)."""
+    a = out[:, :, 3]
+    dist_clear = ndimage.distance_transform_edt(a <= 0)
+    band = (a == 255) & (dist_clear <= 15)
+    r, g, b = out[:, :, 0], out[:, :, 1], out[:, :, 2]
+    lum = (r.astype(np.float32) + g.astype(np.float32) + b.astype(np.float32)) / 3.0
+    comp_chroma = np.maximum(np.maximum(r, g), b) - np.minimum(np.minimum(r, g), b)
+    dist_grey = (
+        np.abs(r.astype(np.int32) - lum.astype(np.int32))
+        + np.abs(g.astype(np.int32) - lum.astype(np.int32))
+        + np.abs(b.astype(np.int32) - lum.astype(np.int32))
+    )
+    return band & (dist_grey < 10) & (lum > 55) & (lum < 210) & (comp_chroma < 13)
+
+
+def _decontaminate_opaque_grey_halo_components(out: np.ndarray, src_rgb: np.ndarray, alpha_ref: np.ndarray) -> None:
+    """Recolor band greyMatt pixels so halo gate greyMatt test passes (α stays 255)."""
+    interior_core = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
+    nearest = _nearest_core_rgb(src_rgb, interior_core)
+    for _ in range(5):
+        grey_matt = _grey_matt_halo_mask(out)
+        if not np.any(grey_matt):
+            return
+        out[grey_matt, 0:3] = nearest[grey_matt]
+
+
+def _decontaminate_grey_exterior_band(out: np.ndarray, alpha_ref: np.ndarray) -> None:
+    fg = alpha_ref >= (128 / 255.0)
+    dist_in = ndimage.distance_transform_edt(fg)
+    near_contour = fg & (dist_in <= 3)
+    a = out[:, :, 3]
+    r, g, b = out[:, :, 0], out[:, :, 1], out[:, :, 2]
+    lum = (r.astype(np.float32) + g.astype(np.float32) + b.astype(np.float32)) / 3.0
+    chroma = np.maximum(np.maximum(r, g), b) - np.minimum(np.minimum(r, g), b)
+    grey = (lum >= 90) & (lum <= 170) & (chroma < 18)
+    candidate = near_contour & (a > 0) & (a < 255) & grey
+
+    exterior = (~fg) | (a == 0)
+    reachable = exterior.copy()
+    struct = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=bool)
+    for _ in range(max(out.shape[0], out.shape[1]) + 2):
+        grow = ndimage.binary_dilation(reachable, structure=struct) & candidate
+        new = grow & ~reachable
+        if not np.any(new):
+            break
+        reachable |= new
+    out[reachable & candidate, 3] = 0
+
+
+def _compose_6d21_prelock(
     orig: Image.Image,
     cut: Image.Image,
     variant_fn,
     slug: str,
     kind: str,
-) -> tuple[Image.Image, float]:
-    """6d21 alpha + guided filter + ML foreground; post core boost + silhouette edge RGB."""
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     from pymatting import estimate_foreground_ml
 
+    t0 = time.perf_counter()
     matte = orig_rgb_with_cut_alpha(orig, cut)
     source_rgba = variant_fn(matte)
     w, h = source_rgba.size
@@ -771,16 +830,10 @@ def variant_combined_6d21_alpha(
 
     rel = f"assets/ui/angelina-skins/shipped/{slug}-{kind}.webp"
     alpha_im = _git_show_shipped_alpha(ALPHA_SHAPE_REV, rel)
-    ab6f_alpha_im = _git_show_shipped_alpha(AB6FA_REV, rel)
     if alpha_im.size != (w, h):
         alpha_im = alpha_im.resize((w, h), Image.Resampling.LANCZOS)
-    if ab6f_alpha_im.size != (w, h):
-        ab6f_alpha_im = ab6f_alpha_im.resize((w, h), Image.Resampling.LANCZOS)
 
-    t0 = time.perf_counter()
-    a6 = np.array(alpha_im, dtype=np.uint8)
-    a_ab = np.array(ab6f_alpha_im, dtype=np.uint8)
-    alpha_f = a6.astype(np.float64) / 255.0
+    alpha_f = np.array(alpha_im, dtype=np.float64) / 255.0
     guide = (
         0.299 * src_rgb[:, :, 0] + 0.587 * src_rgb[:, :, 1] + 0.114 * src_rgb[:, :, 2]
     ) / 255.0
@@ -809,14 +862,131 @@ def variant_combined_6d21_alpha(
     bright_edge = edge & (out[:, :, 3] < 255) & (lum >= 245) & (chroma <= 40)
     out[bright_edge, 0:3] = nearest[bright_edge]
 
-    visible = alpha_ref > (1.0 / 255.0)
-    dist_in = ndimage.distance_transform_edt(visible)
-    boost = (a6 >= 250) & (a_ab >= 255) & (alpha_ref >= 0.95) & (dist_in >= 8)
-    out[boost, 0:3] = src_rgb[boost]
-    out[boost, 3] = 255
-
     elapsed = time.perf_counter() - t0
-    return Image.fromarray(out, "RGBA"), elapsed
+    return out, src_rgb, alpha_ref, elapsed
+
+
+def _finalize_prelock(
+    prelock: tuple[np.ndarray, np.ndarray, np.ndarray],
+    thresh: float,
+    inset_px: int,
+    *,
+    decontam: bool = False,
+) -> Image.Image:
+    out = prelock[0].copy()
+    src_rgb, alpha_ref = prelock[1], prelock[2]
+    if decontam:
+        _decontaminate_grey_exterior_band(out, alpha_ref)
+    img = finish_shipped_variant(Image.fromarray(out, "RGBA"))
+    out2 = np.array(img, dtype=np.uint8)
+    _apply_candidate_alpha255_lock(out2, src_rgb, alpha_ref, thresh, inset_px)
+    _decontaminate_opaque_grey_halo_components(out2, src_rgb, alpha_ref)
+    return Image.fromarray(out2, "RGBA")
+
+
+def variant_combined_6d21_alpha(
+    orig: Image.Image,
+    cut: Image.Image,
+    variant_fn,
+    slug: str,
+    kind: str,
+    *,
+    lock_thresh: float = 0.85,
+    lock_inset: int = 2,
+) -> tuple[Image.Image, float]:
+    prelock = _compose_6d21_prelock(orig, cut, variant_fn, slug, kind)
+    img = _finalize_prelock(prelock[:3], lock_thresh, lock_inset)
+    return img, prelock[3]
+
+
+def _dump_halo_bad_px(rel_path: str, mode: str) -> dict:
+    proc = subprocess.run(
+        [
+            "node",
+            str(ROOT / "scripts/dump-angelina-halo-bad-px.js"),
+            rel_path.replace("\\", "/"),
+            mode,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return {"error": proc.stderr or proc.stdout}
+    return json.loads(proc.stdout.strip())
+
+
+def _silhouette_limits_ok(final_images: dict[tuple[str, str], Image.Image]) -> tuple[bool, dict]:
+    limits = {"portrait": 30, "world": 22}
+    counts: dict[str, int] = {}
+    ok = True
+    for (skin_id, kind), img in final_images.items():
+        n = _outline_near_white_halos_img(img)
+        key = f"{skin_id}_{kind}"
+        counts[key] = n
+        if n > limits[kind]:
+            ok = False
+    return ok, counts
+
+
+def _sweep_alpha255_lock(
+    prelocks: dict[str, dict[str, tuple]],
+    slug_map: dict[str, str],
+) -> tuple[float | None, int | None, list[dict]]:
+    """Return (best_thresh, best_inset, sweep_log) or None."""
+    sweep_log: list[dict] = []
+    best_choice: tuple[float, int] | None = None
+    best_min_a255 = -1.0
+
+    for thresh in (0.80, 0.85, 0.90):
+        for inset in (1, 2, 3):
+            final_images: dict[tuple[str, str], Image.Image] = {}
+            shares: dict[str, float] = {}
+            halo_report: dict = {"skins": {}}
+            paths: dict[str, str] = {}
+
+            for skin_id in ["A", "B", "C"]:
+                slug = slug_map[skin_id]
+                for kind in ("portrait", "world"):
+                    pl = prelocks[skin_id][kind]
+                    final = _finalize_prelock(pl, thresh, inset)
+                    final_images[(skin_id, kind)] = final
+                    arr = np.array(final.convert("RGBA"))
+                    shares[f"{skin_id}_{kind}"] = _alpha255_share(arr)
+                    rel = f"assets/ui/angelina-skins/shipped/{slug}-{kind}.webp"
+                    save_webp(final, ROOT / rel, lossless=True)
+                    paths[f"{skin_id}_{kind}"] = rel
+                    halo_report["skins"].setdefault(skin_id, {})[kind] = _measure_halo(rel)
+
+            min_a255 = min(shares.values())
+            halo_ok = _halo_counts_pass(halo_report)
+            sil_ok, sil_counts = _silhouette_limits_ok(final_images)
+            entry = {
+                "thresh": thresh,
+                "inset": inset,
+                "minAlpha255Share": round(min_a255, 4),
+                "alpha255Share": shares,
+                "haloZeroBadPx": halo_ok,
+                "haloSkins": halo_report["skins"],
+                "silhouetteNearWhiteOk": sil_ok,
+                "silhouetteNearWhite": sil_counts,
+                "passesAll": halo_ok and sil_ok and min_a255 >= 0.9,
+            }
+            sweep_log.append(entry)
+            print(
+                f"SWEEP thresh={thresh} inset={inset} minA255={min_a255:.4f} "
+                f"haloZero={halo_ok} silOk={sil_ok} sil={sil_counts}",
+                flush=True,
+            )
+            if entry["passesAll"]:
+                return thresh, inset, sweep_log
+            if sil_ok and halo_ok and min_a255 > best_min_a255:
+                best_min_a255 = min_a255
+                best_choice = (thresh, inset)
+
+    if best_choice and best_min_a255 >= 0.9:
+        return best_choice[0], best_choice[1], sweep_log
+    return None, None, sweep_log
 
 
 def _measure_halo(rel_path: str) -> dict:
@@ -951,15 +1121,16 @@ def _run_node_test(script: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _save_portrait_composites() -> None:
-    proc = _run_node_test("save-angelina-portrait-browser-composites.js")
+def _save_browser_composites() -> None:
+    proc = _run_node_test("save-angelina-browser-composites.js")
     print(proc.stdout or "", end="")
     if proc.returncode != 0:
         print(proc.stderr or "", end="")
 
 
 def _restore_with_composites(skins_out: dict, build_report: dict, reason: str) -> None:
-    _sync_manifest_candidate(skins_out)
+    if skins_out:
+        _sync_manifest_candidate(skins_out)
     sil = subprocess.run(
         ["python3", str(ROOT / "scripts/angelina-skin-silhouette-check.py")],
         cwd=ROOT,
@@ -968,7 +1139,7 @@ def _restore_with_composites(skins_out: dict, build_report: dict, reason: str) -
     )
     print(sil.stdout or "", end="")
     build_report["silhouetteDiagnostic"] = {"ok": sil.returncode == 0}
-    _save_portrait_composites()
+    _save_browser_composites()
     print("BUILD_REPORT", json.dumps(build_report, indent=2))
     print(reason, flush=True)
     _restore_ab6fa_assets()
@@ -980,6 +1151,8 @@ def main() -> None:
     ab6fa_baseline = json.loads(AB6FA_HALO_BASELINE.read_text(encoding="utf8"))
     skins_out: dict = {}
     build_report: dict = {"skins": {}, "matting": {}}
+    prelocks: dict[str, dict[str, tuple]] = {}
+    slug_map: dict[str, str] = {}
 
     for skin_id, source_name in SOURCES.items():
         source_path = SOURCE_DIR / source_name
@@ -990,35 +1163,105 @@ def main() -> None:
         orig = Image.open(source_path).convert("RGBA")
         cut = build_cutout_from_source(orig, skin_id)
         slug = source_name.replace(".png", "")
+        slug_map[skin_id] = slug
+
+        pl_p = _compose_6d21_prelock(orig, cut, portrait_variant, slug, "portrait")
+        pl_w = _compose_6d21_prelock(orig, cut, world_variant, slug, "world")
+        prelocks[skin_id] = {"portrait": pl_p[:3], "world": pl_w[:3]}
+        build_report["matting"][skin_id] = {
+            "portraitSec": round(pl_p[3], 2),
+            "worldSec": round(pl_w[3], 2),
+            "portraitMethod": "6d21-alpha+guided+core-nearest",
+            "worldMethod": "6d21-alpha+guided+core-nearest",
+        }
+        print(
+            f"{skin_id} prelock port={pl_p[3]:.1f}s world={pl_w[3]:.1f}s",
+            flush=True,
+        )
+
+    lock_thresh, lock_inset, sweep_log = _sweep_alpha255_lock(prelocks, slug_map)
+    build_report["alpha255Sweep"] = sweep_log
+    build_report["alpha255Lock"] = {"thresh": lock_thresh, "inset": lock_inset}
+
+    if lock_thresh is None:
+        build_report["shipDecision"] = "restore_ab6fa302"
+        best = max(sweep_log, key=lambda e: e["minAlpha255Share"])
+        build_report["alpha255SweepBest"] = best
+        bt, bi = best["thresh"], best["inset"]
+        slug_a = slug_map["A"]
+        aw_rel = f"assets/ui/angelina-skins/shipped/{slug_a}-world.webp"
+        aw_no = _finalize_prelock(prelocks["A"]["world"], bt, bi, decontam=False)
+        save_webp(aw_no, ROOT / aw_rel, lossless=True)
+        before_dump = {
+            "browser3": _dump_halo_bad_px(aw_rel, "browser3"),
+            "lanczos3": _dump_halo_bad_px(aw_rel, "lanczos3"),
+        }
+        sil_before = _outline_near_white_halos_img(aw_no)
+        aw_de = _finalize_prelock(prelocks["A"]["world"], bt, bi, decontam=True)
+        save_webp(aw_de, ROOT / aw_rel, lossless=True)
+        after_dump = {
+            "browser3": _dump_halo_bad_px(aw_rel, "browser3"),
+            "lanczos3": _dump_halo_bad_px(aw_rel, "lanczos3"),
+        }
+        sil_after = _outline_near_white_halos_img(aw_de)
+        build_report["aWorldHaloBadPx"] = {
+            "beforeDecontam": before_dump,
+            "afterDecontam": after_dump,
+            "silhouetteNearWhiteBefore": sil_before,
+            "silhouetteNearWhiteAfter": sil_after,
+        }
+        print("A_WORLD_HALO_DUMP", json.dumps(build_report["aWorldHaloBadPx"], indent=2))
+        _restore_with_composites(
+            skins_out,
+            build_report,
+            "RESTORE ab6fa302: no α=255 lock sweep passed all gates",
+        )
+        return
+
+    # A world halo bad-pixel dump + decontam before/after (at chosen lock params)
+    slug_a = slug_map["A"]
+    aw_rel = f"assets/ui/angelina-skins/shipped/{slug_a}-world.webp"
+    aw_no = _finalize_prelock(prelocks["A"]["world"], lock_thresh, lock_inset, decontam=False)
+    save_webp(aw_no, ROOT / aw_rel, lossless=True)
+    before_dump = {
+        "browser3": _dump_halo_bad_px(aw_rel, "browser3"),
+        "lanczos3": _dump_halo_bad_px(aw_rel, "lanczos3"),
+    }
+    sil_before = _outline_near_white_halos_img(aw_no)
+    aw_de = _finalize_prelock(prelocks["A"]["world"], lock_thresh, lock_inset, decontam=True)
+    save_webp(aw_de, ROOT / aw_rel, lossless=True)
+    after_dump = {
+        "browser3": _dump_halo_bad_px(aw_rel, "browser3"),
+        "lanczos3": _dump_halo_bad_px(aw_rel, "lanczos3"),
+    }
+    sil_after = _outline_near_white_halos_img(aw_de)
+    build_report["aWorldHaloBadPx"] = {
+        "beforeDecontam": before_dump,
+        "afterDecontam": after_dump,
+        "silhouetteNearWhiteBefore": sil_before,
+        "silhouetteNearWhiteAfter": sil_after,
+    }
+    print("A_WORLD_HALO_DUMP", json.dumps(build_report["aWorldHaloBadPx"], indent=2))
+
+    port_method = f"6d21+lock{lock_thresh:.2f}/inset{lock_inset}"
+    for skin_id, source_name in SOURCES.items():
+        source_path = SOURCE_DIR / source_name
+        source_sha = sha256_file(source_path)
+        slug = slug_map[skin_id]
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"
-        port_rgba, port_t = variant_combined_6d21_alpha(
-            orig, cut, portrait_variant, slug, "portrait"
-        )
-        port_method = "6d21-alpha+guided+core-nearest"
-        port_final = finish_shipped_variant(port_rgba)
+        port_final = _finalize_prelock(prelocks[skin_id]["portrait"], lock_thresh, lock_inset)
         port_alpha_ref, port_alpha_sha, port_alpha_stats = write_alpha_ref(slug, "portrait", port_final)
         port_interior_sha = interior_rgb_sha256(port_final)
         port_sha = save_webp(port_final, port_path, lossless=True)
         port_rel = str(port_path.relative_to(ROOT)).replace("\\", "/")
 
         world_path = SHIPPED_DIR / f"{slug}-world.webp"
-        world_rgba, world_t = variant_combined_6d21_alpha(
-            orig, cut, world_variant, slug, "world"
-        )
-        world_method = "6d21-alpha+guided+core-nearest"
-        world_final = finish_shipped_variant(world_rgba)
+        world_final = _finalize_prelock(prelocks[skin_id]["world"], lock_thresh, lock_inset)
         world_alpha_ref, world_alpha_sha, world_alpha_stats = write_alpha_ref(slug, "world", world_final)
         world_interior_sha = interior_rgb_sha256(world_final)
         world_sha = save_webp(world_final, world_path, lossless=True)
         world_rel = str(world_path.relative_to(ROOT)).replace("\\", "/")
-
-        build_report["matting"][skin_id] = {
-            "portraitSec": round(port_t, 2),
-            "worldSec": round(world_t, 2),
-            "portraitMethod": port_method,
-            "worldMethod": world_method,
-        }
 
         skins_out[skin_id] = {
             "sourcePath": str(source_path.relative_to(ROOT)).replace("\\", "/"),
@@ -1036,10 +1279,6 @@ def main() -> None:
             "worldAlphaStats": world_alpha_stats,
             "worldInteriorRgbSha256": world_interior_sha,
         }
-        print(
-            f"{skin_id} matting port={port_t:.1f}s/{port_method} world={world_t:.1f}s/{world_method}",
-            flush=True,
-        )
 
     for skin_id in ["A", "B", "C"]:
         entry = skins_out[skin_id]
@@ -1120,7 +1359,7 @@ def main() -> None:
 
     build_report["shipDecision"] = "shipped_combine"
     print("BUILD_REPORT", json.dumps(build_report, indent=2))
-    _save_portrait_composites()
+    _save_browser_composites()
     print(json.dumps(skins_out, indent=2))
 
 
