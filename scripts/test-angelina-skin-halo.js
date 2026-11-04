@@ -242,6 +242,10 @@ async function saveCompositeCrop(page, baseUrl, relPath, cssW, cssH, bgHex, outP
   await page.goto(`${baseUrl}/scripts/fixtures/angelina-skin-halo-browser.html`);
 
   const haloReport = [];
+  for (const id of ["A", "B", "C"]) {
+    const model = manifest.skins[id].rembgModel || "(unset)";
+    console.log(`SKIN ${id} rembgModel=${model}`);
+  }
 
   for (const id of ["A", "B", "C"]) {
     const sourceRel = manifest.skins[id].source.path;
@@ -307,27 +311,27 @@ async function saveCompositeCrop(page, baseUrl, relPath, cssW, cssH, bgHex, outP
           `FAIL: ${id} ${kind} opaque source-bg band within 15px of edge @browser3x (${browser.bgOpaqueBand} px, band ${browser.bandCandidates})`
         );
         failed++;
-        if (id === "B" && kind === "portrait") {
-          fs.mkdirSync(ARTIFACTS, { recursive: true });
-          await saveCompositeCrop(
-            page,
-            baseUrl,
-            slot.path,
-            shipped.w,
-            shipped.h,
-            "#111111",
-            path.join(ARTIFACTS, "halo-B-portrait-browser-111.png")
-          );
-          await saveCompositeCrop(
-            page,
-            baseUrl,
-            slot.path,
-            shipped.w,
-            shipped.h,
-            "#ffffff",
-            path.join(ARTIFACTS, "halo-B-portrait-browser-white.png")
-          );
-        }
+      }
+      if (kind === "portrait") {
+        fs.mkdirSync(ARTIFACTS, { recursive: true });
+        await saveCompositeCrop(
+          page,
+          baseUrl,
+          slot.path,
+          shipped.w,
+          shipped.h,
+          "#111111",
+          path.join(ARTIFACTS, `halo-${id}-portrait-browser-111.png`)
+        );
+        await saveCompositeCrop(
+          page,
+          baseUrl,
+          slot.path,
+          shipped.w,
+          shipped.h,
+          "#ffffff",
+          path.join(ARTIFACTS, `halo-${id}-portrait-browser-white.png`)
+        );
       }
     }
   }
