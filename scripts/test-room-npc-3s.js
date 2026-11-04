@@ -38,7 +38,7 @@ async function coldRoomNavMs(page, viewportLabel) {
       const snap = window.World3D?.getNpcMeshVertexSnapshot?.();
       if (snap?.location !== "room") return false;
       const n = snap.npcs || {};
-      return ["vienna", "mohawk", "cobalt"].every(id => {
+      const meshOk = ["vienna", "mohawk", "cobalt"].every(id => {
         const row = n[id];
         if (!row?.visible) return false;
         const u = row.meshUrl || "";
@@ -47,6 +47,9 @@ async function coldRoomNavMs(page, viewportLabel) {
         if (id === "cobalt") return u.includes("cobalt.glb");
         return false;
       });
+      if (!meshOk) return false;
+      const onScreen = window.World3D?.getRoomNpcsOnScreenSnapshot?.()?.onScreen || {};
+      return ["vienna", "mohawk", "cobalt"].every(id => onScreen[id] === true);
     },
     undefined,
     { timeout: MAX_MS, polling: 50 }

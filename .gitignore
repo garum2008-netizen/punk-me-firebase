@@ -10,3 +10,4 @@ dist-preview/
 .wrangler/
 .wrangler-preview-functions-out/
 __pycache__/
+.tmp-main-glb-render-diff/

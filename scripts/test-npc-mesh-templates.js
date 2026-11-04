@@ -186,7 +186,7 @@ async function main() {
     console.error(`test-npc-mesh-templates: ${failed} failed`);
     process.exit(1);
   }
-  console.log("test-npc-mesh-templates: PASS (main-identical GLBs + prod shop icons)");
+  console.log("test-npc-mesh-templates: PASS (main vertex/bbox parity + prod shop icons)");
 }
 
 main().catch(e => {

@@ -1,5 +1,9 @@
 import { punkSignOut, onGoogleSignInClick, authErrorMessage } from "./account-auth.mjs";
-import { connectFirebaseEmulatorsIfRequested } from "./firebase-emulator.mjs";
+import {
+  connectFirebaseEmulatorsIfRequested,
+  isFirebaseEmulatorQueryRequested,
+  isLocalFirebaseTestHost
+} from "./firebase-emulator.mjs";
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyACAXPV9H4vfWNUoRYEWzXi6CSX0kpCaho",
@@ -77,11 +81,33 @@ function setUi({ user, denied, admin }) {
 export async function initOwnerAdmin() {
   if (typeof initLanguage === "function") initLanguage();
   if (typeof applyI18nDom === "function") applyI18nDom();
-  const emulatorMode = new URLSearchParams(globalThis.location?.search || "").has("firebaseEmulator");
+  const statusEl = document.getElementById("ownerStatus");
+  const emulatorRequested = isFirebaseEmulatorQueryRequested();
+  const localTestHost = isLocalFirebaseTestHost();
+
+  if (localTestHost && !emulatorRequested) {
+    if (statusEl) {
+      statusEl.textContent =
+        "Owner admin tests require ?firebaseEmulator=1 (query must not be stripped by the static server).";
+    }
+    document.getElementById("ownerSignIn").hidden = false;
+    document.getElementById("ownerPanel").hidden = true;
+    document.getElementById("ownerDenied").hidden = true;
+    return;
+  }
+
   if (!window.firebase?.apps?.length) firebase.initializeApp(FIREBASE_CONFIG);
-  connectFirebaseEmulatorsIfRequested(firebase);
+  const emulatorConnected = connectFirebaseEmulatorsIfRequested(firebase);
+  if (emulatorRequested && localTestHost && !emulatorConnected) {
+    if (statusEl) statusEl.textContent = t("owner_rules_hint");
+    document.getElementById("ownerSignIn").hidden = false;
+    document.getElementById("ownerPanel").hidden = true;
+    document.getElementById("ownerDenied").hidden = true;
+    return;
+  }
+
   const auth = window.firebase.auth();
-  if (emulatorMode && auth.setPersistence) {
+  if (emulatorConnected && localTestHost && auth.setPersistence) {
     await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
   }
   const db = window.firebase.database();

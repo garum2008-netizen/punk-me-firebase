@@ -704,13 +704,55 @@ function getNpcVisibilitySnapshot() {
   return out;
 }
 
+function npcActorOnScreen(actorId) {
+  const a = actors.get(`npc_${actorId}`);
+  if (!a?.group?.visible || a.root?.visible === false) return false;
+  const canvas = document.getElementById("stage3d");
+  if (!canvas || !camera) return false;
+  a.group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(a.group);
+  if (box.isEmpty()) return false;
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const margin = 6;
+  const corners = [
+    [box.min.x, box.min.y, box.min.z],
+    [box.min.x, box.min.y, box.max.z],
+    [box.min.x, box.max.y, box.min.z],
+    [box.min.x, box.max.y, box.max.z],
+    [box.max.x, box.min.y, box.min.z],
+    [box.max.x, box.min.y, box.max.z],
+    [box.max.x, box.max.y, box.min.z],
+    [box.max.x, box.max.y, box.max.z]
+  ];
+  let anyInside = false;
+  for (const [wx, wy, wz] of corners) {
+    const p = projectWorldToScreen(wx, wy, wz);
+    if (!p) continue;
+    if (p.x >= margin && p.x <= cw - margin && p.y >= margin && p.y <= ch - margin) {
+      anyInside = true;
+      break;
+    }
+  }
+  if (!anyInside) return false;
+  const hm = actorHeadMetrics(a);
+  if (!hm) return anyInside;
+  const head = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
+  return !!(head && head.x >= margin && head.x <= cw - margin && head.y >= margin && head.y <= ch - margin);
+}
+
 async function loadModels() {
-  const playerHero = window.me?.characterId || null;
+  const rawPlayer =
+    window.me?.characterId ||
+    (typeof window.LIFE_CH1_PLAYER_MESH_ID === "string" ? window.LIFE_CH1_PLAYER_MESH_ID : null);
+  const playerHero =
+    rawPlayer === "life_ch1_proxy" ? "vienna" : rawPlayer || null;
   const roomHeroes = ["vienna", "mohawk", "cobalt"];
-  const priority = playerHero
-    ? [...new Set([playerHero, ...roomHeroes])]
-    : roomHeroes;
-  await Promise.all(priority.map(id => loadMeshyTemplateForCharacter(id)));
+  if (playerHero) {
+    await loadMeshyTemplateForCharacter(playerHero);
+  }
+  const npcParallel = [...new Set(roomHeroes.filter(id => id !== playerHero))];
+  await Promise.all(npcParallel.map(id => loadMeshyTemplateForCharacter(id)));
   modelsReady = true;
   if (pendingSyncData) sync(pendingSyncData);
   void loadMeshyTemplateForCharacter("razor");
@@ -1168,6 +1210,13 @@ const LOCATION_CAMERA = {
       player: { x: 0.02, z: -2.55, yaw: 0.05 },
       dog: { dx: 0.7, dz: -0.04 }
     }
+  },
+  room: {
+    dist: 7.35,
+    height: 2.62,
+    lookY: 1.1,
+    yaw: 0.48,
+    mobile: { dist: 11.6, height: 3.22, lookY: 0.88, fov: 58, yaw: 0.82 }
   }
 };
 
@@ -1261,12 +1310,14 @@ function applyMobilePortraitShowcaseFromPlayer(shot) {
 
 function cameraFollowProfile() {
   const loc = LOCATION_CAMERA[currentLoc] || {};
-  const baseDist = loc.dist ?? 6.4;
+  const mob = mobileQuality && loc.mobile ? loc.mobile : null;
+  const baseDist = mob?.dist ?? loc.dist ?? 6.4;
   const dist = mobileQuality ? baseDist * 0.96 : baseDist;
   return {
     dist,
-    height: loc.height ?? (mobileQuality ? 2.48 : 2.4),
-    lookY: loc.lookY ?? 1.28
+    height: mob?.height ?? loc.height ?? (mobileQuality ? 2.48 : 2.4),
+    lookY: mob?.lookY ?? loc.lookY ?? 1.28,
+    yaw: mob?.yaw ?? loc.yaw
   };
 }
 
@@ -1338,7 +1389,8 @@ function positionCameraBehindPlayer(instant = false, dt = lastCameraDt) {
     return;
   }
   const p = player.group.position;
-  const { dist, height, lookY } = cameraFollowProfile();
+  const { dist, height, lookY, yaw } = cameraFollowProfile();
+  if (yaw != null && Number.isFinite(yaw)) cameraYaw = yaw;
   const ox = Math.sin(cameraYaw) * dist;
   const oz = Math.cos(cameraYaw) * dist;
   const eye = p.clone().add(new THREE.Vector3(0, lookY - 0.15, 0));
@@ -1900,7 +1952,9 @@ function applyViewportCameraProfile() {
   const cw = canvas?.clientWidth ?? window.innerWidth;
   mobileQuality = window.matchMedia("(max-width: 900px)").matches || cw < 520;
   if (!camera) return;
-  camera.fov = mobileQuality ? 48 : 42;
+  const locCam = LOCATION_CAMERA[currentLoc];
+  const mob = mobileQuality && locCam?.mobile ? locCam.mobile : null;
+  camera.fov = mob?.fov ?? (mobileQuality ? 48 : 42);
   camera.updateProjectionMatrix();
 }
 
@@ -1973,6 +2027,13 @@ const api = {
   setPlayerLifeCh1Skin,
   getPlayerLifeCh1SkinRenderState,
   getNpcVisibilitySnapshot,
+  getRoomNpcsOnScreenSnapshot: (ids = ["vienna", "mohawk", "cobalt"]) => {
+    const onScreen = {};
+    ids.forEach(id => {
+      onScreen[id] = npcActorOnScreen(id);
+    });
+    return { location: currentLoc, onScreen, viewport: mobileQuality ? "mobile" : "desktop" };
+  },
   getNpcMeshVertexSnapshot: () => {
     const out = {};
     actors.forEach((a, actorId) => {

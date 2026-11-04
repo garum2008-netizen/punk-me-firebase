@@ -51,11 +51,20 @@ function soloMode() {
   }
 }
 
-/** Playwright-only Firebase bypass on localhost QA — never on production game hosts. */
+/** Playwright-only Firebase bypass — never on production game hostnames. */
+function isLocalPlaywrightTestHost() {
+  try {
+    const h = location.hostname.toLowerCase();
+    return h === "localhost" || h === "127.0.0.1" || h.endsWith(".localhost");
+  } catch (_) {
+    return false;
+  }
+}
+
 function playwrightFirebaseStubActive() {
   if (window.__PUNK_PLAYWRIGHT_FIREBASE_STUB__ !== true) return false;
   if (window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ === true) return false;
-  if (window.LifeCh1Slice?.isProductionGameHost?.()) return false;
+  if (!isLocalPlaywrightTestHost()) return false;
   return true;
 }
 

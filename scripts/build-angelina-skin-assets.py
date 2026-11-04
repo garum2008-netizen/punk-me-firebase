@@ -473,7 +473,6 @@ def finalize_alpha_matte(cut: Image.Image, orig: Image.Image, *, edge_band_px: i
                 px[x, y] = (sr, sg, sb, 255)
                 continue
             near = _nearest_opaque_source_rgb(px, x, y, w, h, rpx)
-            near = _nearest_opaque_source_rgb(px, x, y, w, h, rpx)
             if near:
                 dr, dg, db, _da = decontaminate_semi_edge_pixel(near[0], near[1], near[2], a, (17, 17, 17))
             else:
@@ -509,10 +508,107 @@ def strip_grey_matte_outline(rgba: Image.Image) -> Image.Image:
     return img
 
 
+def erode_opaque_source_background_band(
+    rgba: Image.Image, orig: Image.Image, *, band_px: int = 15, tol: int = 12
+) -> Image.Image:
+    """Drop opaque edge-band pixels where source or shipped RGB matches the backdrop."""
+    out = rgba.convert("RGBA")
+    px = out.load()
+    rpx = orig.convert("RGB").load()
+    w, h = out.size
+    refs = corner_bg_refs(orig)
+    dist = _alpha_distance_to_clear(px, w, h)
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 255 or dist[y][x] > band_px:
+                continue
+            lum = (r + g + b) / 3
+            chroma = max(r, g, b) - min(r, g, b)
+            dist_grey = abs(r - lum) + abs(g - lum) + abs(b - lum)
+            grey_matt = dist_grey < 10 and 55 < lum < 210 and chroma < 13
+            sr, sg, sb = rpx[x, y]
+            if matches_bg(sr, sg, sb, refs, tol) or matches_bg(r, g, b, refs, tol) or grey_matt:
+                px[x, y] = (0, 0, 0, 0)
+    return out
+
+
+def variant_source_rgb(orig: Image.Image, cut: Image.Image, variant_fn) -> Image.Image:
+    matte = orig_rgb_with_cut_alpha(orig, cut)
+    return variant_fn(matte).convert("RGB")
+
+
+def count_grey_matt_opaque_band(rgba: Image.Image, band_px: int = 15) -> int:
+    px = rgba.load()
+    w, h = rgba.size
+    dist = _alpha_distance_to_clear(px, w, h)
+    bad = 0
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 255 or dist[y][x] > band_px:
+                continue
+            lum = (r + g + b) / 3
+            chroma = max(r, g, b) - min(r, g, b)
+            dist_grey = abs(r - lum) + abs(g - lum) + abs(b - lum)
+            if dist_grey < 10 and 55 < lum < 210 and chroma < 13:
+                bad += 1
+    return bad
+
+
+def repeat_erode_bg_band(rgba: Image.Image, orig: Image.Image, *, passes: int = 8, band_px: int = 15) -> Image.Image:
+    out = rgba
+    for _ in range(passes):
+        out = erode_opaque_source_background_band(out, orig, band_px=band_px)
+    return out
+
+
+def post_erode_cleanup(rgba: Image.Image) -> Image.Image:
+    out = strip_grey_matte_outline(rgba.convert("RGBA"))
+    for _ in range(3):
+        out = strip_outline_near_white(out)
+    return out
+
+
+def erode_until_clean(rgba: Image.Image, orig: Image.Image, *, band_px: int = 15, max_passes: int = 40) -> Image.Image:
+    out = rgba
+    for _ in range(max_passes):
+        if count_grey_matt_opaque_band(out, band_px=band_px) <= 0:
+            break
+        out = erode_opaque_source_background_band(out, orig, band_px=band_px)
+    return out
+
+
+def repair_c_v2_wing_alpha(cut: Image.Image, orig: Image.Image, min_alpha: int = 40) -> Image.Image:
+    """Fill wing edge notches: restore opaque source foreground where rembg dropped alpha."""
+    out = cut.convert("RGBA")
+    px = out.load()
+    rpx = orig.convert("RGB").load()
+    refs = corner_bg_refs(orig)
+    w, h = out.size
+    for y in range(h):
+        for x in range(w):
+            sr, sg, sb = rpx[x, y]
+            if matches_bg(sr, sg, sb, refs, 22):
+                continue
+            _r, _g, _b, a = px[x, y]
+            if a >= min_alpha:
+                continue
+            lum = (sr + sg + sb) / 3
+            chroma = max(sr, sg, sb) - min(sr, sg, sb)
+            if lum < 48 or chroma < 8:
+                continue
+            px[x, y] = (sr, sg, sb, 255)
+    return fill_internal_holes(out, min_alpha=min_alpha)
+
+
 def postprocess_cutout(skin_id: str, cut: Image.Image, orig: Image.Image) -> Image.Image:
     if skin_id == "C":
         cut = fill_internal_holes(cut, min_alpha=32)
-    return finalize_alpha_matte(cut, orig)
+        cut = repair_c_v2_wing_alpha(cut, orig)
+    out = finalize_alpha_matte(cut, orig)
+    out = erode_opaque_source_background_band(out, orig, band_px=15)
+    return out
 
 
 def finish_shipped_variant(rgba: Image.Image) -> Image.Image:
@@ -687,13 +783,22 @@ def main() -> None:
         slug = source_name.replace(".png", "")
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"
-        port_final = finish_shipped_variant(variant_locked(orig, cut, portrait_variant))
+        matte = orig_rgb_with_cut_alpha(orig, cut)
+        port_base = finish_shipped_variant(variant_locked(orig, cut, portrait_variant))
+        port_plane = finish_shipped_variant(portrait_variant(matte))
+        if port_plane.size != port_base.size:
+            port_plane = port_plane.resize(port_base.size, Image.Resampling.LANCZOS)
+        port_final = post_erode_cleanup(erode_until_clean(port_base, port_plane, band_px=15, max_passes=48))
         port_alpha_ref, port_alpha_sha, port_alpha_stats = write_alpha_ref(slug, "portrait", port_final)
         port_interior_sha = interior_rgb_sha256(port_final)
         port_sha = save_webp(port_final, port_path, lossless=True)
 
         world_path = SHIPPED_DIR / f"{slug}-world.webp"
-        world_final = finish_shipped_variant(variant_locked(orig, cut, world_variant))
+        world_base = finish_shipped_variant(variant_locked(orig, cut, world_variant))
+        world_plane = finish_shipped_variant(world_variant(matte))
+        if world_plane.size != world_base.size:
+            world_plane = world_plane.resize(world_base.size, Image.Resampling.LANCZOS)
+        world_final = post_erode_cleanup(erode_until_clean(world_base, world_plane, band_px=15, max_passes=48))
         world_alpha_ref, world_alpha_sha, world_alpha_stats = write_alpha_ref(slug, "world", world_final)
         world_interior_sha = interior_rgb_sha256(world_final)
         world_sha = save_webp(world_final, world_path, lossless=True)

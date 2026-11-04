@@ -27,14 +27,11 @@ function dirBytes(dir, filterFn) {
 }
 
 function modelsFolderPayloadBytes() {
-  /** Street-only lazy mesh — not counted toward ch1 room runtime budget. */
-  const skipFiles = new Set(["razor.glb"]);
   const modelsRoot = path.join(root, "assets/models");
   return dirBytes(modelsRoot, (abs, name) => {
-    if (skipFiles.has(name)) return false;
     if (/LICENSE/i.test(name) || /README/i.test(name)) return false;
     if (name === ".gitignore") return false;
-    return true;
+    return name.endsWith(".glb");
   });
 }
 
@@ -44,7 +41,7 @@ async function main() {
   assert(modelsBytes > 0, "assets/models payload missing files");
   assert(
     modelsBytes <= maxPayload,
-    `assets/models runtime payload must be ≤19.0 MB decimal excluding lazy razor.glb (got ${(modelsBytes / 1e6).toFixed(3)} MB)`
+    `assets/models runtime payload must be ≤19.0 MB decimal for all .glb files (got ${(modelsBytes / 1e6).toFixed(3)} MB)`
   );
 
   for (const dead of [

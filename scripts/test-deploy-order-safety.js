@@ -14,16 +14,16 @@ const root = path.join(__dirname, "..");
 const { useSnapshot, restore } = require("./emulator-rules-swap");
 const {
   assertFirebaseEmulatorTestEnv,
-  installProdFirebaseRouteBlock
+  installProdFirebaseRouteBlock,
+  firebaseEmulatorQueryString
 } = require("./firebase-test-emulator-guard");
-const { applyFirebaseEmulatorEnv, dbPort, authPort } = require("./firebase-emulator-env");
-
+const { applyFirebaseEmulatorEnv, dbPort, authPort, DB_HOST, AUTH_HOST } = require("./firebase-emulator-env");
 applyFirebaseEmulatorEnv();
 assertFirebaseEmulatorTestEnv();
+const emulatorQs = firebaseEmulatorQueryString();
 
 const PROJECT_ID = process.env.FIREBASE_EMULATOR_PROJECT || "punk-me-40605";
 const DB_NS = `${PROJECT_ID}-default-rtdb`;
-const AUTH_HOST = "127.0.0.1";
 const AUTH_PORT = authPort;
 
 function fetchJson(url, opts = {}) {
@@ -121,7 +121,7 @@ function patchOldJsForEmulator(worktreeRoot) {
       `db = firebase.database();
     if (new URLSearchParams(location.search).has("firebaseEmulator")) {
       try {
-        firebase.database().useEmulator("127.0.0.1", ${dbPort});
+        firebase.database().useEmulator("${DB_HOST}", ${dbPort});
         firebase.auth().useEmulator("http://${AUTH_HOST}:${AUTH_PORT}");
       } catch (e) { console.warn(e); }
     }`
@@ -229,13 +229,13 @@ async function ensureEmulatorEmailUser(email, password) {
 }
 
 async function emulatorCustomTokenForUid(uid) {
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = `${AUTH_HOST}:${AUTH_PORT}`;
-  process.env.FIREBASE_DATABASE_EMULATOR_HOST = `127.0.0.1:9000`;
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = `${AUTH_HOST}:${authPort}`;
+  process.env.FIREBASE_DATABASE_EMULATOR_HOST = `${DB_HOST}:${dbPort}`;
   const admin = require("firebase-admin");
   if (!admin.apps.length) {
     admin.initializeApp({
       projectId: PROJECT_ID,
-      databaseURL: `http://127.0.0.1:9000/?ns=${DB_NS}`
+      databaseURL: `http://${DB_HOST}:${dbPort}/?ns=${DB_NS}`
     });
   }
   return admin.auth().createCustomToken(uid);
@@ -246,7 +246,7 @@ async function testOldJsGameplayAndOwner(worktreeBase) {
   const page = await browser.newPage();
   await installProdFirebaseRouteBlock(page);
   try {
-    await page.goto(`${worktreeBase}/?solo=1&firebaseEmulator=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await page.goto(`${worktreeBase}/?solo=1${emulatorQs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForSelector(".char-pick", { timeout: 90000 });
     await page.click('.char-pick[data-id="cobalt"]');
     await page.click("#charSelectConfirm");
@@ -279,7 +279,9 @@ async function testOldJsGameplayAndOwner(worktreeBase) {
   try {
     const seeded = await ensureEmulatorEmailUser(ownerEmail, ownerPass);
     const customToken = await emulatorCustomTokenForUid(seeded.localId);
-    await ownerPage.goto(`${worktreeBase}/owner?firebaseEmulator=1`, { waitUntil: "domcontentloaded" });
+    await ownerPage.goto(`${worktreeBase}/owner.html${emulatorQs.replace(/^&/, "?")}`, {
+      waitUntil: "domcontentloaded"
+    });
     await ownerPage.waitForFunction(
       () => {
         const st = document.getElementById("ownerStatus")?.textContent || "";
@@ -381,8 +383,8 @@ async function ensureOldWorktree(worktree) {
 }
 
 async function runPhase(phase) {
-  const newJsPort = 9876;
-  const oldJsPort = 9880;
+  const newJsPort = Number(process.env.PUNK_PORT || 9876);
+  const oldJsPort = Number(process.env.PUNK_OLD_JS_PORT || 9880);
   const worktree = path.join(root, ".worktrees", "main-7ee242b");
 
   if (phase === "a1") {

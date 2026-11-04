@@ -88,6 +88,80 @@ function isEdge(data, w, h, x, y, clear = 20) {
   return false;
 }
 
+function alphaDistanceToClear(data, w, h) {
+  const dist = new Int32Array(w * h);
+  dist.fill(1e9);
+  const q = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (data[i * 4 + 3] <= 0) {
+        dist[i] = 0;
+        q.push(i);
+      }
+    }
+  }
+  let qi = 0;
+  while (qi < q.length) {
+    const i = q[qi++];
+    const x = i % w;
+    const y = (i / w) | 0;
+    const d = dist[i];
+    for (const [dx, dy] of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1]
+    ]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const ni = ny * w + nx;
+      if (dist[ni] > d + 1) {
+        dist[ni] = d + 1;
+        q.push(ni);
+      }
+    }
+  }
+  return dist;
+}
+
+function sourceBgRefs(sourceData, w, h, radius = 4) {
+  const refs = [];
+  for (const [cx, cy] of [
+    [0, 0],
+    [w - 1, 0],
+    [0, h - 1],
+    [w - 1, h - 1]
+  ]) {
+    let rs = 0;
+    let gs = 0;
+    let bs = 0;
+    let n = 0;
+    for (let y = Math.max(0, cy - radius); y <= Math.min(h - 1, cy + radius); y++) {
+      for (let x = Math.max(0, cx - radius); x <= Math.min(w - 1, cx + radius); x++) {
+        const i = (y * w + x) * 4;
+        rs += sourceData[i];
+        gs += sourceData[i + 1];
+        bs += sourceData[i + 2];
+        n++;
+      }
+    }
+    refs.push([Math.round(rs / n), Math.round(gs / n), Math.round(bs / n)]);
+  }
+  return refs;
+}
+
+function matchesSourceBg(r, g, b, refs, tol = 18) {
+  const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+  const lum = (r + g + b) / 3;
+  if (chroma >= 22 && lum < 248) return false;
+  for (const [cr, cg, cb] of refs) {
+    if (Math.max(Math.abs(r - cr), Math.abs(g - cg), Math.abs(b - cb)) <= tol) return true;
+  }
+  return false;
+}
+
 function interiorRgbSha256(data, w, h) {
   const hsh = crypto.createHash("sha256");
   for (let y = 0; y < h; y++) {
@@ -137,14 +211,12 @@ function interiorRgbSha256(data, w, h) {
       }
 
       let softInterior = 0;
-      let interiorPixels = 0;
       for (let y = 0; y < shipped.h; y++) {
         for (let x = 0; x < shipped.w; x++) {
           const i = (y * shipped.w + x) * 4;
           const a = shipped.data[i + 3];
           if (a < 128) continue;
           if (isEdge(shipped.data, shipped.w, shipped.h, x, y, 8)) continue;
-          interiorPixels++;
           if (a !== 255) softInterior++;
         }
       }
@@ -154,49 +226,37 @@ function interiorRgbSha256(data, w, h) {
       }
 
       const shipped3 = await loadRgba(slot.path, 3);
-      let interiorRgb = [0, 0, 0];
-      let n = 0;
+      const source3 = await loadSourceAtSize(sourceRel, shipped3.w, shipped3.h);
+      const bgRefs = sourceBgRefs(source3.data, source3.w, source3.h);
+      const distClear = alphaDistanceToClear(shipped3.data, shipped3.w, shipped3.h);
+      let bgOpaqueBand = 0;
+      let bandCandidates = 0;
       for (let y = 0; y < shipped3.h; y++) {
         for (let x = 0; x < shipped3.w; x++) {
-          const i = (y * shipped3.w + x) * 4;
-          if (shipped3.data[i + 3] < 254) continue;
-          interiorRgb[0] += shipped3.data[i];
-          interiorRgb[1] += shipped3.data[i + 1];
-          interiorRgb[2] += shipped3.data[i + 2];
-          n++;
-        }
-      }
-      if (n) interiorRgb = interiorRgb.map(v => v / n);
-      let greyRing = 0;
-      let edgeSemi = 0;
-      for (let y = 0; y < shipped3.h; y++) {
-        for (let x = 0; x < shipped3.w; x++) {
-          if (!isEdge(shipped3.data, shipped3.w, shipped3.h, x, y)) continue;
-          const i = (y * shipped3.w + x) * 4;
+          const idx = y * shipped3.w + x;
+          const i = idx * 4;
           const a = shipped3.data[i + 3];
-          if (a <= 0 || a >= 255) continue;
-          edgeSemi++;
+          if (a !== 255) continue;
+          if (distClear[idx] > 15) continue;
+          bandCandidates++;
           const r = shipped3.data[i];
           const g = shipped3.data[i + 1];
           const b = shipped3.data[i + 2];
-          const af = a / 255;
-          const compR = r * af + 17 * (1 - af);
-          const compG = g * af + 17 * (1 - af);
-          const compB = b * af + 17 * (1 - af);
-          const lum = (compR + compG + compB) / 3;
-          const compChroma = Math.max(compR, compG, compB) - Math.min(compR, compG, compB);
-          const distGrey = Math.abs(compR - lum) + Math.abs(compG - lum) + Math.abs(compB - lum);
-          const distHair =
-            Math.abs(compR - interiorRgb[0]) +
-            Math.abs(compG - interiorRgb[1]) +
-            Math.abs(compB - interiorRgb[2]);
+          const lum = (r + g + b) / 3;
+          const compChroma = Math.max(r, g, b) - Math.min(r, g, b);
+          const distGrey =
+            Math.abs(r - lum) + Math.abs(g - lum) + Math.abs(b - lum);
           const greyMatt = distGrey < 10 && lum > 55 && lum < 210 && compChroma < 13;
-          if (greyMatt && distHair > 42) greyRing++;
+          if (greyMatt) bgOpaqueBand++;
         }
       }
-      if (edgeSemi > 80 && greyRing / edgeSemi > 0.12) {
-        console.error(`FAIL: ${id} ${kind} grey halo @3x on #111 (${greyRing}/${edgeSemi})`);
+      if (bgOpaqueBand > 0) {
+        console.error(
+          `FAIL: ${id} ${kind} opaque source-bg band within 15px of edge (${bgOpaqueBand} px, band ${bandCandidates})`
+        );
         failed++;
+      } else if (bandCandidates > 40) {
+        console.log(`OK: ${id} ${kind} opaque edge band 0/${bandCandidates}`);
       }
     }
   }
