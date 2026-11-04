@@ -1,0 +1,21 @@
+{
+  "pipeline": "6d214651 alpha (git show) + guided filter r=6 eps=1e-3 + estimate_foreground_ml + interior core lock",
+  "shipDecision": "restore_ab6fa302",
+  "shipReason": "Beat ab6fa browser halo on every skin but failed unchanged silhouette gate (A portrait/world, B world near-white outline halos)",
+  "ab6faBrowserSum": { "A": 22153, "B": 13396, "C": 502 },
+  "combineBrowserSum": { "A": 6, "B": 0, "C": 0 },
+  "perSkinVariant": {
+    "A": {
+      "portrait": { "browser": 1, "lanczos": 0, "ab6faBrowser": 13149, "ab6faLanczos": 12826 },
+      "world": { "browser": 5, "lanczos": 1, "ab6faBrowser": 9004, "ab6faLanczos": 8881 }
+    },
+    "B": {
+      "portrait": { "browser": 0, "lanczos": 0, "ab6faBrowser": 8311, "ab6faLanczos": 7937 },
+      "world": { "browser": 0, "lanczos": 0, "ab6faBrowser": 5085, "ab6faLanczos": 4800 }
+    },
+    "C": {
+      "portrait": { "browser": 0, "lanczos": 0, "ab6faBrowser": 304, "ab6faLanczos": 220 },
+      "world": { "browser": 0, "lanczos": 0, "ab6faBrowser": 198, "ab6faLanczos": 131 }
+    }
+  }
+}

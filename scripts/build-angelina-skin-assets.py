@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import subprocess
 import time
@@ -15,6 +16,7 @@ from scipy import ndimage
 
 ROOT = Path(__file__).resolve().parents[1]
 AB6FA_HALO_BASELINE = ROOT / "scripts/angelina-skin-ab6fa-halo-baseline.json"
+ALPHA_SHAPE_REV = "6d214651"
 SKIN_DIR = ROOT / "assets/ui/angelina-skins"
 SOURCE_DIR = SKIN_DIR / "source"
 SHIPPED_DIR = SKIN_DIR / "shipped"
@@ -672,107 +674,76 @@ def _local_exterior_median_rgb(
     return sorted(rs)[mid], sorted(gs)[mid], sorted(bs)[mid]
 
 
-def _build_trimap(base_mask: np.ndarray, src_rgb: np.ndarray) -> np.ndarray:
-    """Return float trimap (0=BG, 0.5=unknown, 1=FG)."""
-    h, w = base_mask.shape
-    exterior = ~base_mask
-    dist_in = ndimage.distance_transform_edt(base_mask)
-    dist_out = ndimage.distance_transform_edt(exterior)
-    edge_band = (dist_in <= 40) | (dist_out <= 40)
-
-    definite_fg = dist_in >= 12
-    for y in range(h):
-        for x in range(w):
-            if not base_mask[y, x]:
-                continue
-            loc = _local_exterior_median_rgb(src_rgb, exterior, y, x)
-            if loc is None:
-                continue
-            sr, sg, sb = int(src_rgb[y, x, 0]), int(src_rgb[y, x, 1]), int(src_rgb[y, x, 2])
-            if _delta_e_lab(sr, sg, sb, loc[0], loc[1], loc[2]) > 25:
-                definite_fg[y, x] = True
-
-    struct = ndimage.generate_binary_structure(2, 1)
-    dilated = ndimage.binary_dilation(base_mask, structure=struct, iterations=2)
-    definite_bg = ~dilated
-
-    q: deque[tuple[int, int]] = deque()
-    reachable = definite_bg.copy()
-    for y in range(h):
-        for x in range(w):
-            if reachable[y, x]:
-                q.append((x, y))
-    while q:
-        cx, cy = q.popleft()
-        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-            nx, ny = cx + dx, cy + dy
-            if nx < 0 or ny < 0 or nx >= w or ny >= h:
-                continue
-            if reachable[ny, nx] or not base_mask[ny, nx]:
-                continue
-            loc = _local_exterior_median_rgb(src_rgb, exterior, ny, nx)
-            if loc is None:
-                continue
-            sr, sg, sb = int(src_rgb[ny, nx, 0]), int(src_rgb[ny, nx, 1]), int(src_rgb[ny, nx, 2])
-            if _delta_e_lab(sr, sg, sb, loc[0], loc[1], loc[2]) < 10:
-                reachable[ny, nx] = True
-                definite_bg[ny, nx] = True
-                q.append((nx, ny))
-
-    deep_fg = base_mask & ~edge_band & ~definite_fg
-    definite_fg |= deep_fg
-
-    trimap = np.full((h, w), 0.5, dtype=np.float64)
-    trimap[definite_bg] = 0.0
-    trimap[definite_fg] = 1.0
-    unknown = edge_band & ~definite_fg & ~definite_bg
-    trimap[unknown] = 0.5
-    trimap[~edge_band & ~definite_bg] = 0.0
-    return trimap
+def _box_filter(arr: np.ndarray, radius: int) -> np.ndarray:
+    k = radius * 2 + 1
+    return ndimage.uniform_filter(arr.astype(np.float64), size=k, mode="nearest")
 
 
-def _matting_variant(
-    source_rgba: Image.Image, base_mask_alpha: Image.Image, *, cf_timeout_s: float = 180.0
-) -> tuple[Image.Image, float, str]:
-    from pymatting import estimate_alpha_cf, estimate_alpha_knn, estimate_foreground_ml
-
-    src_rgb = np.array(source_rgba.convert("RGB"))
-    base_mask = np.array(base_mask_alpha.convert("L")) >= 128
-    trimap = _build_trimap(base_mask, src_rgb)
-    image = src_rgb.astype(np.float64) / 255.0
-
-    t0 = time.perf_counter()
-    method = "cf"
-    try:
-        alpha = estimate_alpha_cf(image, trimap)
-        if time.perf_counter() - t0 > cf_timeout_s:
-            raise TimeoutError("cf slow")
-    except Exception:
-        method = "knn"
-        alpha = estimate_alpha_knn(image, trimap)
-    elapsed = time.perf_counter() - t0
-    fg = estimate_foreground_ml(image, alpha)
-    alpha_u8 = (np.clip(alpha, 0.0, 1.0) * 255.0).astype(np.uint8)
-
-    h, w = src_rgb.shape[:2]
-    out = np.zeros((h, w, 4), dtype=np.uint8)
-    def_fg = trimap >= 0.999
-    out[def_fg, 0:3] = src_rgb[def_fg]
-    out[def_fg, 3] = 255
-    rest = (~def_fg) & (alpha_u8 > 0)
-    out[rest, 0:3] = (np.clip(fg[rest], 0.0, 1.0) * 255.0).astype(np.uint8)
-    out[rest, 3] = alpha_u8[rest]
-    return Image.fromarray(out, "RGBA"), elapsed, method
+def guided_filter_alpha(p: np.ndarray, guide: np.ndarray, radius: int, eps: float) -> np.ndarray:
+    """Guided filter (He et al.); p and guide same shape, float."""
+    mean_i = _box_filter(guide, radius)
+    mean_p = _box_filter(p, radius)
+    mean_ip = _box_filter(guide * p, radius)
+    mean_ii = _box_filter(guide * guide, radius)
+    var_i = mean_ii - mean_i * mean_i
+    cov_ip = mean_ip - mean_i * mean_p
+    a = cov_ip / (var_i + eps)
+    b = mean_p - a * mean_i
+    return _box_filter(a, radius) * guide + _box_filter(b, radius)
 
 
-def variant_trimap_matte(
-    orig: Image.Image, cut: Image.Image, variant_fn
-) -> tuple[Image.Image, float, str]:
+def _git_show_shipped_alpha(rel_path: str) -> Image.Image:
+    data = subprocess.check_output(
+        ["git", "show", f"{ALPHA_SHAPE_REV}:{rel_path.replace(chr(92), '/')}"],
+        cwd=ROOT,
+    )
+    return Image.open(io.BytesIO(data)).convert("RGBA").split()[3]
+
+
+def variant_combined_6d21_alpha(
+    orig: Image.Image,
+    cut: Image.Image,
+    variant_fn,
+    slug: str,
+    kind: str,
+) -> tuple[Image.Image, float]:
+    """6d21 alpha shape + guided refine + ML foreground on ab6f source RGB."""
+    from pymatting import estimate_foreground_ml
+
     matte = orig_rgb_with_cut_alpha(orig, cut)
     source_rgba = variant_fn(matte)
-    base = variant_fn(cut)
-    base_alpha = base.split()[3]
-    return _matting_variant(source_rgba, base_alpha)
+    w, h = source_rgba.size
+    src_rgb = np.array(source_rgba.convert("RGB"), dtype=np.uint8)
+
+    rel = f"assets/ui/angelina-skins/shipped/{slug}-{kind}.webp"
+    alpha_im = _git_show_shipped_alpha(rel)
+    if alpha_im.size != (w, h):
+        alpha_im = alpha_im.resize((w, h), Image.Resampling.LANCZOS)
+
+    t0 = time.perf_counter()
+    alpha_f = np.array(alpha_im, dtype=np.float64) / 255.0
+    guide = (
+        0.299 * src_rgb[:, :, 0] + 0.587 * src_rgb[:, :, 1] + 0.114 * src_rgb[:, :, 2]
+    ) / 255.0
+    alpha_ref = guided_filter_alpha(alpha_f, guide, radius=6, eps=1e-3)
+    alpha_ref = np.clip(alpha_ref, 0.0, 1.0)
+
+    interior = alpha_ref >= 0.99
+    interior_core = ndimage.distance_transform_edt(interior) >= 3
+
+    image = src_rgb.astype(np.float64) / 255.0
+    alpha_ml = alpha_ref.copy()
+    alpha_ml[interior_core] = 1.0
+    fg = estimate_foreground_ml(image, alpha_ml)
+
+    out = np.zeros((h, w, 4), dtype=np.uint8)
+    out[interior_core, 0:3] = src_rgb[interior_core]
+    out[interior_core, 3] = 255
+    edge = (~interior_core) & (alpha_ref > 1.0 / 255.0)
+    out[edge, 0:3] = (np.clip(fg[edge], 0.0, 1.0) * 255.0).astype(np.uint8)
+    out[edge, 3] = np.clip(alpha_ref[edge] * 255.0, 0, 255).astype(np.uint8)
+    elapsed = time.perf_counter() - t0
+    return Image.fromarray(out, "RGBA"), elapsed
 
 
 def _measure_halo(rel_path: str) -> dict:
@@ -832,8 +803,8 @@ def build_cutout_from_source(orig: Image.Image, skin_id: str) -> Image.Image:
 def write_manifest(skins_out: dict) -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf8"))
     manifest["notes"] = (
-        "Owner t569u approved PNGs. isnet base mask + trimap closed-form matting (pymatting); "
-        "interior RGB locked to source. Rebuild: python3 scripts/build-angelina-skin-assets.py"
+        "Owner t569u approved PNGs. Alpha from 6d214651 shape + guided filter + ML foreground; "
+        "interior RGB locked to Lanczos source. Rebuild: python3 scripts/build-angelina-skin-assets.py"
     )
     for skin_id, data in skins_out.items():
         entry = manifest["skins"][skin_id]
@@ -874,7 +845,10 @@ def main() -> None:
         slug = source_name.replace(".png", "")
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"
-        port_rgba, port_t, port_method = variant_trimap_matte(orig, cut, portrait_variant)
+        port_rgba, port_t = variant_combined_6d21_alpha(
+            orig, cut, portrait_variant, slug, "portrait"
+        )
+        port_method = "6d21-alpha+guided+ml"
         port_final = finish_shipped_variant(port_rgba)
         port_alpha_ref, port_alpha_sha, port_alpha_stats = write_alpha_ref(slug, "portrait", port_final)
         port_interior_sha = interior_rgb_sha256(port_final)
@@ -882,7 +856,10 @@ def main() -> None:
         port_rel = str(port_path.relative_to(ROOT)).replace("\\", "/")
 
         world_path = SHIPPED_DIR / f"{slug}-world.webp"
-        world_rgba, world_t, world_method = variant_trimap_matte(orig, cut, world_variant)
+        world_rgba, world_t = variant_combined_6d21_alpha(
+            orig, cut, world_variant, slug, "world"
+        )
+        world_method = "6d21-alpha+guided+ml"
         world_final = finish_shipped_variant(world_rgba)
         world_alpha_ref, world_alpha_sha, world_alpha_stats = write_alpha_ref(slug, "world", world_final)
         world_interior_sha = interior_rgb_sha256(world_final)
@@ -939,7 +916,31 @@ def main() -> None:
     all_beat = all(build_report["skins"][s]["beatsAb6fa"] for s in ["A", "B", "C"])
     print("BUILD_REPORT", json.dumps(build_report, indent=2))
     if not all_beat:
-        print("RESTORE ab6fa302: trimap matting did not beat ab6fa browser halo on every skin", flush=True)
+        print(
+            "RESTORE ab6fa302: 6d21-alpha combine did not beat ab6fa browser halo on every skin",
+            flush=True,
+        )
+        _restore_ab6fa_assets()
+        return
+
+    sil = subprocess.run(
+        ["python3", str(ROOT / "scripts/angelina-skin-silhouette-check.py")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    build_report["silhouetteCheck"] = {
+        "ok": sil.returncode == 0,
+        "stdout": sil.stdout[-4000:] if sil.stdout else "",
+        "stderr": sil.stderr[-2000:] if sil.stderr else "",
+    }
+    if sil.returncode != 0:
+        print(sil.stdout or "", end="")
+        print(sil.stderr or "", end="")
+        print(
+            "RESTORE ab6fa302: 6d21-alpha combine beat ab6fa browser halo but failed silhouette gate",
+            flush=True,
+        )
         _restore_ab6fa_assets()
         return
 
