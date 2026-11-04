@@ -2,7 +2,7 @@
   "version": 2,
   "sliceOnly": true,
   "promoDeployForbidden": true,
-  "notes": "Owner t569u approved PNGs. rembg isnet-general-use alpha matting + 20px Lab ΔE edge refine. Rebuild: python3 scripts/build-angelina-skin-assets.py",
+  "notes": "Owner t569u approved PNGs. Alpha via offline rembg isnet-general-use matte (RGB identical to source); defringe 1–2px. Rebuild: python3 scripts/build-angelina-skin-assets.py",
   "forbiddenAssets": [
     "angelina-teen-C.png"
   ],
@@ -21,28 +21,28 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-portrait.webp",
-        "sha256": "f0c6ad6ad7f3e64cbba0a9e8ae0239344474290c2e0c1e58ec4ecf23ed69d38d",
+        "sha256": "8511285622c3c1a9d35a88f38e12fe7b0c34e225c81cd7be0b94a56462425db2",
         "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-A-portrait-alpha.png",
-        "alphaSha256": "cbde57789e2bae8286e034c10bf72d612b73aa818de89ed9ca627a2893a28f6f",
+        "alphaSha256": "ccbb21d32318e6f45f9de91dc29c50b95f4ee2f68c9c340f6d5b96327120f7cd",
         "alphaStats": {
           "width": 372,
-          "height": 939,
-          "opaquePixels": 163495
+          "height": 940,
+          "opaquePixels": 176990
         },
-        "interiorRgbSha256": "7e63b283005dd03ad0597d3d300b8d745bfe617355f3faf9e96cdb9198e52c41"
+        "interiorRgbSha256": "2c9c90d89190e16cb4071f77a941df9aa5271c664931320bd853aefc473c0dba"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-world.webp",
-        "sha256": "a54438808c109b9ae2299b9dde30f2f77b40fde5c9db34d0586df0a37db157f5",
-        "derivative": "rembg matting + Lab ΔE band + 280px wide WebP",
+        "sha256": "19e3e6807c5ce4595e1a1f26727e00e1bbdb3553e670d1167ca51009d64ce9eb",
+        "derivative": "rembg alpha matte + padded bbox crop + 280px wide WebP",
         "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-A-world-alpha.png",
-        "alphaSha256": "eff32d0e6c97dc5ea6adaa2cf236894f94892afa59a104329d7ecc700add7517",
+        "alphaSha256": "27eb6d0a134b631a2af268742184acad1048c7c10d5e5b3d1ffb8236972eb2e8",
         "alphaStats": {
           "width": 280,
           "height": 707,
-          "opaquePixels": 90968
+          "opaquePixels": 99919
         },
-        "interiorRgbSha256": "643fe1caabb26df4a4dcb6aa7fe9fd05041869d5f04196d3bda791047f067ce8"
+        "interiorRgbSha256": "bbbe8ec5d1d3b343ee6736dad31629a9c1d5bc13013ffcd20ca1cca08943941d"
       }
     },
     "B": {
@@ -59,28 +59,28 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp",
-        "sha256": "3daaf108cf29a34007711833809876e99c9b41449f9d6ddef46ada85a4b2ae78",
+        "sha256": "40f3ed62ac4aa3981f51c95eaa120294064f040d77208ea4cad48587df8bd82c",
         "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-B-portrait-alpha.png",
-        "alphaSha256": "384e42d6731ed8fc4f6af1848266be73099f5d4a15c5d9798e542a26fc436118",
+        "alphaSha256": "5bec3d28916065b3f12bb33f6bbad233a28450583e1045ca22948dc8be7f63d6",
         "alphaStats": {
           "width": 372,
-          "height": 965,
-          "opaquePixels": 151631
+          "height": 967,
+          "opaquePixels": 181932
         },
-        "interiorRgbSha256": "6e5e97f4cf1d76e9dc526a0ca45c3c5af0da8fec0a91a2c2a454960175b6bb09"
+        "interiorRgbSha256": "6d30720e0670d948c50f5644f2a6126ef0cf246748616b2d02d3342fd64165e8"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-world.webp",
-        "sha256": "3cacde67c86b9aa9dc811f1eeea9cce8a2d7cf08c562405ccb708c795fb01a75",
-        "derivative": "rembg matting + Lab ΔE band + 280px wide WebP",
+        "sha256": "6b24bd29bab2f8191eb5055652feed841ced76cd94d4f8c080e38bb20bd81729",
+        "derivative": "rembg alpha matte + padded bbox crop + 280px wide WebP",
         "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-B-world-alpha.png",
-        "alphaSha256": "1d3ebbf8075bf9e8f31e9e73c0ed5870d8384bd4307c68e82b194824d7117744",
+        "alphaSha256": "fef59c1f5e3c8917d7b61ac5fd5b517a893dcdc30a52fa796bec2fdaa22ddf80",
         "alphaStats": {
           "width": 280,
-          "height": 726,
-          "opaquePixels": 83814
+          "height": 728,
+          "opaquePixels": 102841
         },
-        "interiorRgbSha256": "68f9a9219ade3f67f98f7bc3032043ba30961b003723a7a13f99abb359caf2a8"
+        "interiorRgbSha256": "7e3a4414bbbc765d44df283d821f48ff860f4814766de71ceaf9ef33a89ddb69"
       }
     },
     "C": {
@@ -98,28 +98,28 @@
       },
       "portrait": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp",
-        "sha256": "3843fde657e68cff17e9d72e8f41a1284893b8fce09a1bbe4e519e91b31209dc",
+        "sha256": "d31f2222f0dbd1c20b47dcc3a879a38f71fdbb8979330fc499cba16c7e45409d",
         "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-C-v2-portrait-alpha.png",
-        "alphaSha256": "ab290bbea4b68cc2060cad3fbc5579a9c1f7e41d1df975d312a03db8feddb7e6",
+        "alphaSha256": "1edb1bc07f2df04c7155de51b5c2c84275e6ac5d38793a9fb23f7065cd81224e",
         "alphaStats": {
           "width": 372,
-          "height": 812,
-          "opaquePixels": 123755
+          "height": 814,
+          "opaquePixels": 156133
         },
-        "interiorRgbSha256": "8dc68f63543bd297dcfe837bf52029c6af6a2c5fbedebba49885f9a615d40889"
+        "interiorRgbSha256": "63111d4149151c525a13c97ff2a4bf9e0eb29daa13d3455b58a9727a0e53c67b"
       },
       "world": {
         "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-world.webp",
-        "sha256": "b5c68cea0d40ca807126f2de4dbc490a3f62ef717d55e812c385564af74c270d",
-        "derivative": "rembg matting + Lab ΔE band + 280px wide WebP",
+        "sha256": "79344a601ee01d401298372952e43ebaabf17209a567ea9ab2076568baf8dc3e",
+        "derivative": "rembg alpha matte + padded bbox crop + 280px wide WebP",
         "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-C-v2-world-alpha.png",
-        "alphaSha256": "0be90adef3e8e78ab5a3be08ffb3f2635c5543bcd2352e5307a9bbe3e57a36b8",
+        "alphaSha256": "185319e51fa34c3db9947ddfabef1cfb718e258967b711da7381d428f904773e",
         "alphaStats": {
           "width": 280,
-          "height": 611,
-          "opaquePixels": 69736
+          "height": 612,
+          "opaquePixels": 87837
         },
-        "interiorRgbSha256": "7f5a3faae44e050a400e6701168d56842e84c2b65f23bc1d79255c1acfdd1aee"
+        "interiorRgbSha256": "fdd8edb7c5b46bca14ddaaa6bfa3f708f474685e14a95305beb767590f543b7c"
       }
     }
   }

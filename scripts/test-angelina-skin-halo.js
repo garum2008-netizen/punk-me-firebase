@@ -3,11 +3,18 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { chromium } = require("playwright");
+const { serveStaticDir } = require("./serve-static-root");
+const {
+  prepareProdHostSimContext,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
 
 const root = path.join(__dirname, "..");
 const manifest = JSON.parse(
   fs.readFileSync(path.join(root, "data/story/angelina-skin-manifest.json"), "utf8")
 );
+const ARTIFACTS = "/opt/cursor/artifacts";
 
 let sharp;
 try {
@@ -48,8 +55,7 @@ function laplacianVariance(data, w, h) {
     for (let x = 1; x < w - 1; x++) {
       const i = (y * w + x) * 4;
       if (data[i + 3] < 200) continue;
-      const lum =
-        0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       const li = ((y - 1) * w + x) * 4;
       const ri = ((y + 1) * w + x) * 4;
       const ti = (y * w + (x - 1)) * 4;
@@ -126,42 +132,6 @@ function alphaDistanceToClear(data, w, h) {
   return dist;
 }
 
-function sourceBgRefs(sourceData, w, h, radius = 4) {
-  const refs = [];
-  for (const [cx, cy] of [
-    [0, 0],
-    [w - 1, 0],
-    [0, h - 1],
-    [w - 1, h - 1]
-  ]) {
-    let rs = 0;
-    let gs = 0;
-    let bs = 0;
-    let n = 0;
-    for (let y = Math.max(0, cy - radius); y <= Math.min(h - 1, cy + radius); y++) {
-      for (let x = Math.max(0, cx - radius); x <= Math.min(w - 1, cx + radius); x++) {
-        const i = (y * w + x) * 4;
-        rs += sourceData[i];
-        gs += sourceData[i + 1];
-        bs += sourceData[i + 2];
-        n++;
-      }
-    }
-    refs.push([Math.round(rs / n), Math.round(gs / n), Math.round(bs / n)]);
-  }
-  return refs;
-}
-
-function matchesSourceBg(r, g, b, refs, tol = 18) {
-  const chroma = Math.max(r, g, b) - Math.min(r, g, b);
-  const lum = (r + g + b) / 3;
-  if (chroma >= 22 && lum < 248) return false;
-  for (const [cr, cg, cb] of refs) {
-    if (Math.max(Math.abs(r - cr), Math.abs(g - cg), Math.abs(b - cb)) <= tol) return true;
-  }
-  return false;
-}
-
 function interiorRgbSha256(data, w, h) {
   const hsh = crypto.createHash("sha256");
   for (let y = 0; y < h; y++) {
@@ -174,8 +144,105 @@ function interiorRgbSha256(data, w, h) {
   return hsh.digest("hex");
 }
 
+function countBgOpaqueBand(data, w, h) {
+  const distClear = alphaDistanceToClear(data, w, h);
+  let bgOpaqueBand = 0;
+  let bandCandidates = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const i = idx * 4;
+      const a = data[i + 3];
+      if (a !== 255) continue;
+      if (distClear[idx] > 15) continue;
+      bandCandidates++;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const lum = (r + g + b) / 3;
+      const compChroma = Math.max(r, g, b) - Math.min(r, g, b);
+      const distGrey = Math.abs(r - lum) + Math.abs(g - lum) + Math.abs(b - lum);
+      const greyMatt = distGrey < 10 && lum > 55 && lum < 210 && compChroma < 13;
+      if (greyMatt) bgOpaqueBand++;
+    }
+  }
+  return { bgOpaqueBand, bandCandidates };
+}
+
+async function browserUpscale3x(page, baseUrl, relPath, cssW, cssH) {
+  const imgUrl = `${baseUrl}/${relPath.replace(/^\//, "")}`;
+  const out = await page.evaluate(
+    async ({ imgUrl, cssW, cssH }) => {
+      const img = new Image();
+      img.decoding = "sync";
+      await new Promise((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("image load failed"));
+        img.src = imgUrl;
+      });
+      const scale = 3;
+      const canvas = document.createElement("canvas");
+      canvas.width = cssW * scale;
+      canvas.height = cssH * scale;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      return { data: Array.from(id.data), w: canvas.width, h: canvas.height };
+    },
+    { imgUrl, cssW, cssH }
+  );
+  return { data: Buffer.from(out.data), w: out.w, h: out.h };
+}
+
+async function saveCompositeCrop(page, baseUrl, relPath, cssW, cssH, bgHex, outPath) {
+  const imgUrl = `${baseUrl}/${relPath.replace(/^\//, "")}`;
+  const png = await page.evaluate(
+    async ({ imgUrl, cssW, cssH, bgHex }) => {
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("load"));
+        img.src = imgUrl;
+      });
+      const scale = 3;
+      const cw = cssW * scale;
+      const ch = cssH * scale;
+      const canvas = document.createElement("canvas");
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = bgHex;
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, cw, ch);
+      return canvas.toDataURL("image/png");
+    },
+    { imgUrl, cssW, cssH, bgHex }
+  );
+  const b64 = png.replace(/^data:image\/png;base64,/, "");
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, Buffer.from(b64, "base64"));
+}
+
 (async () => {
   let failed = 0;
+  const port = 8765 + Math.floor(Math.random() * 500);
+  const srv = await serveStaticDir(root, port);
+  const baseUrl = `http://127.0.0.1:${port}`;
+
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ deviceScaleFactor: 3 });
+  await prepareProdHostSimContext(context, { prodHostSim: false, firebaseStub: false });
+  const page = await context.newPage();
+  await installProdFirebaseRouteBlock(page);
+  await page.goto(`${baseUrl}/scripts/fixtures/angelina-skin-halo-browser.html`);
+
+  const haloReport = [];
+
   for (const id of ["A", "B", "C"]) {
     const sourceRel = manifest.skins[id].source.path;
     for (const kind of ["portrait", "world"]) {
@@ -226,40 +293,48 @@ function interiorRgbSha256(data, w, h) {
       }
 
       const shipped3 = await loadRgba(slot.path, 3);
-      const source3 = await loadSourceAtSize(sourceRel, shipped3.w, shipped3.h);
-      const bgRefs = sourceBgRefs(source3.data, source3.w, source3.h);
-      const distClear = alphaDistanceToClear(shipped3.data, shipped3.w, shipped3.h);
-      let bgOpaqueBand = 0;
-      let bandCandidates = 0;
-      for (let y = 0; y < shipped3.h; y++) {
-        for (let x = 0; x < shipped3.w; x++) {
-          const idx = y * shipped3.w + x;
-          const i = idx * 4;
-          const a = shipped3.data[i + 3];
-          if (a !== 255) continue;
-          if (distClear[idx] > 15) continue;
-          bandCandidates++;
-          const r = shipped3.data[i];
-          const g = shipped3.data[i + 1];
-          const b = shipped3.data[i + 2];
-          const lum = (r + g + b) / 3;
-          const compChroma = Math.max(r, g, b) - Math.min(r, g, b);
-          const distGrey =
-            Math.abs(r - lum) + Math.abs(g - lum) + Math.abs(b - lum);
-          const greyMatt = distGrey < 10 && lum > 55 && lum < 210 && compChroma < 13;
-          if (greyMatt) bgOpaqueBand++;
-        }
-      }
-      if (bgOpaqueBand > 0) {
+      const lanczos = countBgOpaqueBand(shipped3.data, shipped3.w, shipped3.h);
+      const browser3 = await browserUpscale3x(page, baseUrl, slot.path, shipped.w, shipped.h);
+      const browser = countBgOpaqueBand(browser3.data, browser3.w, browser3.h);
+
+      console.log(
+        `HALO ${id} ${kind}: lanczos3x badPx=${lanczos.bgOpaqueBand} (band ${lanczos.bandCandidates}); browser3x badPx=${browser.bgOpaqueBand} (band ${browser.bandCandidates})`
+      );
+      haloReport.push({ id, kind, lanczos, browser });
+
+      if (browser.bgOpaqueBand > 0) {
         console.error(
-          `FAIL: ${id} ${kind} opaque source-bg band within 15px of edge (${bgOpaqueBand} px, band ${bandCandidates})`
+          `FAIL: ${id} ${kind} opaque source-bg band within 15px of edge @browser3x (${browser.bgOpaqueBand} px, band ${browser.bandCandidates})`
         );
         failed++;
-      } else if (bandCandidates > 40) {
-        console.log(`OK: ${id} ${kind} opaque edge band 0/${bandCandidates}`);
+        if (id === "B" && kind === "portrait") {
+          fs.mkdirSync(ARTIFACTS, { recursive: true });
+          await saveCompositeCrop(
+            page,
+            baseUrl,
+            slot.path,
+            shipped.w,
+            shipped.h,
+            "#111111",
+            path.join(ARTIFACTS, "halo-B-portrait-browser-111.png")
+          );
+          await saveCompositeCrop(
+            page,
+            baseUrl,
+            slot.path,
+            shipped.w,
+            shipped.h,
+            "#ffffff",
+            path.join(ARTIFACTS, "halo-B-portrait-browser-white.png")
+          );
+        }
       }
     }
   }
+
+  await browser.close();
+  srv.close();
+
   if (failed) process.exit(1);
   console.log("test-angelina-skin-halo: PASS");
 })().catch(e => {

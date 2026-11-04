@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build shipped WebP assets from Owner-approved PNGs (t569u). Halo: rembg matting + Lab ΔE edge refine."""
+"""Build shipped WebP assets from Owner-approved source PNGs (t569u). Alpha via local rembg matte; RGB unchanged."""
 from __future__ import annotations
 
 import hashlib
@@ -7,7 +7,6 @@ import json
 from collections import deque
 from pathlib import Path
 
-import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,10 +24,6 @@ SOURCES = {
 
 _rembg_session = None
 
-BAND_PX = 20
-DE_CLEAR = 6.0
-DE_RAMP = 18.0
-
 
 def get_rembg_session():
     global _rembg_session
@@ -39,24 +34,23 @@ def get_rembg_session():
     return _rembg_session
 
 
-def rembg_rgba(rgb: Image.Image) -> Image.Image:
+def rembg_alpha_matte(orig: Image.Image) -> Image.Image:
+    """Apply rembg alpha only; RGB pixels copied from approved source."""
     from rembg import remove
 
-    out = remove(
-        rgb.convert("RGB"),
-        session=get_rembg_session(),
-        alpha_matting=True,
-        alpha_matting_foreground_threshold=240,
-        alpha_matting_background_threshold=10,
-        alpha_matting_erode_size=10,
-    )
-    if not isinstance(out, Image.Image):
-        out = Image.fromarray(out)
-    rgba = out.convert("RGBA")
-    src = np.array(rgb.convert("RGB"), dtype=np.uint8)
-    px = np.array(rgba)
-    px[:, :, :3] = src
-    return Image.fromarray(px, mode="RGBA")
+    rgb = orig.convert("RGB")
+    rb = remove(rgb, session=get_rembg_session())
+    alpha = rb.split()[3]
+    out = Image.new("RGBA", orig.size)
+    opx = out.load()
+    rpx = rgb.load()
+    apx = alpha.load()
+    w, h = orig.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b = rpx[x, y]
+            opx[x, y] = (r, g, b, apx[x, y])
+    return out
 
 
 def sha256_file(p: Path) -> str:
@@ -67,205 +61,628 @@ def sha256_file(p: Path) -> str:
     return h.hexdigest()
 
 
-def save_webp_halo_clean(img: Image.Image, dest: Path, *, lossless: bool = True) -> tuple[str, Image.Image]:
-    img = suppress_opaque_greymatt_in_band(img.convert("RGBA"), band_px=15)
+def save_webp(img: Image.Image, dest: Path, quality: int = 90, *, lossless: bool = False) -> str:
     dest.parent.mkdir(parents=True, exist_ok=True)
-    img.save(dest, format="WEBP", lossless=lossless, method=6)
-    final = img
-    for _ in range(6):
-        reloaded = Image.open(dest).convert("RGBA")
-        bad1 = count_halo_band_pixels(reloaded)
-        bad3 = count_halo_band_pixels(upscale3(reloaded))
-        final = reloaded
-        if bad1 <= 0 and bad3 <= 0:
-            break
-        cleaned = suppress_opaque_greymatt_in_band(reloaded, band_px=15)
-        cleaned.save(dest, format="WEBP", lossless=lossless, method=6)
-        final = cleaned
-    return sha256_file(dest), final
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
+    if lossless:
+        img.save(dest, format="WEBP", lossless=True, method=6)
+    else:
+        img.save(dest, format="WEBP", quality=quality, method=6)
+    return sha256_file(dest)
 
 
-def median_border_bg_rgb(img: Image.Image, strip: int = 10) -> tuple[float, float, float]:
-    rgb = np.array(img.convert("RGB"))
-    h, w = rgb.shape[:2]
-    s = max(1, min(strip, h // 3, w // 3))
-    parts = [
-        rgb[:s, :, :].reshape(-1, 3),
-        rgb[h - s :, :, :].reshape(-1, 3),
-        rgb[:, :s, :].reshape(-1, 3),
-        rgb[:, w - s :, :].reshape(-1, 3),
-    ]
-    pixels = np.concatenate(parts, axis=0)
-    med = np.median(pixels, axis=0)
-    return float(med[0]), float(med[1]), float(med[2])
+def corner_bg_refs(img: Image.Image, radius: int = 4) -> list[tuple[int, int, int]]:
+    rgba = img.convert("RGBA")
+    w, h = rgba.size
+    px = rgba.load()
+    refs: list[tuple[int, int, int]] = []
+    for cx, cy in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]:
+        rs: list[int] = []
+        gs: list[int] = []
+        bs: list[int] = []
+        for y in range(max(0, cy - radius), min(h, cy + radius + 1)):
+            for x in range(max(0, cx - radius), min(w, cx + radius + 1)):
+                r, g, b, _a = px[x, y]
+                rs.append(r)
+                gs.append(g)
+                bs.append(b)
+        refs.append((sum(rs) // len(rs), sum(gs) // len(gs), sum(bs) // len(bs)))
+    return refs
 
 
-def _srgb_to_linear(c: np.ndarray) -> np.ndarray:
-    c = c / 255.0
-    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+def matches_bg(
+    r: int,
+    g: int,
+    b: int,
+    refs: list[tuple[int, int, int]],
+    tolerance: int,
+    *,
+    strict: bool = False,
+) -> bool:
+    tol = max(4, tolerance // 2 if strict else tolerance)
+    chroma = max(r, g, b) - min(r, g, b)
+    lum = (r + g + b) / 3
+    if chroma >= 22 and lum < 248:
+        return False
+    for cr, cg, cb in refs:
+        if max(abs(r - cr), abs(g - cg), abs(b - cb)) <= tol:
+            return True
+    return False
 
 
-def rgb_to_lab_array(rgb: np.ndarray) -> np.ndarray:
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    rl, gl, bl = _srgb_to_linear(r), _srgb_to_linear(g), _srgb_to_linear(b)
-    x = rl * 0.4124564 + gl * 0.3575761 + bl * 0.1804375
-    y = rl * 0.2126729 + gl * 0.7151522 + bl * 0.0721750
-    z = rl * 0.0193339 + gl * 0.1191920 + bl * 0.9503041
-    x, y, z = x / 0.95047, y / 1.00000, z / 1.08883
-
-    def f(t: np.ndarray) -> np.ndarray:
-        return np.where(t > 0.008856, np.power(t, 1.0 / 3.0), (7.787 * t) + (16.0 / 116.0))
-
-    fx, fy, fz = f(x), f(y), f(z)
-    L = 116.0 * fy - 16.0
-    a = 500.0 * (fx - fy)
-    b = 200.0 * (fy - fz)
-    return np.stack([L, a, b], axis=-1)
-
-
-def rgb_to_lab_pixel(rgb: tuple[float, float, float]) -> np.ndarray:
-    arr = np.array([[[rgb[0], rgb[1], rgb[2]]]], dtype=np.float64)
-    return rgb_to_lab_array(arr)[0, 0]
-
-
-def delta_e76(lab: np.ndarray, bg_lab: np.ndarray) -> np.ndarray:
-    d = lab - bg_lab.reshape(1, 1, 3)
-    return np.sqrt(np.sum(d * d, axis=-1))
+def restore_feet_columns(rgba: Image.Image, orig: Image.Image, band_ratio: float = 0.14) -> Image.Image:
+    """Re-opaque bg-colored shoe pixels under the lowest solid column in the lower band."""
+    w, h = rgba.size
+    px = rgba.load()
+    opx = orig.convert("RGBA").load()
+    y_band = int(h * (1 - band_ratio))
+    for x in range(w):
+        anchor = None
+        for y in range(y_band - 1, int(h * 0.45), -1):
+            if px[x, y][3] >= 200:
+                anchor = y
+                break
+        if anchor is None:
+            continue
+        for y in range(anchor + 1, h):
+            if px[x, y][3] >= 200:
+                continue
+            r, g, b, _a = opx[x, y]
+            px[x, y] = (r, g, b, 255)
+    return rgba
 
 
-def alpha_distance_to_clear(alpha: np.ndarray) -> np.ndarray:
-    h, w = alpha.shape
-    dist = np.full((h, w), 10**9, dtype=np.int32)
+def apply_alpha_cutout(img: Image.Image, tolerance: int = 16) -> Image.Image:
+    """Remove only backdrop connected to the image border (4-neighbour flood). RGB unchanged."""
+    rgba = img.convert("RGBA")
+    w, h = rgba.size
+    px = rgba.load()
+    refs = corner_bg_refs(rgba)
+
+    bg = bytearray(w * h)
     q: deque[tuple[int, int]] = deque()
-    clear = alpha <= 0
-    dist[clear] = 0
-    ys, xs = np.where(clear)
-    for x, y in zip(xs, ys):
-        q.append((int(x), int(y)))
+
+    def try_push(x: int, y: int, strict: bool) -> None:
+        i = y * w + x
+        if bg[i]:
+            return
+        r, g, b, _a = px[x, y]
+        if not matches_bg(r, g, b, refs, tolerance, strict=strict):
+            return
+        bg[i] = 1
+        q.append((x, y))
+
+    for x in range(w):
+        try_push(x, 0, strict=True)
+    for y in range(h):
+        try_push(0, y, strict=True)
+        try_push(w - 1, y, strict=True)
+    corner_w = max(8, w // 16)
+    for x in range(corner_w):
+        try_push(x, h - 1, strict=True)
+        try_push(w - 1 - x, h - 1, strict=True)
+
     while q:
         x, y = q.popleft()
-        d = dist[y, x]
+        if x > 0:
+            try_push(x - 1, y, strict=False)
+        if x + 1 < w:
+            try_push(x + 1, y, strict=False)
+        if y > 0:
+            try_push(x, y - 1, strict=False)
+        if y + 1 < h:
+            try_push(x, y + 1, strict=False)
+
+    for y in range(h):
+        for x in range(w):
+            if bg[y * w + x]:
+                r, g, b, _a = px[x, y]
+                px[x, y] = (r, g, b, 0)
+
+    cut = keep_largest_foreground(rgba)
+    cut = fill_internal_holes(cut)
+    return restore_feet_columns(cut, img)
+
+
+def keep_largest_foreground(rgba: Image.Image, min_alpha: int = 48) -> Image.Image:
+    w, h = rgba.size
+    px = rgba.load()
+    seen = bytearray(w * h)
+    best: list[tuple[int, int]] = []
+    best_len = 0
+
+    for sy in range(h):
+        for sx in range(w):
+            si = sy * w + sx
+            if seen[si] or px[sx, sy][3] < min_alpha:
+                continue
+            comp: list[tuple[int, int]] = []
+            q: deque[tuple[int, int]] = deque([(sx, sy)])
+            seen[si] = 1
+            while q:
+                x, y = q.popleft()
+                comp.append((x, y))
+                for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                    if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                        continue
+                    ni = ny * w + nx
+                    if seen[ni] or px[nx, ny][3] < min_alpha:
+                        continue
+                    seen[ni] = 1
+                    q.append((nx, ny))
+            if len(comp) > best_len:
+                best_len = len(comp)
+                best = comp
+
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    opx = out.load()
+    for x, y in best:
+        opx[x, y] = px[x, y]
+    return out
+
+
+def fill_internal_holes(rgba: Image.Image, min_alpha: int = 48) -> Image.Image:
+    w, h = rgba.size
+    px = rgba.load()
+    hole = bytearray(w * h)
+    q: deque[tuple[int, int]] = deque()
+
+    def push_hole(x: int, y: int) -> None:
+        i = y * w + x
+        if hole[i] or px[x, y][3] >= min_alpha:
+            return
+        hole[i] = 1
+        q.append((x, y))
+
+    for x in range(w):
+        push_hole(x, 0)
+        push_hole(x, h - 1)
+    for y in range(h):
+        push_hole(0, y)
+        push_hole(w - 1, y)
+    while q:
+        x, y = q.popleft()
+        if x > 0:
+            push_hole(x - 1, y)
+        if x + 1 < w:
+            push_hole(x + 1, y)
+        if y > 0:
+            push_hole(x, y - 1)
+        if y + 1 < h:
+            push_hole(x, y + 1)
+
+    for y in range(h):
+        for x in range(w):
+            if hole[y * w + x]:
+                continue
+            if px[x, y][3] < min_alpha:
+                r, g, b, _a = px[x, y]
+                px[x, y] = (r, g, b, 255)
+    return rgba
+
+
+def feather_alpha_edges(img: Image.Image, radius: int = 2) -> Image.Image:
+    rgba = img.convert("RGBA")
+    w, h = rgba.size
+    px = rgba.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 16:
+                continue
+            touches_clear = False
+            for dy in range(-radius, radius + 1):
+                for dx in range(-radius, radius + 1):
+                    if dx == 0 and dy == 0:
+                        continue
+                    nx, ny = x + dx, y + dy
+                    if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                        touches_clear = True
+                        break
+                    if px[nx, ny][3] < 16:
+                        touches_clear = True
+                        break
+                if touches_clear:
+                    break
+            if touches_clear and a < 255:
+                px[x, y] = (r, g, b, max(a, min(255, a + 30)))
+    return rgba
+
+
+NEAR_WHITE_LUM = 244
+
+
+def strip_outline_near_white(rgba: Image.Image) -> Image.Image:
+    img = rgba.convert("RGBA")
+    w, h = img.size
+    px = img.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 48:
+                continue
+            if (r + g + b) / 3 < NEAR_WHITE_LUM:
+                continue
+            edge = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                    edge = True
+                    break
+                if px[nx, ny][3] < 32:
+                    edge = True
+                    break
+            if edge:
+                px[x, y] = (r, g, b, 0)
+    return img
+
+
+def defringe_gray_halos(img: Image.Image) -> Image.Image:
+    rgba = img.convert("RGBA")
+    px = rgba.load()
+    w, h = rgba.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a <= 0:
+                continue
+            if a < 64 and max(r, g, b) - min(r, g, b) < 12 and (r + g + b) / 3 > 200:
+                px[x, y] = (r, g, b, 0)
+            elif 0 < a < 96 and max(r, g, b) - min(r, g, b) < 10 and (r + g + b) / 3 > 210:
+                px[x, y] = (r, g, b, 0)
+            elif 96 <= a < 200 and max(r, g, b) - min(r, g, b) < 8 and (r + g + b) / 3 > 218:
+                px[x, y] = (r, g, b, min(255, a + 28))
+    return rgba
+
+
+def defringe_alpha_edge_only(img: Image.Image) -> Image.Image:
+    """Reduce dark-background halos by trimming semi-transparent edge alpha only."""
+    rgba = img.convert("RGBA")
+    px = rgba.load()
+    w, h = rgba.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a <= 0 or a >= 250:
+                continue
+            edge = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h or px[nx, ny][3] < 24:
+                    edge = True
+                    break
+            if not edge:
+                continue
+            if a < 72:
+                px[x, y] = (r, g, b, 0)
+            elif a < 140:
+                px[x, y] = (r, g, b, int(a * 0.55))
+    return rgba
+
+
+def _pixel_is_alpha_edge(px, x: int, y: int, w: int, h: int, clear: int = 20) -> bool:
+    _r, _g, _b, a = px[x, y]
+    if a <= 0:
+        return False
+    if a < 255:
+        return True
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        nx, ny = x + dx, y + dy
+        if nx < 0 or ny < 0 or nx >= w or ny >= h:
+            return True
+        if px[nx, ny][3] < clear:
+            return True
+    return False
+
+
+def _nearest_opaque_source_rgb(px, x: int, y: int, w: int, h: int, rpx, max_r: int = 6) -> tuple[int, int, int] | None:
+    for rad in range(1, max_r + 1):
+        rs: list[int] = []
+        gs: list[int] = []
+        bs: list[int] = []
+        for dy in range(-rad, rad + 1):
+            for dx in range(-rad, rad + 1):
+                if dx == 0 and dy == 0:
+                    continue
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                    continue
+                if px[nx, ny][3] >= 250:
+                    sr, sg, sb = rpx[nx, ny]
+                    rs.append(sr)
+                    gs.append(sg)
+                    bs.append(sb)
+        if rs:
+            return (sum(rs) // len(rs), sum(gs) // len(gs), sum(bs) // len(bs))
+    return None
+
+
+def decontaminate_semi_edge_pixel(
+    r: int, g: int, b: int, a: int, bg: tuple[int, int, int]
+) -> tuple[int, int, int, int]:
+    """Un-premultiply grey matte on semi-transparent edge pixels only."""
+    br, bgc, bb = bg
+    af = a / 255.0
+    fr = int((r - br * (1.0 - af)) / max(af, 0.04))
+    fg = int((g - bgc * (1.0 - af)) / max(af, 0.04))
+    fb = int((b - bb * (1.0 - af)) / max(af, 0.04))
+    return (
+        max(0, min(255, fr)),
+        max(0, min(255, fg)),
+        max(0, min(255, fb)),
+        a,
+    )
+
+
+def _srgb_to_linear(c: float) -> float:
+    c = c / 255.0
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def _rgb_to_lab(r: int, g: int, b: int) -> tuple[float, float, float]:
+    rl = _srgb_to_linear(r)
+    gl = _srgb_to_linear(g)
+    bl = _srgb_to_linear(b)
+    x = 0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl
+    y = 0.2126729 * rl + 0.7151522 * gl + 0.0721750 * bl
+    z = 0.0193339 * rl + 0.1191920 * gl + 0.9503041 * bl
+
+    def f(t: float) -> float:
+        return t ** (1 / 3) if t > 0.008856 else (7.787 * t) + (16 / 116)
+
+    xn, yn, zn = 0.95047, 1.0, 1.08883
+    fx, fy, fz = f(x / xn), f(y / yn), f(z / zn)
+    L = (116 * fy) - 16
+    a = 500 * (fx - fy)
+    b_ = 200 * (fy - fz)
+    return L, a, b_
+
+
+def _delta_e_lab(r1: int, g1: int, b1: int, r2: int, g2: int, b2: int) -> float:
+    L1, a1, b1l = _rgb_to_lab(r1, g1, b1)
+    L2, a2, b2l = _rgb_to_lab(r2, g2, b2)
+    return ((L1 - L2) ** 2 + (a1 - a2) ** 2 + (b1l - b2l) ** 2) ** 0.5
+
+
+def border_median_bg(rgb: Image.Image, band: int = 10) -> tuple[int, int, int]:
+    """Median RGB along the outer band of the approved source (backdrop colour)."""
+    px = rgb.convert("RGB").load()
+    w, h = rgb.size
+    rs: list[int] = []
+    gs: list[int] = []
+    bs: list[int] = []
+    for y in range(h):
+        for x in range(w):
+            if x >= band and x < w - band and y >= band and y < h - band:
+                continue
+            r, g, b = px[x, y]
+            rs.append(r)
+            gs.append(g)
+            bs.append(b)
+    mid = len(rs) // 2
+
+    def med(v: list[int]) -> int:
+        s = sorted(v)
+        return s[mid]
+
+    return med(rs), med(gs), med(bs)
+
+
+def _rembg_silhouette_edge_distance(rembg_alpha_px, w: int, h: int, thresh: int = 128) -> list[list[int]]:
+    inf = 10**9
+    dist = [[inf] * w for _ in range(h)]
+    q: deque[tuple[int, int]] = deque()
+    for y in range(h):
+        for x in range(w):
+            if rembg_alpha_px[x, y] < thresh:
+                continue
+            edge = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h or rembg_alpha_px[nx, ny] < thresh:
+                    edge = True
+                    break
+            if edge:
+                dist[y][x] = 0
+                q.append((x, y))
+    while q:
+        x, y = q.popleft()
+        d = dist[y][x]
         for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
             nx, ny = x + dx, y + dy
-            if nx < 0 or ny < 0 or nx >= w or ny >= h:
+            if nx < 0 or ny < 0 or nx >= w or ny >= h or rembg_alpha_px[nx, ny] < thresh:
                 continue
-            if dist[ny, nx] > d + 1:
-                dist[ny, nx] = d + 1
+            if dist[ny][nx] > d + 1:
+                dist[ny][nx] = d + 1
                 q.append((nx, ny))
     return dist
 
 
-def unmix_rgb(comp: np.ndarray, bg: np.ndarray, alpha: np.ndarray) -> np.ndarray:
-    af = np.maximum(alpha / 255.0, 0.04)
-    fg = (comp - (1.0 - af[..., None]) * bg.reshape(1, 1, 3)) / af[..., None]
-    return np.clip(fg, 0, 255)
-
-
-def refine_colorkey_band(
-    rgb: Image.Image, rembg_cut: Image.Image, bg_rgb: tuple[float, float, float], *, band_px: int = BAND_PX
+def exterior_connected_bg_cleanup(
+    rgba: Image.Image,
+    source_rgb: Image.Image,
+    rembg_alpha: Image.Image,
+    *,
+    edge_band_px: int = 15,
+    delta_e_max: float = 12.0,
 ) -> Image.Image:
-    rgb_arr = np.array(rgb.convert("RGB"), dtype=np.float64)
-    rgba = np.array(rembg_cut.convert("RGBA"))
-    alpha = rgba[:, :, 3].astype(np.float64)
-    dist = alpha_distance_to_clear(alpha.astype(np.uint8))
-    bg_lab = rgb_to_lab_pixel(bg_rgb)
-    lab = rgb_to_lab_array(rgb_arr)
-    de = delta_e76(lab, bg_lab)
+    """
+    Clear backdrop-coloured pixels only when reachable from exterior transparent
+    through Lab ΔE neighbours, within edge_band_px of the rembg silhouette edge.
+    Unmix remaining semi-transparent edge pixels against sampled border bg.
+    """
+    out = rgba.convert("RGBA")
+    rgb = source_rgb.convert("RGB")
+    alpha = rembg_alpha.convert("L")
+    if out.size != rgb.size or out.size != alpha.size:
+        raise ValueError("exterior_connected_bg_cleanup: size mismatch")
+    px = out.load()
+    rpx = rgb.load()
+    apx = alpha.load()
+    w, h = out.size
+    bg = border_median_bg(rgb)
+    br, bgc, bb = bg
+    sil_dist = _rembg_silhouette_edge_distance(apx, w, h)
 
-    in_band = (alpha > 0) & (dist <= band_px)
-    new_a = alpha.copy()
-    new_rgb = rgb_arr.copy()
-
-    clear_mask = in_band & (de < DE_CLEAR)
-    new_a[clear_mask] = 0
-
-    ramp_mask = in_band & (de >= DE_CLEAR) & (de < DE_RAMP)
-    if np.any(ramp_mask):
-        ramp_a = (de[ramp_mask] - DE_CLEAR) / (DE_RAMP - DE_CLEAR) * 255.0
-        new_a[ramp_mask] = ramp_a
-        new_rgb[ramp_mask] = unmix_rgb(rgb_arr[ramp_mask], np.array(bg_rgb), ramp_a)
-
-    interior = (dist > band_px) & (alpha > 0)
-    new_a[interior] = 255.0
-    new_rgb[interior] = rgb_arr[interior]
-
-    out = np.zeros_like(rgba)
-    out[:, :, :3] = new_rgb.astype(np.uint8)
-    out[:, :, 3] = np.clip(new_a, 0, 255).astype(np.uint8)
-    return Image.fromarray(out, mode="RGBA")
-
-
-def morph_open_alpha(alpha: np.ndarray, radius: int = 1) -> np.ndarray:
-    """1px morphological open on alpha (remove specks)."""
-    from scipy.ndimage import binary_erosion, binary_dilation
-
-    fg = alpha >= 128
-    struct = np.ones((2 * radius + 1, 2 * radius + 1), dtype=bool)
-    opened = binary_dilation(binary_erosion(fg, structure=struct), structure=struct)
-    out = alpha.copy()
-    out[~opened] = 0
-    return out
-
-
-def source_delta_e(rgb_arr: np.ndarray, bg_rgb: tuple[float, float, float]) -> np.ndarray:
-    bg_lab = rgb_to_lab_pixel(bg_rgb)
-    return delta_e76(rgb_to_lab_array(rgb_arr), bg_lab)
-
-
-def fill_enclosed_holes_not_bg(rgba: Image.Image, rgb: Image.Image, bg_rgb: tuple[float, float, float]) -> Image.Image:
-    px = np.array(rgba.convert("RGBA"))
-    rgb_arr = np.array(rgb.convert("RGB"), dtype=np.float64)
-    de_src = source_delta_e(rgb_arr, bg_rgb)
-    alpha = px[:, :, 3]
-    h, w = alpha.shape
-    hole = np.zeros((h, w), dtype=bool)
+    reachable = bytearray(w * h)
     q: deque[tuple[int, int]] = deque()
-    for x in range(w):
-        for y in (0, h - 1):
-            if alpha[y, x] < 32:
-                hole[y, x] = True
-                q.append((x, y))
     for y in range(h):
-        for x in (0, w - 1):
-            if alpha[y, x] < 32 and not hole[y, x]:
-                hole[y, x] = True
-                q.append((x, y))
+        for x in range(w):
+            if px[x, y][3] > 0:
+                continue
+            reachable[y * w + x] = 1
+            q.append((x, y))
+
+    def matches_bg_pixel(x: int, y: int) -> bool:
+        r, g, b, _a = px[x, y]
+        return _delta_e_lab(r, g, b, br, bgc, bb) < delta_e_max
+
     while q:
         x, y = q.popleft()
         for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
             nx, ny = x + dx, y + dy
             if nx < 0 or ny < 0 or nx >= w or ny >= h:
                 continue
-            if hole[ny, nx] or alpha[ny, nx] >= 32:
+            ni = ny * w + nx
+            if reachable[ni]:
                 continue
-            hole[ny, nx] = True
+            if sil_dist[ny][nx] > edge_band_px:
+                continue
+            if not matches_bg_pixel(nx, ny):
+                continue
+            reachable[ni] = 1
             q.append((nx, ny))
-    enclosed = (~hole) & (alpha < 32)
-    fill = enclosed & (de_src >= DE_CLEAR)
+
     for y in range(h):
         for x in range(w):
-            if fill[y, x]:
-                px[y, x, :3] = rgb_arr[y, x].astype(np.uint8)
-                px[y, x, 3] = 255
-    return Image.fromarray(px, mode="RGBA")
+            if not reachable[y * w + x]:
+                continue
+            r, g, b, _a = px[x, y]
+            px[x, y] = (r, g, b, 0)
+
+    dist_clear = _alpha_distance_to_clear(px, w, h)
+    for y in range(h):
+        for x in range(w):
+            if dist_clear[y][x] == 0 or dist_clear[y][x] > edge_band_px:
+                continue
+            r, g, b, a = px[x, y]
+            if a <= 0 or a >= 255:
+                continue
+            sr, sg, sb = rpx[x, y]
+            if a >= 250:
+                px[x, y] = (sr, sg, sb, 255)
+                continue
+            dr, dg, db, _da = decontaminate_semi_edge_pixel(sr, sg, sb, a, bg)
+            px[x, y] = (dr, dg, db, a)
+    return out
 
 
-def union_c_wing_mask(
-    refined: Image.Image, rembg_raw: Image.Image, rgb: Image.Image, bg_rgb: tuple[float, float, float]
-) -> Image.Image:
-    """Restore wing notch from rembg mask union (no erosion)."""
-    out = np.array(refined.convert("RGBA"))
-    rem = np.array(rembg_raw.convert("RGBA"))
-    rgb_arr = np.array(rgb.convert("RGB"), dtype=np.float64)
-    de_src = source_delta_e(rgb_arr, bg_rgb)
-    src_fg = de_src >= DE_CLEAR
-    rem_fg = rem[:, :, 3] >= 96
-    restore = rem_fg & src_fg & (out[:, :, 3] < rem[:, :, 3])
-    out[restore, 3] = rem[restore, 3]
-    out[restore, :3] = rgb_arr[restore].astype(np.uint8)
-    union_hi = rem_fg & src_fg
-    out[union_hi, 3] = np.maximum(out[union_hi, 3], rem[union_hi, 3])
-    return Image.fromarray(out, mode="RGBA")
+def _alpha_distance_to_clear(px, w: int, h: int) -> list[list[int]]:
+    dist = [[10**9] * w for _ in range(h)]
+    q: deque[tuple[int, int]] = deque()
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] <= 0:
+                dist[y][x] = 0
+                q.append((x, y))
+    while q:
+        x, y = q.popleft()
+        d = dist[y][x]
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            nx, ny = x + dx, y + dy
+            if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                continue
+            if dist[ny][nx] > d + 1:
+                dist[ny][nx] = d + 1
+                q.append((nx, ny))
+    return dist
+
+
+
+def finalize_alpha_matte(cut: Image.Image, orig: Image.Image, *, edge_band_px: int = 3) -> Image.Image:
+    """
+    Interior (> edge_band_px from clear): alpha 255, RGB byte-identical to approved source.
+    Edge band only: keep soft rembg alpha with colour decontamination.
+    """
+    rgb = orig.convert("RGB")
+    out = cut.convert("RGBA")
+    px = out.load()
+    rpx = rgb.load()
+    w, h = out.size
+    dist = _alpha_distance_to_clear(px, w, h)
+
+    for y in range(h):
+        for x in range(w):
+            sr, sg, sb = rpx[x, y]
+            r, g, b, a = px[x, y]
+            if a <= 0:
+                continue
+            if dist[y][x] > edge_band_px:
+                px[x, y] = (sr, sg, sb, 255)
+                continue
+            if a >= 250:
+                px[x, y] = (sr, sg, sb, 255)
+
+    for y in range(h):
+        for x in range(w):
+            if dist[y][x] == 0 or dist[y][x] > edge_band_px:
+                continue
+            r, g, b, a = px[x, y]
+            if a <= 0:
+                continue
+            sr, sg, sb = rpx[x, y]
+            if a >= 255:
+                px[x, y] = (sr, sg, sb, 255)
+                continue
+            near = _nearest_opaque_source_rgb(px, x, y, w, h, rpx)
+            if near:
+                dr, dg, db, _da = decontaminate_semi_edge_pixel(near[0], near[1], near[2], a, (17, 17, 17))
+            else:
+                dr, dg, db, _da = decontaminate_semi_edge_pixel(sr, sg, sb, a, (17, 17, 17))
+            px[x, y] = (dr, dg, db, a)
+    return out
+
+
+def strip_grey_matte_outline(rgba: Image.Image) -> Image.Image:
+    img = rgba.convert("RGBA")
+    px = img.load()
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 240:
+                continue
+            if max(r, g, b) - min(r, g, b) > 22:
+                continue
+            if (r + g + b) / 3 < 210:
+                continue
+            edge = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                    edge = True
+                    break
+                if px[nx, ny][3] < 32:
+                    edge = True
+                    break
+            if edge:
+                px[x, y] = (r, g, b, 0)
+    return img
+
+
+def postprocess_cutout(skin_id: str, cut: Image.Image, orig: Image.Image) -> Image.Image:
+    if skin_id == "C":
+        cut = fill_internal_holes(cut, min_alpha=32)
+    return finalize_alpha_matte(cut, orig)
+
+
+def finish_shipped_variant(rgba: Image.Image) -> Image.Image:
+    out = fill_internal_holes(rgba.convert("RGBA"))
+    out = strip_grey_matte_outline(out)
+    for _ in range(2):
+        out = strip_outline_near_white(out)
+    return out
 
 
 def content_bbox(img: Image.Image, alpha_min: int = 32) -> tuple[int, int, int, int]:
@@ -319,122 +736,6 @@ def world_variant(img: Image.Image, out_w: int = 280) -> Image.Image:
     return cropped.resize((out_w, max(1, int(ch * ratio))), Image.Resampling.LANCZOS)
 
 
-def orig_rgb_with_cut_alpha(orig: Image.Image, cut: Image.Image) -> Image.Image:
-    rgb = orig.convert("RGB")
-    alpha = cut.split()[3]
-    out = Image.new("RGBA", rgb.size)
-    out.paste(rgb, (0, 0))
-    out.putalpha(alpha)
-    return out
-
-
-def count_halo_band_pixels(rgba: Image.Image, band_px: int = 15) -> int:
-    px = np.array(rgba.convert("RGBA"))
-    alpha = px[:, :, 3]
-    dist = alpha_distance_to_clear(alpha)
-    bad = 0
-    h, w = alpha.shape
-    for y in range(h):
-        for x in range(w):
-            if alpha[y, x] != 255 or dist[y, x] > band_px:
-                continue
-            r, g, b = px[y, x, 0], px[y, x, 1], px[y, x, 2]
-            if is_greymatt_rgb(r, g, b):
-                bad += 1
-    return bad
-
-
-def upscale3(img: Image.Image) -> Image.Image:
-    w, h = img.size
-    return img.resize((w * 3, h * 3), Image.Resampling.LANCZOS)
-
-
-def is_greymatt_rgb(r: int, g: int, b: int) -> bool:
-    lum = (float(r) + float(g) + float(b)) / 3.0
-    chroma = max(r, g, b) - min(r, g, b)
-    dist_grey = abs(r - lum) + abs(g - lum) + abs(b - lum)
-    return dist_grey < 10 and 55 < lum < 210 and chroma < 13
-
-
-def tighten_until_3x_halo_clean(
-    rgba: Image.Image, rgb: Image.Image, bg_rgb: tuple[float, float, float], *, max_passes: int = 48
-) -> Image.Image:
-    """test-angelina-skin-halo inspects 3x Lanczos zoom — harden 1x edges until 3x band is clean."""
-    out = rgba.convert("RGBA")
-    rgb_arr = np.array(rgb.convert("RGB"), dtype=np.float64)
-    de_src = source_delta_e(rgb_arr, bg_rgb)
-    for _ in range(max_passes):
-        if count_halo_band_pixels(out) <= 0 and count_halo_band_pixels(upscale3(out)) <= 0:
-            return out
-        px = np.array(out)
-        alpha = px[:, :, 3]
-        dist = alpha_distance_to_clear(alpha)
-        h, w = alpha.shape
-        for y in range(h):
-            for x in range(w):
-                if alpha[y, x] <= 0 or dist[y, x] > 22:
-                    continue
-                r, g, b = px[y, x, 0], px[y, x, 1], px[y, x, 2]
-                if de_src[y, x] < DE_RAMP or is_greymatt_rgb(r, g, b):
-                    px[y, x, 3] = 0
-        out = Image.fromarray(px, mode="RGBA")
-    return out
-
-
-def suppress_opaque_greymatt_in_band(rgba: Image.Image, band_px: int = 15) -> Image.Image:
-    """Match test-angelina-skin-halo greyMatt @ alpha255 within band — zero halo pixels."""
-    px = np.array(rgba.convert("RGBA"))
-    alpha = px[:, :, 3]
-    dist = alpha_distance_to_clear(alpha)
-    h, w = alpha.shape
-    for y in range(h):
-        for x in range(w):
-            if alpha[y, x] != 255 or dist[y, x] > band_px:
-                continue
-            r, g, b = px[y, x, 0], px[y, x, 1], px[y, x, 2]
-            if is_greymatt_rgb(r, g, b):
-                px[y, x, 3] = 0
-    return Image.fromarray(px, mode="RGBA")
-
-
-def build_variant_at_target(
-    orig: Image.Image, cut_full: Image.Image, variant_fn, skin_id: str
-) -> Image.Image:
-    """Rembg + Lab refine at shipped variant resolution."""
-    geom = variant_fn(cut_full)
-    rgb_target = variant_fn(orig_rgb_with_cut_alpha(orig, cut_full)).convert("RGB")
-    if rgb_target.size != geom.size:
-        rgb_target = rgb_target.resize(geom.size, Image.Resampling.LANCZOS)
-
-    bg_rgb = median_border_bg_rgb(rgb_target, 10)
-    rembg_raw = rembg_rgba(rgb_target)
-    refined = refine_colorkey_band(rgb_target, rembg_raw, bg_rgb, band_px=BAND_PX)
-
-    alpha = morph_open_alpha(np.array(refined.split()[3]))
-    refined.putalpha(Image.fromarray(alpha, mode="L"))
-    refined = fill_enclosed_holes_not_bg(refined, rgb_target, bg_rgb)
-
-    if skin_id == "C":
-        refined = union_c_wing_mask(refined, rembg_raw, rgb_target, bg_rgb)
-
-    px = np.array(refined)
-    dist = alpha_distance_to_clear(px[:, :, 3])
-    interior = (dist > BAND_PX) & (px[:, :, 3] > 0)
-    rgb_arr = np.array(rgb_target)
-    px[interior, :3] = rgb_arr[interior]
-    px[interior, 3] = 255
-    out = Image.fromarray(px, mode="RGBA")
-    out = tighten_until_3x_halo_clean(out, rgb_target, bg_rgb)
-    px = np.array(out)
-    dist = alpha_distance_to_clear(px[:, :, 3])
-    interior = (dist > BAND_PX) & (px[:, :, 3] > 0)
-    rgb_arr = np.array(rgb_target)
-    px[interior, :3] = rgb_arr[interior]
-    px[interior, 3] = 255
-    out = Image.fromarray(px, mode="RGBA")
-    return suppress_opaque_greymatt_in_band(out, band_px=15)
-
-
 def interior_rgb_sha256(rgba: Image.Image) -> str:
     h = hashlib.sha256()
     px = rgba.load()
@@ -468,25 +769,67 @@ def write_alpha_ref(slug: str, kind: str, rgba: Image.Image) -> tuple[str, str, 
     return rel, sha256_file(ref_path), alpha_stats(alpha)
 
 
+def orig_rgb_with_cut_alpha(orig: Image.Image, cut: Image.Image) -> Image.Image:
+    rgb = orig.convert("RGB")
+    alpha = cut.split()[3]
+    out = Image.new("RGBA", rgb.size)
+    out.paste(rgb, (0, 0))
+    out.putalpha(alpha)
+    return out
+
+
+def variant_locked(orig: Image.Image, cut: Image.Image, variant_fn) -> Image.Image:
+    matte = orig_rgb_with_cut_alpha(orig, cut)
+    out = variant_fn(cut)
+    ref = variant_fn(matte)
+    return finalize_alpha_matte(out, ref.convert("RGB"))
+
+
+def boost_foreground_alpha(cut: Image.Image, orig: Image.Image, min_a: int = 176) -> Image.Image:
+    rgb = orig.convert("RGB")
+    out = cut.convert("RGBA")
+    px = out.load()
+    rpx = rgb.load()
+    w, h = out.size
+    for y in range(h):
+        for x in range(w):
+            sr, sg, sb = rpx[x, y]
+            _r, _g, _b, a = px[x, y]
+            if a >= min_a:
+                px[x, y] = (sr, sg, sb, 255)
+    return out
+
+
+def build_cutout_from_source(orig: Image.Image, skin_id: str) -> Image.Image:
+    cut = rembg_alpha_matte(orig)
+    if skin_id == "A":
+        cut = boost_foreground_alpha(cut, orig, min_a=192)
+    return postprocess_cutout(skin_id, cut, orig)
+
+
 def write_manifest(skins_out: dict) -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf8"))
     manifest["notes"] = (
-        "Owner t569u approved PNGs. rembg isnet-general-use alpha matting + 20px Lab ΔE edge refine. "
-        "Rebuild: python3 scripts/build-angelina-skin-assets.py"
+        "Owner t569u approved PNGs. Alpha via offline rembg isnet-general-use matte "
+        "(RGB identical to source); defringe 1–2px. Rebuild: python3 scripts/build-angelina-skin-assets.py"
     )
     for skin_id, data in skins_out.items():
         entry = manifest["skins"][skin_id]
         entry["portrait"]["sha256"] = data["portraitSha256"]
         entry["world"]["sha256"] = data["worldSha256"]
-        entry["portrait"]["alphaRef"] = data["portraitAlphaRef"]
-        entry["portrait"]["alphaSha256"] = data["portraitAlphaSha256"]
-        entry["portrait"]["alphaStats"] = data["portraitAlphaStats"]
-        entry["world"]["alphaRef"] = data["worldAlphaRef"]
-        entry["world"]["alphaSha256"] = data["worldAlphaSha256"]
-        entry["world"]["alphaStats"] = data["worldAlphaStats"]
-        entry["portrait"]["interiorRgbSha256"] = data["portraitInteriorRgbSha256"]
-        entry["world"]["interiorRgbSha256"] = data["worldInteriorRgbSha256"]
-        entry["world"]["derivative"] = "rembg matting + Lab ΔE band + 280px wide WebP"
+        if data.get("portraitAlphaRef"):
+            entry["portrait"]["alphaRef"] = data["portraitAlphaRef"]
+            entry["portrait"]["alphaSha256"] = data["portraitAlphaSha256"]
+            entry["portrait"]["alphaStats"] = data["portraitAlphaStats"]
+        if data.get("worldAlphaRef"):
+            entry["world"]["alphaRef"] = data["worldAlphaRef"]
+            entry["world"]["alphaSha256"] = data["worldAlphaSha256"]
+            entry["world"]["alphaStats"] = data["worldAlphaStats"]
+        if data.get("portraitInteriorRgbSha256"):
+            entry["portrait"]["interiorRgbSha256"] = data["portraitInteriorRgbSha256"]
+        if data.get("worldInteriorRgbSha256"):
+            entry["world"]["interiorRgbSha256"] = data["worldInteriorRgbSha256"]
+        entry["world"]["derivative"] = "rembg alpha matte + padded bbox crop + 280px wide WebP"
     MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf8")
 
 
@@ -502,20 +845,30 @@ def main() -> None:
 
         source_sha = sha256_file(source_path)
         orig = Image.open(source_path).convert("RGBA")
-        cut_full = rembg_rgba(orig.convert("RGB"))
+        cut = build_cutout_from_source(orig, skin_id)
         slug = source_name.replace(".png", "")
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"
-        port_final = build_variant_at_target(orig, cut_full, portrait_variant, skin_id)
-        port_sha, port_final = save_webp_halo_clean(port_final, port_path)
+        port_var = variant_locked(orig, cut, portrait_variant)
+        port_matte = orig_rgb_with_cut_alpha(orig, cut)
+        port_rembg = portrait_variant(cut).split()[3]
+        port_source = portrait_variant(port_matte).convert("RGB")
+        port_var = exterior_connected_bg_cleanup(port_var, port_source, port_rembg)
+        port_final = finish_shipped_variant(port_var)
         port_alpha_ref, port_alpha_sha, port_alpha_stats = write_alpha_ref(slug, "portrait", port_final)
         port_interior_sha = interior_rgb_sha256(port_final)
+        port_sha = save_webp(port_final, port_path, lossless=True)
 
         world_path = SHIPPED_DIR / f"{slug}-world.webp"
-        world_final = build_variant_at_target(orig, cut_full, world_variant, skin_id)
-        world_sha, world_final = save_webp_halo_clean(world_final, world_path)
+        world_var = variant_locked(orig, cut, world_variant)
+        world_matte = orig_rgb_with_cut_alpha(orig, cut)
+        world_rembg = world_variant(cut).split()[3]
+        world_source = world_variant(world_matte).convert("RGB")
+        world_var = exterior_connected_bg_cleanup(world_var, world_source, world_rembg)
+        world_final = finish_shipped_variant(world_var)
         world_alpha_ref, world_alpha_sha, world_alpha_stats = write_alpha_ref(slug, "world", world_final)
         world_interior_sha = interior_rgb_sha256(world_final)
+        world_sha = save_webp(world_final, world_path, lossless=True)
 
         skins_out[skin_id] = {
             "sourcePath": str(source_path.relative_to(ROOT)).replace("\\", "/"),

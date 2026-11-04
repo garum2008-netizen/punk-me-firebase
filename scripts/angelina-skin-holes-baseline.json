@@ -1,0 +1,32 @@
+{
+  "A": {
+    "portrait": {
+      "softInteriorAlpha": 0,
+      "transparentComponents": []
+    },
+    "world": {
+      "softInteriorAlpha": 0,
+      "transparentComponents": []
+    }
+  },
+  "B": {
+    "portrait": {
+      "softInteriorAlpha": 0,
+      "transparentComponents": []
+    },
+    "world": {
+      "softInteriorAlpha": 0,
+      "transparentComponents": []
+    }
+  },
+  "C": {
+    "portrait": {
+      "softInteriorAlpha": 0,
+      "transparentComponents": []
+    },
+    "world": {
+      "softInteriorAlpha": 0,
+      "transparentComponents": []
+    }
+  }
+}
