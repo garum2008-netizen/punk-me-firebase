@@ -1,9 +1,7 @@
 {
   "shipDecision": "restore_ab6fa302",
-  "reviewCandidateIteration": "premult Lanczos + edge clamp + nearest-core lum≥60",
-  "passesAllGates": false,
-  "minAlpha255Share": 0.9107,
-  "haloBadPxSummary": "A_world browser15 lanczos14; C_world lanczos6; see .candidate-review/gate-results.json",
-  "resizeWasPremultipliedBefore": false,
+  "ablationBestRow": "R1",
+  "ablationSummary": "Lowest haloTotalBadPx=36; premult-only (R2) regressed A_world to 16+14 browser+lanczos",
+  "seeAblation": "assets/ui/angelina-skins/.candidate-review/ablation-results.json",
   "npmTestLifeCh1ExitCode": 1
 }

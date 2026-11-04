@@ -1,27 +1,20 @@
 {
-  "parameters": {
-    "thresh": 0.8,
-    "inset": 1,
-    "semiLockBand": "alpha_ref in [0.75,0.80) and dist_in>=2",
-    "componentHaloFix": "A portrait/world browser+lanczos; C world lanczos greyMatt CC recolor",
-    "semiExteriorDecontam": false,
-    "nearestCoreMinLum": 60
-  },
-  "resizePipeline": {
-    "portraitWorldRgbBeforeThisIteration": "straight RGBA Lanczos via PIL (not premultiplied)",
-    "portraitWorldRgbNow": "premultiplied \u03b1 Lanczos on R,G,B and separate \u03b1, unpremultiply; then clamp semi + 2px opaque ring to source 3\u00d73 min/max per channel",
-    "sixd21AlphaMatteResizeInCompose": "single-channel \u03b1 Lanczos to match variant size (premult N/A)"
-  },
-  "alpha255Share": {
-    "A_portrait": 0.9301,
-    "A_world": 0.9136,
-    "B_portrait": 0.9314,
-    "B_world": 0.9107,
-    "C_portrait": 0.9351,
-    "C_world": 0.9138
-  },
-  "minAlpha255Share": 0.9107,
+  "row": "R1",
+  "description": "Reference: straight RGBA Lanczos; no clamp; no lum\u226560 nearest-core",
+  "minAlpha255Share": 0.9082,
   "alpha255ShareGate": true,
+  "silhouetteGate": true,
+  "haloZeroGate": false,
+  "passesAllGates": false,
+  "haloTotalBadPx": 36,
+  "alpha255Share": {
+    "A_portrait": 0.9339,
+    "A_world": 0.9251,
+    "B_portrait": 0.929,
+    "B_world": 0.9082,
+    "C_portrait": 0.934,
+    "C_world": 0.9145
+  },
   "silhouetteNearWhite": {
     "A_portrait": 0,
     "A_world": 0,
@@ -30,35 +23,44 @@
     "C_portrait": 0,
     "C_world": 0
   },
-  "silhouetteGate": true,
   "haloBadPx": {
     "A_portrait": {
-      "browser": 8,
-      "lanczos": 1
+      "browser": 3,
+      "lanczos": 17
     },
     "A_world": {
-      "browser": 15,
-      "lanczos": 14
+      "browser": 3,
+      "lanczos": 7
     },
     "B_portrait": {
-      "browser": 1,
+      "browser": 0,
       "lanczos": 0
     },
     "B_world": {
-      "browser": 1,
+      "browser": 0,
       "lanczos": 0
     },
     "C_portrait": {
-      "browser": 2,
-      "lanczos": 2
+      "browser": 0,
+      "lanczos": 0
     },
     "C_world": {
-      "browser": 2,
+      "browser": 0,
       "lanczos": 6
     }
   },
-  "haloZeroGate": false,
-  "passesAllGates": false,
+  "resize": {
+    "premultipliedLanczos": false,
+    "clamp": "none"
+  },
+  "nearestCoreFilterLum60": false,
+  "ablationBestRow": "R1",
+  "ablationRows": [
+    "R1",
+    "R2",
+    "R3",
+    "R4"
+  ],
   "artifactPaths": {
     "candidateComposites": [
       "/opt/cursor/artifacts/candidate-review-A-portrait-browser-111.png",

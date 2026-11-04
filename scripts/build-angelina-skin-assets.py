@@ -25,6 +25,18 @@ SHIPPED_DIR = SKIN_DIR / "shipped"
 REF_DIR = SKIN_DIR / "alpha-ref"
 MANIFEST_PATH = ROOT / "data/story/angelina-skin-manifest.json"
 
+
+class VariantResizeSettings:
+    __slots__ = ("premultiplied", "clamp")
+
+    def __init__(self, premultiplied: bool = False, clamp: str = "none") -> None:
+        self.premultiplied = premultiplied
+        self.clamp = clamp  # none | semi | semi_and_ring
+
+
+VARIANT_RESIZE = VariantResizeSettings(premultiplied=False, clamp="none")
+NEAREST_CORE_FILTER_LUM60 = False
+
 SOURCES = {
     "A": "angelina-teen-A.png",
     "B": "angelina-teen-B.png",
@@ -591,8 +603,13 @@ def resize_rgba_premultiplied_lanczos(img: Image.Image, size: tuple[int, int]) -
     return Image.fromarray(out, "RGBA")
 
 
-def clamp_resize_edge_rgb(resized: Image.Image, source: Image.Image) -> Image.Image:
-    """Clamp semi-fringe and 2px opaque ring to source 3×3 per-channel min/max."""
+def clamp_resize_edge_rgb(
+    resized: Image.Image,
+    source: Image.Image,
+    *,
+    include_opaque_ring: bool = True,
+) -> Image.Image:
+    """Clamp edge RGB to source 3×3 per-channel min/max (semi, optional 2px opaque ring)."""
     rs = np.array(resized.convert("RGBA"), dtype=np.uint8)
     src = np.array(source.convert("RGBA"), dtype=np.uint8)
     sh, sw = src.shape[:2]
@@ -603,9 +620,12 @@ def clamp_resize_edge_rgb(resized: Image.Image, source: Image.Image) -> Image.Im
     sy = sh / float(rh)
     a = rs[:, :, 3]
     semi = (a > 0) & (a < 255)
-    dist_to_semi = ndimage.distance_transform_edt(~semi)
-    ring = (a == 255) & (dist_to_semi <= 2)
-    mask = semi | ring
+    if include_opaque_ring:
+        dist_to_semi = ndimage.distance_transform_edt(~semi)
+        ring = (a == 255) & (dist_to_semi <= 2)
+        mask = semi | ring
+    else:
+        mask = semi
     ys, xs = np.nonzero(mask)
     for y, x in zip(ys.tolist(), xs.tolist()):
         cx = min(sw - 1, max(0, int(round(x * sx))))
@@ -620,6 +640,18 @@ def clamp_resize_edge_rgb(resized: Image.Image, source: Image.Image) -> Image.Im
     return Image.fromarray(rs, "RGBA")
 
 
+def _resize_variant_rgba(cropped: Image.Image, size: tuple[int, int]) -> Image.Image:
+    w1, h1 = size
+    if VARIANT_RESIZE.premultiplied:
+        resized = resize_rgba_premultiplied_lanczos(cropped, (w1, h1))
+    else:
+        resized = cropped.resize((w1, h1), Image.Resampling.LANCZOS)
+    if VARIANT_RESIZE.clamp == "none":
+        return resized
+    ring = VARIANT_RESIZE.clamp == "semi_and_ring"
+    return clamp_resize_edge_rgb(resized, cropped, include_opaque_ring=ring)
+
+
 def portrait_variant(img: Image.Image, max_w: int = 372) -> Image.Image:
     cropped = crop_with_margin(img)
     w, h = cropped.size
@@ -627,17 +659,14 @@ def portrait_variant(img: Image.Image, max_w: int = 372) -> Image.Image:
         return cropped
     ratio = max_w / w
     new_h = max(1, int(h * ratio))
-    resized = resize_rgba_premultiplied_lanczos(cropped, (max_w, new_h))
-    return clamp_resize_edge_rgb(resized, cropped)
+    return _resize_variant_rgba(cropped, (max_w, new_h))
 
 
 def world_variant(img: Image.Image, out_w: int = 280) -> Image.Image:
     cropped = crop_with_margin(img)
     cw, ch = cropped.size
-    ratio = out_w / cw
-    new_h = max(1, int(ch * ratio))
-    resized = resize_rgba_premultiplied_lanczos(cropped, (out_w, new_h))
-    return clamp_resize_edge_rgb(resized, cropped)
+    new_h = max(1, int(ch * out_w / cw))
+    return _resize_variant_rgba(cropped, (out_w, new_h))
 
 
 def interior_rgb_sha256(rgba: Image.Image) -> str:
@@ -795,6 +824,11 @@ def _outline_near_white_halos_img(rgba: Image.Image) -> int:
 
 
 def _nearest_core_rgb(src_rgb: np.ndarray, core: np.ndarray) -> np.ndarray:
+    if not NEAREST_CORE_FILTER_LUM60:
+        _, idx_all = ndimage.distance_transform_edt(
+            ~core, return_distances=True, return_indices=True
+        )
+        return src_rgb[idx_all[0], idx_all[1]]
     lum = (
         src_rgb[:, :, 0].astype(np.int32)
         + src_rgb[:, :, 1].astype(np.int32)
@@ -1165,16 +1199,20 @@ def _sweep_alpha255_lock(
 
 
 def _measure_halo(rel_path: str) -> dict:
-    proc = subprocess.run(
-        ["node", str(ROOT / "scripts/measure-angelina-halo-json.js"), rel_path.replace("\\", "/")],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(proc.stderr or proc.stdout or "halo measure failed")
-    return json.loads(proc.stdout.strip())
+    last_err = ""
+    for attempt in range(8):
+        proc = subprocess.run(
+            ["node", str(ROOT / "scripts/measure-angelina-halo-json.js"), rel_path.replace("\\", "/")],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode == 0:
+            return json.loads(proc.stdout.strip())
+        last_err = proc.stderr or proc.stdout or "halo measure failed"
+        time.sleep(1.5 + attempt * 0.5)
+    raise RuntimeError(last_err)
 
 
 def _restore_ab6fa_assets() -> None:
