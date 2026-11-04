@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-/** Shipped skins: interior alpha 255 + interior RGB hash; no grey edge ring on #111 at 3× scale. */
+/** Shipped skins vs approved source (python pipeline); edge halo @3x on #111. */
+const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -29,19 +30,6 @@ async function loadRgba(rel, scale = 1) {
   return { data, w: info.width, h: info.height };
 }
 
-function interiorRgbSha256(data, w, h) {
-  const crypto = require("crypto");
-  const hsh = crypto.createHash("sha256");
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4;
-      if (data[i + 3] !== 255) continue;
-      hsh.update(Buffer.from([data[i], data[i + 1], data[i + 2]]));
-    }
-  }
-  return hsh.digest("hex");
-}
-
 function isEdge(data, w, h, x, y, clear = 20) {
   const a = data[(y * w + x) * 4 + 3];
   if (a <= 0) return false;
@@ -60,39 +48,36 @@ function isEdge(data, w, h, x, y, clear = 20) {
   return false;
 }
 
+
 (async () => {
+  const py = spawnSync("python3", [path.join(__dirname, "verify-angelina-shipped-vs-source.py")], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  if (py.stdout) process.stdout.write(py.stdout);
+  if (py.stderr) process.stderr.write(py.stderr);
+  if (py.status !== 0) process.exit(py.status || 1);
+
   let failed = 0;
   for (const id of ["A", "B", "C"]) {
     for (const kind of ["portrait", "world"]) {
       const slot = manifest.skins[id][kind];
       const shipped = await loadRgba(slot.path);
-      const shipped3 = await loadRgba(slot.path, 3);
       let softInterior = 0;
-      let interiorOpaque = 0;
-      for (let i = 3; i < shipped.data.length; i += 4) {
-        const a = shipped.data[i];
-        if (a < 254) continue;
-        interiorOpaque++;
-        const pi = i - 3;
-        const x = (pi / 4) % shipped.w;
-        const y = Math.floor(pi / 4 / shipped.w);
-        if (!isEdge(shipped.data, shipped.w, shipped.h, x, y) && a < 255) softInterior++;
+      for (let y = 0; y < shipped.h; y++) {
+        for (let x = 0; x < shipped.w; x++) {
+          const i = (y * shipped.w + x) * 4;
+          const a = shipped.data[i + 3];
+          if (a < 128) continue;
+          if (!isEdge(shipped.data, shipped.w, shipped.h, x, y) && a !== 255) softInterior++;
+        }
       }
-      if (interiorOpaque > 0 && softInterior / interiorOpaque > 0.001) {
-        console.error(`FAIL: ${id} ${kind} non-edge pixels with alpha < 255: ${softInterior}/${interiorOpaque}`);
+      if (softInterior > 0) {
+        console.error(`FAIL: ${id} ${kind} interior alpha not 255 (${softInterior} px)`);
         failed++;
-      }
-      const hash = interiorRgbSha256(shipped.data, shipped.w, shipped.h);
-      if (slot.interiorRgbSha256 && hash !== slot.interiorRgbSha256) {
-        console.error(`FAIL: ${id} ${kind} interiorRgbSha256 mismatch`);
-        failed++;
-      } else if (!slot.interiorRgbSha256) {
-        console.error(`FAIL: ${id} ${kind} missing interiorRgbSha256 in manifest (rebuild skins)`);
-        failed++;
-      } else {
-        console.log(`OK: ${id} ${kind} interior lock hash`);
       }
 
+      const shipped3 = await loadRgba(slot.path, 3);
       let interiorRgb = [0, 0, 0];
       let n = 0;
       for (let y = 0; y < shipped3.h; y++) {
@@ -135,8 +120,6 @@ function isEdge(data, w, h, x, y, clear = 20) {
       if (edgeSemi > 80 && greyRing / edgeSemi > 0.12) {
         console.error(`FAIL: ${id} ${kind} grey halo @3x on #111 (${greyRing}/${edgeSemi})`);
         failed++;
-      } else {
-        console.log(`OK: ${id} ${kind} edge @3x (${edgeSemi} semi px)`);
       }
     }
   }

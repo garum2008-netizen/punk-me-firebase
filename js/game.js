@@ -45,6 +45,50 @@ function soloMode() {
   }
 }
 
+/** Playwright prod-host sim: no anonymous sign-up or RTDB (see scripts/firebase-test-emulator-guard.js). */
+function isProdHostFirebaseStub() {
+  try {
+    return new URLSearchParams(location.search).get("punkFirebaseStub") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+function bootProdHostFirebaseStubSession() {
+  uid = "prod-host-sim-" + Math.random().toString(36).slice(2, 11);
+  window.uid = uid;
+  isOwner = false;
+  window.isOwner = false;
+  presenceOk = false;
+  window.__punkFirebaseReady = Promise.resolve();
+  window.dispatchEvent(new Event("punkme-firebase-ready"));
+  window.__playerLoaded = false;
+  window.saveMe = function punkProdHostSaveMeStub() {
+    if (!window.__playerLoaded) return;
+    try {
+      window.LifeCh1Slice?.persistLocalOverlay?.();
+    } catch (_) {}
+  };
+  hideLoading();
+  function sliceCharSelectReady() {
+    if (!window.CharSelect) return false;
+    try {
+      if (new URLSearchParams(location.search).get("lifeCh1Slice") === "1") {
+        return window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() === true;
+      }
+    } catch (_) {}
+    return true;
+  }
+  const openSelect = () => {
+    if (!sliceCharSelectReady()) {
+      setTimeout(openSelect, 120);
+      return;
+    }
+    CharSelect.open(pickCharacterAndContinue);
+  };
+  openSelect();
+}
+
 function isPreviewBuild() {
   return window.__PUNK_PREVIEW__ === true;
 }
@@ -841,6 +885,14 @@ function init() {
     syncHudDebugVisibility();
     const ver = document.getElementById("gameVersion");
     if (ver) ver.textContent = GAME_VERSION + "-preview";
+    return;
+  }
+  if (isProdHostFirebaseStub()) {
+    bootProdHostFirebaseStubSession();
+    bindGameShell();
+    syncHudDebugVisibility();
+    const ver = document.getElementById("gameVersion");
+    if (ver) ver.textContent = GAME_VERSION;
     return;
   }
   try {

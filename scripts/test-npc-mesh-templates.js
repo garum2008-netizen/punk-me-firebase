@@ -42,6 +42,45 @@ function glbVertexCount(absPath) {
   return { verts, tex };
 }
 
+function glbBounds(absPath) {
+  const buf = fs.readFileSync(absPath);
+  const jsonLen = buf.readUInt32LE(12);
+  const json = JSON.parse(buf.subarray(20, 20 + jsonLen).toString("utf8"));
+  let min = [Infinity, Infinity, Infinity];
+  let max = [-Infinity, -Infinity, -Infinity];
+  for (const mesh of json.meshes || []) {
+    for (const prim of mesh.primitives || []) {
+      const acc = prim.attributes?.POSITION;
+      if (acc == null) continue;
+      const accessor = json.accessors[acc];
+      const bv = json.bufferViews[accessor.bufferView];
+      const start = (bv.byteOffset || 0) + (accessor.byteOffset || 0);
+      const stride = 12;
+      for (let i = 0; i < accessor.count; i++) {
+        const o = start + i * stride;
+        const x = buf.readFloatLE(20 + jsonLen + o);
+        const y = buf.readFloatLE(20 + jsonLen + o + 4);
+        const z = buf.readFloatLE(20 + jsonLen + o + 8);
+        min[0] = Math.min(min[0], x);
+        min[1] = Math.min(min[1], y);
+        min[2] = Math.min(min[2], z);
+        max[0] = Math.max(max[0], x);
+        max[1] = Math.max(max[1], y);
+        max[2] = Math.max(max[2], z);
+      }
+    }
+  }
+  return { min, max };
+}
+
+function boundsEqual(a, b, eps = 1e-4) {
+  for (let i = 0; i < 3; i++) {
+    if (Math.abs(a.min[i] - b.min[i]) > eps) return false;
+    if (Math.abs(a.max[i] - b.max[i]) > eps) return false;
+  }
+  return true;
+}
+
 async function main() {
   const mod = await import(pathToFileURL(path.join(root, "js/world/meshy-punk.mjs")).href);
   const { meshyGlbPathForHero } = mod;
@@ -85,19 +124,25 @@ async function main() {
       });
       const cur = glbVertexCount(abs);
       const base = glbVertexCount(mainPath);
-      fs.unlinkSync(mainPath);
       if (cur.tex < 1) {
         console.error("FAIL: textures missing in", rel);
+        fs.unlinkSync(mainPath);
         failed++;
         continue;
       }
-      const ratio = cur.verts / (base.verts || 1);
-      if (ratio < 0.99 || ratio > 1.01) {
-        console.error("FAIL: vertex count vs main", rel, cur.verts, base.verts, ratio);
+      if (cur.verts !== base.verts) {
+        console.error("FAIL: vertex count must equal main exactly", rel, cur.verts, base.verts);
         failed++;
       } else {
-        console.log("OK:", path.basename(rel), "verts within 1% of main", cur.verts, base.verts);
+        console.log("OK:", path.basename(rel), "verts exact match main", cur.verts);
       }
+      if (!boundsEqual(glbBounds(abs), glbBounds(mainPath))) {
+        console.error("FAIL: bbox vs main", rel);
+        failed++;
+      } else {
+        console.log("OK:", path.basename(rel), "bbox matches main");
+      }
+      fs.unlinkSync(mainPath);
     } catch (e) {
       console.error("FAIL: hero compare", rel, e.message);
       failed++;
@@ -119,12 +164,11 @@ async function main() {
         console.error("FAIL: punk_dog.glb missing textures/images");
         failed++;
       }
-      const ratio = cur.verts / (base.verts || 1);
-      if (ratio < 0.99 || ratio > 1.01) {
-        console.error("FAIL: dog vertex count vs main", cur.verts, base.verts, ratio);
+      if (cur.verts !== base.verts) {
+        console.error("FAIL: dog vertex count must equal main exactly", cur.verts, base.verts);
         failed++;
       } else {
-        console.log("OK: punk_dog verts within 1% of main", cur.verts, base.verts);
+        console.log("OK: punk_dog verts exact match main", cur.verts);
       }
     } catch (e) {
       console.error("FAIL: dog compare", e.message);

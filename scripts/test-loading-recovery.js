@@ -128,7 +128,8 @@ async function runSuite(browserName, browserType) {
   log.push(["old_save_avatar_infer", oldShape.ok, oldShape]);
 
   const timeoutPage = await context.newPage();
-  await timeoutPage.goto(`${base}/?loadtest=timeout&v=loadfix-timeout`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await installProdFirebaseRouteBlock(timeoutPage);
+  await timeoutPage.goto(`${base}/?loadtest=timeout&v=loadfix-timeout${emulatorQs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await timeoutPage.waitForFunction(() => window.__punkLoadMe, { timeout: 120000 });
   const timeoutUi = await timeoutPage.evaluate(async () => {
     window.__loadMeTimeoutMs = 280;

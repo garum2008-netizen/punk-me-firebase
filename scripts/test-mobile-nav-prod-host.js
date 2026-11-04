@@ -1,13 +1,22 @@
 #!/usr/bin/env node
-/** Prod host mobile HUD regression at 390 and 360 widths. */
+/** Prod host mobile HUD regression at 390 and 360 widths (Firebase stubbed — no prod RTDB/auth). */
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
 const { serveStaticDir } = require("./serve-static-root");
+const {
+  exitIfMissingFirebaseEmulatorEnv,
+  prodHostFirebaseStubQueryString,
+  prepareProdHostSimContext,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+
+exitIfMissingFirebaseEmulatorEnv();
 
 const ROOT = path.join(__dirname, "..");
 const OUT = process.env.M1_CAPTURE_OUT || path.join("/opt/cursor/artifacts", "m1-prod-mobile");
 const HOWTO = "punkme_howto_seen";
+const stubQs = prodHostFirebaseStubQueryString();
 
 async function checkMobile(page, label) {
   const report = await page.evaluate(() => {
@@ -38,17 +47,24 @@ async function checkMobile(page, label) {
       [360, 780, "360"]
     ]) {
       const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+      await prepareProdHostSimContext(ctx);
       await ctx.addInitScript(k => {
         try {
           localStorage.setItem(k, "1");
         } catch (_) {}
       }, HOWTO);
       const page = await ctx.newPage();
-      await page.goto("http://127.0.0.1:3783/?solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1", {
-        waitUntil: "load",
+      await installProdFirebaseRouteBlock(page);
+      await page.goto(
+        `http://127.0.0.1:3783/?solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1${stubQs}`,
+        {
+          waitUntil: "load",
+          timeout: 120000
+        }
+      );
+      await page.waitForSelector('#charSelectPortraits #charSelectConfirm, #charSelectConfirm', {
         timeout: 120000
       });
-      await page.waitForSelector("#charSelectConfirm", { timeout: 120000 });
       await page.click("#charSelectConfirm");
       await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
       await checkMobile(page, tag);

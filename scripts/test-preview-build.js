@@ -9,10 +9,16 @@ const fs = require("fs");
 const http = require("http");
 const { isProdFirebaseRequest } = require("./firebase-prod-guard");
 const {
+  assertFirebaseEmulatorTestEnv,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+const {
   waitUntilSkinRendered,
   assertSkinRenderNow,
   assertSkinAfterReloadSchedule
 } = require("./life-ch1-skin-render-assert");
+
+assertFirebaseEmulatorTestEnv();
 
 const ROOT = path.join(__dirname, "..");
 const DIST = path.join(ROOT, "dist-preview");
@@ -233,6 +239,7 @@ async function testHowToOverlayFreshProfile(base) {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
+  await installProdFirebaseRouteBlock(page);
   try {
     await page.goto(`${base}/?solo=1&v=howto-fresh-test`, { waitUntil: "load", timeout: 120000 });
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
@@ -275,6 +282,7 @@ async function runBrowserTest(base) {
     } catch (_) {}
   }, HOWTO_SEEN_KEY);
   const page = await context.newPage();
+  await installProdFirebaseRouteBlock(page);
   const consoleErrors = [];
   page.on("pageerror", err => consoleErrors.push(String(err)));
   page.on("console", msg => {
@@ -518,6 +526,7 @@ async function testTimeToPlayer1280(base) {
       } catch (_) {}
     }, HOWTO_SEEN_KEY);
     const page = await context.newPage();
+  await installProdFirebaseRouteBlock(page);
     try {
       await page.goto(`${base}/?lifeCh1E2e=1&v=ttp-1280-${run}`, { waitUntil: "load", timeout: 120000 });
       await page.waitForSelector('[data-testid="char-select-angelina"], #charSelectConfirm', { timeout: 90000 });
@@ -546,6 +555,7 @@ async function testMobileHud390(base) {
     } catch (_) {}
   }, HOWTO_SEEN_KEY);
   const page = await context.newPage();
+  await installProdFirebaseRouteBlock(page);
   try {
     await page.goto(`${base}/?lifeCh1E2e=1`, { waitUntil: "load", timeout: 120000 });
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });

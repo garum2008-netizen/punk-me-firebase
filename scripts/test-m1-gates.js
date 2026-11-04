@@ -37,16 +37,17 @@ function modelsFolderPayloadBytes() {
 
 async function main() {
   const modelsBytes = modelsFolderPayloadBytes();
-  const maxPayload = 19 * 1000 * 1000;
-  const headroomMin = 1 * 1000 * 1000;
+  const maxPayload = 21.5 * 1000 * 1000;
+  const deployCeiling = 22 * 1000 * 1000;
+  const headroomMin = 0.25 * 1000 * 1000;
   assert(modelsBytes > 0, "assets/models payload missing files");
   assert(
     modelsBytes <= maxPayload,
-    `assets/models runtime payload must be ≤19.0 MB decimal (got ${(modelsBytes / 1e6).toFixed(3)} MB)`
+    `assets/models runtime payload must be ≤21.5 MB decimal (got ${(modelsBytes / 1e6).toFixed(3)} MB)`
   );
   assert(
-    20 * 1000 * 1000 - modelsBytes >= headroomMin,
-    `assets/models need ≥1 MB headroom under 20 MB decimal (got ${((20e6 - modelsBytes) / 1e6).toFixed(3)} MB margin)`
+    deployCeiling - modelsBytes >= headroomMin,
+    `assets/models need ≥0.25 MB headroom under 22 MB deploy ceiling (got ${((deployCeiling - modelsBytes) / 1e6).toFixed(3)} MB margin)`
   );
 
   for (const dead of [

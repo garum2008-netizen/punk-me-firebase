@@ -12,6 +12,19 @@ const https = require("https");
 
 const root = path.join(__dirname, "..");
 const { useSnapshot, restore } = require("./emulator-rules-swap");
+const {
+  assertFirebaseEmulatorTestEnv,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+
+process.env.FIREBASE_EMULATOR = process.env.FIREBASE_EMULATOR || "1";
+if (!process.env.FIREBASE_DATABASE_EMULATOR_HOST) {
+  process.env.FIREBASE_DATABASE_EMULATOR_HOST = "127.0.0.1:9000";
+}
+if (!process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+}
+assertFirebaseEmulatorTestEnv();
 
 const PROJECT_ID = process.env.FIREBASE_EMULATOR_PROJECT || "punk-me-40605";
 const DB_NS = `${PROJECT_ID}-default-rtdb`;
@@ -156,6 +169,7 @@ async function authCustomToken(admin, uid) {
 async function testNewJsPublicProfilesNonFatal(base) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
+  await installProdFirebaseRouteBlock(page);
   try {
     await page.goto(`${base}/?solo=1&firebaseEmulator=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForSelector(".char-pick", { timeout: 90000 });
@@ -223,6 +237,7 @@ async function emulatorCustomTokenForUid(uid) {
 async function testOldJsGameplayAndOwner(worktreeBase) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
+  await installProdFirebaseRouteBlock(page);
   try {
     await page.goto(`${worktreeBase}/?solo=1&firebaseEmulator=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForSelector(".char-pick", { timeout: 90000 });
@@ -251,6 +266,7 @@ async function testOldJsGameplayAndOwner(worktreeBase) {
 
   const ownerBrowser = await chromium.launch();
   const ownerPage = await ownerBrowser.newPage();
+  await installProdFirebaseRouteBlock(ownerPage);
   const ownerEmail = "garum2008@gmail.com";
   const ownerPass = "LegacyOwnerTest1!";
   try {
@@ -309,11 +325,9 @@ async function stopEmulator(emu) {
     }
     setTimeout(resolve, 15000);
   });
-  await freeEmulatorPorts();
 }
 
 async function withEmulatorAndRules(snapshot, fn) {
-  await freeEmulatorPorts();
   useSnapshot(snapshot);
   const emu = spawn("npx", ["firebase", "emulators:start", "--only", "auth,database", "--project", PROJECT_ID], {
     cwd: root,
@@ -348,14 +362,7 @@ async function withEmulatorAndRules(snapshot, fn) {
 }
 
 async function freeEmulatorPorts() {
-  const { execSync } = require("child_process");
-  try {
-    execSync('pkill -9 -f database-emulator 2>/dev/null; pkill -9 -f "firebase emulators" 2>/dev/null; fuser -k 9000/tcp 9099/tcp 2>/dev/null', {
-      stdio: "ignore",
-      shell: "/bin/bash"
-    });
-  } catch (_) {}
-  await new Promise(r => setTimeout(r, 8000));
+  /* deprecated: do not pkill foreign emulator processes (other verifiers / PRs). */
 }
 
 async function ensureOldWorktree(worktree) {

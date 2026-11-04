@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+import { MeshoptDecoder } from "../vendor/meshopt_decoder.module.js";
 
 export const PUNK_DOG_GLB = "assets/models/pets/punk_dog.glb";
 const TARGET_HEIGHT = 0.57;

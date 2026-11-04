@@ -7,14 +7,20 @@ const path = require("path");
 const fs = require("fs");
 const { isProdFirebaseRequest } = require("./firebase-prod-guard");
 const {
+  assertFirebaseEmulatorTestEnv,
+  firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+const {
   waitUntilSkinRendered,
   assertSkinRenderNow,
   assertSkinAfterReloadSchedule
 } = require("./life-ch1-skin-render-assert");
 
+assertFirebaseEmulatorTestEnv();
+
 const base = process.env.PUNK_BASE || "http://127.0.0.1:3456";
-const qs =
-  "?solo=1&firebaseEmulator=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&v=life-ch1-slice-e2e";
+const qs = `?solo=1${firebaseEmulatorQueryString()}&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&v=life-ch1-slice-e2e`;
 const artifactsDir = process.env.PUNK_ARTIFACTS || "/opt/cursor/artifacts/life-ch1-e2e";
 
 async function dismissHowToPlay(page) {
@@ -148,6 +154,7 @@ async function run() {
     recordVideo: { dir: artifactsDir, size: { width: 390, height: 844 } }
   });
   const page = await context.newPage();
+  await installProdFirebaseRouteBlock(page);
   await page.route("**/*", route => {
     const url = route.request().url();
     const rt = route.request().resourceType();

@@ -6,21 +6,30 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
+const {
+  assertFirebaseEmulatorTestEnv,
+  firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+
+assertFirebaseEmulatorTestEnv();
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
+const emulatorQs = firebaseEmulatorQueryString();
 const outLog = process.env.B1_LOG || path.join("/workspace/qa", "b1-reload-console.log");
 
 async function main() {
   const logs = [];
   const browser = await chromium.launch();
   const page = await browser.newPage();
+  await installProdFirebaseRouteBlock(page);
   page.on("console", msg => {
     const line = `[${msg.type()}] ${msg.text()}`;
     logs.push(line);
   });
   page.on("pageerror", err => logs.push(`[pageerror] ${err.message}`));
 
-  await page.goto(`${base}/?solo=1&v=b1test`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.goto(`${base}/?solo=1&v=b1test${emulatorQs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => window.StoryEngine?.ensureStoryState, { timeout: 120000 });
 
   const result = await page.evaluate(async () => {

@@ -4,6 +4,15 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
+const {
+  exitIfMissingFirebaseEmulatorEnv,
+  prodHostFirebaseStubQueryString,
+  prepareProdHostSimContext,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+
+exitIfMissingFirebaseEmulatorEnv();
+const stubQs = prodHostFirebaseStubQueryString();
 
 const root = path.join(__dirname, "..");
 const HOWTO_SEEN_KEY = "punk-howto-seen-v1";
@@ -72,14 +81,24 @@ async function loadExpectedVertCounts(page, base) {
 
 async function bootGame(page, base, preview) {
   const qs = preview
-    ? "lifeCh1E2e=1&npcVert=1"
-    : "solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&npcVert=1";
+    ? `lifeCh1E2e=1&npcVert=1${stubQs}`
+    : `solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&npcVert=1${stubQs}`;
   await page.goto(`${base}/?${qs}`, { waitUntil: "load", timeout: 120000 });
   if (preview) {
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
+    const confirm = page.locator(
+      '#charSelectPortraits #charSelectConfirm, #charSelectConfirm'
+    );
+    if (await confirm.isVisible({ timeout: 8000 }).catch(() => false)) {
+      await confirm.click();
+    }
+  } else {
+    await page.waitForSelector(
+      '#charSelectPortraits #charSelectConfirm, #charSelectConfirm',
+      { timeout: 120000 }
+    );
+    await page.click("#charSelectConfirm");
   }
-  await page.waitForSelector("#charSelectConfirm", { timeout: 120000 });
-  await page.click("#charSelectConfirm");
   await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
   await page.waitForFunction(() => window.World3D?.isReady?.() === true, undefined, { timeout: 30000 });
 }
@@ -123,12 +142,14 @@ async function runMode({ dir, port, preview, label }) {
   const srv = await serveDir(dir, port);
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await prepareProdHostSimContext(context);
   await context.addInitScript(key => {
     try {
       localStorage.setItem(key, "1");
     } catch (_) {}
   }, HOWTO_SEEN_KEY);
   const page = await context.newPage();
+  await installProdFirebaseRouteBlock(page);
   try {
     await bootGame(page, base, preview);
     const expected = await loadExpectedVertCounts(page, base);
@@ -136,8 +157,7 @@ async function runMode({ dir, port, preview, label }) {
       await assertLocationNpcs(page, locId, expected, label);
     }
     await page.reload({ waitUntil: "load" });
-    await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
-    await page.waitForFunction(() => window.World3D?.isReady?.() === true, undefined, { timeout: 30000 });
+    await bootGame(page, base, preview);
     await assertLocationNpcs(page, "room", expected, `${label}-reload`);
   } finally {
     await page.close();

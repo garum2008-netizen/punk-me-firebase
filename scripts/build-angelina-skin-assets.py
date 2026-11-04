@@ -491,7 +491,8 @@ def postprocess_cutout(skin_id: str, cut: Image.Image, orig: Image.Image) -> Ima
 
 
 def finish_shipped_variant(rgba: Image.Image) -> Image.Image:
-    out = strip_grey_matte_outline(rgba)
+    out = fill_internal_holes(rgba.convert("RGBA"))
+    out = strip_grey_matte_outline(out)
     for _ in range(2):
         out = strip_outline_near_white(out)
     return out
