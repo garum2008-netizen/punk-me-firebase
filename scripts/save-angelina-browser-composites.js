@@ -11,9 +11,11 @@ const {
 
 const root = path.join(__dirname, "..");
 const ARTIFACTS = "/opt/cursor/artifacts";
-const manifest = JSON.parse(
-  fs.readFileSync(path.join(root, "data/story/angelina-skin-manifest.json"), "utf8")
-);
+const manifestPath =
+  process.env.ANGELINA_COMPOSITE_MANIFEST ||
+  path.join(root, "data/story/angelina-skin-manifest.json");
+const namePrefix = process.env.ANGELINA_COMPOSITE_NAME_PREFIX || "halo";
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 
 let sharp;
 try {
@@ -80,7 +82,7 @@ async function saveCompositeCrop(page, baseUrl, relPath, cssW, cssH, bgHex, outP
           meta.width,
           meta.height,
           bg,
-          path.join(ARTIFACTS, `halo-${id}-${kind}-browser-${suffix}.png`)
+          path.join(ARTIFACTS, `${namePrefix}-${id}-${kind}-browser-${suffix}.png`)
         );
       }
     }

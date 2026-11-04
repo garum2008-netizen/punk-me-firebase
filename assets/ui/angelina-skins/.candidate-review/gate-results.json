@@ -1,0 +1,94 @@
+{
+  "parameters": {
+    "thresh": 0.8,
+    "inset": 1,
+    "semiLockBand": "alpha_ref in [0.75,0.80) and dist_in>=2",
+    "componentHaloFix": "A portrait/world browser+lanczos; C world lanczos greyMatt CC recolor",
+    "semiExteriorDecontam": false
+  },
+  "alpha255Share": {
+    "A_portrait": 0.9339,
+    "A_world": 0.9251,
+    "B_portrait": 0.929,
+    "B_world": 0.9082,
+    "C_portrait": 0.934,
+    "C_world": 0.9145
+  },
+  "minAlpha255Share": 0.9082,
+  "alpha255ShareGate": true,
+  "silhouetteNearWhite": {
+    "A_portrait": 0,
+    "A_world": 0,
+    "B_portrait": 0,
+    "B_world": 0,
+    "C_portrait": 0,
+    "C_world": 0
+  },
+  "silhouetteGate": true,
+  "haloBadPx": {
+    "A_portrait": {
+      "browser": 3,
+      "lanczos": 17
+    },
+    "A_world": {
+      "browser": 3,
+      "lanczos": 7
+    },
+    "B_portrait": {
+      "browser": 0,
+      "lanczos": 0
+    },
+    "B_world": {
+      "browser": 0,
+      "lanczos": 0
+    },
+    "C_portrait": {
+      "browser": 0,
+      "lanczos": 0
+    },
+    "C_world": {
+      "browser": 0,
+      "lanczos": 6
+    }
+  },
+  "haloZeroGate": false,
+  "passesAllGates": false,
+  "artifactPaths": {
+    "candidateComposites": [
+      "/opt/cursor/artifacts/candidate-review-A-portrait-browser-111.png",
+      "/opt/cursor/artifacts/candidate-review-A-portrait-browser-white.png",
+      "/opt/cursor/artifacts/candidate-review-A-world-browser-111.png",
+      "/opt/cursor/artifacts/candidate-review-A-world-browser-white.png",
+      "/opt/cursor/artifacts/candidate-review-B-portrait-browser-111.png",
+      "/opt/cursor/artifacts/candidate-review-B-portrait-browser-white.png",
+      "/opt/cursor/artifacts/candidate-review-B-world-browser-111.png",
+      "/opt/cursor/artifacts/candidate-review-B-world-browser-white.png",
+      "/opt/cursor/artifacts/candidate-review-C-portrait-browser-111.png",
+      "/opt/cursor/artifacts/candidate-review-C-portrait-browser-white.png",
+      "/opt/cursor/artifacts/candidate-review-C-world-browser-111.png",
+      "/opt/cursor/artifacts/candidate-review-C-world-browser-white.png"
+    ],
+    "ab6fShippedComposites": [
+      "/opt/cursor/artifacts/ab6f-shipped-A-portrait-browser-111.png",
+      "/opt/cursor/artifacts/ab6f-shipped-A-portrait-browser-white.png",
+      "/opt/cursor/artifacts/ab6f-shipped-A-world-browser-111.png",
+      "/opt/cursor/artifacts/ab6f-shipped-A-world-browser-white.png",
+      "/opt/cursor/artifacts/ab6f-shipped-B-portrait-browser-111.png",
+      "/opt/cursor/artifacts/ab6f-shipped-B-portrait-browser-white.png",
+      "/opt/cursor/artifacts/ab6f-shipped-B-world-browser-111.png",
+      "/opt/cursor/artifacts/ab6f-shipped-B-world-browser-white.png",
+      "/opt/cursor/artifacts/ab6f-shipped-C-portrait-browser-111.png",
+      "/opt/cursor/artifacts/ab6f-shipped-C-portrait-browser-white.png",
+      "/opt/cursor/artifacts/ab6f-shipped-C-world-browser-111.png",
+      "/opt/cursor/artifacts/ab6f-shipped-C-world-browser-white.png"
+    ],
+    "aWorldPixelCrops8x": [
+      "/opt/cursor/artifacts/a-world-px1-candidate-8x.png",
+      "/opt/cursor/artifacts/a-world-px1-source-8x.png",
+      "/opt/cursor/artifacts/a-world-px2-candidate-8x.png",
+      "/opt/cursor/artifacts/a-world-px2-source-8x.png",
+      "/opt/cursor/artifacts/a-world-px3-candidate-8x.png",
+      "/opt/cursor/artifacts/a-world-px3-source-8x.png"
+    ]
+  }
+}

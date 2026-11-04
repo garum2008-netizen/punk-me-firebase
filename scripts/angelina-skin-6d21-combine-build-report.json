@@ -1,88 +1,18 @@
 {
-  "pipeline": "6d214651 α + guided filter + ML; bright semi-edge → nearest core; finish; candidate-only α=255 lock (alpha_ref thresh × dist_in on α≥128 contour, Lanczos RGB); greyMatt band recolor; optional semi exterior decontam (diagnostic only — regresses halo)",
+  "pipeline": "6d214651 α + guided filter + ML; finish; candidate α=255 lock; optional semi band [0.75,0.80)@dist_in≥2; greyMatt recolor + component-local CC fix",
   "shipDecision": "restore_ab6fa302",
-  "shipReason": "No sweep combo passes all gates: haloZero (greyMatt bgOpaqueBand) and min α=255 share ≥90% on finished WebPs.",
-  "alpha255Sweep": [
-    {
+  "shipReason": "Review candidate clears α≥90% and silhouette but not haloZero (A portrait/world greyMatt @3×; C world 6 lanczos).",
+  "reviewCandidate": {
+    "path": "assets/ui/angelina-skins/.candidate-review/",
+    "parameters": {
       "thresh": 0.8,
       "inset": 1,
-      "minAlpha255Share": 0.8871,
-      "alpha255Share": {
-        "A_portrait": 0.914,
-        "A_world": 0.8981,
-        "B_portrait": 0.9129,
-        "B_world": 0.8871,
-        "C_portrait": 0.9172,
-        "C_world": 0.8927
-      },
-      "haloZeroBadPx": false,
-      "haloDetail": "A_portrait browser3=3 lanczos3=9; A_world browser3=3 lanczos3=9; B 0; C_world lanczos3=6",
-      "silhouetteNearWhiteOk": true
+      "semiLockBand": true,
+      "componentHaloFix": true
     },
-    {
-      "thresh": 0.8,
-      "inset": 2,
-      "minAlpha255Share": 0.8855,
-      "haloZeroBadPx": false,
-      "silhouetteNearWhiteOk": true
-    },
-    {
-      "thresh": 0.8,
-      "inset": 3,
-      "minAlpha255Share": 0.8883,
-      "haloZeroBadPx": false,
-      "silhouetteNearWhiteOk": true
-    },
-    {
-      "thresh": 0.85,
-      "inset": 1,
-      "minAlpha255Share": 0.8676,
-      "haloZeroBadPx": false,
-      "silhouetteNearWhiteOk": true
-    },
-    {
-      "thresh": 0.9,
-      "inset": 1,
-      "minAlpha255Share": 0.8381,
-      "haloZeroBadPx": false,
-      "silhouetteNearWhiteOk": true
-    }
-  ],
-  "alpha255SweepBest": {
-    "thresh": 0.8,
-    "inset": 1,
-    "minAlpha255Share": 0.8871,
-    "note": "Highest min share; still 1.29pp below 90% gate (B_world binding)."
+    "passesAllGates": false,
+    "minAlpha255Share": 0.9082,
+    "seeAlso": "assets/ui/angelina-skins/.candidate-review/gate-results.json"
   },
-  "silhouetteNearWhiteHalos": {
-    "A_portrait": 0,
-    "A_world": 0,
-    "B_portrait": 0,
-    "B_world": 0,
-    "C_portrait": 0,
-    "C_world": 0,
-    "max": { "portrait": 30, "world": 22 }
-  },
-  "aWorldHaloBadPx": {
-    "bestSweep": "thresh=0.80 inset=1 decontam=false",
-    "beforeDecontam": {
-      "browser3": {
-        "count": 3,
-        "pixels": [
-          { "x": 217, "y": 1457, "r": 191, "g": 192, "b": 187, "a": 255, "lum": 190, "distClear": 7 },
-          { "x": 541, "y": 1940, "r": 75, "g": 72, "b": 70, "a": 255, "lum": 72, "distClear": 6 },
-          { "x": 541, "y": 1941, "r": 150, "g": 145, "b": 141, "a": 255, "lum": 145, "distClear": 6 }
-        ]
-      },
-      "lanczos3": { "count": 9 }
-    },
-    "afterSemiDecontam": {
-      "browser3": { "count": 216, "note": "semi exterior decontam enabled — do not ship" },
-      "silhouetteNearWhiteBefore": 0,
-      "silhouetteNearWhiteAfter": 0
-    }
-  },
-  "npmTestLifeCh1ExitCode": 1,
-  "npmTestLifeCh1Note": "Fails at angelina-skin-halo.js on shipped ab6fa302 baseline (expected until 6d21 ships).",
-  "browserCompositeArtifacts": "/opt/cursor/artifacts/halo-{A,B,C}-{portrait,world}-browser-{111,white}.png"
+  "npmTestLifeCh1ExitCode": 1
 }

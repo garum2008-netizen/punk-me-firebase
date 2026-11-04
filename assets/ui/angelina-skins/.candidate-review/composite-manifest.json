@@ -1,0 +1,28 @@
+{
+  "skins": {
+    "A": {
+      "portrait": {
+        "path": "assets/ui/angelina-skins/.candidate-review/angelina-teen-A-portrait.webp"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/.candidate-review/angelina-teen-A-world.webp"
+      }
+    },
+    "B": {
+      "portrait": {
+        "path": "assets/ui/angelina-skins/.candidate-review/angelina-teen-B-portrait.webp"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/.candidate-review/angelina-teen-B-world.webp"
+      }
+    },
+    "C": {
+      "portrait": {
+        "path": "assets/ui/angelina-skins/.candidate-review/angelina-teen-C-v2-portrait.webp"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/.candidate-review/angelina-teen-C-v2-world.webp"
+      }
+    }
+  }
+}

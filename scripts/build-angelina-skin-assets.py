@@ -747,6 +747,8 @@ def _apply_candidate_alpha255_lock(
     alpha_ref: np.ndarray,
     thresh: float,
     inset_px: int,
+    *,
+    semi_lock_band: bool = False,
 ) -> None:
     fg = alpha_ref >= (128 / 255.0)
     dist_in = ndimage.distance_transform_edt(fg)
@@ -754,6 +756,8 @@ def _apply_candidate_alpha255_lock(
     nearest = _nearest_core_rgb(src_rgb, interior_core)
     solid = fg & (alpha_ref >= thresh) & (dist_in >= inset_px)
     solid |= fg & (alpha_ref >= 0.965) & (dist_in >= 1)
+    if semi_lock_band:
+        solid |= fg & (alpha_ref >= 0.75) & (alpha_ref < 0.80) & (dist_in >= 2)
     out[solid, 0:3] = src_rgb[solid]
     r, g, b = out[:, :, 0], out[:, :, 1], out[:, :, 2]
     lum = (r.astype(np.int32) + g.astype(np.int32) + b.astype(np.int32)) / 3.0
@@ -788,6 +792,95 @@ def _decontaminate_opaque_grey_halo_components(out: np.ndarray, src_rgb: np.ndar
         if not np.any(grey_matt):
             return
         out[grey_matt, 0:3] = nearest[grey_matt]
+
+
+def _upscale_xy_to_native(x: int, y: int, scale: int = 3) -> tuple[int, int]:
+    return min(max(x // scale, 0), 10_000), min(max(y // scale, 0), 10_000)
+
+
+def _recolor_grey_matt_components_at_seeds(
+    out: np.ndarray,
+    src_rgb: np.ndarray,
+    alpha_ref: np.ndarray,
+    seeds_native: list[tuple[int, int]],
+) -> int:
+    """Recolor entire greyMatt CCs touching any seed (α unchanged). Returns pixels recolored."""
+    if not seeds_native:
+        return 0
+    h, w = out.shape[0], out.shape[1]
+    interior_core = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
+    nearest = _nearest_core_rgb(src_rgb, interior_core)
+    grey_matt = _grey_matt_halo_mask(out)
+    if not np.any(grey_matt):
+        return 0
+    struct = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=bool)
+    labeled, n = ndimage.label(grey_matt, structure=struct)
+    touch: set[int] = set()
+    for x, y in seeds_native:
+        x = min(max(x, 0), w - 1)
+        y = min(max(y, 0), h - 1)
+        cid = int(labeled[y, x])
+        if cid:
+            touch.add(cid)
+    if not touch:
+        return 0
+    fix = np.isin(labeled, list(touch))
+    npx = int(np.sum(fix))
+    out[fix, 0:3] = nearest[fix]
+    return npx
+
+
+def _component_local_halo_cluster_fix(
+    out: np.ndarray,
+    src_rgb: np.ndarray,
+    alpha_ref: np.ndarray,
+    rel_path: str,
+    skin_id: str,
+    kind: str,
+) -> None:
+    """Target A portrait/world (browser+lanczos) and C world (lanczos) greyMatt clusters."""
+    targets = {("A", "portrait"), ("A", "world"), ("C", "world")}
+    if (skin_id, kind) not in targets:
+        return
+    modes: tuple[str, ...]
+    if skin_id == "C" and kind == "world":
+        modes = ("lanczos3",)
+    else:
+        modes = ("browser3", "lanczos3")
+    abs_path = ROOT / rel_path
+    abs_path.parent.mkdir(parents=True, exist_ok=True)
+    for _pass in range(12):
+        save_webp(Image.fromarray(out, "RGBA"), abs_path, lossless=True)
+        seeds: list[tuple[int, int]] = []
+        for mode in modes:
+            dump = _dump_halo_bad_px(rel_path, mode)
+            for px in dump.get("pixels") or []:
+                nx, ny = _upscale_xy_to_native(int(px["x"]), int(px["y"]))
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        seeds.append((nx + dx, ny + dy))
+        if not seeds:
+            return
+        changed = _recolor_grey_matt_components_at_seeds(out, src_rgb, alpha_ref, seeds)
+        grey_matt = _grey_matt_halo_mask(out)
+        struct = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=bool)
+        labeled, _ = ndimage.label(grey_matt, structure=struct)
+        touch: set[int] = set()
+        h, w = out.shape[0], out.shape[1]
+        for x, y in seeds:
+            x = min(max(x, 0), w - 1)
+            y = min(max(y, 0), h - 1)
+            cid = int(labeled[y, x])
+            if cid:
+                touch.add(cid)
+        still = np.zeros_like(grey_matt, dtype=bool)
+        if touch:
+            fix = np.isin(labeled, list(touch))
+            still = fix & grey_matt
+            if np.any(still):
+                out[still, 0:3] = src_rgb[still]
+        if changed == 0 and not np.any(still) and _pass >= 2:
+            return
 
 
 def _decontaminate_grey_exterior_band(out: np.ndarray, alpha_ref: np.ndarray) -> None:
@@ -872,6 +965,11 @@ def _finalize_prelock(
     inset_px: int,
     *,
     decontam: bool = False,
+    semi_lock_band: bool = False,
+    component_halo_fix: bool = False,
+    skin_id: str = "",
+    kind: str = "",
+    measure_rel: str | None = None,
 ) -> Image.Image:
     out = prelock[0].copy()
     src_rgb, alpha_ref = prelock[1], prelock[2]
@@ -879,8 +977,13 @@ def _finalize_prelock(
         _decontaminate_grey_exterior_band(out, alpha_ref)
     img = finish_shipped_variant(Image.fromarray(out, "RGBA"))
     out2 = np.array(img, dtype=np.uint8)
-    _apply_candidate_alpha255_lock(out2, src_rgb, alpha_ref, thresh, inset_px)
+    _apply_candidate_alpha255_lock(
+        out2, src_rgb, alpha_ref, thresh, inset_px, semi_lock_band=semi_lock_band
+    )
     _decontaminate_opaque_grey_halo_components(out2, src_rgb, alpha_ref)
+    if component_halo_fix and measure_rel and skin_id and kind:
+        _component_local_halo_cluster_fix(out2, src_rgb, alpha_ref, measure_rel, skin_id, kind)
+        _decontaminate_opaque_grey_halo_components(out2, src_rgb, alpha_ref)
     return Image.fromarray(out2, "RGBA")
 
 
