@@ -68,6 +68,19 @@ def _gate_table(prelocks, slug_map, rel_prefix: str) -> dict:
             "semiLockBand": "alpha_ref in [0.75,0.80) and dist_in>=2",
             "componentHaloFix": "A portrait/world browser+lanczos; C world lanczos greyMatt CC recolor",
             "semiExteriorDecontam": False,
+            "nearestCoreMinLum": 60,
+        },
+        "resizePipeline": {
+            "portraitWorldRgbBeforeThisIteration": (
+                "straight RGBA Lanczos via PIL (not premultiplied)"
+            ),
+            "portraitWorldRgbNow": (
+                "premultiplied α Lanczos on R,G,B and separate α, unpremultiply; "
+                "then clamp semi + 2px opaque ring to source 3×3 min/max per channel"
+            ),
+            "sixd21AlphaMatteResizeInCompose": (
+                "single-channel α Lanczos to match variant size (premult N/A)"
+            ),
         },
         "alpha255Share": {k: round(v, 4) for k, v in shares.items()},
         "minAlpha255Share": round(min_a255, 4),

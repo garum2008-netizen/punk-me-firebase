@@ -1,18 +1,9 @@
 {
-  "pipeline": "6d214651 α + guided filter + ML; finish; candidate α=255 lock; optional semi band [0.75,0.80)@dist_in≥2; greyMatt recolor + component-local CC fix",
   "shipDecision": "restore_ab6fa302",
-  "shipReason": "Review candidate clears α≥90% and silhouette but not haloZero (A portrait/world greyMatt @3×; C world 6 lanczos).",
-  "reviewCandidate": {
-    "path": "assets/ui/angelina-skins/.candidate-review/",
-    "parameters": {
-      "thresh": 0.8,
-      "inset": 1,
-      "semiLockBand": true,
-      "componentHaloFix": true
-    },
-    "passesAllGates": false,
-    "minAlpha255Share": 0.9082,
-    "seeAlso": "assets/ui/angelina-skins/.candidate-review/gate-results.json"
-  },
+  "reviewCandidateIteration": "premult Lanczos + edge clamp + nearest-core lum≥60",
+  "passesAllGates": false,
+  "minAlpha255Share": 0.9107,
+  "haloBadPxSummary": "A_world browser15 lanczos14; C_world lanczos6; see .candidate-review/gate-results.json",
+  "resizeWasPremultipliedBefore": false,
   "npmTestLifeCh1ExitCode": 1
 }

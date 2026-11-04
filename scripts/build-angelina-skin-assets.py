@@ -566,20 +566,78 @@ def crop_with_margin(img: Image.Image, margin_ratio: float = 0.022, margin_min: 
     return pad
 
 
+def resize_rgba_premultiplied_lanczos(img: Image.Image, size: tuple[int, int]) -> Image.Image:
+    """Lanczos resize in premultiplied α space, then unpremultiply where α > 0."""
+    w1, h1 = size
+    arr = np.asarray(img.convert("RGBA"), dtype=np.float32)
+    h0, w0 = arr.shape[:2]
+    if w0 == w1 and h0 == h1:
+        return img.convert("RGBA")
+    alpha = arr[:, :, 3] / 255.0
+    premul = arr[:, :, :3] * alpha[:, :, np.newaxis]
+
+    def _resize_plane(plane: np.ndarray) -> np.ndarray:
+        im = Image.fromarray(plane.astype(np.float32), mode="F")
+        return np.array(im.resize((w1, h1), Image.Resampling.LANCZOS), dtype=np.float32)
+
+    out_a = _resize_plane(arr[:, :, 3])
+    out_p = np.stack([_resize_plane(premul[:, :, c]) for c in range(3)], axis=-1)
+    out_af = np.clip(out_a / 255.0, 0.0, 1.0)
+    safe = np.maximum(out_af, 1.0 / 255.0)
+    out_rgb = out_p / safe[:, :, np.newaxis]
+    out = np.zeros((h1, w1, 4), dtype=np.uint8)
+    out[:, :, :3] = np.clip(np.round(out_rgb), 0, 255).astype(np.uint8)
+    out[:, :, 3] = np.clip(np.round(out_a), 0, 255).astype(np.uint8)
+    return Image.fromarray(out, "RGBA")
+
+
+def clamp_resize_edge_rgb(resized: Image.Image, source: Image.Image) -> Image.Image:
+    """Clamp semi-fringe and 2px opaque ring to source 3×3 per-channel min/max."""
+    rs = np.array(resized.convert("RGBA"), dtype=np.uint8)
+    src = np.array(source.convert("RGBA"), dtype=np.uint8)
+    sh, sw = src.shape[:2]
+    rh, rw = rs.shape[:2]
+    if rh == sh and rw == sw:
+        return resized
+    sx = sw / float(rw)
+    sy = sh / float(rh)
+    a = rs[:, :, 3]
+    semi = (a > 0) & (a < 255)
+    dist_to_semi = ndimage.distance_transform_edt(~semi)
+    ring = (a == 255) & (dist_to_semi <= 2)
+    mask = semi | ring
+    ys, xs = np.nonzero(mask)
+    for y, x in zip(ys.tolist(), xs.tolist()):
+        cx = min(sw - 1, max(0, int(round(x * sx))))
+        cy = min(sh - 1, max(0, int(round(y * sy))))
+        x0, x1 = max(0, cx - 1), min(sw, cx + 2)
+        y0, y1 = max(0, cy - 1), min(sh, cy + 2)
+        patch = src[y0:y1, x0:x1, :3]
+        for c in range(3):
+            lo = int(patch[:, :, c].min())
+            hi = int(patch[:, :, c].max())
+            rs[y, x, c] = np.clip(rs[y, x, c], lo, hi)
+    return Image.fromarray(rs, "RGBA")
+
+
 def portrait_variant(img: Image.Image, max_w: int = 372) -> Image.Image:
     cropped = crop_with_margin(img)
     w, h = cropped.size
     if w <= max_w:
         return cropped
     ratio = max_w / w
-    return cropped.resize((max_w, max(1, int(h * ratio))), Image.Resampling.LANCZOS)
+    new_h = max(1, int(h * ratio))
+    resized = resize_rgba_premultiplied_lanczos(cropped, (max_w, new_h))
+    return clamp_resize_edge_rgb(resized, cropped)
 
 
 def world_variant(img: Image.Image, out_w: int = 280) -> Image.Image:
     cropped = crop_with_margin(img)
     cw, ch = cropped.size
     ratio = out_w / cw
-    return cropped.resize((out_w, max(1, int(ch * ratio))), Image.Resampling.LANCZOS)
+    new_h = max(1, int(ch * ratio))
+    resized = resize_rgba_premultiplied_lanczos(cropped, (out_w, new_h))
+    return clamp_resize_edge_rgb(resized, cropped)
 
 
 def interior_rgb_sha256(rgba: Image.Image) -> str:
@@ -737,8 +795,22 @@ def _outline_near_white_halos_img(rgba: Image.Image) -> int:
 
 
 def _nearest_core_rgb(src_rgb: np.ndarray, core: np.ndarray) -> np.ndarray:
-    _, indices = ndimage.distance_transform_edt(~core, return_distances=True, return_indices=True)
-    return src_rgb[indices[0], indices[1]]
+    lum = (
+        src_rgb[:, :, 0].astype(np.int32)
+        + src_rgb[:, :, 1].astype(np.int32)
+        + src_rgb[:, :, 2].astype(np.int32)
+    ) // 3
+    core_bright = core & (lum >= 60)
+    _, idx_all = ndimage.distance_transform_edt(~core, return_distances=True, return_indices=True)
+    out_all = src_rgb[idx_all[0], idx_all[1]]
+    if not np.any(core_bright):
+        return out_all
+    dist_b, idx_b = ndimage.distance_transform_edt(
+        ~core_bright, return_distances=True, return_indices=True
+    )
+    out_b = src_rgb[idx_b[0], idx_b[1]]
+    use_bright = (lum >= 60) & np.isfinite(dist_b)
+    return np.where(use_bright[:, :, np.newaxis], out_b, out_all)
 
 
 def _apply_candidate_alpha255_lock(
