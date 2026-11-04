@@ -1,21 +1,37 @@
 {
-  "pipeline": "6d214651 alpha (git show) + guided filter r=6 eps=1e-3 + estimate_foreground_ml + interior core lock",
+  "pipeline": "6d214651 alpha + guided filter + ML edges; bright semi edge -> nearest core; ab6f∩6d21 interior α=255 boost (dist_in≥8)",
   "shipDecision": "restore_ab6fa302",
-  "shipReason": "Beat ab6fa browser halo on every skin but failed unchanged silhouette gate (A portrait/world, B world near-white outline halos)",
-  "ab6faBrowserSum": { "A": 22153, "B": 13396, "C": 502 },
-  "combineBrowserSum": { "A": 6, "B": 0, "C": 0 },
-  "perSkinVariant": {
-    "A": {
-      "portrait": { "browser": 1, "lanczos": 0, "ab6faBrowser": 13149, "ab6faLanczos": 12826 },
-      "world": { "browser": 5, "lanczos": 1, "ab6faBrowser": 9004, "ab6faLanczos": 8881 }
+  "shipReason": "Silhouette passes with bright-edge nearest-core fix, but halo gate still fails (A world browser 5, lanczos 1) and α=255 share ~74–86% vs ab6f ~99% (halo test requires ≥90% on fg)",
+  "silhouetteNearWhiteHalos": {
+    "A_portrait": 0,
+    "A_world": 0,
+    "B_portrait": 0,
+    "B_world": 0,
+    "C_portrait": 0,
+    "C_world": 0,
+    "max": { "portrait": 30, "world": 22 }
+  },
+  "haloVsAb6fa": {
+    "A": { "browserSum": 5, "ab6faBrowserSum": 22153, "detail": "P browser 0 lanczos 0; W browser 5 lanczos 1" },
+    "B": { "browserSum": 0, "ab6faBrowserSum": 13396 },
+    "C": { "browserSum": 0, "ab6faBrowserSum": 502 }
+  },
+  "alpha255Share": {
+    "candidate": {
+      "A_portrait": 0.836,
+      "A_world": 0.788,
+      "B_portrait": 0.831,
+      "B_world": 0.778,
+      "C_portrait": 0.792,
+      "C_world": 0.74
     },
-    "B": {
-      "portrait": { "browser": 0, "lanczos": 0, "ab6faBrowser": 8311, "ab6faLanczos": 7937 },
-      "world": { "browser": 0, "lanczos": 0, "ab6faBrowser": 5085, "ab6faLanczos": 4800 }
-    },
-    "C": {
-      "portrait": { "browser": 0, "lanczos": 0, "ab6faBrowser": 304, "ab6faLanczos": 220 },
-      "world": { "browser": 0, "lanczos": 0, "ab6faBrowser": 198, "ab6faLanczos": 131 }
+    "ab6f": {
+      "A_portrait": 0.991,
+      "A_world": 0.989,
+      "B_portrait": 0.99,
+      "B_world": 0.987,
+      "C_portrait": 0.99,
+      "C_world": 0.987
     }
   }
 }

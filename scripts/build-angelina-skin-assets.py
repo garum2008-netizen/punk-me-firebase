@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import subprocess
+import sys
 import time
 from collections import deque
 from pathlib import Path
@@ -17,6 +18,7 @@ from scipy import ndimage
 ROOT = Path(__file__).resolve().parents[1]
 AB6FA_HALO_BASELINE = ROOT / "scripts/angelina-skin-ab6fa-halo-baseline.json"
 ALPHA_SHAPE_REV = "6d214651"
+AB6FA_REV = "ab6fa30"
 SKIN_DIR = ROOT / "assets/ui/angelina-skins"
 SOURCE_DIR = SKIN_DIR / "source"
 SHIPPED_DIR = SKIN_DIR / "shipped"
@@ -692,12 +694,64 @@ def guided_filter_alpha(p: np.ndarray, guide: np.ndarray, radius: int, eps: floa
     return _box_filter(a, radius) * guide + _box_filter(b, radius)
 
 
-def _git_show_shipped_alpha(rel_path: str) -> Image.Image:
+def _git_show_shipped_alpha(rev: str, rel_path: str) -> Image.Image:
     data = subprocess.check_output(
-        ["git", "show", f"{ALPHA_SHAPE_REV}:{rel_path.replace(chr(92), '/')}"],
+        ["git", "show", f"{rev}:{rel_path.replace(chr(92), '/')}"],
         cwd=ROOT,
     )
     return Image.open(io.BytesIO(data)).convert("RGBA").split()[3]
+
+
+def _alpha255_share(rgba: np.ndarray) -> float:
+    a = rgba[:, :, 3]
+    fg = a >= 128
+    n_fg = int(np.sum(fg))
+    if n_fg == 0:
+        return 0.0
+    return float(np.sum((a == 255) & fg)) / n_fg
+
+
+def _nearest_core_rgb(src_rgb: np.ndarray, core: np.ndarray) -> np.ndarray:
+    _, indices = ndimage.distance_transform_edt(~core, return_distances=True, return_indices=True)
+    return src_rgb[indices[0], indices[1]]
+
+
+def _post_refine_silhouette_and_core(
+    out: np.ndarray,
+    src_rgb: np.ndarray,
+    a6: np.ndarray,
+    a_ab: np.ndarray,
+    alpha_ref: np.ndarray,
+) -> np.ndarray:
+    del a6, a_ab, alpha_ref
+    core = out[:, :, 3] >= 255
+    nearest = _nearest_core_rgb(src_rgb, core)
+    h, w, _ = out.shape
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = int(out[y, x, 0]), int(out[y, x, 1]), int(out[y, x, 2]), int(out[y, x, 3])
+            if a < 178:
+                continue
+            if (r + g + b) / 3 < 245:
+                continue
+            if max(r, g, b) - min(r, g, b) > 40:
+                continue
+            edge = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                    edge = True
+                    break
+                if out[ny, nx, 3] < 32:
+                    edge = True
+                    break
+            if not edge:
+                continue
+            if a >= 255:
+                out[y, x, 3] = 0
+            else:
+                out[y, x, 0:3] = nearest[y, x]
+    return out
 
 
 def variant_combined_6d21_alpha(
@@ -707,7 +761,7 @@ def variant_combined_6d21_alpha(
     slug: str,
     kind: str,
 ) -> tuple[Image.Image, float]:
-    """6d21 alpha shape + guided refine + ML foreground on ab6f source RGB."""
+    """6d21 alpha + guided filter + ML foreground; post core boost + silhouette edge RGB."""
     from pymatting import estimate_foreground_ml
 
     matte = orig_rgb_with_cut_alpha(orig, cut)
@@ -716,12 +770,17 @@ def variant_combined_6d21_alpha(
     src_rgb = np.array(source_rgba.convert("RGB"), dtype=np.uint8)
 
     rel = f"assets/ui/angelina-skins/shipped/{slug}-{kind}.webp"
-    alpha_im = _git_show_shipped_alpha(rel)
+    alpha_im = _git_show_shipped_alpha(ALPHA_SHAPE_REV, rel)
+    ab6f_alpha_im = _git_show_shipped_alpha(AB6FA_REV, rel)
     if alpha_im.size != (w, h):
         alpha_im = alpha_im.resize((w, h), Image.Resampling.LANCZOS)
+    if ab6f_alpha_im.size != (w, h):
+        ab6f_alpha_im = ab6f_alpha_im.resize((w, h), Image.Resampling.LANCZOS)
 
     t0 = time.perf_counter()
-    alpha_f = np.array(alpha_im, dtype=np.float64) / 255.0
+    a6 = np.array(alpha_im, dtype=np.uint8)
+    a_ab = np.array(ab6f_alpha_im, dtype=np.uint8)
+    alpha_f = a6.astype(np.float64) / 255.0
     guide = (
         0.299 * src_rgb[:, :, 0] + 0.587 * src_rgb[:, :, 1] + 0.114 * src_rgb[:, :, 2]
     ) / 255.0
@@ -742,6 +801,20 @@ def variant_combined_6d21_alpha(
     edge = (~interior_core) & (alpha_ref > 1.0 / 255.0)
     out[edge, 0:3] = (np.clip(fg[edge], 0.0, 1.0) * 255.0).astype(np.uint8)
     out[edge, 3] = np.clip(alpha_ref[edge] * 255.0, 0, 255).astype(np.uint8)
+
+    nearest = _nearest_core_rgb(src_rgb, interior_core)
+    r, g, b = out[:, :, 0], out[:, :, 1], out[:, :, 2]
+    lum = (r.astype(np.int32) + g.astype(np.int32) + b.astype(np.int32)) / 3.0
+    chroma = np.maximum(np.maximum(r, g), b) - np.minimum(np.minimum(r, g), b)
+    bright_edge = edge & (out[:, :, 3] < 255) & (lum >= 245) & (chroma <= 40)
+    out[bright_edge, 0:3] = nearest[bright_edge]
+
+    visible = alpha_ref > (1.0 / 255.0)
+    dist_in = ndimage.distance_transform_edt(visible)
+    boost = (a6 >= 250) & (a_ab >= 255) & (alpha_ref >= 0.95) & (dist_in >= 8)
+    out[boost, 0:3] = src_rgb[boost]
+    out[boost, 3] = 255
+
     elapsed = time.perf_counter() - t0
     return Image.fromarray(out, "RGBA"), elapsed
 
@@ -803,8 +876,9 @@ def build_cutout_from_source(orig: Image.Image, skin_id: str) -> Image.Image:
 def write_manifest(skins_out: dict) -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf8"))
     manifest["notes"] = (
-        "Owner t569u approved PNGs. Alpha from 6d214651 shape + guided filter + ML foreground; "
-        "interior RGB locked to Lanczos source. Rebuild: python3 scripts/build-angelina-skin-assets.py"
+        "Owner t569u approved PNGs. Alpha from 6d214651 shape + guided filter; "
+        "core α=255 lock (6d21∩ab6f); edge RGB nearest-core. "
+        "Rebuild: python3 scripts/build-angelina-skin-assets.py"
     )
     for skin_id, data in skins_out.items():
         entry = manifest["skins"][skin_id]
@@ -825,6 +899,79 @@ def write_manifest(skins_out: dict) -> None:
             entry["world"]["interiorRgbSha256"] = data["worldInteriorRgbSha256"]
         entry["world"]["derivative"] = "rembg alpha matte + padded bbox crop + 280px wide WebP"
     MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf8")
+
+
+def _sync_manifest_candidate(skins_out: dict) -> None:
+    write_manifest(skins_out)
+
+
+def _ab6f_shipped_rgba(rel: str) -> np.ndarray:
+    data = subprocess.check_output(
+        ["git", "show", f"{AB6FA_REV}:{rel.replace(chr(92), '/')}"],
+        cwd=ROOT,
+    )
+    return np.array(Image.open(io.BytesIO(data)).convert("RGBA"))
+
+
+def _ab6f_alpha255_baseline() -> dict[str, float]:
+    out: dict[str, float] = {}
+    for skin_id, source_name in SOURCES.items():
+        slug = source_name.replace(".png", "")
+        for kind in ("portrait", "world"):
+            rel = f"assets/ui/angelina-skins/shipped/{slug}-{kind}.webp"
+            out[f"{skin_id}_{kind}"] = _alpha255_share(_ab6f_shipped_rgba(rel))
+    return out
+
+
+def _candidate_alpha255_shares(skins_out: dict) -> dict[str, float]:
+    shares: dict[str, float] = {}
+    for skin_id in ["A", "B", "C"]:
+        for kind in ("portrait", "world"):
+            rel = skins_out[skin_id]["portraitPath" if kind == "portrait" else "worldPath"]
+            arr = np.array(Image.open(ROOT / rel).convert("RGBA"))
+            shares[f"{skin_id}_{kind}"] = _alpha255_share(arr)
+    return shares
+
+
+def _halo_counts_pass(build_report: dict) -> bool:
+    for skin_id in ["A", "B", "C"]:
+        for kind in ("portrait", "world"):
+            slot = build_report["skins"][skin_id][kind]
+            if slot["browser"]["bgOpaqueBand"] > 0 or slot["lanczos"]["bgOpaqueBand"] > 0:
+                return False
+    return True
+
+
+def _run_node_test(script: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["node", str(ROOT / "scripts" / script)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _save_portrait_composites() -> None:
+    proc = _run_node_test("save-angelina-portrait-browser-composites.js")
+    print(proc.stdout or "", end="")
+    if proc.returncode != 0:
+        print(proc.stderr or "", end="")
+
+
+def _restore_with_composites(skins_out: dict, build_report: dict, reason: str) -> None:
+    _sync_manifest_candidate(skins_out)
+    sil = subprocess.run(
+        ["python3", str(ROOT / "scripts/angelina-skin-silhouette-check.py")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    print(sil.stdout or "", end="")
+    build_report["silhouetteDiagnostic"] = {"ok": sil.returncode == 0}
+    _save_portrait_composites()
+    print("BUILD_REPORT", json.dumps(build_report, indent=2))
+    print(reason, flush=True)
+    _restore_ab6fa_assets()
 
 
 def main() -> None:
@@ -848,7 +995,7 @@ def main() -> None:
         port_rgba, port_t = variant_combined_6d21_alpha(
             orig, cut, portrait_variant, slug, "portrait"
         )
-        port_method = "6d21-alpha+guided+ml"
+        port_method = "6d21-alpha+guided+core-nearest"
         port_final = finish_shipped_variant(port_rgba)
         port_alpha_ref, port_alpha_sha, port_alpha_stats = write_alpha_ref(slug, "portrait", port_final)
         port_interior_sha = interior_rgb_sha256(port_final)
@@ -859,7 +1006,7 @@ def main() -> None:
         world_rgba, world_t = variant_combined_6d21_alpha(
             orig, cut, world_variant, slug, "world"
         )
-        world_method = "6d21-alpha+guided+ml"
+        world_method = "6d21-alpha+guided+core-nearest"
         world_final = finish_shipped_variant(world_rgba)
         world_alpha_ref, world_alpha_sha, world_alpha_stats = write_alpha_ref(slug, "world", world_final)
         world_interior_sha = interior_rgb_sha256(world_final)
@@ -913,15 +1060,27 @@ def main() -> None:
             flush=True,
         )
 
-    all_beat = all(build_report["skins"][s]["beatsAb6fa"] for s in ["A", "B", "C"])
-    print("BUILD_REPORT", json.dumps(build_report, indent=2))
-    if not all_beat:
+    ab6f_a255 = _ab6f_alpha255_baseline()
+    cand_a255 = _candidate_alpha255_shares(skins_out)
+    build_report["alpha255Share"] = {"ab6f": ab6f_a255, "candidate": cand_a255}
+    for key in sorted(ab6f_a255.keys()):
         print(
-            "RESTORE ab6fa302: 6d21-alpha combine did not beat ab6fa browser halo on every skin",
+            f"ALPHA255 {key}: candidate={cand_a255[key]:.4f} ab6f={ab6f_a255[key]:.4f}",
             flush=True,
         )
-        _restore_ab6fa_assets()
+
+    all_beat = all(build_report["skins"][s]["beatsAb6fa"] for s in ["A", "B", "C"])
+    halo_ok = _halo_counts_pass(build_report)
+    build_report["haloZeroBadPx"] = halo_ok
+    if not all_beat or not halo_ok:
+        _restore_with_composites(
+            skins_out,
+            build_report,
+            "RESTORE ab6fa302: halo counts did not beat ab6fa and/or non-zero browser/lanczos bad px",
+        )
         return
+
+    _sync_manifest_candidate(skins_out)
 
     sil = subprocess.run(
         ["python3", str(ROOT / "scripts/angelina-skin-silhouette-check.py")],
@@ -929,22 +1088,39 @@ def main() -> None:
         capture_output=True,
         text=True,
     )
-    build_report["silhouetteCheck"] = {
-        "ok": sil.returncode == 0,
-        "stdout": sil.stdout[-4000:] if sil.stdout else "",
-        "stderr": sil.stderr[-2000:] if sil.stderr else "",
-    }
+    print(sil.stdout or "", end="")
+    build_report["silhouetteCheck"] = {"ok": sil.returncode == 0}
+    for line in (sil.stdout or "").splitlines():
+        if "near-white outline halos" in line:
+            print(line, flush=True)
     if sil.returncode != 0:
-        print(sil.stdout or "", end="")
-        print(sil.stderr or "", end="")
-        print(
-            "RESTORE ab6fa302: 6d21-alpha combine beat ab6fa browser halo but failed silhouette gate",
-            flush=True,
-        )
-        _restore_ab6fa_assets()
+        _restore_with_composites(skins_out, build_report, "RESTORE ab6fa302: failed silhouette gate")
         return
 
-    write_manifest(skins_out)
+    alpha_t = _run_node_test("test-angelina-skin-alpha.js")
+    print(alpha_t.stdout or "", end="")
+    if alpha_t.returncode != 0:
+        print(alpha_t.stderr or "", end="")
+        _restore_with_composites(skins_out, build_report, "RESTORE ab6fa302: failed alpha gate")
+        return
+
+    holes_t = _run_node_test("test-angelina-skin-holes.js")
+    print(holes_t.stdout or "", end="")
+    if holes_t.returncode != 0:
+        print(holes_t.stderr or "", end="")
+        _restore_with_composites(skins_out, build_report, "RESTORE ab6fa302: failed holes gate")
+        return
+
+    halo_t = _run_node_test("test-angelina-skin-halo.js")
+    print(halo_t.stdout or "", end="")
+    if halo_t.returncode != 0:
+        print(halo_t.stderr or "", end="")
+        _restore_with_composites(skins_out, build_report, "RESTORE ab6fa302: failed halo gate")
+        return
+
+    build_report["shipDecision"] = "shipped_combine"
+    print("BUILD_REPORT", json.dumps(build_report, indent=2))
+    _save_portrait_composites()
     print(json.dumps(skins_out, indent=2))
 
 
