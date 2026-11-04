@@ -243,11 +243,6 @@ async function saveCompositeCrop(page, baseUrl, relPath, cssW, cssH, bgHex, outP
 
   const haloReport = [];
   for (const id of ["A", "B", "C"]) {
-    const model = manifest.skins[id].rembgModel || "(unset)";
-    console.log(`SKIN ${id} rembgModel=${model}`);
-  }
-
-  for (const id of ["A", "B", "C"]) {
     const sourceRel = manifest.skins[id].source.path;
     for (const kind of ["portrait", "world"]) {
       const slot = manifest.skins[id][kind];
