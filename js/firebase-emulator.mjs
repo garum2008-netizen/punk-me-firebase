@@ -4,8 +4,14 @@ export function connectFirebaseEmulatorsIfRequested(firebase) {
     const q = new URLSearchParams(globalThis.location?.search || "");
     if (!q.has("firebaseEmulator")) return;
     const host = q.get("firebaseEmulatorHost") || "127.0.0.1";
-    const dbPort = parseInt(q.get("firebaseEmulatorDbPort") || "9000", 10);
-    const authPort = parseInt(q.get("firebaseEmulatorAuthPort") || "9099", 10);
+    const dbPortRaw = q.get("firebaseEmulatorDbPort");
+    const authPortRaw = q.get("firebaseEmulatorAuthPort");
+    if (!dbPortRaw || !authPortRaw) {
+      console.warn("firebaseEmulator=1 requires firebaseEmulatorDbPort and firebaseEmulatorAuthPort query params");
+      return;
+    }
+    const dbPort = parseInt(dbPortRaw, 10);
+    const authPort = parseInt(authPortRaw, 10);
     if (firebase?.database) {
       firebase.database().useEmulator(host, dbPort);
     }

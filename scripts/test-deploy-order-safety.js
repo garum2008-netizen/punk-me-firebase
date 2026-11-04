@@ -16,20 +16,15 @@ const {
   assertFirebaseEmulatorTestEnv,
   installProdFirebaseRouteBlock
 } = require("./firebase-test-emulator-guard");
+const { applyFirebaseEmulatorEnv, dbPort, authPort } = require("./firebase-emulator-env");
 
-process.env.FIREBASE_EMULATOR = process.env.FIREBASE_EMULATOR || "1";
-if (!process.env.FIREBASE_DATABASE_EMULATOR_HOST) {
-  process.env.FIREBASE_DATABASE_EMULATOR_HOST = "127.0.0.1:9000";
-}
-if (!process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
-}
+applyFirebaseEmulatorEnv();
 assertFirebaseEmulatorTestEnv();
 
 const PROJECT_ID = process.env.FIREBASE_EMULATOR_PROJECT || "punk-me-40605";
 const DB_NS = `${PROJECT_ID}-default-rtdb`;
 const AUTH_HOST = "127.0.0.1";
-const AUTH_PORT = 9099;
+const AUTH_PORT = authPort;
 
 function fetchJson(url, opts = {}) {
   return new Promise((resolve, reject) => {
@@ -86,11 +81,23 @@ async function waitForHttp(port, timeoutMs = 60000) {
   throw new Error(`static server not ready on :${port}`);
 }
 
+function killProcessGroup(child) {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch (_) {
+    try {
+      child.kill("SIGKILL");
+    } catch (_) {}
+  }
+}
+
 function startServe(dir, port) {
   return new Promise((resolve, reject) => {
     const child = spawn("npx", ["--yes", "serve", "-l", String(port), "."], {
       cwd: dir,
-      stdio: "pipe"
+      stdio: "pipe",
+      detached: true
     });
     child.on("error", reject);
     child.stderr.on("data", d => process.stderr.write(d));
@@ -114,7 +121,7 @@ function patchOldJsForEmulator(worktreeRoot) {
       `db = firebase.database();
     if (new URLSearchParams(location.search).has("firebaseEmulator")) {
       try {
-        firebase.database().useEmulator("127.0.0.1", 9000);
+        firebase.database().useEmulator("127.0.0.1", ${dbPort});
         firebase.auth().useEmulator("http://${AUTH_HOST}:${AUTH_PORT}");
       } catch (e) { console.warn(e); }
     }`
@@ -318,11 +325,7 @@ async function stopEmulator(emu) {
   if (!emu) return;
   await new Promise(resolve => {
     emu.once("exit", () => resolve());
-    try {
-      emu.kill("SIGKILL");
-    } catch (_) {
-      resolve();
-    }
+    killProcessGroup(emu);
     setTimeout(resolve, 15000);
   });
 }
@@ -331,7 +334,8 @@ async function withEmulatorAndRules(snapshot, fn) {
   useSnapshot(snapshot);
   const emu = spawn("npx", ["firebase", "emulators:start", "--only", "auth,database", "--project", PROJECT_ID], {
     cwd: root,
-    stdio: "pipe"
+    stdio: "pipe",
+    detached: true
   });
   let started = false;
   await new Promise((resolve, reject) => {
@@ -389,7 +393,7 @@ async function runPhase(phase) {
         await testNewJsPublicProfilesNonFatal(`http://127.0.0.1:${newJsPort}`);
         await runNode("test-save-gameplay-emulator.js", { PUNK_BASE: `http://127.0.0.1:${newJsPort}` });
       } finally {
-        serve.kill("SIGKILL");
+        killProcessGroup(serve);
       }
     });
     return;
@@ -402,7 +406,7 @@ async function runPhase(phase) {
         await testNewJsPublicProfilesNonFatal(`http://127.0.0.1:${newJsPort}`);
         await runNode("test-save-gameplay-emulator.js", { PUNK_BASE: `http://127.0.0.1:${newJsPort}` });
       } finally {
-        serve.kill("SIGKILL");
+        killProcessGroup(serve);
       }
     });
     return;
@@ -415,7 +419,7 @@ async function runPhase(phase) {
       try {
         await testOldJsGameplayAndOwner(`http://127.0.0.1:${oldJsPort}`);
       } finally {
-        serve.kill("SIGKILL");
+        killProcessGroup(serve);
       }
     });
     return;

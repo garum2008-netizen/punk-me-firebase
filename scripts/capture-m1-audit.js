@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 /** M1 audit after-screenshots (1280×800 + 390×844). Dismisses How-to first. */
 const { chromium } = require("playwright");
 const fs = require("fs");

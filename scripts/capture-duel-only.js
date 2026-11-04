@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
@@ -9,7 +10,8 @@ const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 
 (async () => {
   const browser = await chromium.launch();
-  const desk = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const desk = const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desk);
   await desk.addInitScript(() => {
     try { localStorage.setItem("punkme_howto_seen", "1"); } catch (e) {}
   });

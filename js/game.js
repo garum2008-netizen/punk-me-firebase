@@ -23,8 +23,14 @@ function connectFirebaseEmulatorsIfRequested() {
     const q = new URLSearchParams(location.search);
     if (!q.has("firebaseEmulator")) return;
     const host = q.get("firebaseEmulatorHost") || "127.0.0.1";
-    const dbPort = parseInt(q.get("firebaseEmulatorDbPort") || "9000", 10);
-    const authPort = parseInt(q.get("firebaseEmulatorAuthPort") || "9099", 10);
+    const dbPortRaw = q.get("firebaseEmulatorDbPort");
+    const authPortRaw = q.get("firebaseEmulatorAuthPort");
+    if (!dbPortRaw || !authPortRaw) {
+      console.warn("firebaseEmulator=1 requires firebaseEmulatorDbPort and firebaseEmulatorAuthPort");
+      return;
+    }
+    const dbPort = parseInt(dbPortRaw, 10);
+    const authPort = parseInt(authPortRaw, 10);
     firebase.database().useEmulator(host, dbPort);
     firebase.auth().useEmulator(`http://${host}:${authPort}`);
   } catch (e) {
@@ -45,16 +51,15 @@ function soloMode() {
   }
 }
 
-/** Playwright prod-host sim: no anonymous sign-up or RTDB (see scripts/firebase-test-emulator-guard.js). */
-function isProdHostFirebaseStub() {
-  try {
-    return new URLSearchParams(location.search).get("punkFirebaseStub") === "1";
-  } catch (e) {
-    return false;
-  }
+/** Playwright-only Firebase bypass on localhost QA — never on production game hosts. */
+function playwrightFirebaseStubActive() {
+  if (window.__PUNK_PLAYWRIGHT_FIREBASE_STUB__ !== true) return false;
+  if (window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ === true) return false;
+  if (window.LifeCh1Slice?.isProductionGameHost?.()) return false;
+  return true;
 }
 
-function bootProdHostFirebaseStubSession() {
+function bootPlaywrightFirebaseStubSession() {
   uid = "prod-host-sim-" + Math.random().toString(36).slice(2, 11);
   window.uid = uid;
   isOwner = false;
@@ -887,8 +892,8 @@ function init() {
     if (ver) ver.textContent = GAME_VERSION + "-preview";
     return;
   }
-  if (isProdHostFirebaseStub()) {
-    bootProdHostFirebaseStubSession();
+  if (playwrightFirebaseStubActive()) {
+    bootPlaywrightFirebaseStubSession();
     bindGameShell();
     syncHudDebugVisibility();
     const ver = document.getElementById("gameVersion");

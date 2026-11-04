@@ -151,20 +151,20 @@ export const NPC_PATROL = {
   room: {
     vienna: [
       { x: -2.2, z: 1.2 },
-      { x: -1.2, z: 2.0 },
-      { x: -2.8, z: 0.4 },
+      { x: -0.5, z: 2.5 },
+      { x: 1, z: 0.8 },
       { x: -2.2, z: 1.2 }
     ],
     mohawk: [
       { x: 3.5, z: -1.5 },
-      { x: 2.8, z: -0.4 },
-      { x: 4.2, z: -0.2 },
+      { x: 1.2, z: 2.8 },
+      { x: -1.5, z: 0.5 },
       { x: 3.5, z: -1.5 }
     ],
     cobalt: [
       { x: 0.5, z: -2.2 },
-      { x: -0.8, z: -1.8 },
-      { x: 1.2, z: -1.5 },
+      { x: 2.2, z: 0.5 },
+      { x: -1, z: 1.5 },
       { x: 0.5, z: -2.2 }
     ]
   },
@@ -446,7 +446,7 @@ export function buildLocationScene(locId, texLoader) {
     root.add(desk);
     pushCollider(colliders, 3.2, -1, 0.8, 0.4);
     addSofa(root, -1, 3.2, colliders);
-    addBeanbag(root, -5.2, 4.8);
+    addBeanbag(root, -2.8, 4.2);
     const sign = neonSign("PUNK ME", 0xff00ff);
     sign.position.set(3.8, 2.6, -5.65);
     root.add(sign);

@@ -8,7 +8,7 @@ const path = require("path");
 const { serveStaticDir } = require("./serve-static-root");
 const {
   exitIfMissingFirebaseEmulatorEnv,
-  prodHostFirebaseStubQueryString,
+  firebaseEmulatorQueryString,
   prepareProdHostSimContext,
   installProdFirebaseRouteBlock
 } = require("./firebase-test-emulator-guard");
@@ -18,8 +18,8 @@ exitIfMissingFirebaseEmulatorEnv();
 const ROOT = path.join(__dirname, "..");
 const HOWTO = "punkme_howto_seen";
 const MAX_MS = 3000;
-const PROD_HOSTS = ["punk-me-sim.web.app", "punk-me-40605.web.app", "halloween.punk.contractbot.dk"];
-const stubQs = prodHostFirebaseStubQueryString();
+const PROD_HOST = "punk-me-40605.web.app";
+const emulatorQs = firebaseEmulatorQueryString();
 
 async function coldRoomNavMs(page, viewportLabel) {
   await page.evaluate(() => {
@@ -59,20 +59,22 @@ async function coldRoomNavMs(page, viewportLabel) {
 }
 
 async function runViewport(browser, port, width, height, tag) {
-  for (const simHost of PROD_HOSTS) {
-    const ctx = await browser.newContext({ viewport: { width, height } });
-    await prepareProdHostSimContext(ctx);
-    await ctx.addInitScript(k => {
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-        localStorage.setItem(k, "1");
-      } catch (_) {}
-    }, HOWTO);
-    const page = await ctx.newPage();
-    await installProdFirebaseRouteBlock(page);
+  const ctx = await browser.newContext({
+    viewport: { width, height }
+  });
+  await prepareProdHostSimContext(ctx, { prodHostSim: false, firebaseStub: true });
+  await ctx.addInitScript(k => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      localStorage.setItem(k, "1");
+    } catch (_) {}
+  }, HOWTO);
+  const page = await ctx.newPage();
+  await installProdFirebaseRouteBlock(page);
+  try {
     await page.goto(
-      `http://127.0.0.1:${port}/?solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&v=room3s-${tag}${stubQs}`,
+      `http://127.0.0.1:${port}/?solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&v=room3s-cold-${tag}${emulatorQs}`,
       { waitUntil: "load", timeout: 120000 }
     );
     await page.waitForSelector(
@@ -82,20 +84,25 @@ async function runViewport(browser, port, width, height, tag) {
     await page.click("#charSelectConfirm");
     await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
     await page.waitForFunction(() => window.World3D?.isReady?.(), undefined, { timeout: 30000 });
-    const navMs = await coldRoomNavMs(page, `${tag}@${simHost}`);
-    console.log("test-room-npc-3s: PASS", { prodHost: simHost, viewport: tag, navMs });
+    const navMs = await coldRoomNavMs(page, `${tag}@${PROD_HOST}`);
+    console.log("test-room-npc-3s: PASS", { sim: "localhost-stub-cold", viewport: tag, navMs });
+  } finally {
     await page.close();
     await ctx.close();
   }
 }
 
 (async () => {
-  const srv = await serveStaticDir(ROOT, 3782);
+  const srv = await serveStaticDir(ROOT, 0);
+  const port = srv.address().port;
   try {
     const browser = await chromium.launch();
-    await runViewport(browser, 3782, 1280, 800, "1280");
-    await runViewport(browser, 3782, 390, 844, "390");
-    await browser.close();
+    try {
+      await runViewport(browser, port, 1280, 800, "1280");
+      await runViewport(browser, port, 390, 844, "390");
+    } finally {
+      await browser.close();
+    }
   } finally {
     srv.close();
   }

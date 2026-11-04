@@ -6,7 +6,7 @@ const path = require("path");
 const { chromium } = require("playwright");
 const {
   exitIfMissingFirebaseEmulatorEnv,
-  prodHostFirebaseStubQueryString,
+  firebaseEmulatorQueryString,
   prepareProdHostSimContext,
   installProdFirebaseRouteBlock
 } = require("./firebase-test-emulator-guard");
@@ -15,7 +15,7 @@ exitIfMissingFirebaseEmulatorEnv();
 
 const root = path.join(__dirname, "..");
 const HOWTO = "punkme_howto_seen";
-const stubQs = prodHostFirebaseStubQueryString();
+const emulatorQs = firebaseEmulatorQueryString();
 
 const meshyPunkSrc = fs.readFileSync(path.join(root, "js/world/meshy-punk.mjs"), "utf8");
 if (!meshyPunkSrc.includes('vendor/meshopt_decoder.module.js')) {
@@ -83,7 +83,7 @@ function serveDir(dir, port) {
     });
     await installProdFirebaseRouteBlock(page);
     await page.goto(
-      `http://127.0.0.1:${port}/?solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1${stubQs}`,
+      `http://127.0.0.1:${port}/?solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1${emulatorQs}`,
       { waitUntil: "load", timeout: 120000 }
     );
     await page.waitForSelector(

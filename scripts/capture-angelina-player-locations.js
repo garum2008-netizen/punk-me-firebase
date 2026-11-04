@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 /** Screenshots: Angelina player (1280×800 + kitchen 390×844) + A/B/C asset zoom crops. */
 const path = require("path");
 const fs = require("fs");

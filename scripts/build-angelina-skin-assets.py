@@ -415,46 +415,70 @@ def decontaminate_semi_edge_pixel(
     )
 
 
-def finalize_alpha_matte(cut: Image.Image, orig: Image.Image) -> Image.Image:
+def _alpha_distance_to_clear(px, w: int, h: int) -> list[list[int]]:
+    dist = [[10**9] * w for _ in range(h)]
+    q: deque[tuple[int, int]] = deque()
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] <= 0:
+                dist[y][x] = 0
+                q.append((x, y))
+    while q:
+        x, y = q.popleft()
+        d = dist[y][x]
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            nx, ny = x + dx, y + dy
+            if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                continue
+            if dist[ny][nx] > d + 1:
+                dist[ny][nx] = d + 1
+                q.append((nx, ny))
+    return dist
+
+
+
+def finalize_alpha_matte(cut: Image.Image, orig: Image.Image, *, edge_band_px: int = 3) -> Image.Image:
     """
-    Interior: alpha 255, RGB byte-identical to approved source.
-    Edge semi-transparent pixels only: decontaminate / extend interior hair colour.
+    Interior (> edge_band_px from clear): alpha 255, RGB byte-identical to approved source.
+    Edge band only: keep soft rembg alpha with colour decontamination.
     """
     rgb = orig.convert("RGB")
     out = cut.convert("RGBA")
     px = out.load()
     rpx = rgb.load()
     w, h = out.size
-    edge = [[False] * w for _ in range(h)]
-    for y in range(h):
-        for x in range(w):
-            edge[y][x] = _pixel_is_alpha_edge(px, x, y, w, h)
+    dist = _alpha_distance_to_clear(px, w, h)
 
     for y in range(h):
         for x in range(w):
             sr, sg, sb = rpx[x, y]
-            _r, _g, _b, a = px[x, y]
+            r, g, b, a = px[x, y]
             if a <= 0:
                 continue
-            if not edge[y][x]:
+            if dist[y][x] > edge_band_px:
                 px[x, y] = (sr, sg, sb, 255)
                 continue
-            if a >= 255:
+            if a >= 250:
                 px[x, y] = (sr, sg, sb, 255)
 
     for y in range(h):
         for x in range(w):
-            if not edge[y][x]:
+            if dist[y][x] == 0 or dist[y][x] > edge_band_px:
                 continue
             r, g, b, a = px[x, y]
-            if a <= 0 or a >= 255:
+            if a <= 0:
+                continue
+            sr, sg, sb = rpx[x, y]
+            if a >= 255:
+                px[x, y] = (sr, sg, sb, 255)
                 continue
             near = _nearest_opaque_source_rgb(px, x, y, w, h, rpx)
+            near = _nearest_opaque_source_rgb(px, x, y, w, h, rpx)
             if near:
-                px[x, y] = (near[0], near[1], near[2], a)
+                dr, dg, db, _da = decontaminate_semi_edge_pixel(near[0], near[1], near[2], a, (17, 17, 17))
             else:
-                dr, dg, db, _da = decontaminate_semi_edge_pixel(r, g, b, a, (17, 17, 17))
-                px[x, y] = (dr, dg, db, a)
+                dr, dg, db, _da = decontaminate_semi_edge_pixel(sr, sg, sb, a, (17, 17, 17))
+            px[x, y] = (dr, dg, db, a)
     return out
 
 
@@ -486,7 +510,8 @@ def strip_grey_matte_outline(rgba: Image.Image) -> Image.Image:
 
 
 def postprocess_cutout(skin_id: str, cut: Image.Image, orig: Image.Image) -> Image.Image:
-    del skin_id
+    if skin_id == "C":
+        cut = fill_internal_holes(cut, min_alpha=32)
     return finalize_alpha_matte(cut, orig)
 
 
@@ -598,8 +623,25 @@ def variant_locked(orig: Image.Image, cut: Image.Image, variant_fn) -> Image.Ima
     return finalize_alpha_matte(out, ref.convert("RGB"))
 
 
+def boost_foreground_alpha(cut: Image.Image, orig: Image.Image, min_a: int = 176) -> Image.Image:
+    rgb = orig.convert("RGB")
+    out = cut.convert("RGBA")
+    px = out.load()
+    rpx = rgb.load()
+    w, h = out.size
+    for y in range(h):
+        for x in range(w):
+            sr, sg, sb = rpx[x, y]
+            _r, _g, _b, a = px[x, y]
+            if a >= min_a:
+                px[x, y] = (sr, sg, sb, 255)
+    return out
+
+
 def build_cutout_from_source(orig: Image.Image, skin_id: str) -> Image.Image:
     cut = rembg_alpha_matte(orig)
+    if skin_id == "A":
+        cut = boost_foreground_alpha(cut, orig, min_a=192)
     return postprocess_cutout(skin_id, cut, orig)
 
 

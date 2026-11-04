@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("./firebase-test-emulator-guard");
 const admin = require("firebase-admin");
 const path = require("path");
 const { pathToFileURL } = require("url");

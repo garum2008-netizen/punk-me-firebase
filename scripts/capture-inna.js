@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const out = "/opt/cursor/artifacts";
@@ -70,7 +71,8 @@ async function shot(page, path) {
     });
   };
 
-  const desk = await browser.newPage({ viewport: { width: 1024, height: 576 } });
+  const desk = const page = await browser.newPage({ viewport: { width: 1024, height: 576 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desk);
   track(desk);
   await prepCapture(desk);
   await desk.goto(`${base}/?dev=1&solo=1&v=inna-cap`, { waitUntil: "networkidle", timeout: 120000 });
@@ -154,7 +156,8 @@ async function shot(page, path) {
   files.push(`${out}/mohawk-roof.png`);
   await desk.close();
 
-  const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const mob = const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(mob);
   track(mob);
   await prepCapture(mob);
   await mob.goto(`${base}/?dev=1&solo=1&v=inna-m-cap`, { waitUntil: "networkidle", timeout: 120000 });

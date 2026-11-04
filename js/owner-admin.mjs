@@ -74,12 +74,16 @@ function setUi({ user, denied, admin }) {
   else st.textContent = `${t("owner_welcome")} ${user.email || user.uid}`;
 }
 
-export function initOwnerAdmin() {
+export async function initOwnerAdmin() {
   if (typeof initLanguage === "function") initLanguage();
   if (typeof applyI18nDom === "function") applyI18nDom();
+  const emulatorMode = new URLSearchParams(globalThis.location?.search || "").has("firebaseEmulator");
   if (!window.firebase?.apps?.length) firebase.initializeApp(FIREBASE_CONFIG);
   connectFirebaseEmulatorsIfRequested(firebase);
   const auth = window.firebase.auth();
+  if (emulatorMode && auth.setPersistence) {
+    await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+  }
   const db = window.firebase.database();
 
   document.getElementById("ownerBtnGoogle")?.addEventListener("click", () => onGoogleSignInClick());
@@ -114,4 +118,4 @@ export function initOwnerAdmin() {
   });
 }
 
-initOwnerAdmin();
+initOwnerAdmin().catch(e => console.error("owner-admin boot failed", e));

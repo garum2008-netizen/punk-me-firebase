@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const out = "/opt/cursor/artifacts";
@@ -51,7 +52,8 @@ async function snap(page) {
 (async () => {
   const browser = await chromium.launch();
   const files = [];
-  const desk = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const desk = const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desk);
   await prep(desk);
   await desk.goto(`${base}/?dev=1&solo=1&v=qa13`, { waitUntil: "networkidle", timeout: 120000 });
   await enterGame(desk, "cobalt");
@@ -69,7 +71,8 @@ async function snap(page) {
     await desk.evaluate(() => World3D?.releaseCaptureFrame?.());
   }
 
-  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const mobile = const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(mobile);
   await prep(mobile);
   await mobile.goto(`${base}/?dev=1&solo=1&v=qa13m`, { waitUntil: "networkidle", timeout: 120000 });
   await enterGame(mobile, "cobalt");

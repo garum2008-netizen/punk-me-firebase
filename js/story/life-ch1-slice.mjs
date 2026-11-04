@@ -101,6 +101,7 @@ export function defaultLifeCh1State() {
 export function isProductionGameHost() {
   try {
     if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return false;
+    if (typeof window !== "undefined" && window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ === true) return true;
     const h = location.hostname.toLowerCase();
     if (h === "localhost" || h === "127.0.0.1" || h.endsWith(".localhost")) return false;
     return h.includes("punk.contractbot.dk") || h.endsWith(".web.app");
@@ -113,8 +114,11 @@ export function isProductionGameHost() {
 export function isLifeCh1SliceEnabled() {
   try {
     if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
-    if (isProductionGameHost()) return false;
     const q = new URLSearchParams(location.search);
+    const playwrightProdSim =
+      typeof window !== "undefined" && window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ === true;
+    if (isProductionGameHost() && !playwrightProdSim) return false;
+    if (playwrightProdSim && q.get("lifeCh1E2e") === "1") return true;
     if (q.get("lifeCh1Slice") === "1") return true;
     if (q.get("lifeCh1E2e") === "1") return true;
   } catch (_) {}
@@ -123,8 +127,11 @@ export function isLifeCh1SliceEnabled() {
 
 export function isLifeCh1TestMode() {
   try {
-    if (isProductionGameHost()) return false;
     const q = new URLSearchParams(location.search);
+    const playwrightProdSim =
+      typeof window !== "undefined" && window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ === true;
+    if (isProductionGameHost() && !playwrightProdSim) return false;
+    if (playwrightProdSim && q.get("lifeCh1E2e") === "1") return true;
     if (q.get("lifeCh1E2e") === "1") return true;
     if (q.get("firebaseEmulator") === "1") return true;
   } catch (_) {}

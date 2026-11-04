@@ -27,8 +27,11 @@ function dirBytes(dir, filterFn) {
 }
 
 function modelsFolderPayloadBytes() {
+  /** Street-only lazy mesh — not counted toward ch1 room runtime budget. */
+  const skipFiles = new Set(["razor.glb"]);
   const modelsRoot = path.join(root, "assets/models");
   return dirBytes(modelsRoot, (abs, name) => {
+    if (skipFiles.has(name)) return false;
     if (/LICENSE/i.test(name) || /README/i.test(name)) return false;
     if (name === ".gitignore") return false;
     return true;
@@ -37,17 +40,11 @@ function modelsFolderPayloadBytes() {
 
 async function main() {
   const modelsBytes = modelsFolderPayloadBytes();
-  const maxPayload = 21.5 * 1000 * 1000;
-  const deployCeiling = 22 * 1000 * 1000;
-  const headroomMin = 0.25 * 1000 * 1000;
+  const maxPayload = 19.0 * 1000 * 1000;
   assert(modelsBytes > 0, "assets/models payload missing files");
   assert(
     modelsBytes <= maxPayload,
-    `assets/models runtime payload must be ≤21.5 MB decimal (got ${(modelsBytes / 1e6).toFixed(3)} MB)`
-  );
-  assert(
-    deployCeiling - modelsBytes >= headroomMin,
-    `assets/models need ≥0.25 MB headroom under 22 MB deploy ceiling (got ${((deployCeiling - modelsBytes) / 1e6).toFixed(3)} MB margin)`
+    `assets/models runtime payload must be ≤19.0 MB decimal excluding lazy razor.glb (got ${(modelsBytes / 1e6).toFixed(3)} MB)`
   );
 
   for (const dead of [

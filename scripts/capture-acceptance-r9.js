@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
@@ -33,7 +34,8 @@ fs.mkdirSync(OUT, { recursive: true });
   const prevSrv = await serveStaticDir(DIST, 3776);
   try {
     const browser = await chromium.launch();
-    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const page = const page = await browser.newPage({ viewport: { width: 1280, height: 800 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(page);
     await page.addInitScript(k => {
       try {
         localStorage.setItem(k, "1");

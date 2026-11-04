@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const out = "/opt/cursor/artifacts";
@@ -52,7 +53,8 @@ async function snap(page, useDogCloseup) {
 (async () => {
   const browser = await chromium.launch();
   const files = [];
-  const page = await browser.newPage({ viewport: { width: 1024, height: 576 } });
+  const page = const page = await browser.newPage({ viewport: { width: 1024, height: 576 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(page);
   await prep(page);
   await page.goto(`${base}/?dev=1&solo=1&v=review-v9`, { waitUntil: "networkidle", timeout: 120000 });
   await enter(page);

@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
@@ -55,7 +56,8 @@ async function snapLoc(page, loc) {
 
 (async () => {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const page = const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(page);
   await prep(page);
   await page.goto(`${base}/?dev=1&solo=1&v=run22-v18`, { waitUntil: "networkidle", timeout: 120000 });
   await enter(page);

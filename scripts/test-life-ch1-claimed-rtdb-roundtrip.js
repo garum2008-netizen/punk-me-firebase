@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /** Emulator round-trip: RTDB array-shaped claimedSteps → ensureLifeCh1 s* keys. */
+require("./firebase-test-emulator-guard");
 const { spawn } = require("child_process");
 const path = require("path");
 const { pathToFileURL } = require("url");

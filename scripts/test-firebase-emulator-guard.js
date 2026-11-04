@@ -17,6 +17,8 @@ function assert(cond, msg) {
 }
 
 const saved = { ...process.env };
+const { applyFirebaseEmulatorEnv } = require("./firebase-emulator-env");
+applyFirebaseEmulatorEnv();
 
 try {
   delete process.env.FIREBASE_EMULATOR;
@@ -30,9 +32,7 @@ try {
   }
   assert(threw, "missing FIREBASE_EMULATOR + hosts must throw (no default ports)");
 
-  process.env.FIREBASE_EMULATOR = "1";
-  process.env.FIREBASE_DATABASE_EMULATOR_HOST = "127.0.0.1:9000";
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+  applyFirebaseEmulatorEnv();
   assertFirebaseEmulatorTestEnv();
   assert(firebaseEmulatorQueryString().includes("firebaseEmulator=1"), "emulator query string");
 

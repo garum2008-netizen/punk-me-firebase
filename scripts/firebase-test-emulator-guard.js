@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Playwright / integration tests must never hit production Firebase (punk-me-40605).
- * Emulator mode: require env + ?firebaseEmulator=1 on every navigation.
- * Prod-host sim: ?punkFirebaseStub=1 + route block (no real Firebase I/O).
+ * Emulator mode: require env from firebase.json + ?firebaseEmulator=1 on navigations.
+ * Prod-host static sim: Playwright init flag __PUNK_PLAYWRIGHT_FIREBASE_STUB__ (never a URL param on prod hosts).
  */
 const fs = require("fs");
 const path = require("path");
@@ -10,7 +10,6 @@ const { isProdFirebaseHostname } = require("./firebase-prod-guard");
 
 const PROD_PROJECT_ID = "punk-me-40605";
 const GUARD_MODULE = "firebase-test-emulator-guard";
-const PROD_HOST_STUB_QS = "&punkFirebaseStub=1";
 
 function parseHostPort(envVal) {
   if (!envVal || typeof envVal !== "string") return null;
@@ -33,17 +32,16 @@ function assertLocalEmulatorHost(label, envVal) {
   }
 }
 
-/** Require explicit emulator env before any Playwright launch (no silent defaults). */
 function assertFirebaseEmulatorTestEnv() {
   const flag = process.env.FIREBASE_EMULATOR;
   if (flag !== "1" && flag !== "true") {
     throw new Error("FIREBASE_EMULATOR must be 1 (refusing to default prod or foreign emulator ports)");
   }
   if (!process.env.FIREBASE_DATABASE_EMULATOR_HOST) {
-    throw new Error("FIREBASE_DATABASE_EMULATOR_HOST must be set — no default 9000");
+    throw new Error("FIREBASE_DATABASE_EMULATOR_HOST must be set — use scripts/firebase-emulator-env.js");
   }
   if (!process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-    throw new Error("FIREBASE_AUTH_EMULATOR_HOST must be set — no default 9099");
+    throw new Error("FIREBASE_AUTH_EMULATOR_HOST must be set — use scripts/firebase-emulator-env.js");
   }
 
   assertLocalEmulatorHost("FIREBASE_DATABASE_EMULATOR_HOST", process.env.FIREBASE_DATABASE_EMULATOR_HOST);
@@ -72,11 +70,11 @@ function exitIfMissingFirebaseEmulatorEnv() {
 
 function firebaseEmulatorQueryString() {
   assertFirebaseEmulatorTestEnv();
-  return "&firebaseEmulator=1";
-}
-
-function prodHostFirebaseStubQueryString() {
-  return PROD_HOST_STUB_QS;
+  const { applyFirebaseEmulatorEnv } = require("./firebase-emulator-env");
+  const { dbPort, authPort } = applyFirebaseEmulatorEnv();
+  const dbHost = process.env.FIREBASE_DATABASE_EMULATOR_HOST.split(":")[0] || "127.0.0.1";
+  const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST.split(":")[0] || "127.0.0.1";
+  return `&firebaseEmulator=1&firebaseEmulatorHost=${encodeURIComponent(dbHost)}&firebaseEmulatorDbPort=${dbPort}&firebaseEmulatorAuthPort=${authPort}`;
 }
 
 function isBlockedProdFirebaseUrl(urlStr) {
@@ -92,9 +90,6 @@ function isBlockedProdFirebaseUrl(urlStr) {
   }
 }
 
-/**
- * Abort prod Firebase requests and fail the test (throws on first blocked request).
- */
 async function installProdFirebaseRouteBlock(page) {
   const state = { hit: null };
   page.__punkProdFirebaseBlockState = state;
@@ -121,51 +116,98 @@ async function installProdFirebaseRouteBlock(page) {
   return state;
 }
 
-async function assertNoProdFirebaseBlocked(page) {
-  const url = page.__punkProdFirebaseBlockState?.hit;
-  if (url) {
-    throw new Error(`Production Firebase request was attempted: ${url}`);
+/** Playwright-only: stub Firebase boot on localhost QA (inert on isProductionGameHost()). */
+async function prepareProdHostSimContext(context, opts = {}) {
+  const { prodHostSim = false, firebaseStub = true } = opts;
+  await context.addInitScript(
+    ({ stub, prodSim }) => {
+      if (stub) window.__PUNK_PLAYWRIGHT_FIREBASE_STUB__ = true;
+      if (prodSim) window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ = true;
+    },
+    { stub: firebaseStub, prodSim: prodHostSim }
+  );
+}
+
+const GUARD_EXEMPT = new Set([
+  "firebase-emulator-env.js",
+  "firebase-prod-guard.js",
+  "with-emulator-env.js",
+  "playwright-script-guard.js",
+  "build-preview.js",
+  "build-angelina-skin-assets.py",
+  "smoke-check.js",
+  "validate-rtdb-rules.js",
+  "emulator-rules-swap.js",
+  "emulator-integration-suite.js",
+  "run-emulator-integration.js",
+  "run-rules-emulator.js",
+  "run-life-ch1-e2e.js",
+  "test-deploy-order-phase.js",
+  "serve-static-root.js",
+  "backup-players-export.js",
+  "firebase-cleanup-test-data.js"
+]);
+
+const EXPLICIT_GUARDED_TESTS = new Set([
+  "test-database-rules.js",
+  "test-save-fixtures.js",
+  "test-life-ch1-claimed-rtdb-roundtrip.js",
+  "test-life-ch1-claimed-rtdb-roundtrip-inner.js"
+]);
+
+function scriptNeedsFirebaseGuard(name, src) {
+  if (!name.endsWith(".js")) return false;
+  if (GUARD_EXEMPT.has(name)) return false;
+  if (name.startsWith("test-")) {
+    if (EXPLICIT_GUARDED_TESTS.has(name)) return true;
+    if (/require\s*\(\s*["']playwright["']\s*\)/.test(src) || /chromium\.launch/.test(src)) return true;
+    if (/identitytoolkit\.googleapis\.com|firebasedatabase\.app|firebaseio\.com/.test(src)) return true;
+    if (/firebase-admin|@firebase\/rules-unit-testing/.test(src)) return true;
+    return false;
   }
+  if (/^(capture|verify|proof|qa|debug)-/.test(name)) return true;
+  if (/require\s*\(\s*["']playwright["']\s*\)/.test(src)) return true;
+  if (/chromium\.launch|webkit\.launch|firefox\.launch/.test(src)) return true;
+  if (/identitytoolkit\.googleapis\.com|firebasedatabase\.app|firebaseio\.com/.test(src)) return true;
+  if (/firebase-admin|@firebase\/rules-unit-testing/.test(src)) return true;
+  return false;
 }
 
-/** Prod-host static sim: stub Firebase in-page; block prod URLs on every page. */
-async function prepareProdHostSimContext(context) {
-  await context.addInitScript(() => {
-    window.__PUNK_PROD_HOST_FIREBASE_STUB__ = true;
-  });
-}
-
-function playwrightScriptGuardMarker() {
-  return GUARD_MODULE;
-}
-
-/** Meta-test (d): every scripts/test-*.js that uses Playwright must wire the guard module. */
-function assertAllPlaywrightTestsHaveFirebaseGuard() {
+function assertAllFirebaseGuardedScripts() {
   const scriptsDir = path.join(__dirname);
-  const files = fs.readdirSync(scriptsDir).filter(n => n.startsWith("test-") && n.endsWith(".js"));
   let failed = 0;
-  for (const name of files) {
+  for (const name of fs.readdirSync(scriptsDir)) {
+    if (!name.endsWith(".js")) continue;
     const abs = path.join(scriptsDir, name);
     const src = fs.readFileSync(abs, "utf8");
-    if (!src.includes('require("playwright")') && !src.includes("require('playwright')")) continue;
-    if (!src.includes(GUARD_MODULE)) {
-      console.error(`FAIL: ${name} uses Playwright but does not require ${GUARD_MODULE}`);
+    if (!scriptNeedsFirebaseGuard(name, src)) continue;
+    const hasModule =
+      src.includes(GUARD_MODULE) ||
+      src.includes("playwright-script-guard") ||
+      src.includes("firebase-emulator-env");
+    if (!hasModule) {
+      console.error(`FAIL: scripts/${name} touches Firebase/browser but lacks ${GUARD_MODULE}`);
       failed++;
       continue;
     }
-    const usesEmulator =
-      src.includes("assertFirebaseEmulatorTestEnv") || src.includes("exitIfMissingFirebaseEmulatorEnv");
-    const usesProdStub =
-      src.includes("prepareProdHostSimContext") || src.includes("prodHostFirebaseStubQueryString");
-    if (!usesEmulator && !usesProdStub) {
-      console.error(
-        `FAIL: ${name} must call assertFirebaseEmulatorTestEnv/exitIfMissing… or prepareProdHostSimContext/prodHost stub QS`
-      );
+    const isPlaywright =
+      src.includes('require("playwright")') ||
+      src.includes("require('playwright')") ||
+      /chromium\.launch/.test(src);
+    if (isPlaywright && !src.includes("installProdFirebaseRouteBlock")) {
+      console.error(`FAIL: scripts/${name} must call installProdFirebaseRouteBlock on pages`);
       failed++;
     }
-    if (!src.includes("installProdFirebaseRouteBlock")) {
-      console.error(`FAIL: ${name} must install installProdFirebaseRouteBlock on pages`);
-      failed++;
+    if (name.startsWith("test-") && isPlaywright) {
+      const usesEmulator =
+        src.includes("assertFirebaseEmulatorTestEnv") ||
+        src.includes("exitIfMissingFirebaseEmulatorEnv") ||
+        src.includes("playwright-script-guard");
+      const usesProdSim = src.includes("prepareProdHostSimContext");
+      if (!usesEmulator && !usesProdSim) {
+        console.error(`FAIL: ${name} must use emulator env or prepareProdHostSimContext`);
+        failed++;
+      }
     }
   }
   return failed;
@@ -175,11 +217,9 @@ module.exports = {
   assertFirebaseEmulatorTestEnv,
   exitIfMissingFirebaseEmulatorEnv,
   firebaseEmulatorQueryString,
-  prodHostFirebaseStubQueryString,
   installProdFirebaseRouteBlock,
-  assertNoProdFirebaseBlocked,
   prepareProdHostSimContext,
-  assertAllPlaywrightTestsHaveFirebaseGuard,
-  PROD_PROJECT_ID,
-  PROD_HOST_STUB_QS
+  assertAllFirebaseGuardedScripts,
+  assertAllPlaywrightTestsHaveFirebaseGuard: assertAllFirebaseGuardedScripts,
+  PROD_PROJECT_ID
 };

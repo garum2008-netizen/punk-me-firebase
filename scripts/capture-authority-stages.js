@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
@@ -310,7 +311,8 @@ async function captureStage(page, stage, prefix) {
 (async () => {
   const bust = `auth-cap-${Date.now()}`;
   const browser = await chromium.launch();
-  const desk = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const desk = const page = await browser.newPage({ viewport: { width: 1280, height: 800 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desk);
   await prep(desk);
   await desk.goto(`${base}/?dev=1&solo=1&v=${bust}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enter(desk);
@@ -354,7 +356,8 @@ async function captureStage(page, stage, prefix) {
     process.exit(0);
   }
 
-  const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const mob = const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(mob);
   await prep(mob);
   await mob.goto(`${base}/?dev=1&solo=1&v=${bust}-m`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enter(mob);

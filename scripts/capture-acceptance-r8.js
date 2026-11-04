@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 /** Acceptance screenshots: mobile HUD, hair close-up, room NPCs. */
 const { chromium } = require("playwright");
 const fs = require("fs");

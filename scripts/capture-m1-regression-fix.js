@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 /** Evidence shots after prod regression fixes. */
 const { chromium } = require("playwright");
 const fs = require("fs");

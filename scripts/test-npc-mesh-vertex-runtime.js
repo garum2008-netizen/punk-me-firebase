@@ -6,13 +6,13 @@ const path = require("path");
 const { chromium } = require("playwright");
 const {
   exitIfMissingFirebaseEmulatorEnv,
-  prodHostFirebaseStubQueryString,
+  firebaseEmulatorQueryString,
   prepareProdHostSimContext,
   installProdFirebaseRouteBlock
 } = require("./firebase-test-emulator-guard");
 
 exitIfMissingFirebaseEmulatorEnv();
-const stubQs = prodHostFirebaseStubQueryString();
+const emulatorQs = firebaseEmulatorQueryString();
 
 const root = path.join(__dirname, "..");
 const HOWTO_SEEN_KEY = "punk-howto-seen-v1";
@@ -81,8 +81,8 @@ async function loadExpectedVertCounts(page, base) {
 
 async function bootGame(page, base, preview) {
   const qs = preview
-    ? `lifeCh1E2e=1&npcVert=1${stubQs}`
-    : `solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&npcVert=1${stubQs}`;
+    ? `lifeCh1E2e=1&npcVert=1${emulatorQs}`
+    : `solo=1&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&npcVert=1${emulatorQs}`;
   await page.goto(`${base}/?${qs}`, { waitUntil: "load", timeout: 120000 });
   if (preview) {
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 /** v22r4 polish captures — 3 min cap, one retry per shot. */
 const { chromium } = require("playwright");
 const fs = require("fs");
@@ -201,14 +202,16 @@ async function captureMobileHud(page) {
 
 (async () => {
   const browser = await chromium.launch();
-  const desk = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const desk = const page = await browser.newPage({ viewport: { width: 1280, height: 800 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desk);
   await prep(desk);
   await desk.goto(`${BASE}/?solo=1&v=v22r4`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enterGame(desk);
   await captureAuthority(desk, 4, "desktop", "razor");
   await captureDuel(desk, "desktop");
 
-  const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const mob = const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(mob);
   await prep(mob);
   await mob.goto(`${BASE}/?solo=1&v=v22r4m`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enterGame(mob);

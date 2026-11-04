@@ -8,13 +8,26 @@ const path = require("path");
 const root = path.join(__dirname, "..");
 const project = "punk-me-40605";
 const servePort = process.env.PUNK_PORT || "9876";
+const { applyFirebaseEmulatorEnv } = require("./firebase-emulator-env");
+applyFirebaseEmulatorEnv();
 
 function spawnEmulators() {
   return spawn(
     "npx",
     ["firebase", "emulators:start", "--only", "auth,database", "--project", project],
-    { cwd: root, stdio: "pipe", env: { ...process.env, FIREBASE_EMULATOR_HUB: "" } }
+    { cwd: root, stdio: "pipe", env: { ...process.env, FIREBASE_EMULATOR_HUB: "" }, detached: true }
   );
+}
+
+function killProcessGroup(child) {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch (_) {
+    try {
+      child.kill("SIGKILL");
+    } catch (_) {}
+  }
 }
 
 function waitForLog(proc, needle, timeoutMs = 90000) {
@@ -53,7 +66,8 @@ function startServe() {
   return new Promise((resolve, reject) => {
     const child = spawn("npx", ["--yes", "serve", "-l", servePort, "."], {
       cwd: root,
-      stdio: "pipe"
+      stdio: "pipe",
+      detached: true
     });
     child.on("error", reject);
     setTimeout(() => resolve(child), 3000);
@@ -61,8 +75,6 @@ function startServe() {
 }
 
 (async () => {
-  delete process.env.FIREBASE_DATABASE_EMULATOR_HOST;
-  delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
   const emu = spawnEmulators();
   let serve;
   try {
@@ -75,12 +87,8 @@ function startServe() {
     });
     console.log("run-rules-emulator: all tests PASS");
   } finally {
-    try {
-      serve?.kill("SIGKILL");
-    } catch (_) {}
-    try {
-      emu.kill("SIGKILL");
-    } catch (_) {}
+    killProcessGroup(serve);
+    killProcessGroup(emu);
   }
 })().catch(e => {
   console.error(e);

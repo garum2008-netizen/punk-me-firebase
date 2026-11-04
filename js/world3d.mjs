@@ -705,12 +705,15 @@ function getNpcVisibilitySnapshot() {
 }
 
 async function loadModels() {
-  await loadMeshyTemplateForCharacter("vienna");
+  const playerHero = window.me?.characterId || null;
+  const roomHeroes = ["vienna", "mohawk", "cobalt"];
+  const priority = playerHero
+    ? [...new Set([playerHero, ...roomHeroes])]
+    : roomHeroes;
+  await Promise.all(priority.map(id => loadMeshyTemplateForCharacter(id)));
   modelsReady = true;
   if (pendingSyncData) sync(pendingSyncData);
-  void Promise.all(["mohawk", "cobalt"].map(id => loadMeshyTemplateForCharacter(id)));
   void loadMeshyTemplateForCharacter("razor");
-  if (pendingSyncData) sync(pendingSyncData);
   void loadAllCc0Templates();
   void loadPunkDogTemplate().then(t => {
     punkDogTemplate = t;
