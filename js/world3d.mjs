@@ -1689,9 +1689,19 @@ function sync(data) {
     }
   });
 
-  const heroId = player?.characterId || "vienna";
+  const meshHeroId = player?.characterId || "vienna";
+  const proxyId =
+    (typeof window !== "undefined" && window.LIFE_CH1_PLAYER_MESH_ID) || "life_ch1_proxy";
+  const sliceCutout =
+    typeof window !== "undefined" &&
+    window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() &&
+    window.me?.lifeCh1?.playerCutout !== false;
+  const heroId =
+    sliceCutout && meshHeroId === proxyId
+      ? null
+      : meshHeroId;
   (npcs || []).forEach(n => {
-    if (n.id === heroId) return;
+    if (heroId != null && n.id === heroId) return;
     const id = "npc_" + n.id;
     keep.add(id);
     const a = ensureActor(id, n.characterId || n.id, true);

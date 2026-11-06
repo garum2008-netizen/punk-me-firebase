@@ -114,6 +114,7 @@ export function isProductionGameHost() {
 export function isLifeCh1SliceEnabled() {
   try {
     if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
+    if (typeof window !== "undefined" && window.__PUNK_LIFE_CH1_LOCAL__ === true) return true;
     const q = new URLSearchParams(location.search);
     const playwrightProdSim =
       typeof window !== "undefined" && window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ === true;
@@ -255,6 +256,7 @@ export function applySliceAngelinaPlayerChrome() {
 
 function useLocalOverlay() {
   if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
+  if (typeof window !== "undefined" && window.__PUNK_LIFE_CH1_LOCAL__ === true) return true;
   if (!isLifeCh1TestMode()) return false;
   try {
     return new URLSearchParams(location.search).get("lifeCh1Local") === "1";

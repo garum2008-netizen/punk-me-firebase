@@ -9,8 +9,11 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-ch1-angelina-r9";
+const GAME_VERSION = "living3d-v22r6-ch1-angelina-rc1";
 window.GAME_VERSION = GAME_VERSION;
+/** localStorage full player blob — life-ch1 local release candidate (no cloud RTDB). */
+const LIFE_CH1_LOCAL_PLAYER_KEY = "punkme_lifech1_local_player_v1";
+const LIFE_CH1_LOCAL_DEVICE_KEY = "punkme_lifech1_local_device_id";
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
   new Promise(resolve => {
@@ -105,6 +108,78 @@ function bootPlaywrightFirebaseStubSession() {
 
 function isPreviewBuild() {
   return window.__PUNK_PREVIEW__ === true;
+}
+
+function isLifeCh1LocalSaveBuild() {
+  try {
+    return window.__PUNK_LIFE_CH1_LOCAL__ === true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function lifeCh1LocalRandomId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return "lc1_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function lifeCh1LocalGetDeviceId() {
+  try {
+    let id = localStorage.getItem(LIFE_CH1_LOCAL_DEVICE_KEY);
+    if (!id) {
+      id = "lc1dev_" + lifeCh1LocalRandomId();
+      localStorage.setItem(LIFE_CH1_LOCAL_DEVICE_KEY, id);
+    }
+    return id;
+  } catch (_) {
+    return "lc1_ephemeral";
+  }
+}
+
+function lifeCh1LocalLoadPlayer() {
+  try {
+    const raw = localStorage.getItem(LIFE_CH1_LOCAL_PLAYER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function lifeCh1LocalSavePlayer(payload) {
+  try {
+    localStorage.setItem(LIFE_CH1_LOCAL_PLAYER_KEY, JSON.stringify(payload));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function bootLifeCh1LocalSession() {
+  uid = lifeCh1LocalGetDeviceId();
+  window.uid = uid;
+  isOwner = false;
+  window.isOwner = false;
+  presenceOk = false;
+  window.__punkFirebaseReady = Promise.resolve();
+  window.dispatchEvent(new Event("punkme-firebase-ready"));
+  window.__playerLoaded = false;
+  const saved = lifeCh1LocalLoadPlayer();
+  if (saved) {
+    applyFirebasePlayerSnapshot({
+      exists: () => true,
+      val: () => saved
+    });
+    finishLoadMeFlow();
+    return;
+  }
+  hideLoading();
+  const openSelect = () => {
+    if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
+    else setTimeout(openSelect, 120);
+  };
+  openSelect();
 }
 
 function installPreviewBanner() {
@@ -595,6 +670,16 @@ function migratePlayerFromSave(raw) {
     if (inferred) v.characterId = inferred;
   }
   if (typeof v.characterId === "string" && !v.characterId.trim()) delete v.characterId;
+  if (
+    typeof window !== "undefined" &&
+    v.lifeCh1 &&
+    typeof v.lifeCh1 === "object" &&
+    v.lifeCh1.playerCutout !== false
+  ) {
+    const proxy = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
+    const playable = window.PLAYABLE_CHARACTER_IDS || [];
+    if (playable.includes(v.characterId)) v.characterId = proxy;
+  }
   if (v.story && typeof v.story === "object") {
     if (v.story.quest != null && typeof v.story.quest !== "object") {
       v.story.quest = { activeId: null, step: 0, completed: {} };
@@ -654,6 +739,16 @@ function showLoadingFailure(message, detail) {
   document.getElementById("loadingFreshBtn")?.addEventListener("click", () => startFreshPlayerKeepAccount());
 }
 
+function normalizeSlicePlayerMeshCharacterId() {
+  if (!window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) return;
+  const proxy = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
+  const playable = window.PLAYABLE_CHARACTER_IDS || [];
+  const st = me.lifeCh1;
+  if (st && st.playerCutout !== false && playable.includes(me.characterId)) {
+    me.characterId = proxy;
+  }
+}
+
 function applyFirebasePlayerSnapshot(snap) {
   if (snap.exists()) {
     const v = migratePlayerFromSave(snap.val());
@@ -681,6 +776,7 @@ function applyFirebasePlayerSnapshot(snap) {
   if (!me.characterId) {
     me.characterId = resolveCharacterIdForPlayer(me, { allowAvatarInfer: snap.exists() });
   }
+  normalizeSlicePlayerMeshCharacterId();
   me.level = levelFromXp(me.xp || 0);
   me.lastSeen = Date.now();
   if (window.StoryEngine?.ensureStoryState) window.StoryEngine.ensureStoryState(me);
@@ -857,8 +953,13 @@ function syncStage3D() {
   if (!window.Scene3D) return;
   if (window.World3D?.isMotionProbeActive?.()) return;
   const loc = LOCATIONS[me.location];
-  const heroId = me.characterId || "vienna";
-  const npcData = (loc.npcs || []).filter(nid => nid !== heroId).map((nid, i) => ({
+  const meshHeroId = me.characterId || "vienna";
+  const proxyId = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
+  const sliceCutout =
+    window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() && me.lifeCh1?.playerCutout !== false;
+  const heroId =
+    sliceCutout && meshHeroId === proxyId ? null : meshHeroId;
+  const npcData = (loc.npcs || []).filter(nid => heroId == null || nid !== heroId).map((nid, i) => ({
     id: nid,
     characterId: NPCS[nid]?.visualId || nid,
     img: NPCS[nid]?.img || "imagine_images/77Mdp.jpg",
@@ -899,6 +1000,14 @@ function init() {
     syncHudDebugVisibility();
     const ver = document.getElementById("gameVersion");
     if (ver) ver.textContent = GAME_VERSION + "-preview";
+    return;
+  }
+  if (isLifeCh1LocalSaveBuild()) {
+    bootLifeCh1LocalSession();
+    bindGameShell();
+    syncHudDebugVisibility();
+    const ver = document.getElementById("gameVersion");
+    if (ver) ver.textContent = GAME_VERSION + "-local";
     return;
   }
   if (playwrightFirebaseStubActive()) {
@@ -970,6 +1079,7 @@ function bindGameShell() {
           return;
         }
         saveMe();
+        window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
         syncStage3D();
       },
       onNpcClick: (nid) => openNpcDialog(nid),
@@ -991,10 +1101,10 @@ function bindGameShell() {
         if (LOCATIONS[to]) goLocation(to);
       },
       onReady: () => {
+        window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
         syncStage3D();
         window.PlayV21?.syncCosmetics?.(me);
         window.Onboarding?.syncGuideTarget?.();
-        window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
       },
       onAnimState: (st) => {
         me._animState = st;
@@ -1024,6 +1134,9 @@ function bindGameShell() {
 }
 
 function loadMe() {
+  if (isLifeCh1LocalSaveBuild()) {
+    return;
+  }
   if (!uid || !db) {
     showLoadingFailure(t("loading_boot_error"), "no session");
     return;
@@ -1072,7 +1185,8 @@ function pickCharacterAndContinue(id, sliceSkin) {
     window.LifeCh1Slice.applySliceAngelinaPlayerChrome?.();
   } else if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
   me.characterId = id;
-  writeStoredCharacterId(id);
+  normalizeSlicePlayerMeshCharacterId();
+  writeStoredCharacterId(me.characterId);
   const def = getCharacterDef(id);
   me.avatar = def.poster;
   me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
@@ -1123,8 +1237,8 @@ function continueGameBoot() {
     if (me.dog) dogPos = { ...me.dog };
     else dogPos = { x: me.x - 4, y: me.y + 2 };
     applyHashRoute();
-    syncStage3D();
     window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
+    syncStage3D();
     if (isPreviewBuild()) initPreviewShopModule();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
   } catch (err) {
@@ -1276,6 +1390,16 @@ function hideLoading() {
 }
 
 function saveMe() {
+  if (isLifeCh1LocalSaveBuild()) {
+    if (!window.__playerLoaded) return;
+    const prevLvl = me.level || 1;
+    me.level = levelFromXp(me.xp || 0);
+    if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
+    me.lastSeen = Date.now();
+    lifeCh1LocalSavePlayer(sanitizePlayer(me));
+    window.LifeCh1Slice?.persistLocalOverlay?.();
+    return;
+  }
   if (isPreviewBuild()) {
     if (!window.__playerLoaded) return;
     const prevLvl = me.level || 1;
@@ -1346,15 +1470,15 @@ function sanitizePlayer(p) {
   };
   const lifePayload = window.LifeCh1Slice?.lifeCh1PayloadForSave?.(p);
   if (lifePayload !== undefined) out.lifeCh1 = lifePayload;
-  else if (isPreviewBuild() && p.lifeCh1 != null) out.lifeCh1 = p.lifeCh1;
-  if (isPreviewBuild() && Array.isArray(p.cityBuilds)) {
+  else if ((isPreviewBuild() || isLifeCh1LocalSaveBuild()) && p.lifeCh1 != null) out.lifeCh1 = p.lifeCh1;
+  if ((isPreviewBuild() || isLifeCh1LocalSaveBuild()) && Array.isArray(p.cityBuilds)) {
     out.cityBuilds = sanitizeCityBuildsForSave(p.cityBuilds);
   }
   return out;
 }
 
 function initMultiplayer() {
-  if (isPreviewBuild() || !uid || !db) return;
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild() || !uid || !db) return;
   const probe = db.ref("presence/" + me.location + "/" + uid);
   const probePayload = {
     name: me.name || "Player",
@@ -1374,7 +1498,7 @@ function initMultiplayer() {
 }
 
 function pushPresence() {
-  if (isPreviewBuild() || !db || !uid) return;
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild() || !db || !uid) return;
   if (!window.__playerLoaded) return;
   if (!presenceOk) return;
   const loc = me.location;
@@ -1419,7 +1543,7 @@ function listenPresence() {
     listenPlayersInLocation();
     return;
   }
-  if (isPreviewBuild() || !db) {
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild() || !db) {
     others = {};
     renderPlayers();
     renderPlayersList();
@@ -1460,7 +1584,7 @@ function listenPresence() {
 }
 
 function listenPlayersInLocation() {
-  if (isPreviewBuild() || !db) {
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild() || !db) {
     others = {};
     renderPlayers();
     renderPlayersList();
@@ -1523,7 +1647,7 @@ function localizeChatText(text) {
 }
 
 function listenChat() {
-  if (isPreviewBuild() || !db) return;
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild() || !db) return;
   db.ref("chat").limitToLast(25).on("child_added", s => {
     const m = s.val();
     if (!m) return;
@@ -1536,7 +1660,7 @@ function listenChat() {
 }
 
 function listenBuildings() {
-  if (isPreviewBuild()) {
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild()) {
     loadPreviewBuildings();
     return;
   }
@@ -1589,7 +1713,7 @@ function updateOnlineCount() {
   const inLoc = Object.keys(others).length + 1;
   document.getElementById("onlineCount").textContent = String(inLoc);
   updatePlayersToggleCount();
-  if (isPreviewBuild() || !db) return;
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild() || !db) return;
   if (!presenceOk) return;
   db.ref("presence").once("value").then(s => {
     const global = countLivePresenceTree(s.val());
@@ -1617,14 +1741,15 @@ function goLocation(id, fromHash) {
   if (!fromHash && location.hash !== "#" + id) {
     history.replaceState(null, "", "#" + id);
   }
-  if (!isPreviewBuild() && presenceOk && presenceRef && db) db.ref("presence/" + me.location + "/" + uid).remove().catch(() => {});
+  if (!isPreviewBuild() && !isLifeCh1LocalSaveBuild() && presenceOk && presenceRef && db)
+    db.ref("presence/" + me.location + "/" + uid).remove().catch(() => {});
   me.location = id;
   me.x = 45;
   me.y = 60;
   portalCooldown = Date.now() + 1600;
   window.World3D?.setPortalGrace?.(1600);
   saveMe();
-  if (isPreviewBuild() || !db) {
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild() || !db) {
     others = {};
     renderPlayers();
     renderPlayersList();
@@ -1634,8 +1759,8 @@ function goLocation(id, fromHash) {
   listenBuildings();
   refreshLifeScene();
   renderAll();
-  syncStage3D();
   window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
+  syncStage3D();
   toast(locTitle(id));
   if (pendingJobAction) {
     const act = pendingJobAction;
@@ -1673,6 +1798,7 @@ function onKey(e) {
     me.y = Math.max(20, Math.min(92, me.y));
     saveMe();
     renderPlayers();
+    window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
     syncStage3D();
   }
 }
@@ -1747,6 +1873,7 @@ function renderPlayers() {
   const layer = document.getElementById("entities");
   if (document.body.classList.contains("mode-world3d")) {
     layer.innerHTML = "";
+    window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
     syncStage3D();
     return;
   }
@@ -2149,7 +2276,7 @@ function placeBuildAt(x, y) {
     ts: Date.now()
   };
   const normalized = san?.normalizeCityBuildEntry?.(piece) || piece;
-  if (isPreviewBuild() || !db) {
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild() || !db) {
     me.cityBuilds = sanitizeCityBuildsForSave([...me.cityBuilds, normalized]);
     if (LOCATIONS[me.location]?.buildZone === "city") {
       buildings = me.cityBuilds.map(b => ({ id: b.id, ...b }));
