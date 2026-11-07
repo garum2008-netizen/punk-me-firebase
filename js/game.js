@@ -2363,18 +2363,24 @@ window.startTrainingDuelMohawk = function () {
 function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
   if (window.World3D?.startDuel3D?.(nid || npc.id)) {
-    fight = {
-      npcName: tNpcName(npc.id || nid),
-      npcHp: 100,
-      npcMax: 100,
-      playerHp: 100,
-      playerMax: 100,
-      shield: 0,
-      log: [],
-      _duel3d: true
-    };
-    window._duel3dEnd = win => endFight(win);
-    return;
+    const atk = document.querySelector('[data-testid="duel3d-attack"]');
+    const r = atk?.getBoundingClientRect?.();
+    if (r && r.width > 2 && r.height > 2) {
+      fight = {
+        npcName: tNpcName(npc.id || nid),
+        npcHp: 100,
+        npcMax: 100,
+        playerHp: 100,
+        playerMax: 100,
+        shield: 0,
+        log: [],
+        _duel3d: true
+      };
+      window._duel3dEnd = win => endFight(win);
+      return;
+    }
+    document.getElementById("duel3dHud")?.classList.add("hidden");
+    window.PlayV21?.stopDuel3D?.(false);
   }
   fight = {
     npcName: tNpcName(npc.id || nid),
