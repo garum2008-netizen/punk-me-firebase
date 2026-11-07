@@ -328,7 +328,13 @@ function ensureLifeCh1PlayerSprite(pl) {
   shadow.renderOrder = 7;
   holder.add(shadow);
 
-  const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true, opacity: 0 });
+  const mat = new THREE.SpriteMaterial({
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    alphaTest: 0.12,
+    opacity: 0
+  });
   const sp = new THREE.Sprite(mat);
   sp.renderOrder = 8;
   holder.add(sp);

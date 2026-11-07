@@ -22,6 +22,8 @@ const ROOT = path.join(__dirname, "..");
 const OUT = process.env.PUNK_ICE_OUT || path.join("/opt/cursor/artifacts", "ice-ch1-footage");
 const PORT = Number(process.env.PUNK_PORT || "3463");
 const SHA = spawnSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).stdout.trim();
+const ORDINARY_PASS = Number(process.env.ORDINARY_PASS || "1");
+const INPUT_MODE = process.env.ORDINARY_INPUT || "keyboard";
 
 let t0 = 0;
 const inputLog = [];
@@ -145,11 +147,50 @@ async function focusStage(page) {
   await page.locator("#stage3d").click({ position: { x: 195, y: 300 }, force: true });
 }
 
+async function touchJoystickBurst(page, holdMs = 420) {
+  const joy = page.locator("#touchJoystick");
+  await joy.waitFor({ state: "visible", timeout: 15000 });
+  const box = await joy.boundingBox();
+  if (!box) throw new Error("touchJoystick missing bounding box");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  logInput("touch", "joystick forward burst");
+  await page.touchscreen.tap(cx, cy);
+  await page.evaluate(
+    ({ cx, cy, dy }) => {
+      const joy = document.getElementById("touchJoystick");
+      const knob = document.getElementById("touchJoystickKnob");
+      if (!joy || !knob) return;
+      const down = new PointerEvent("pointerdown", { clientX: cx, clientY: cy, pointerId: 1, bubbles: true });
+      joy.dispatchEvent(down);
+      const move = new PointerEvent("pointermove", {
+        clientX: cx,
+        clientY: cy + dy,
+        pointerId: 1,
+        bubbles: true
+      });
+      joy.dispatchEvent(move);
+    },
+    { cx, cy, dy: -36 }
+  );
+  await page.waitForTimeout(holdMs);
+  await page.evaluate(() => {
+    const joy = document.getElementById("touchJoystick");
+    if (!joy) return;
+    joy.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1, bubbles: true }));
+  });
+  await page.waitForTimeout(120);
+}
+
 async function walkKeys(page, bursts = 6, keyMs = 380) {
   await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, {
     timeout: 120000,
   });
   await focusStage(page);
+  if (INPUT_MODE === "touch") {
+    for (let i = 0; i < bursts; i++) await touchJoystickBurst(page, keyMs);
+    return;
+  }
   const keys = ["w", "w", "a", "w", "d", "w"];
   for (let i = 0; i < bursts; i++) {
     const k = keys[i % keys.length];
@@ -160,6 +201,18 @@ async function walkKeys(page, bursts = 6, keyMs = 380) {
     await page.keyboard.up(k);
     await page.keyboard.up("Shift");
     await page.waitForTimeout(100);
+  }
+}
+
+async function uiPointer(page, selector, detail) {
+  const loc = page.locator(selector).first();
+  await loc.waitFor({ state: "visible", timeout: 30000 });
+  if (INPUT_MODE === "touch") {
+    logInput("touch", detail);
+    await loc.tap();
+  } else {
+    logInput("click", detail);
+    await loc.click({ force: true });
   }
 }
 
@@ -250,13 +303,33 @@ async function completeOnboarding(page) {
       await page.click('#panelBottom button[onclick*="gangModal"]', { force: true });
       await page.waitForSelector("#gangModal.active");
       await page.click('.npc-row[data-npc="razor"]');
-      await page.click('button[onclick*="startNpcFight"]');
-      await page.waitForSelector("#fightOverlay.active", { timeout: 15000 });
-      for (let i = 0; i < 24; i++) {
-        logInput("click", "fightAttack chain");
-        await page.click('button[onclick*="fightAttack"]', { force: true }).catch(() => {});
-        await page.waitForTimeout(280);
-        if (!(await page.locator("#fightOverlay.active").isVisible().catch(() => false))) break;
+      await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
+      logInput("click", "startNpcFight");
+      await page.click('button[onclick*="startNpcFight"]', { force: true });
+      await page.waitForFunction(
+        () => {
+          const duel = document.getElementById("duel3dHud");
+          const overlay = document.getElementById("fightOverlay");
+          return (duel && !duel.classList.contains("hidden")) || overlay?.classList.contains("active");
+        },
+        undefined,
+        { timeout: 20000 }
+      );
+      for (let i = 0; i < 48; i++) {
+        const duelVis = await page.locator("#duel3dHud:not(.hidden)").isVisible().catch(() => false);
+        if (duelVis) {
+          logInput("click", "duel3dAttack");
+          await page.locator('#duel3dHud button[onclick*="duel3dAttack"]').click({ force: true });
+          await page.waitForTimeout(360);
+        } else if (await page.locator("#fightOverlay.active").isVisible().catch(() => false)) {
+          logInput("click", "fightAttack");
+          await page.click('button[onclick*="fightAttack"]', { force: true }).catch(() => {});
+          await page.waitForTimeout(300);
+        } else {
+          const advanced = await page.evaluate(() => (window.me?.onboarding?.step || 0) > 4);
+          if (advanced) break;
+        }
+        if (await page.evaluate(() => (window.me?.onboarding?.step || 0) > 4 || !!window.me?.onboarding?.done)) break;
       }
     } else if (step === 5) {
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
@@ -308,8 +381,13 @@ async function walkInteractCh1(page, tx, tz, radius = 2.85, maxMs = 150000) {
       return true;
     }
     if (dist <= radius) {
-      logInput("keyboard", "E interact");
-      await page.keyboard.press("e");
+      if (INPUT_MODE === "touch") {
+        logInput("touch", "touchInteract");
+        await page.locator("#touchInteract").tap({ timeout: 5000 }).catch(() => {});
+      } else {
+        logInput("keyboard", "E interact");
+        await page.keyboard.press("e");
+      }
       if (await page.locator("#lifeCh1Wardrobe:not([hidden])").isVisible().catch(() => false)) return true;
       if (await page.locator(".life-ch1-choice").first().isVisible().catch(() => false)) return true;
       if (await page.locator("#lifeCh1DlgOk").isVisible().catch(() => false)) return true;
@@ -371,7 +449,23 @@ async function playLifeCh1Ordinary(page) {
   await page.click("#lifeCh1DlgOk");
   await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, { timeout: 25000 });
   logScene("ch1_complete", "lifeCh1.completed=true");
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1200);
+  const shaShort = SHA.slice(0, 12);
+  const passTag = `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
+  await uiOpenMapTravel(page, "street");
+  await page.waitForTimeout(900);
+  await page.screenshot({
+    path: path.join(OUT, `ordinary-street-cutout-${shaShort}-${passTag}.png`),
+    fullPage: false
+  });
+  logScene("visual_street", "outdoor cutout screenshot");
+  await uiOpenMapTravel(page, "cemetery");
+  await page.waitForTimeout(900);
+  await page.screenshot({
+    path: path.join(OUT, `ordinary-cemetery-cutout-${shaShort}-${passTag}.png`),
+    fullPage: false
+  });
+  logScene("visual_cemetery", "cemetery cutout screenshot");
   return true;
 }
 
@@ -383,6 +477,8 @@ async function runOrdinarySession(browser, viewport, label) {
 
   const ctx = await browser.newContext({
     viewport,
+    hasTouch: INPUT_MODE === "touch",
+    isMobile: INPUT_MODE === "touch",
     recordVideo: viewport.width >= 1000 ? { dir: OUT, size: { width: 1280, height: 720 } } : { dir: OUT, size: { width: 390, height: 844 } },
   });
   await ctx.addInitScript(() => {
@@ -426,7 +522,12 @@ async function runOrdinarySession(browser, viewport, label) {
 
   const shaShort = SHA.slice(0, 12);
   const suffix = viewport.width >= 1000 ? "desktop1280x720" : "mobile390x844";
-  const dest = path.join(OUT, `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}.webm`);
+  const passTag = `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
+  const inputTag = INPUT_MODE === "touch" ? "-touch" : "";
+  const dest = path.join(
+    OUT,
+    `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
+  );
   if (vidTmp && fs.existsSync(vidTmp)) {
     fs.copyFileSync(vidTmp, dest);
     try {
@@ -438,6 +539,8 @@ async function runOrdinarySession(browser, viewport, label) {
     label,
     ordinaryEntry: true,
     qaOnly: false,
+    ordinaryPass: ORDINARY_PASS,
+    inputMode: INPUT_MODE,
     entryUrl,
     recordingStartCet,
     recordingEndCet,
@@ -457,8 +560,12 @@ async function runOrdinarySession(browser, viewport, label) {
   const results = [];
   let err = null;
   try {
-    results.push(await runOrdinarySession(browser, { width: 390, height: 844 }, "portrait"));
-    results.push(await runOrdinarySession(browser, { width: 1280, height: 720 }, "desktop"));
+    if (INPUT_MODE === "touch") {
+      results.push(await runOrdinarySession(browser, { width: 390, height: 844 }, "portrait"));
+    } else {
+      results.push(await runOrdinarySession(browser, { width: 390, height: 844 }, "portrait"));
+      results.push(await runOrdinarySession(browser, { width: 1280, height: 720 }, "desktop"));
+    }
   } catch (e) {
     err = e;
     try {
@@ -479,6 +586,8 @@ async function runOrdinarySession(browser, viewport, label) {
     capturedAt: new Date().toISOString(),
     ordinaryPath: true,
     qaOnly: false,
+    ordinaryPass: ORDINARY_PASS,
+    inputMode: INPUT_MODE,
     priorQaRetakePreserved: "/opt/cursor/artifacts/ice-ch1-footage/ice-ch1-ORIGINAL-UNCUT-retake-a9db10e7209b-390x844.webm",
     priorDebugPreserved: "/opt/cursor/artifacts/ice-ch1-footage/ice-ch1-ORIGINAL-UNCUT-session-390x844.webm",
     emulator: {
@@ -491,11 +600,14 @@ async function runOrdinarySession(browser, viewport, label) {
     failure: err ? String(err.message || err) : null,
   };
 
+  const passTag = `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
+  const metaPass = path.join(OUT, `ice-ordinary-footage-metadata-${passTag}.json`);
+  fs.writeFileSync(metaPass, JSON.stringify(report, null, 2));
   fs.writeFileSync(path.join(OUT, "ice-ordinary-footage-metadata.json"), JSON.stringify(report, null, 2));
   fs.writeFileSync(
-    path.join(OUT, `ice-ordinary-input-log-${SHA.slice(0, 12)}.json`),
+    path.join(OUT, `ice-ordinary-input-log-${SHA.slice(0, 12)}-${passTag}.json`),
     JSON.stringify(
-      results.map(r => ({ label: r.label, inputLog: r.inputLog, scenes: r.scenes })),
+      results.map(r => ({ label: r.label, inputLog: r.inputLog, scenes: r.scenes, inputMode: INPUT_MODE })),
       null,
       2
     )
