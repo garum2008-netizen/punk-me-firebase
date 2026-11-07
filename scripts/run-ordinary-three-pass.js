@@ -59,6 +59,18 @@ const outPath = path.join(OUT, `ice-ordinary-three-pass-${SHA.slice(0, 12)}.json
 fs.writeFileSync(outPath, JSON.stringify(summary, null, 2));
 console.log(JSON.stringify(summary, null, 2));
 
+if (summary.success) {
+  process.env.SHA_SHORT = SHA.slice(0, 12);
+  process.env.ORDINARY_PASS = "03";
+  const d = spawnSync("node", ["scripts/export-ordinary-desktop-derivatives.js"], {
+    cwd: ROOT,
+    env: process.env,
+    encoding: "utf8",
+  });
+  summary.desktopDerivatives = d.status === 0 ? "ok" : (d.stderr || "").slice(0, 400);
+  fs.writeFileSync(outPath, JSON.stringify(summary, null, 2));
+}
+
 if (!summary.success) {
   console.error("THREE-PASS ordinary capture FAILED", summary.failure);
   process.exit(1);

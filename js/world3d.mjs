@@ -45,6 +45,7 @@ import { buildHangoutVisual } from "./world/construction-hangout.mjs";
 import { tickStory } from "./story/story-engine.mjs";
 import {
   getInputState,
+  readInputStateSnapshot,
   consumeJump,
   consumeInteract,
   initControls3D
@@ -2116,6 +2117,7 @@ const api = {
     if (!pl) return { x: 0, z: 0, loc: currentLoc };
     return { x: pl.wx ?? 0, z: pl.wz ?? 0, loc: currentLoc };
   },
+  readInputState: () => readInputStateSnapshot(),
   setPlayerWorldPosition: (wx, wz) => {
     if (!isLifeCh1E2eTeleportEnabled()) return false;
     const pl = actors.get("player");

@@ -430,6 +430,7 @@ function startDuel3D(nid, opts = {}) {
     dodgeT: 0
   };
   document.getElementById("fightOverlay")?.classList.remove("active");
+  document.querySelectorAll(".modal.active").forEach(el => el.classList.remove("active"));
   document.getElementById("duel3dHud")?.classList.remove("hidden");
   document.getElementById("duel3dResult")?.classList.add("hidden");
   return true;

@@ -130,11 +130,14 @@ function restartEmulators(emu) {
 
 (async () => {
   validateRules();
-  let emu = spawnEmulators();
+  const useExisting =
+    process.env.LIFE_CH1_E2E_USE_EXISTING_EMULATOR === "1" && process.env.FIREBASE_DATABASE_EMULATOR_HOST;
+  let emu = useExisting ? null : spawnEmulators();
   let serve;
   const exitCodes = [];
   try {
-    await waitReady(emu);
+    if (!useExisting) await waitReady(emu);
+    else console.log("life-ch1-e2e: using existing emulator", process.env.FIREBASE_DATABASE_EMULATOR_HOST);
     serve = await startServe();
     for (let i = 1; i <= runCount; i++) {
       console.log(`\n=== life-ch1-e2e run ${i}/${runCount} ===\n`);
@@ -144,7 +147,7 @@ function restartEmulators(emu) {
       if (code !== 0) {
         throw new Error(`run ${i} failed with exit ${code}`);
       }
-      if (i < runCount) {
+      if (i < runCount && !useExisting) {
         emu = restartEmulators(emu);
         await waitReady(emu);
       }
@@ -152,13 +155,13 @@ function restartEmulators(emu) {
     console.log(`\nlife-ch1-e2e: ${runCount}/${runCount} PASS`);
     console.log("life-ch1-e2e exit codes:", exitCodes.join(", "));
     stopChild(serve);
-    stopChild(emu);
+    if (emu) stopChild(emu);
     process.exit(0);
   } catch (e) {
     console.error(e.message || e);
     console.log("life-ch1-e2e exit codes:", exitCodes.join(", ") || "(none completed)");
     stopChild(serve);
-    stopChild(emu);
+    if (emu) stopChild(emu);
     process.exit(1);
   }
 })();

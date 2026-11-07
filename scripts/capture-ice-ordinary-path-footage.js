@@ -125,16 +125,57 @@ async function dismissHowTo(page) {
   }
 }
 
-async function waitReadableDialog(page, minMs = 2400) {
-  const len = await page
-    .locator(".life-ch1-dialog-text p, #storyDialog .story-dialog-body p")
-    .first()
-    .textContent()
-    .then(t => (t || "").trim().length)
-    .catch(() => 48);
-  const ms = Math.min(9000, Math.max(minMs, Math.round(len * 42)));
+async function waitReadableDialog(page, minMs = 900) {
+  const line = page.locator(".life-ch1-dialog-text p, #storyDialog .story-dialog-body p").first();
+  if (!(await line.isVisible({ timeout: 2000 }).catch(() => false))) return;
+  const len = await line.textContent().then(t => (t || "").trim().length).catch(() => 40);
+  const ms = Math.min(4000, Math.max(minMs, Math.round(len * 32)));
   logInput("wait_read", `dialog ${ms}ms len=${len}`);
   await page.waitForTimeout(ms);
+}
+
+async function visibleUiClick(page, target, detail) {
+  const loc = typeof target === "string" ? page.locator(target).first() : target.first();
+  await loc.waitFor({ state: "visible", timeout: 30000 });
+  await loc.scrollIntoViewIfNeeded();
+  const box = await loc.boundingBox();
+  if (!box || box.width < 2 || box.height < 2) {
+    throw new Error(`visibleUiClick: not hittable — ${detail}`);
+  }
+  const topEl = await page.evaluate(
+    ({ cx, cy }) => {
+      const hit = document.elementFromPoint(cx, cy);
+      return hit ? `${hit.tagName}${hit.id ? "#" + hit.id : ""}` : "none";
+    },
+    { cx: box.x + box.width / 2, cy: box.y + box.height / 2 }
+  );
+  logInput("ui_click", `${detail} @${Math.round(box.x)},${Math.round(box.y)} hit=${topEl}`);
+  await loc.click({ timeout: 15000 });
+}
+
+async function pickVisibleLifeCh1Choice(page) {
+  const choices = page.locator(".life-ch1-choice");
+  const n = await choices.count();
+  for (let i = 0; i < n; i++) {
+    const c = choices.nth(i);
+    if (await c.isVisible()) {
+      const label = ((await c.textContent()) || "").trim().slice(0, 72);
+      await visibleUiClick(page, c, `life-ch1 choice: ${label}`);
+      return label;
+    }
+  }
+  throw new Error("no visible life-ch1 choice");
+}
+
+async function nearWorldPoint(page, tx, tz, radius = 2.85) {
+  return page.evaluate(
+    ({ tx, tz, radius }) => {
+      const pos = window.World3D?.getPlayerWorldPosition?.();
+      if (!pos) return 999;
+      return Math.hypot(tx - pos.x, tz - pos.z);
+    },
+    { tx, tz, radius }
+  );
 }
 
 async function focusStage(page) {
@@ -144,7 +185,7 @@ async function focusStage(page) {
     logInput("click", "lifeCh1WardrobeClose");
     await page.click("#lifeCh1WardrobeClose").catch(() => {});
   }
-  await page.locator("#stage3d").click({ position: { x: 195, y: 300 }, force: true });
+  await visibleUiClick(page, "#stage3d", "#stage3d focus");
 }
 
 async function touchJoystickBurst(page, holdMs = 520) {
@@ -152,15 +193,41 @@ async function touchJoystickBurst(page, holdMs = 520) {
   await joy.waitFor({ state: "visible", timeout: 15000 });
   const box = await joy.boundingBox();
   if (!box) throw new Error("touchJoystick missing bounding box");
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
-  logInput("touch", "joystick forward burst (pointer)");
-  await page.mouse.move(cx, cy);
-  await page.mouse.down();
-  await page.mouse.move(cx, cy - 40, { steps: 10 });
-  await page.waitForTimeout(holdMs);
-  await page.mouse.up();
-  await page.waitForTimeout(140);
+  logInput("touch", "joystick hold forward");
+  await page.evaluate(async ({ dy, holdMs }) => {
+    const joy = document.getElementById("touchJoystick");
+    if (!joy) return;
+    const r = joy.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const pid = 2;
+    joy.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        clientX: x,
+        clientY: y,
+        pointerId: pid,
+        pointerType: "touch",
+        isPrimary: true
+      })
+    );
+    const frames = Math.max(4, Math.round(holdMs / 70));
+    for (let i = 0; i < frames; i++) {
+      const t = (i + 1) / frames;
+      joy.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          clientX: x,
+          clientY: y + dy * t,
+          pointerId: pid,
+          pointerType: "touch"
+        })
+      );
+      await new Promise(r => setTimeout(r, 70));
+    }
+    joy.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: pid, pointerType: "touch" }));
+  }, { dy: -42, holdMs });
+  await page.waitForTimeout(90);
 }
 
 async function walkKeys(page, bursts = 6, keyMs = 380) {
@@ -185,24 +252,11 @@ async function walkKeys(page, bursts = 6, keyMs = 380) {
   }
 }
 
-async function uiPointer(page, selector, detail) {
-  const loc = page.locator(selector).first();
-  await loc.waitFor({ state: "visible", timeout: 30000 });
-  if (INPUT_MODE === "touch") {
-    logInput("touch", detail);
-    await loc.tap();
-  } else {
-    logInput("click", detail);
-    await loc.click({ force: true });
-  }
-}
-
 async function uiOpenMapTravel(page, locId) {
-  logInput("click", `mapModal travel → ${locId}`);
-  await page.click('#panelBottom button[onclick*="mapModal"]', { force: true });
+  await visibleUiClick(page, '#panelBottom button[onclick*="mapModal"]', `map open → ${locId}`);
   await page.waitForSelector("#mapModal.active", { timeout: 15000 });
   const goBtn = page.locator(`#mapGrid button[onclick*="goLocation('${locId}')"]`).first();
-  await goBtn.click({ force: true });
+  await visibleUiClick(page, goBtn, `map travel → ${locId}`);
   await page.waitForFunction(id => window.me?.location === id, locId, { timeout: 45000 });
 }
 
@@ -253,10 +307,9 @@ async function completeOnboarding(page) {
       });
     } else if (step === 2) {
       if (st.location !== "street") await uiOpenMapTravel(page, "street");
-      logInput("click", "gang → razor talk");
-      await page.click('#panelBottom button[onclick*="gangModal"]', { force: true });
+      await visibleUiClick(page, '#panelBottom button[onclick*="gangModal"]', "gang → razor talk");
       await page.waitForSelector("#gangModal.active");
-      await page.click('.npc-row[data-npc="razor"]');
+      await visibleUiClick(page, '.npc-row[data-npc="razor"]', "gang razor row");
       await page.waitForTimeout(600);
       const storyDlg = page.locator("#storyDialog:not([hidden]), .story-dialog-overlay.active");
       if (await storyDlg.isVisible().catch(() => false)) {
@@ -264,7 +317,7 @@ async function completeOnboarding(page) {
         for (let i = 0; i < 8; i++) {
           const ok = page.locator('#storyDialog button, .story-dialog-choices button, [data-testid="story-dialog-ok"]');
           if (await ok.first().isVisible().catch(() => false)) {
-            await ok.first().click({ force: true });
+            await visibleUiClick(page, ok.first(), "story dialog button");
             await page.waitForTimeout(500);
           } else break;
         }
@@ -280,13 +333,11 @@ async function completeOnboarding(page) {
       });
     } else if (step === 4) {
       if (st.location !== "street") await uiOpenMapTravel(page, "street");
-      logInput("click", "gang → razor fight");
-      await page.click('#panelBottom button[onclick*="gangModal"]', { force: true });
+      await visibleUiClick(page, '#panelBottom button[onclick*="gangModal"]', "gang → razor fight");
       await page.waitForSelector("#gangModal.active");
-      await page.click('.npc-row[data-npc="razor"]');
+      await visibleUiClick(page, '.npc-row[data-npc="razor"]', "gang razor row (fight)");
       await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
-      logInput("click", "startNpcFight");
-      await page.click('button[onclick*="startNpcFight"]', { force: true });
+      await visibleUiClick(page, 'button[onclick*="startNpcFight"]', "startNpcFight");
       await page.waitForFunction(
         () => {
           const duel = document.getElementById("duel3dHud");
@@ -296,21 +347,16 @@ async function completeOnboarding(page) {
         undefined,
         { timeout: 20000 }
       );
+      await page.waitForFunction(() => !document.getElementById("gangModal")?.classList.contains("active"), undefined, {
+        timeout: 8000,
+      });
       for (let i = 0; i < 48; i++) {
         const duelVis = await page.locator("#duel3dHud:not(.hidden)").isVisible().catch(() => false);
         if (duelVis) {
-          logInput("click", "duel3dAttack");
-          await page
-            .locator('#duel3dHud button[onclick*="duel3dAttack"]')
-            .click({ force: true, timeout: 8000 })
-            .catch(async () => {
-              logInput("click", "duel3dAttack fallback chainBtn");
-              await page.locator("#duel3dHud .btn.danger").first().click({ force: true, timeout: 5000 });
-            });
+          await visibleUiClick(page, '[data-testid="duel3d-attack"]', "duel3dAttack");
           await page.waitForTimeout(360);
         } else if (await page.locator("#fightOverlay.active").isVisible().catch(() => false)) {
-          logInput("click", "fightAttack");
-          await page.click('button[onclick*="fightAttack"]', { force: true }).catch(() => {});
+          await visibleUiClick(page, 'button[onclick*="fightAttack"]', "fightAttack");
           await page.waitForTimeout(300);
         } else {
           const advanced = await page.evaluate(() => (window.me?.onboarding?.step || 0) > 4);
@@ -320,11 +366,9 @@ async function completeOnboarding(page) {
       }
     } else if (step === 5) {
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
-      logInput("click", "shop buy");
-      await page.click('#panelBottom button[onclick*="shopModal"]', { force: true });
+      await visibleUiClick(page, '#panelBottom button[onclick*="shopModal"]', "shop open");
       await page.waitForSelector("#shopModal.active");
-      const buy = page.locator('#shopModal button[onclick*="buyItem"]').first();
-      await buy.click({ force: true });
+      await visibleUiClick(page, '#shopModal button[onclick*="buyItem"]', "shop buy");
       await page.waitForTimeout(600);
       await page.click("#shopModal .close").catch(() => {});
     }
@@ -345,7 +389,7 @@ async function completeOnboarding(page) {
   throw new Error(`onboarding timeout at step=${final.onboardingStep} shot=${failShot}`);
 }
 
-async function walkInteractCh1(page, tx, tz, radius = 2.85, maxMs = 150000) {
+async function walkInteractCh1(page, tx, tz, radius = 2.85, maxMs = 38000) {
   await dismissHowTo(page);
   await focusStage(page);
   const start = Date.now();
@@ -414,40 +458,40 @@ async function playLifeCh1Ordinary(page) {
   logScene("ch1_mirror", "wardrobe interact");
   await page.waitForSelector("#lifeCh1Wardrobe:not([hidden])", { timeout: 15000 });
   await waitReadableDialog(page, 1800);
-  logInput("click", "skin B");
-  await page.click('[data-testid="life-ch1-skin-B"]');
-  logInput("click", "outfit calm");
-  await page.click(".life-ch1-outfit-pick >> nth=0");
-  await waitReadableDialog(page, 1600);
-  logInput("click", "wardrobe confirm");
-  await page.click("#lifeCh1WardrobeConfirm");
+  await visibleUiClick(page, '[data-testid="life-ch1-skin-B"]', "skin B");
+  await visibleUiClick(page, ".life-ch1-outfit-pick >> nth=0", "outfit first visible");
+  await waitReadableDialog(page, 900);
+  await visibleUiClick(page, "#lifeCh1WardrobeConfirm", "wardrobe confirm");
   await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 2, undefined, { timeout: 20000 });
 
-  await walkInteractCh1(page, 2.5, -1.8);
+  if ((await nearWorldPoint(page, 2.5, -1.8)) > 2.85) {
+    await walkInteractCh1(page, 2.5, -1.8);
+  }
   await page.waitForSelector(".life-ch1-choice", { timeout: 20000 });
-  await waitReadableDialog(page, 3200);
-  logInput("click", "trust choice 2");
-  await page.click(".life-ch1-choice >> nth=1");
+  await waitReadableDialog(page, 1100);
+  await pickVisibleLifeCh1Choice(page);
 
-  await walkInteractCh1(page, 2.5, -1.8);
+  if ((await nearWorldPoint(page, 2.5, -1.8)) > 1.2) {
+    await walkInteractCh1(page, 2.5, -1.8, 2.85, 20000);
+  }
   await page.waitForSelector("#lifeCh1DlgOk", { timeout: 20000 });
-  await waitReadableDialog(page, 3500);
-  logInput("click", "reflect OK");
-  await page.click("#lifeCh1DlgOk");
+  await waitReadableDialog(page, 1200);
+  await visibleUiClick(page, "#lifeCh1DlgOk", "reflect OK");
   await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, { timeout: 25000 });
   logScene("ch1_complete", "lifeCh1.completed=true");
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(400);
   const shaShort = SHA.slice(0, 12);
   const passTag = `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
   await uiOpenMapTravel(page, "street");
-  await page.waitForTimeout(900);
+  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 20000 });
+  await page.waitForTimeout(280);
   await page.screenshot({
     path: path.join(OUT, `ordinary-street-cutout-${shaShort}-${passTag}.png`),
     fullPage: false
   });
   logScene("visual_street", "outdoor cutout screenshot");
   await uiOpenMapTravel(page, "cemetery");
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(280);
   await page.screenshot({
     path: path.join(OUT, `ordinary-cemetery-cutout-${shaShort}-${passTag}.png`),
     fullPage: false
@@ -515,6 +559,7 @@ async function runOrdinarySession(browser, viewport, label) {
 
   logInput("navigation", entryUrl);
   await page.goto(entryUrl, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.bringToFront();
   await dismissHowTo(page);
   await pickAngelina(page);
   await dismissHowTo(page);

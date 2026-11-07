@@ -865,11 +865,15 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   border: 1px solid rgba(0,255,255,0.25); background: rgba(8,12,24,0.85);
 }
 .daily-row { margin: 2px 0; }
-.duel-3d-hud { position: absolute; inset: 0; z-index: 35; pointer-events: none; }
+.duel-3d-hud {
+  position: absolute; inset: 0; z-index: 48; pointer-events: none;
+}
 .duel-3d-hud .duel-3d-actions {
   pointer-events: auto; position: absolute; bottom: calc(var(--dock-h, 168px) + 12px); left: 50%;
-  transform: translateX(-50%); display: flex; gap: 8px;
+  transform: translateX(-50%); display: flex; gap: 8px; z-index: 2;
+  padding: 4px 6px; border-radius: 12px; background: rgba(8, 6, 18, 0.55);
 }
+.duel-3d-hud .duel-3d-actions .btn { pointer-events: auto; min-height: 44px; min-width: 56px; }
 .duel-3d-hud .bar {
   position: absolute; width: 64px; height: 6px; background: #331111; border-radius: 4px;
   transform: translate(-50%, -100%); overflow: hidden;
