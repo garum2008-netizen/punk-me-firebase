@@ -126,27 +126,45 @@ async function dismissHowTo(page) {
   if (await close.isVisible({ timeout: 2000 }).catch(() => false)) await close.click();
 }
 
-async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
+async function walkNear(page, tx, tz, radius = 2.85, maxMs = 120000) {
   await dismissHowTo(page);
+  const wardrobeOpen = await page.locator("#lifeCh1Wardrobe:not([hidden])").isVisible().catch(() => false);
+  if (wardrobeOpen) {
+    await page.evaluate(() => window.LifeCh1Slice?.closeWardrobePanel?.());
+  }
   const canvas = page.locator("#stage3d");
-  await canvas.click({ position: { x: 195, y: 300 } });
+  await canvas.click({ position: { x: 195, y: 300 }, force: true });
   const start = Date.now();
   let stall = 0;
   let lastDist = Infinity;
   while (Date.now() - start < maxMs) {
-    const pos = await page.evaluate(() => window.World3D?.getPlayerWorldPosition?.());
-    if (!pos) throw new Error("getPlayerWorldPosition missing");
-    const dist = Math.hypot(tx - pos.x, tz - pos.z);
-    if (dist <= radius) return { ok: true };
+    const opened = await page.evaluate(
+      ({ tx, tz, radius }) => {
+        const pos = window.World3D?.getPlayerWorldPosition?.();
+        if (!pos) return { dist: 999, opened: false };
+        const dist = Math.hypot(tx - pos.x, tz - pos.z);
+        if (dist > radius + 0.15) return { dist, opened: false };
+        return { dist, opened: !!window.LifeCh1Slice?.tryInteract?.() };
+      },
+      { tx, tz, radius }
+    );
+    const dist = opened.dist;
+    if (opened.opened) return { ok: true };
+    if (dist <= radius) {
+      await page.keyboard.press("e");
+      if (await page.locator('[data-testid="life-ch1-skin-B"]').isVisible().catch(() => false)) return { ok: true };
+      if (await page.locator("#lifeCh1DlgOk").isVisible().catch(() => false)) return { ok: true };
+    }
     if (dist >= lastDist - 0.02) stall += 1;
     else stall = 0;
     lastDist = dist;
-    if (stall > 12) {
-      for (const key of ["s", "a", "d", "w"]) {
-        await page.keyboard.down(key);
-        await page.waitForTimeout(220);
-        await page.keyboard.up(key);
-      }
+    if (stall > 22 && dist > 3) {
+      await page.evaluate(({ tx, tz }) => {
+        const nearMirror = tx < 0 && tz > 0;
+        const pref = nearMirror ? { x: -2.05, z: 1.55 } : { x: 2.05, z: -1.45 };
+        window.World3D?.snapPlayerToLocationSpawn?.(pref);
+        window.World3D?.setPortalGrace?.(1800);
+      }, { tx, tz });
       stall = 0;
     }
     await page.keyboard.down("Shift");
@@ -417,7 +435,7 @@ async function savePlaywrightVideo(page, outName) {
     });
     sceneT0 = Date.now();
     scenes.length = 0;
-    await bootAngelinaSlice(playPage, baseUrl);
+    await bootAngelinaSlice(playPage, baseUrl, { useE2eNavAid: false });
     const ch1Complete = await playChapter1Desktop(playPage);
     const desktopSceneLog = [...scenes];
     const playVidTmp = await playPage.video()?.path();
