@@ -143,11 +143,17 @@ function isLifeCh1SpriteAttachedToPlayer(sp, pl) {
   return false;
 }
 
+function lifeCh1CutoutLocScale() {
+  if (currentLoc === "room" || currentLoc === "kitchen") return 1;
+  if (currentLoc === "elevator") return 0.92;
+  return 0.62;
+}
+
 function layoutLifeCh1PlayerSprite(sp, tex) {
   if (!sp) return;
   const img = tex?.image;
-  const h = 1.78;
-  let w = 1.05;
+  let h = 1.78 * lifeCh1CutoutLocScale();
+  let w = 1.05 * lifeCh1CutoutLocScale();
   if (img?.width && img?.height) w = h * (img.width / img.height);
   sp.scale.set(w, h, 1);
   sp.position.set(0, h * 0.5, 0);
@@ -161,6 +167,10 @@ function layoutLifeCh1PlayerSprite(sp, tex) {
 function tickLifeCh1PlayerSpritePlacement(pl) {
   const holder = lifeCh1PlayerSkin.holder;
   if (!holder || !pl?.isPlayer) return;
+  const sp = lifeCh1PlayerSkin.sprite;
+  if (sp?.material?.map) {
+    layoutLifeCh1PlayerSprite(sp, sp.material.map);
+  }
   if (currentLoc === "kitchen") {
     if (mobileQuality) {
       holder.position.set(0, 0.08, -0.42);

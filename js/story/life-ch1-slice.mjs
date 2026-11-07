@@ -788,7 +788,6 @@ function openWardrobePanel() {
     defBtn.hidden = true;
   }
   updateWardrobeConfirmState();
-  syncPlayerLifeCh1Skin();
   return true;
 }
 

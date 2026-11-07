@@ -454,7 +454,8 @@ async function savePlaywrightVideo(page, outName) {
 
     recordings.push({
       role: "original_uncut_session",
-      note: "Single continuous Playwright session at final SHA; no E2E teleport; prior DEBUG uncut preserved separately",
+      note: "QA HARNESS ONLY — onboarding.done shortcut, lifeCh1Slice=1 URL, evaluate(goLocation) post-chapter; NOT ordinary entry",
+      qaOnly: true,
       recordingStartCet,
       recordingEndCet,
       recordingStartUtc: recordingStartUtc.toISOString(),
