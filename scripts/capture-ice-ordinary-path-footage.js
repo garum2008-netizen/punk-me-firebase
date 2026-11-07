@@ -170,12 +170,9 @@ async function uiOpenMapTravel(page, locId) {
 async function pickAngelina(page) {
   await page.waitForSelector("#charSelect.active", { timeout: 120000 });
   logInput("click", "char select Angelina");
-  const angelina = page.locator('[data-testid="char-select-angelina"]');
-  if (await angelina.isVisible().catch(() => false)) {
-    await angelina.click();
-  } else {
-    await page.click(".char-portrait-pick >> nth=0");
-  }
+  await page.waitForSelector('[data-testid="char-select-angelina"]', { timeout: 120000 });
+  await page.waitForSelector("#charSelectPortraits .char-portrait-pick", { timeout: 120000 });
+  await page.click("#charSelectPortraits .char-portrait-pick >> nth=0");
   await page.click("#charSelectConfirm");
   await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
 }
