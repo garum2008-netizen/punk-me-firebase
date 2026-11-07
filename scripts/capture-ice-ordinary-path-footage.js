@@ -351,12 +351,15 @@ async function completeOnboarding(page) {
         timeout: 8000,
       });
       for (let i = 0; i < 48; i++) {
-        const duelVis = await page.locator("#duel3dHud:not(.hidden)").isVisible().catch(() => false);
-        if (duelVis) {
-          await visibleUiClick(page, '[data-testid="duel3d-attack"]', "duel3dAttack");
+        const btn3d = page.locator('#duel3dHud:not(.hidden) [data-testid="duel3d-attack"]');
+        const box3 = await btn3d.boundingBox().catch(() => null);
+        const overlay2d = page.locator("#fightOverlay.active");
+        const overlayOpen = await overlay2d.isVisible().catch(() => false);
+        if (box3 && box3.width > 2 && box3.height > 2) {
+          await visibleUiClick(page, btn3d, "duel3dAttack");
           await page.waitForTimeout(360);
-        } else if (await page.locator("#fightOverlay.active").isVisible().catch(() => false)) {
-          await visibleUiClick(page, 'button[onclick*="fightAttack"]', "fightAttack");
+        } else if (overlayOpen) {
+          await visibleUiClick(page, '#fightOverlay button[onclick*="fightAttack"]', "fightAttack");
           await page.waitForTimeout(300);
         } else {
           const advanced = await page.evaluate(() => (window.me?.onboarding?.step || 0) > 4);
