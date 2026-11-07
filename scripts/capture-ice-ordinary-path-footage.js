@@ -147,39 +147,20 @@ async function focusStage(page) {
   await page.locator("#stage3d").click({ position: { x: 195, y: 300 }, force: true });
 }
 
-async function touchJoystickBurst(page, holdMs = 420) {
+async function touchJoystickBurst(page, holdMs = 520) {
   const joy = page.locator("#touchJoystick");
   await joy.waitFor({ state: "visible", timeout: 15000 });
   const box = await joy.boundingBox();
   if (!box) throw new Error("touchJoystick missing bounding box");
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
-  logInput("touch", "joystick forward burst");
-  await page.touchscreen.tap(cx, cy);
-  await page.evaluate(
-    ({ cx, cy, dy }) => {
-      const joy = document.getElementById("touchJoystick");
-      const knob = document.getElementById("touchJoystickKnob");
-      if (!joy || !knob) return;
-      const down = new PointerEvent("pointerdown", { clientX: cx, clientY: cy, pointerId: 1, bubbles: true });
-      joy.dispatchEvent(down);
-      const move = new PointerEvent("pointermove", {
-        clientX: cx,
-        clientY: cy + dy,
-        pointerId: 1,
-        bubbles: true
-      });
-      joy.dispatchEvent(move);
-    },
-    { cx, cy, dy: -36 }
-  );
+  logInput("touch", "joystick forward burst (pointer)");
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx, cy - 40, { steps: 10 });
   await page.waitForTimeout(holdMs);
-  await page.evaluate(() => {
-    const joy = document.getElementById("touchJoystick");
-    if (!joy) return;
-    joy.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1, bubbles: true }));
-  });
-  await page.waitForTimeout(120);
+  await page.mouse.up();
+  await page.waitForTimeout(140);
 }
 
 async function walkKeys(page, bursts = 6, keyMs = 380) {
