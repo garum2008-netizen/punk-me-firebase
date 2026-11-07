@@ -186,9 +186,11 @@ async function focusStage(page) {
     await page.click("#lifeCh1WardrobeClose").catch(() => {});
   }
   const stage = page.locator("#stage3d");
-  const box = await stage.boundingBox();
-  if (box) logInput("ui_click", `#stage3d focus @${Math.round(box.x)},${Math.round(box.y)}`);
-  await stage.click({ position: { x: 195, y: 300 } });
+  const vp = page.viewportSize() || { width: 390, height: 844 };
+  const fx = Math.min(vp.width - 24, Math.round(vp.width * 0.56));
+  const fy = Math.min(vp.height - 120, Math.round(vp.height * 0.42));
+  logInput("ui_click", `#stage3d focus @${fx},${fy} vp=${vp.width}x${vp.height}`);
+  await stage.click({ position: { x: fx, y: fy } });
 }
 
 async function touchJoystickBurst(page, holdMs = 520) {

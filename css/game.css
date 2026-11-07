@@ -281,7 +281,16 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   max-width: min(300px, 42vw);
   pointer-events: none;
 }
-.hud-column > * { pointer-events: auto; }
+.hud-column .btn,
+.hud-column button,
+.hud-column a,
+.hud-column input,
+.hud-column .hud-quests-toggle,
+.hud-column .quest-box,
+.hud-column .hud-actions,
+.hud-column .hud-quests-wrap .hud-quests-toggle {
+  pointer-events: auto;
+}
 .hud-actions {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
 }
