@@ -268,7 +268,7 @@ function getPlayerLifeCh1SkinRenderState() {
 }
 
 function isLifeCh1E2eTeleportEnabled() {
-  return false;
+  return isLifeCh1E2eNavAid();
 }
 
 function isLifeCh1E2eNavAid() {

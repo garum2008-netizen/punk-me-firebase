@@ -514,6 +514,11 @@ export async function tryStartAfterOnboarding() {
   updateChatPresetMode();
   applyMusicSceneClass();
   syncPlayerLifeCh1Skin();
+  if (me()?.location === "room") {
+    try {
+      window.goLocation?.("room");
+    } catch (_) {}
+  }
   return true;
 }
 

@@ -175,9 +175,22 @@ function bootLifeCh1LocalSession() {
     return;
   }
   hideLoading();
+  function sliceCharSelectReady() {
+    if (!window.CharSelect) return false;
+    try {
+      if (new URLSearchParams(location.search).get("lifeCh1Slice") === "1") {
+        return typeof window.LifeCh1Slice?.isLifeCh1SliceEnabled === "function" &&
+          window.LifeCh1Slice.isLifeCh1SliceEnabled();
+      }
+    } catch (_) {}
+    return true;
+  }
   const openSelect = () => {
-    if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
-    else setTimeout(openSelect, 120);
+    if (!sliceCharSelectReady()) {
+      setTimeout(openSelect, 120);
+      return;
+    }
+    CharSelect.open(pickCharacterAndContinue);
   };
   openSelect();
 }

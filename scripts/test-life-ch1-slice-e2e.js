@@ -90,6 +90,12 @@ async function reloadAndWaitLoaded(page) {
     { timeout: 60000 }
   );
   await dismissHowToPlay(page);
+  await page.evaluate(() => {
+    if (window.me?.lifeCh1?.active || window.me?.lifeCh1?.completed) {
+      window.LifeCh1Slice?.ensureLifeCh1?.(window.me);
+      window.LifeCh1Slice?.renderObjectivePanel?.();
+    }
+  });
 }
 
 async function waitForSkinRendered(page, skinLetter = "B") {
@@ -153,6 +159,9 @@ async function run() {
     viewport: { width: 390, height: 844 },
     recordVideo: { dir: artifactsDir, size: { width: 390, height: 844 } }
   });
+  await context.addInitScript(() => {
+    window.__PUNK_LIFE_CH1_LOCAL__ = true;
+  });
   const page = await context.newPage();
   await installProdFirebaseRouteBlock(page);
   await page.route("**/*", route => {
@@ -167,21 +176,34 @@ async function run() {
 
   try {
     await page.goto(`${base}/${qs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
-    await page.waitForFunction(() => typeof firebase !== "undefined", undefined, { timeout: 60000 });
-    await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
-    const sliceChar = await page.locator('[data-testid="char-select-angelina"]').isVisible().catch(() => false);
-    if (!sliceChar) {
-      await page.click('.char-pick[data-id="cobalt"]');
+    const loaded = await page
+      .waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 8000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!loaded) {
+      await page.waitForSelector("#charSelect.active", { timeout: 120000 });
+      await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
+      const sliceChar = await page.locator('[data-testid="char-select-angelina"]').isVisible().catch(() => false);
+      if (!sliceChar) {
+        await page.click('.char-pick[data-id="cobalt"]');
+      } else {
+        await page.click(".char-portrait-pick >> nth=0");
+      }
+      await page.click("#charSelectConfirm");
     }
-    await page.click("#charSelectConfirm");
+    const expectId = "life_ch1_proxy";
     await page.waitForFunction(
-      () => window.__playerLoaded === true && window.me?.characterId === "cobalt",
-      undefined,
+      id => window.__playerLoaded === true && window.me?.characterId === id,
+      expectId,
       { timeout: 120000 }
     );
     await dismissHowToPlay(page);
 
     await startSliceAfterChapter0Shortcut(page);
+    await page.evaluate(() => {
+      if (typeof goLocation === "function") goLocation("room");
+    });
+    await page.waitForTimeout(1200);
     await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 10000 });
 
     await page.evaluate(() => window.saveMe());
