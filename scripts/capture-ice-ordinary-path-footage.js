@@ -245,6 +245,7 @@ async function completeOnboarding(page) {
         timeout: 45000,
       });
     } else if (step === 4) {
+      if (st.location !== "street") await uiOpenMapTravel(page, "street");
       logInput("click", "gang → razor fight");
       await page.click('#panelBottom button[onclick*="gangModal"]', { force: true });
       await page.waitForSelector("#gangModal.active");
