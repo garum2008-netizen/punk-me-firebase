@@ -319,7 +319,13 @@ async function completeOnboarding(page) {
         const duelVis = await page.locator("#duel3dHud:not(.hidden)").isVisible().catch(() => false);
         if (duelVis) {
           logInput("click", "duel3dAttack");
-          await page.locator('#duel3dHud button[onclick*="duel3dAttack"]').click({ force: true });
+          await page
+            .locator('#duel3dHud button[onclick*="duel3dAttack"]')
+            .click({ force: true, timeout: 8000 })
+            .catch(async () => {
+              logInput("click", "duel3dAttack fallback chainBtn");
+              await page.locator("#duel3dHud .btn.danger").first().click({ force: true, timeout: 5000 });
+            });
           await page.waitForTimeout(360);
         } else if (await page.locator("#fightOverlay.active").isVisible().catch(() => false)) {
           logInput("click", "fightAttack");
