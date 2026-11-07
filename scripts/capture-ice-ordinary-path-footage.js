@@ -134,10 +134,10 @@ async function waitReadableDialog(page, minMs = 900) {
   await page.waitForTimeout(ms);
 }
 
-async function visibleUiClick(page, target, detail) {
+async function visibleUiClick(page, target, detail, opts = {}) {
   const loc = typeof target === "string" ? page.locator(target).first() : target.first();
   await loc.waitFor({ state: "visible", timeout: 30000 });
-  await loc.scrollIntoViewIfNeeded();
+  if (opts.scroll) await loc.scrollIntoViewIfNeeded().catch(() => {});
   const box = await loc.boundingBox();
   if (!box || box.width < 2 || box.height < 2) {
     throw new Error(`visibleUiClick: not hittable — ${detail}`);
@@ -185,7 +185,10 @@ async function focusStage(page) {
     logInput("click", "lifeCh1WardrobeClose");
     await page.click("#lifeCh1WardrobeClose").catch(() => {});
   }
-  await visibleUiClick(page, "#stage3d", "#stage3d focus");
+  const stage = page.locator("#stage3d");
+  const box = await stage.boundingBox();
+  if (box) logInput("ui_click", `#stage3d focus @${Math.round(box.x)},${Math.round(box.y)}`);
+  await stage.click({ position: { x: 195, y: 300 } });
 }
 
 async function touchJoystickBurst(page, holdMs = 520) {
@@ -253,7 +256,7 @@ async function walkKeys(page, bursts = 6, keyMs = 380) {
 }
 
 async function uiOpenMapTravel(page, locId) {
-  await visibleUiClick(page, '#panelBottom button[onclick*="mapModal"]', `map open → ${locId}`);
+  await visibleUiClick(page, '#panelBottom button[onclick*="mapModal"]', `map open → ${locId}`, { scroll: true });
   await page.waitForSelector("#mapModal.active", { timeout: 15000 });
   const goBtn = page.locator(`#mapGrid button[onclick*="goLocation('${locId}')"]`).first();
   await visibleUiClick(page, goBtn, `map travel → ${locId}`);
