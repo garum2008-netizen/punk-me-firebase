@@ -375,6 +375,9 @@ async function completeOnboarding(page) {
         }
         if (await page.evaluate(() => (window.me?.onboarding?.step || 0) > 4 || !!window.me?.onboarding?.done)) break;
       }
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 4 || !!window.me?.onboarding?.done, undefined, {
+        timeout: 90000,
+      });
     } else if (step === 5) {
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
       await visibleUiClick(page, '#panelBottom button[onclick*="shopModal"]', "shop open");
@@ -475,10 +478,10 @@ async function playLifeCh1Ordinary(page) {
   await visibleUiClick(page, "#lifeCh1WardrobeConfirm", "wardrobe confirm");
   await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 2, undefined, { timeout: 20000 });
 
-  if ((await nearWorldPoint(page, 2.5, -1.8)) > 2.85) {
-    await walkInteractCh1(page, 2.5, -1.8);
-  }
-  await page.waitForSelector(".life-ch1-choice", { timeout: 20000 });
+  await walkInteractCh1(page, 2.5, -1.8, 2.85, 55000);
+  await page.waitForSelector("#storyDialog.active .life-ch1-choice, .life-ch1-dialog .life-ch1-choice", {
+    timeout: 60000,
+  });
   await waitReadableDialog(page, 1100);
   await pickVisibleLifeCh1Choice(page);
 
