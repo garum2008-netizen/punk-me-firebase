@@ -183,15 +183,29 @@ async function pickAngelina(page) {
 }
 
 async function completeOnboarding(page) {
+  await page.waitForFunction(
+    () => window.me?.onboarding && typeof window.me.onboarding.step === "number",
+    undefined,
+    { timeout: 120000 }
+  );
+  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 120000 });
+  await dismissHowTo(page);
+  await focusStage(page);
   logScene("onboarding_start", "fresh local save, onboarding step 0");
   const deadline = Date.now() + 480000;
+  let lastLoggedStep = -2;
   while (Date.now() < deadline) {
     const st = await readState(page);
     if (st.onboardingDone) {
       logScene("onboarding_done", "UI onboarding complete");
       return true;
     }
-    const step = st.onboardingStep;
+    let step = st.onboardingStep;
+    if (step < 0) step = 0;
+    if (step !== lastLoggedStep) {
+      logScene(`onboarding_step_${step}`, `progress step ${step}`);
+      lastLoggedStep = step;
+    }
     const stepBefore = step;
     if (step === 0) {
       await walkKeys(page, 28, 420);
@@ -204,13 +218,27 @@ async function completeOnboarding(page) {
         timeout: 45000,
       });
     } else if (step === 2) {
+      if (st.location !== "street") await uiOpenMapTravel(page, "street");
       logInput("click", "gang → razor talk");
       await page.click('#panelBottom button[onclick*="gangModal"]', { force: true });
       await page.waitForSelector("#gangModal.active");
       await page.click('.npc-row[data-npc="razor"]');
-      await page.waitForTimeout(800);
-      await page.keyboard.press("Escape").catch(() => {});
-      await page.click("#gangModal .close").catch(() => {});
+      await page.waitForTimeout(600);
+      const storyDlg = page.locator("#storyDialog:not([hidden]), .story-dialog-overlay.active");
+      if (await storyDlg.isVisible().catch(() => false)) {
+        logInput("click", "dismiss story razor intro");
+        for (let i = 0; i < 8; i++) {
+          const ok = page.locator('#storyDialog button, .story-dialog-choices button, [data-testid="story-dialog-ok"]');
+          if (await ok.first().isVisible().catch(() => false)) {
+            await ok.first().click({ force: true });
+            await page.waitForTimeout(500);
+          } else break;
+        }
+        await page.keyboard.press("Escape").catch(() => {});
+      } else {
+        await page.keyboard.press("Escape").catch(() => {});
+        await page.click("#gangModal .close").catch(() => {});
+      }
     } else if (step === 3) {
       if (st.location !== "cemetery") await uiOpenMapTravel(page, "cemetery");
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 3 || window.me?.onboarding?.done, undefined, {
@@ -246,8 +274,14 @@ async function completeOnboarding(page) {
       .catch(() => {});
     const next = await readState(page);
     if (next.onboardingDone) return true;
+    if ((next.onboardingStep ?? 0) === stepBefore && stepBefore >= 0) {
+      await page.waitForTimeout(400);
+    }
   }
-  throw new Error("onboarding timeout");
+  const failShot = path.join(OUT, "ice-ordinary-onboarding-timeout.png");
+  await page.screenshot({ path: failShot, fullPage: true }).catch(() => {});
+  const final = await readState(page);
+  throw new Error(`onboarding timeout at step=${final.onboardingStep} shot=${failShot}`);
 }
 
 async function walkInteractCh1(page, tx, tz, radius = 2.85, maxMs = 150000) {
@@ -349,6 +383,13 @@ async function runOrdinarySession(browser, viewport, label) {
   const ctx = await browser.newContext({
     viewport,
     recordVideo: viewport.width >= 1000 ? { dir: OUT, size: { width: 1280, height: 720 } } : { dir: OUT, size: { width: 390, height: 844 } },
+  });
+  await ctx.addInitScript(() => {
+    try {
+      localStorage.removeItem("punkme_lifech1_local_player_v1");
+      localStorage.removeItem("punkme_lifech1_local_device_id");
+      localStorage.removeItem("punkme_character_id");
+    } catch (_) {}
   });
   const page = await ctx.newPage();
   await installProdFirebaseRouteBlock(page);

@@ -908,7 +908,12 @@ export function tryStoryNpc(npcId) {
   const loc = me().location;
   const dlg = data.dialogues.find(d => {
     if (d.location !== loc) return false;
-    return d.nodes?.some(n => (n.speaker || "").includes(npcId));
+    if (!d.nodes?.some(n => (n.speaker || "").includes(npcId))) return false;
+    const tr = d.trigger || {};
+    if (tr.type === "enter" || tr.type === "proximity") return false;
+    const conditions = tr.conditions;
+    if (conditions?.length && !checkRequires(conditions)) return false;
+    return true;
   });
   if (dlg) {
     openDialogueTree(dlg);
