@@ -1,12 +1,11 @@
-CC0 / Three.js example models (vendored for PUNK ME living3d-v3)
+Model credits — PUNK ME (living3d)
 
-- soldier.glb, xbot.glb, michelle.glb, robot-expressive.glb
-  Source: https://github.com/mrdoob/three.js/tree/r174/examples/models/gltf
-  (Mixamo-derived samples distributed with three.js examples.)
+Meshy hero GLBs (CC BY 4.0): see assets/models/meshy/LICENSE.txt
+  — punk_pink.glb (Neon Rebel / Vienna), mohawk.glb, cobalt.glb, razor.glb
 
-- fox.glb
-  Source: Khronos glTF Sample Assets — Fox (CC0)
-  https://github.com/KhronosGroup/glTF-Sample-Assets
+Pet: assets/models/pets/punk_dog.glb (project asset; see assets/models/README.md)
 
-Quaternius "Ultimate Animated Character Pack" (CC0) was downloaded from OpenGameArt
-as FBX/Blend only; this VM has no FBX→GLB pipeline, so those files are not vendored.
+Previously vendored Khronos / Three.js CC0 example meshes (soldier, xbot, robot-expressive,
+fox, michelle, cesium-man) were removed from this branch; runtime NPCs use the Meshy GLBs above.
+
+No CC0 character GLBs are shipped in this build.

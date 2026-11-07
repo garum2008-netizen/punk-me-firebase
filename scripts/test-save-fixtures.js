@@ -4,12 +4,17 @@
  */
 const http = require("http");
 const { buildPlayerSaveFixtures } = require("./player-save-fixtures");
+const { assertFirebaseEmulatorTestEnv } = require("./firebase-test-emulator-guard");
+const { applyFirebaseEmulatorEnv, dbPort, authPort } = require("./firebase-emulator-env");
+
+applyFirebaseEmulatorEnv();
+assertFirebaseEmulatorTestEnv();
 
 const PROJECT_ID = process.env.FIREBASE_EMULATOR_PROJECT || "punk-me-40605";
 const DB_HOST = "127.0.0.1";
-const DB_PORT = 9000;
+const DB_PORT = dbPort;
 const AUTH_HOST = "127.0.0.1";
-const AUTH_PORT = 9099;
+const AUTH_PORT = authPort;
 const DB_NS = `${PROJECT_ID}-default-rtdb`;
 
 function fetchJson(url, opts = {}) {

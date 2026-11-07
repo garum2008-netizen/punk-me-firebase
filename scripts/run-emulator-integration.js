@@ -5,12 +5,26 @@ const path = require("path");
 
 const root = path.join(__dirname, "..");
 const project = "punk-me-40605";
+const { applyFirebaseEmulatorEnv } = require("./firebase-emulator-env");
+applyFirebaseEmulatorEnv();
 
 function spawnEmulators() {
   return spawn("npx", ["firebase", "emulators:start", "--only", "auth,database", "--project", project], {
     cwd: root,
-    stdio: "pipe"
+    stdio: "pipe",
+    detached: true
   });
+}
+
+function killProcessGroup(child) {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch (_) {
+    try {
+      child.kill("SIGKILL");
+    } catch (_) {}
+  }
 }
 
 function waitReady(proc) {
@@ -35,8 +49,6 @@ function waitReady(proc) {
 }
 
 (async () => {
-  delete process.env.FIREBASE_DATABASE_EMULATOR_HOST;
-  delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
   const emu = spawnEmulators();
   try {
     await waitReady(emu);
@@ -57,9 +69,7 @@ function waitReady(proc) {
       suite.on("exit", c => (c === 0 ? res() : rej(new Error(`suite exit ${c}`))));
     });
   } finally {
-    try {
-      emu.kill("SIGKILL");
-    } catch (_) {}
+    killProcessGroup(emu);
   }
 })().catch(e => {
   console.error(e);

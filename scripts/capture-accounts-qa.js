@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium, webkit } = require("playwright");
 const fs = require("fs");
 const path = require("path");
@@ -29,7 +30,8 @@ async function waitFirebase(page) {
 
 (async () => {
   const browser = await chromium.launch();
-  const desk = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const desk = const page = await browser.newPage({ viewport: { width: 1280, height: 800 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desk);
   trackPage(desk, "desktop");
   await desk.goto(`${BASE}/?solo=1&v=${V}`, { waitUntil: "domcontentloaded" });
   await waitFirebase(desk);
@@ -59,7 +61,8 @@ async function waitFirebase(page) {
 
   async function mobileCapture(browserType, name, file) {
     const browser = await browserType.launch();
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const page = const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(page);
     trackPage(page, name);
     await page.goto(`${BASE}/?solo=1&v=${V}`, { waitUntil: "domcontentloaded" });
     await waitFirebase(page);

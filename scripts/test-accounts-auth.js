@@ -5,10 +5,17 @@
 const { chromium, webkit } = require("playwright");
 const fs = require("fs");
 const path = require("path");
+const {
+  assertFirebaseEmulatorTestEnv,
+  firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+
+assertFirebaseEmulatorTestEnv();
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const CACHE = "living3d-v22r5-accounts-r1";
-const emulatorQs = process.env.FIREBASE_EMULATOR ? "&firebaseEmulator=1" : "";
+const emulatorQs = firebaseEmulatorQueryString();
 const outDir = path.join("/workspace/qa", "accounts");
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -29,6 +36,7 @@ async function readDb(page) {
 }
 
 async function enterGame(page) {
+  await installProdFirebaseRouteBlock(page);
   await page.goto(`${base}/?solo=1&v=${CACHE}${emulatorQs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => typeof firebase !== "undefined", undefined, { timeout: 120000 });
   await page.waitForSelector(".char-pick", { timeout: 90000 });

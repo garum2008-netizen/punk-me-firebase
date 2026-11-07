@@ -2,12 +2,12 @@
   {
     "id": "desktop-chromium-reload-coins",
     "pass": true,
-    "detail": "uid=SlarNLy10OU9wfGllg8JnDh46cy1 coins=4242"
+    "detail": "uid=SUcKdPhSf5aJvvioixtl48HBHnmN coins=4242"
   },
   {
     "id": "desktop-chromium-signout-new-anon",
     "pass": true,
-    "detail": "SlarNLy10OU9wfGllg8JnDh46cy1 -> 5VTAB2lV6tYCr7vRKjWB1JNz63z1"
+    "detail": "SUcKdPhSf5aJvvioixtl48HBHnmN -> iMCsv354ZAFRSzzXU6Z1GdXxX07a"
   },
   {
     "id": "desktop-chromium-owner-guest-ui",
@@ -22,36 +22,16 @@
   {
     "id": "desktop-chromium-link-email-uid",
     "pass": true,
-    "detail": "{\"ok\":true,\"uid\":\"Qhunst61FUcEbYYyBhvdsxcuf5q2\",\"uidBefore\":\"Qhunst61FUcEbYYyBhvdsxcuf5q2\",\"email\":\"punktest+1792855426067@contractbot.dk\"}"
+    "detail": "{\"ok\":true,\"uid\":\"aniVVVCt68HUHiK0FmvbL6iNnQud\",\"uidBefore\":\"aniVVVCt68HUHiK0FmvbL6iNnQud\",\"email\":\"punktest+1793761175045@contractbot.dk\"}"
   },
   {
-    "id": "mobile-webkit-reload-coins",
-    "pass": true,
-    "detail": "uid=GBhPVP7h2UU1EKzDGyV90SkB2RG3 coins=4242"
-  },
-  {
-    "id": "mobile-webkit-signout-new-anon",
-    "pass": true,
-    "detail": "GBhPVP7h2UU1EKzDGyV90SkB2RG3 -> YESbgovn5COZQAJZJBTqKvGS7wB2"
-  },
-  {
-    "id": "mobile-webkit-owner-guest-ui",
-    "pass": true,
-    "detail": "{\"signIn\":true,\"denied\":false,\"panel\":false}"
-  },
-  {
-    "id": "mobile-webkit-account-ui",
-    "pass": true,
-    "detail": "/workspace/qa/accounts/mobile-webkit-account-modal.png"
-  },
-  {
-    "id": "mobile-webkit-link-email-uid",
-    "pass": true,
-    "detail": "{\"ok\":true,\"uid\":\"YESbgovn5COZQAJZJBTqKvGS7wB2\",\"uidBefore\":\"YESbgovn5COZQAJZJBTqKvGS7wB2\",\"email\":\"punktest+1792855439297@contractbot.dk\"}"
+    "id": "mobile-webkit-skip",
+    "pass": "SKIP",
+    "detail": "browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/webkit-2370/pw_run.sh\n╔═══════════════"
   },
   {
     "id": "webkit-safari-google-popup",
-    "pass": true,
-    "detail": "popup=https://punk-me-40605.firebaseapp.com/__/auth/handler?apiKey=AIzaSyACAXPV9H4vfWN redirect=false"
+    "pass": false,
+    "detail": "browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/webkit-2370/pw_run.sh\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just "
   }
 ]

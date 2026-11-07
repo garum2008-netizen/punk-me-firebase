@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
@@ -45,13 +46,15 @@ async function captureSet(page, lang, suffix) {
 
 (async () => {
   const browser = await chromium.launch();
-  const desktop = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const desktop = const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desktop);
   await waitGame(desktop);
   await buyDog(desktop);
   await captureSet(desktop, "en", "en");
   await captureSet(desktop, "da", "da");
 
-  const ipad = await browser.newPage({ viewport: { width: 820, height: 1180 } });
+  const ipad = const page = await browser.newPage({ viewport: { width: 820, height: 1180 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(ipad);
   await waitGame(ipad);
   await buyDog(ipad);
   await ipad.click('button[data-lang="en"]');

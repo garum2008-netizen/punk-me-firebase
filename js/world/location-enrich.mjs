@@ -1,5 +1,38 @@
 import * as THREE from "three";
 
+let softRoundPointMap = null;
+
+function softRoundPointTexture() {
+  if (softRoundPointMap) return softRoundPointMap;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.45, "rgba(255,255,255,0.55)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  softRoundPointMap = new THREE.CanvasTexture(canvas);
+  softRoundPointMap.needsUpdate = true;
+  return softRoundPointMap;
+}
+
+function softPointsMaterial(color, size, opacity = 0.75) {
+  return new THREE.PointsMaterial({
+    color,
+    size,
+    map: softRoundPointTexture(),
+    transparent: true,
+    opacity,
+    alphaTest: 0.08,
+    depthWrite: false,
+    sizeAttenuation: true
+  });
+}
+
 function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
   list.push({
     minX: cx - halfW - pad,
@@ -37,7 +70,7 @@ export function addSkyDome(root, theme) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(stars, 3));
-  root.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xaaccff, size: 0.12 })));
+  root.add(new THREE.Points(g, softPointsMaterial(0xaaccff, 0.14, 0.9)));
 }
 
 function markCameraOccluder(mesh) {
@@ -171,10 +204,7 @@ export function addEmberParticles(root, count = 70) {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const pts = new THREE.Points(
-    geo,
-    new THREE.PointsMaterial({ color: 0xff6622, size: 0.07, transparent: true, opacity: 0.55 })
-  );
+  const pts = new THREE.Points(geo, softPointsMaterial(0xff6622, 0.16, 0.6));
   pts.userData.drift = true;
   pts.userData.ember = true;
   root.add(pts);
@@ -189,10 +219,7 @@ export function addFireflyParticles(root, count = 55) {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const pts = new THREE.Points(
-    geo,
-    new THREE.PointsMaterial({ color: 0xaaffcc, size: 0.08, transparent: true, opacity: 0.65 })
-  );
+  const pts = new THREE.Points(geo, softPointsMaterial(0xaaffcc, 0.22, 0.75));
   pts.userData.drift = true;
   pts.userData.firefly = true;
   root.add(pts);
@@ -549,6 +576,7 @@ export function addCityDressing(root, helpers) {
     const lamp = new THREE.Group();
     const pole = wall(0.1, 3.2, 0.1, new THREE.MeshStandardMaterial({ color: 0x444455 }));
     pole.position.y = 1.6;
+    pole.userData.decorOnly = true;
     const bulb = new THREE.Mesh(
       new THREE.SphereGeometry(0.14, 8, 8),
       new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffcc66, emissiveIntensity: 1.3 })

@@ -6,6 +6,13 @@
 const { chromium, webkit } = require("playwright");
 const fs = require("fs");
 const path = require("path");
+const {
+  assertFirebaseEmulatorTestEnv,
+  firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+
+assertFirebaseEmulatorTestEnv();
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const outDir = "/workspace/qa/hotfix-loading";
@@ -51,9 +58,10 @@ async function runEarlySaveSuite(browserName, browserType) {
   const browser = await browserType.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
+  await installProdFirebaseRouteBlock(page);
   const log = [];
 
-  const url = `${base}/?v=${CACHE}-earlysave-${browserName}`;
+  const url = `${base}/?v=${CACHE}-earlysave-${browserName}${firebaseEmulatorQueryString()}`;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => typeof firebase !== "undefined" && window.saveMe, { timeout: 120000 });
 

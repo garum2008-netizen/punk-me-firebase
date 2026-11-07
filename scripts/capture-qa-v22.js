@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 /** QA v22 captures — 3 min hard cap per shot, one retry. */
 const { chromium, devices } = require("playwright");
 const fs = require("fs");
@@ -117,14 +118,16 @@ async function shotDuel(page, prefix) {
 
 async function main() {
   const browser = await chromium.launch();
-  const desk = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const desk = const page = await browser.newPage({ viewport: { width: 1280, height: 800 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desk);
   await prep(desk);
   await desk.goto(`${BASE}/?solo=1&v=v22qa`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enterGame(desk);
   for (const loc of LOCS) await shotLoc(desk, loc, "desktop");
   await shotDuel(desk, "desktop");
 
-  const mob = await browser.newPage({ ...devices["iPhone 12"], viewport: { width: 390, height: 844 } });
+  const mob = const page = await browser.newPage({ ...devices["iPhone 12"], viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(mob);
   await prep(mob);
   await mob.goto(`${BASE}/?solo=1&v=v22qa`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await enterGame(mob);

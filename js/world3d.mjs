@@ -13,10 +13,13 @@ import {
   findClearSpawn,
   pointInsideCollider
 } from "./world/locations.mjs";
-import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs";
+import { updateProcedural, markActorVisibleWhenReady, setPlayerRootVisibilityGuard } from "./character-rig.mjs";
 import {
   loadAllCc0Templates,
+  loadMeshyTemplateForCharacter,
   getTemplateForCharacter,
+  onMeshyTemplateLoaded,
+  isDedicatedShippedHero,
   createCc0Actor,
   updateLocomotionTimeScale,
   WAVE_EMOTE_ENABLED,
@@ -72,6 +75,7 @@ let meLastDx = 0;
 let meLastDy = 0;
 let playerAnimState = "idle";
 let modelsReady = false;
+let pendingSyncData = null;
 let captureFrameLock = false;
 let dialogueLiveMinHead = 0;
 let portalGraceUntil = 0;
@@ -81,6 +85,290 @@ let elevatorCutawaySaved = null;
 const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 let guideTarget = null;
+/** Deprecated billboard — slice uses player cutout; kept for clear API. */
+let lifeAngelinaBillboard = { sprite: null, url: "", wx: 0, wz: 0, loc: "room", visible: false };
+/** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
+let lifeCh1PlayerSkin = {
+  sprite: null,
+  shadow: null,
+  holder: null,
+  url: "",
+  rootVisible: true,
+  pending: null
+};
+let lifeCh1ContactShadowTex = null;
+
+function getLifeCh1ContactShadowTexture() {
+  if (lifeCh1ContactShadowTex) return lifeCh1ContactShadowTex;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, "rgba(0,0,0,0.42)");
+  g.addColorStop(0.55, "rgba(0,0,0,0.1)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  lifeCh1ContactShadowTex = new THREE.CanvasTexture(canvas);
+  lifeCh1ContactShadowTex.colorSpace = THREE.SRGBColorSpace;
+  return lifeCh1ContactShadowTex;
+}
+
+function disposeLifeCh1PlayerSprite() {
+  const sp = lifeCh1PlayerSkin.sprite;
+  const sh = lifeCh1PlayerSkin.shadow;
+  const holder = lifeCh1PlayerSkin.holder;
+  if (holder?.parent) holder.parent.remove(holder);
+  else {
+    sp?.parent?.remove(sp);
+    sh?.parent?.remove(sh);
+  }
+  sp?.material?.map?.dispose?.();
+  sp?.material?.dispose?.();
+  sh?.material?.dispose?.();
+  lifeCh1PlayerSkin.sprite = null;
+  lifeCh1PlayerSkin.shadow = null;
+  lifeCh1PlayerSkin.holder = null;
+}
+
+function isLifeCh1SpriteAttachedToPlayer(sp, pl) {
+  if (!sp || !pl?.group || !scene) return false;
+  let o = sp;
+  while (o) {
+    if (o === pl.group) return true;
+    o = o.parent;
+  }
+  return false;
+}
+
+function layoutLifeCh1PlayerSprite(sp, tex) {
+  if (!sp) return;
+  const img = tex?.image;
+  const h = 1.78;
+  let w = 1.05;
+  if (img?.width && img?.height) w = h * (img.width / img.height);
+  sp.scale.set(w, h, 1);
+  sp.position.set(0, h * 0.5, 0);
+  const shadow = lifeCh1PlayerSkin.shadow;
+  if (shadow) {
+    shadow.position.set(0, 0.04, 0);
+    shadow.scale.set(Math.min(0.82, w * 0.62), 0.2, 1);
+  }
+}
+
+function tickLifeCh1PlayerSpritePlacement(pl) {
+  const holder = lifeCh1PlayerSkin.holder;
+  if (!holder || !pl?.isPlayer) return;
+  if (currentLoc === "kitchen") {
+    if (mobileQuality) {
+      holder.position.set(0, 0.08, -0.42);
+    } else {
+      holder.position.set(0.08, 0, 0.35);
+    }
+  } else {
+    holder.position.set(0, 0, 0);
+  }
+}
+
+function enforceLifeCh1PlayerMeshVisibility(actor) {
+  const pending = lifeCh1PlayerSkin.pending;
+  if (!actor?.isPlayer || !pending?.visible || !pending?.url) return;
+  if (actor.root?.visible !== false) {
+    actor.root.visible = false;
+    lifeCh1PlayerSkin.rootVisible = false;
+  }
+  const sp = lifeCh1PlayerSkin.sprite;
+  if (sp && pending.url === lifeCh1PlayerSkin.url) {
+    sp.visible = true;
+  }
+}
+
+function applyPlayerLifeCh1SkinOpts(opts = {}) {
+  const pl = actors.get("player");
+  if (!pl?.group) {
+    lifeCh1PlayerSkin.pending = { ...opts };
+    return false;
+  }
+  const sp = ensureLifeCh1PlayerSprite(pl);
+  if (!sp) return false;
+  if (!opts.visible || !opts.url) {
+    sp.visible = false;
+    sp.material.opacity = 0;
+    if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = false;
+    lifeCh1PlayerSkin.url = "";
+    if (pl.root && !lifeCh1PlayerSkin.rootVisible) {
+      pl.root.visible = true;
+      lifeCh1PlayerSkin.rootVisible = true;
+    }
+    return true;
+  }
+  const url = opts.url;
+  lifeCh1PlayerSkin.url = url;
+  if (pl.root?.visible !== false) {
+    pl.root.visible = false;
+    lifeCh1PlayerSkin.rootVisible = false;
+  }
+  sp.visible = true;
+  if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = true;
+  const tail = url.split("/").pop() || url;
+  const loaded = sp.material.map?.image?.currentSrc || sp.material.map?.image?.src || "";
+  if (loaded && loaded.includes(tail) && sp.material.opacity >= 1) {
+    layoutLifeCh1PlayerSprite(sp, sp.material.map);
+    return true;
+  }
+  sp.material.opacity = 0;
+  texLoader.load(
+    url,
+    tex => {
+      if (lifeCh1PlayerSkin.url !== url) return;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      sp.material.map = tex;
+      sp.material.needsUpdate = true;
+      layoutLifeCh1PlayerSprite(sp, tex);
+      sp.material.opacity = 1;
+      if (pl.root) {
+        pl.root.visible = false;
+        lifeCh1PlayerSkin.rootVisible = false;
+      }
+      window.dispatchEvent(new CustomEvent("life-ch1-skin-texture-ready", { detail: { url } }));
+    },
+    undefined,
+    () => {
+      if (lifeCh1PlayerSkin.url === url) sp.visible = false;
+    }
+  );
+  return true;
+}
+
+function setPlayerLifeCh1Skin(opts = {}) {
+  lifeCh1PlayerSkin.pending = { ...opts };
+  applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
+}
+
+function getPlayerLifeCh1SkinRenderState() {
+  const pl = actors.get("player");
+  const sp = lifeCh1PlayerSkin.sprite;
+  const mapSrc = sp?.material?.map?.image?.currentSrc || sp?.material?.map?.image?.src || "";
+  const attached = isLifeCh1SpriteAttachedToPlayer(sp, pl);
+  const opacity = sp?.material?.opacity ?? 0;
+  const inScene =
+    attached &&
+    !!(sp?.visible && opacity > 0.5) &&
+    !!(sp.parent && (sp.parent === pl?.group || sp.parent.parent === pl?.group));
+  return {
+    url: lifeCh1PlayerSkin.url || "",
+    spriteVisible: inScene,
+    sceneAttached: attached,
+    rootHidden: !!(pl?.root && pl.root.visible === false),
+    textureReady: !!(sp?.material?.map && opacity >= 1),
+    mapSrc
+  };
+}
+
+function isLifeCh1E2eTeleportEnabled() {
+  return false;
+}
+
+function isLifeCh1E2eNavAid() {
+  try {
+    if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) {
+      return new URLSearchParams(location.search).get("lifeCh1E2e") === "1";
+    }
+    const h = location.hostname.toLowerCase();
+    if (h !== "localhost" && h !== "127.0.0.1" && !h.endsWith(".localhost")) {
+      if (h.includes("punk.contractbot.dk") || h.endsWith(".web.app")) return false;
+    }
+    return new URLSearchParams(location.search).get("lifeCh1E2e") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function faceWorldTargetForE2e(wx, wz) {
+  if (!isLifeCh1E2eNavAid()) return false;
+  const pl = actors.get("player");
+  if (!pl) return false;
+  cameraYaw = Math.atan2(wx - pl.wx, wz - pl.wz);
+  return true;
+}
+
+function ensureLifeCh1PlayerSprite(pl) {
+  if (!pl?.group) return null;
+  const existing = lifeCh1PlayerSkin.sprite;
+  if (existing && isLifeCh1SpriteAttachedToPlayer(existing, pl)) return existing;
+  if (existing) disposeLifeCh1PlayerSprite();
+
+  const holder = new THREE.Group();
+  holder.name = "lifeCh1Cutout";
+  pl.group.add(holder);
+
+  const shadowMat = new THREE.SpriteMaterial({
+    map: getLifeCh1ContactShadowTexture(),
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.88
+  });
+  const shadow = new THREE.Sprite(shadowMat);
+  shadow.renderOrder = 7;
+  holder.add(shadow);
+
+  const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true, opacity: 0 });
+  const sp = new THREE.Sprite(mat);
+  sp.renderOrder = 8;
+  holder.add(sp);
+
+  lifeCh1PlayerSkin.holder = holder;
+  lifeCh1PlayerSkin.shadow = shadow;
+  lifeCh1PlayerSkin.sprite = sp;
+  layoutLifeCh1PlayerSprite(sp, sp.material.map);
+  return sp;
+}
+
+function ensureLifeAngelinaBillboardSprite() {
+  if (lifeAngelinaBillboard.sprite || !scene) return lifeAngelinaBillboard.sprite;
+  const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(1.1, 1.65, 1);
+  sp.renderOrder = 12;
+  scene.add(sp);
+  lifeAngelinaBillboard.sprite = sp;
+  return sp;
+}
+
+function setAngelinaLifeBillboard(opts = {}) {
+  lifeAngelinaBillboard.visible = !!opts.visible;
+  lifeAngelinaBillboard.wx = opts.wx ?? lifeAngelinaBillboard.wx;
+  lifeAngelinaBillboard.wz = opts.wz ?? lifeAngelinaBillboard.wz;
+  lifeAngelinaBillboard.loc = opts.loc ?? lifeAngelinaBillboard.loc;
+  if (opts.url) lifeAngelinaBillboard.url = opts.url;
+  const sp = ensureLifeAngelinaBillboardSprite();
+  if (!sp) return;
+  if (!lifeAngelinaBillboard.visible || currentLoc !== lifeAngelinaBillboard.loc) {
+    sp.visible = false;
+    return;
+  }
+  if (lifeAngelinaBillboard.url && sp.material.map?.image?.src !== lifeAngelinaBillboard.url) {
+    new THREE.TextureLoader().load(lifeAngelinaBillboard.url, tex => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      sp.material.map = tex;
+      sp.material.needsUpdate = true;
+    });
+  }
+  sp.visible = true;
+  sp.position.set(lifeAngelinaBillboard.wx, 1.55, lifeAngelinaBillboard.wz);
+}
+
+function tickLifeAngelinaBillboard() {
+  if (!lifeAngelinaBillboard.visible || !lifeAngelinaBillboard.sprite) return;
+  if (currentLoc !== lifeAngelinaBillboard.loc) {
+    lifeAngelinaBillboard.sprite.visible = false;
+    return;
+  }
+  lifeAngelinaBillboard.sprite.visible = true;
+  lifeAngelinaBillboard.sprite.position.set(lifeAngelinaBillboard.wx, 1.55, lifeAngelinaBillboard.wz);
+}
 let mobileQuality = false;
 let locFillLight = null;
 let atmospherePipe = null;
@@ -147,11 +435,62 @@ function spawnOffsetForId(id, index) {
   return { x: Math.cos(angle) * r, z: Math.sin(angle) * r };
 }
 
-function createActorFromCatalog(id, characterId) {
-  const def = charDef(characterId || "vienna");
-  const tpl = getTemplateForCharacter(characterId || "vienna");
+function countMeshVertices(root) {
+  if (!root) return 0;
+  let n = 0;
+  root.traverse(o => {
+    if (!o.isMesh || !o.geometry?.attributes?.position) return;
+    if (o.geometry.type === "CircleGeometry") return;
+    n += o.geometry.attributes.position.count;
+  });
+  return n;
+}
+
+function expectedMeshUrlForCharacter(characterId) {
+  const id = characterId || "vienna";
+  const allowFallback = !isDedicatedShippedHero(id) || id === "vienna";
+  const tpl = getTemplateForCharacter(id, { allowFallback });
+  return tpl?.def?.url || "";
+}
+
+function actorNeedsTemplateRebuild(actor, characterId, isNpc) {
+  if (!actor) return false;
+  const cid = characterId || "vienna";
+  if ((actor.characterId || "vienna") !== cid) return true;
+  if (isNpc && isDedicatedShippedHero(cid) && cid !== "vienna") {
+    const dedicated = getTemplateForCharacter(cid, { allowFallback: false });
+    if (dedicated?.def?.url) return (actor._meshUrl || "") !== dedicated.def.url;
+    return !!(actor._meshUrl && !actor._meshUrl.includes("punk_pink.glb"));
+  }
+  const tpl = getTemplateForCharacter(cid, { allowFallback: !isNpc || !isDedicatedShippedHero(cid) });
+  if (!tpl?.def?.url) return false;
+  return (actor._meshUrl || "") !== tpl.def.url;
+}
+
+function destroyActor(id) {
+  const a = actors.get(id);
+  if (!a) return;
+  scene.remove(a.group);
+  a.mixer?.stopAllAction();
+  actors.delete(id);
+}
+
+function rebuildActorsForCharacter(charId) {
+  const ids = [];
+  actors.forEach((a, actorId) => {
+    if ((a.characterId || "") === charId) ids.push(actorId);
+  });
+  ids.forEach(destroyActor);
+  if (pendingSyncData) sync(pendingSyncData);
+}
+
+function createActorFromCatalog(id, characterId, isNpc) {
+  const cid = characterId || "vienna";
+  const allowFallback = !isNpc || !isDedicatedShippedHero(cid);
+  const tpl = getTemplateForCharacter(cid, { allowFallback });
   if (!tpl?.gltf) return null;
-  const built = createCc0Actor(tpl, characterId, def.look || {}, {
+  const def = charDef(cid);
+  const built = createCc0Actor(tpl, cid, def.look || {}, {
     isPlayer: id === "player",
     actorId: id
   });
@@ -162,9 +501,9 @@ function createActorFromCatalog(id, characterId) {
   group.add(root);
   scene.add(group);
   const actor = {
-    id, characterId: characterId || "vienna", group, root, mixer, actions,
+    id, characterId: cid, group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
-    _tplKey: tpl.key, _meshy: built._meshy, _proc: built._proc,
+    _meshUrl: tpl.def.url, _meshy: built._meshy, _proc: built._proc,
     _visPushX: 0, _visPushZ: 0
   };
   for (let i = 0; i < 4; i++) updateProcedural(actor, 1 / 60, null, false);
@@ -173,16 +512,14 @@ function createActorFromCatalog(id, characterId) {
 }
 
 function ensureActor(id, characterId, isNpc) {
-  const tplKey = getTemplateForCharacter(characterId || "vienna")?.key;
+  const cid = characterId || "vienna";
   let a = actors.get(id);
-  if (a && (a.characterId !== characterId || a._tplKey !== tplKey)) {
-    scene.remove(a.group);
-    a.mixer?.stopAllAction();
-    actors.delete(id);
+  if (actorNeedsTemplateRebuild(a, cid, isNpc)) {
+    destroyActor(id);
     a = null;
   }
-  if (!a) a = createActorFromCatalog(id, characterId);
-  a.isNpc = isNpc;
+  if (!a) a = createActorFromCatalog(id, cid, isNpc);
+  if (a) a.isNpc = isNpc;
   return a;
 }
 
@@ -354,10 +691,75 @@ function ensureCar(show) {
   car = { group, wheels, dir: 1, x: -4, flash: 0 };
 }
 
+function getNpcVisibilitySnapshot() {
+  const out = [];
+  actors.forEach((a, actorId) => {
+    if (!actorId.startsWith("npc_")) return;
+    const cid = a.characterId || actorId.replace(/^npc_/, "");
+    out.push({
+      id: cid,
+      visible: !!(a.group?.visible && a.root?.visible !== false)
+    });
+  });
+  return out;
+}
+
+function npcActorOnScreen(actorId) {
+  const a = actors.get(`npc_${actorId}`);
+  if (!a?.group?.visible || a.root?.visible === false) return false;
+  const canvas = document.getElementById("stage3d");
+  if (!canvas || !camera) return false;
+  a.group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(a.group);
+  if (box.isEmpty()) return false;
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const margin = 6;
+  const corners = [
+    [box.min.x, box.min.y, box.min.z],
+    [box.min.x, box.min.y, box.max.z],
+    [box.min.x, box.max.y, box.min.z],
+    [box.min.x, box.max.y, box.max.z],
+    [box.max.x, box.min.y, box.min.z],
+    [box.max.x, box.min.y, box.max.z],
+    [box.max.x, box.max.y, box.min.z],
+    [box.max.x, box.max.y, box.max.z]
+  ];
+  let anyInside = false;
+  for (const [wx, wy, wz] of corners) {
+    const p = projectWorldToScreen(wx, wy, wz);
+    if (!p) continue;
+    if (p.x >= margin && p.x <= cw - margin && p.y >= margin && p.y <= ch - margin) {
+      anyInside = true;
+      break;
+    }
+  }
+  if (!anyInside) return false;
+  const hm = actorHeadMetrics(a);
+  if (!hm) return anyInside;
+  const head = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
+  return !!(head && head.x >= margin && head.x <= cw - margin && head.y >= margin && head.y <= ch - margin);
+}
+
 async function loadModels() {
-  await loadAllCc0Templates();
-  punkDogTemplate = await loadPunkDogTemplate();
+  const rawPlayer =
+    window.me?.characterId ||
+    (typeof window.LIFE_CH1_PLAYER_MESH_ID === "string" ? window.LIFE_CH1_PLAYER_MESH_ID : null);
+  const playerHero =
+    rawPlayer === "life_ch1_proxy" ? "vienna" : rawPlayer || null;
+  const roomHeroes = ["vienna", "mohawk", "cobalt"];
+  if (playerHero) {
+    await loadMeshyTemplateForCharacter(playerHero);
+  }
+  const npcParallel = [...new Set(roomHeroes.filter(id => id !== playerHero))];
+  await Promise.all(npcParallel.map(id => loadMeshyTemplateForCharacter(id)));
   modelsReady = true;
+  if (pendingSyncData) sync(pendingSyncData);
+  void loadMeshyTemplateForCharacter("razor");
+  void loadAllCc0Templates();
+  void loadPunkDogTemplate().then(t => {
+    punkDogTemplate = t;
+  });
 }
 
 function clearLocation() {
@@ -371,6 +773,7 @@ function clearLocation() {
 function rebuildLocation(locId) {
   if (locId !== currentLoc) onGameplayLocationChanged(locId, currentLoc);
   clearLocation();
+  disposeLifeCh1PlayerSprite();
   actors.forEach((a, id) => {
     scene.remove(a.group);
     a.mixer?.stopAllAction();
@@ -484,6 +887,7 @@ function separateActors() {
 }
 
 function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
+  if (!actor?.group) return;
   const offX = isPlayer ? 0 : (actor._visPushX || 0);
   const offZ = isPlayer ? 0 : (actor._visPushZ || 0);
   const c =
@@ -800,12 +1204,19 @@ const LOCATION_CAMERA = {
     dog: { dx: 0.82, dz: 0.22 },
     mobile: {
       portraitFromPlayer: true,
-      fov: 48,
-      camOffset: [0.12, 2.38, 6.46],
-      lookAtPlayerY: 0.92,
-      player: { x: 0, z: -2.12, yaw: 0 },
+      fov: 46,
+      camOffset: [0.04, 2.68, 7.55],
+      lookAtPlayerY: 1.12,
+      player: { x: 0.02, z: -2.55, yaw: 0.05 },
       dog: { dx: 0.7, dz: -0.04 }
     }
+  },
+  room: {
+    dist: 7.35,
+    height: 2.62,
+    lookY: 1.1,
+    yaw: 0.48,
+    mobile: { dist: 11.6, height: 3.22, lookY: 0.88, fov: 58, yaw: 0.82 }
   }
 };
 
@@ -899,12 +1310,14 @@ function applyMobilePortraitShowcaseFromPlayer(shot) {
 
 function cameraFollowProfile() {
   const loc = LOCATION_CAMERA[currentLoc] || {};
-  const baseDist = loc.dist ?? 6.4;
+  const mob = mobileQuality && loc.mobile ? loc.mobile : null;
+  const baseDist = mob?.dist ?? loc.dist ?? 6.4;
   const dist = mobileQuality ? baseDist * 0.96 : baseDist;
   return {
     dist,
-    height: loc.height ?? (mobileQuality ? 2.48 : 2.4),
-    lookY: loc.lookY ?? 1.28
+    height: mob?.height ?? loc.height ?? (mobileQuality ? 2.48 : 2.4),
+    lookY: mob?.lookY ?? loc.lookY ?? 1.28,
+    yaw: mob?.yaw ?? loc.yaw
   };
 }
 
@@ -976,7 +1389,8 @@ function positionCameraBehindPlayer(instant = false, dt = lastCameraDt) {
     return;
   }
   const p = player.group.position;
-  const { dist, height, lookY } = cameraFollowProfile();
+  const { dist, height, lookY, yaw } = cameraFollowProfile();
+  if (yaw != null && Number.isFinite(yaw)) cameraYaw = yaw;
   const ox = Math.sin(cameraYaw) * dist;
   const oz = Math.cos(cameraYaw) * dist;
   const eye = p.clone().add(new THREE.Vector3(0, lookY - 0.15, 0));
@@ -1015,6 +1429,13 @@ function updateThirdPersonCamera(dt = lastCameraDt) {
   if (pl && !captureFrameLock) dimPropsBetweenCameraAnd(pl.wx, 1.05, pl.wz, 0.22);
 }
 
+function patrolWaypointBlocked(x, z) {
+  if (guideTarget?.wx != null && guideTarget?.wz != null) {
+    if (Math.hypot(x - guideTarget.wx, z - guideTarget.wz) < 2.45) return true;
+  }
+  return false;
+}
+
 function tickNpcPatrols(dt) {
   const pl = actors.get("player");
   actors.forEach((a, id) => {
@@ -1043,6 +1464,12 @@ function tickNpcPatrols(dt) {
     if (!a._patrol?.length) return;
     const path = a._patrol;
     let idx = a._patrolIdx || 0;
+    let guard = 0;
+    while (guard < path.length && patrolWaypointBlocked(path[idx].x, path[idx].z)) {
+      idx = (idx + 1) % path.length;
+      guard++;
+    }
+    a._patrolIdx = idx;
     const tgt = path[idx];
     const dx = tgt.x - a.wx;
     const dz = tgt.z - a.wz;
@@ -1158,9 +1585,32 @@ function getNearestNpcId() {
   actors.forEach((a, id) => {
     if (!id.startsWith("npc_")) return;
     const d = Math.hypot(pl.wx - a.wx, pl.wz - a.wz);
-    if (d < bestD) { bestD = d; best = id.replace("npc_", ""); }
+    if (d < bestD) {
+      bestD = d;
+      best = id.replace("npc_", "");
+    }
   });
   return best;
+}
+
+/** Nearest prop with `userData.interact` (arcade, jukebox) within range. */
+function getNearestPropInteract(maxDist = 2.35) {
+  const pl = actors.get("player");
+  if (!pl?.group || !locationRoot) return null;
+  const pos = new THREE.Vector3();
+  let bestKind = null;
+  let bestD = maxDist;
+  locationRoot.traverse(o => {
+    const kind = o.userData?.interact;
+    if (!kind) return;
+    o.getWorldPosition(pos);
+    const d = Math.hypot(pl.wx - pos.x, pl.wz - pos.z);
+    if (d < bestD) {
+      bestD = d;
+      bestKind = kind;
+    }
+  });
+  return bestKind;
 }
 
 function getNearPortal() {
@@ -1180,6 +1630,7 @@ function getNearPortal() {
 }
 
 function sync(data) {
+  pendingSyncData = data;
   if (!modelsReady) return;
   const { player, others, npcs, location, hasDog, carVisible } = data;
   const justChangedLoc = location !== currentLoc;
@@ -1200,7 +1651,10 @@ function sync(data) {
     }
   }
   if (justChangedLoc && location === "kitchen" && player && bounds) {
-    const g = worldToGameLoc(-0.12, 0.36, bounds);
+    const shot = getFixedLocationShot();
+    const wx = shot?.player?.x ?? -0.12;
+    const wz = shot?.player?.z ?? 0.36;
+    const g = worldToGameLoc(wx, wz, bounds);
     hooks.onMove?.(g.x, g.y);
   }
 
@@ -1215,6 +1669,10 @@ function sync(data) {
       applyNetworkAnim(a, player.anim);
       a._netAnim = player.anim;
     }
+    if (lifeCh1PlayerSkin.pending) {
+      applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
+    }
+    window.dispatchEvent(new CustomEvent("punk-player-actor-ready", { detail: { characterId: player.characterId } }));
   }
 
   const hideCrowd = isDuelActive() || captureFrameLock;
@@ -1231,12 +1689,23 @@ function sync(data) {
     }
   });
 
-  const heroId = player?.characterId || "vienna";
+  const meshHeroId = player?.characterId || "vienna";
+  const proxyId =
+    (typeof window !== "undefined" && window.LIFE_CH1_PLAYER_MESH_ID) || "life_ch1_proxy";
+  const sliceCutout =
+    typeof window !== "undefined" &&
+    window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() &&
+    window.me?.lifeCh1?.playerCutout !== false;
+  const heroId =
+    sliceCutout && meshHeroId === proxyId
+      ? null
+      : meshHeroId;
   (npcs || []).forEach(n => {
-    if (n.id === heroId) return;
+    if (heroId != null && n.id === heroId) return;
     const id = "npc_" + n.id;
     keep.add(id);
     const a = ensureActor(id, n.characterId || n.id, true);
+    if (!a) return;
     const wp = NPC_WORLD[location]?.[n.id] || gameToWorldLoc(n.x, n.y, bounds);
     const path = NPC_PATROL[location]?.[n.id];
     if (path?.length) {
@@ -1374,6 +1843,7 @@ function loop() {
   else {
     setQuestMarkersVisible(true);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    tickLifeAngelinaBillboard();
   }
   const nearNpc = getNearestNpcId();
   const nearPortal = getNearPortal();
@@ -1391,6 +1861,10 @@ function loop() {
       });
     }
     markActorVisibleWhenReady(a);
+    if (a.isPlayer) {
+      enforceLifeCh1PlayerMeshVisibility(a);
+      tickLifeCh1PlayerSpritePlacement(a);
+    }
     if (a._meshyDog) updateMeshyDogAnim(a, dt, a._anim === "hop" ? "hop" : "idle", a._spd || 0);
     if (a.root && !a.isDog) {
       const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));
@@ -1425,6 +1899,7 @@ function loop() {
 
 function init(h) {
   hooks = h;
+  setPlayerRootVisibilityGuard(enforceLifeCh1PlayerMeshVisibility);
   const canvas = document.getElementById("stage3d");
   if (!canvas) return Promise.resolve(false);
   mobileQuality =
@@ -1469,6 +1944,8 @@ function init(h) {
   window.addEventListener("resize", resize);
   document.body.classList.add("mode-world3d");
 
+  onMeshyTemplateLoaded(rebuildActorsForCharacter);
+
   return loadModels().then(() => {
     resize();
     loop();
@@ -1485,7 +1962,9 @@ function applyViewportCameraProfile() {
   const cw = canvas?.clientWidth ?? window.innerWidth;
   mobileQuality = window.matchMedia("(max-width: 900px)").matches || cw < 520;
   if (!camera) return;
-  camera.fov = mobileQuality ? 48 : 42;
+  const locCam = LOCATION_CAMERA[currentLoc];
+  const mob = mobileQuality && locCam?.mobile ? locCam.mobile : null;
+  camera.fov = mob?.fov ?? (mobileQuality ? 48 : 42);
   camera.updateProjectionMatrix();
 }
 
@@ -1535,9 +2014,52 @@ const api = {
   },
   getLocation: () => currentLoc,
   getNearestNpc: getNearestNpcId,
+  getNearestPropInteract,
   getNearestDog: getNearestDogId,
   getNearPortal,
+  getPlayerWorldPosition: () => {
+    const pl = actors.get("player");
+    if (!pl) return { x: 0, z: 0, loc: currentLoc };
+    return { x: pl.wx ?? 0, z: pl.wz ?? 0, loc: currentLoc };
+  },
+  setPlayerWorldPosition: (wx, wz) => {
+    if (!isLifeCh1E2eTeleportEnabled()) return false;
+    const pl = actors.get("player");
+    if (!pl?.group) return false;
+    pl.wx = wx;
+    pl.wz = wz;
+    pl.group.position.set(wx, pl.group.position.y, wz);
+    return true;
+  },
   setGuideTarget: t => { guideTarget = t; },
+  setAngelinaLifeBillboard: setAngelinaLifeBillboard,
+  clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
+  setPlayerLifeCh1Skin,
+  getPlayerLifeCh1SkinRenderState,
+  getNpcVisibilitySnapshot,
+  getRoomNpcsOnScreenSnapshot: (ids = ["vienna", "mohawk", "cobalt"]) => {
+    const onScreen = {};
+    ids.forEach(id => {
+      onScreen[id] = npcActorOnScreen(id);
+    });
+    return { location: currentLoc, onScreen, viewport: mobileQuality ? "mobile" : "desktop" };
+  },
+  getNpcMeshVertexSnapshot: () => {
+    const out = {};
+    actors.forEach((a, actorId) => {
+      if (!actorId.startsWith("npc_")) return;
+      const cid = a.characterId || actorId.replace(/^npc_/, "");
+      out[cid] = {
+        verts: countMeshVertices(a.root),
+        meshUrl: a._meshUrl || "",
+        visible: !!(a.group?.visible && a.root?.visible !== false)
+      };
+    });
+    return { location: currentLoc, npcs: out };
+  },
+  clearPlayerLifeCh1Skin: () => setPlayerLifeCh1Skin({ visible: false }),
+  /** E2E only: rotate camera toward a world point (movement still uses real WASD). */
+  faceWorldTargetForE2e,
   refreshHangoutStage: stage => {
     if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
   },
@@ -1656,7 +2178,9 @@ const api = {
       updateProcedural(a, 1 / 30, null, false);
     }
     markActorVisibleWhenReady(a);
+    enforceLifeCh1PlayerMeshVisibility(a);
     a.root.visible = true;
+    enforceLifeCh1PlayerMeshVisibility(a);
     const p = a.group.position;
     if (pose === "front") {
       camera.position.set(p.x, p.y + 0.98, p.z - 2.85);
@@ -2480,6 +3004,8 @@ const api = {
     return motionProbe.frames.length;
   },
   countVisibleProps: (opts = {}) => countVisiblePropsInScene(opts),
+  countVisiblePropsInScene: (opts = {}) => countVisiblePropsInScene(opts),
+  getSceneLocation: () => currentLoc || null,
   auditLargeMeshes: (minSize = 1.5) => {
     const rows = [];
     if (!locationRoot) return rows;
@@ -2585,9 +3111,14 @@ function isPropRootVisible(root, frustumOnly = false) {
   return _propFrustum.containsPoint(_propCenter);
 }
 
+function sceneLocationForAudit() {
+  return currentLoc || null;
+}
+
 function countVisiblePropsInScene(opts = {}) {
+  const locTag = sceneLocationForAudit();
   const frustumOnly = !!opts.frustumOnly;
-  if (!locationRoot || !camera) return { unique: 0, tags: [], instances: 0, location: currentLoc, frustumOnly };
+  if (!locationRoot || !camera) return { unique: 0, tags: [], instances: 0, location: locTag, frustumOnly };
   camera.updateMatrixWorld();
   _propProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _propFrustum.setFromProjectionMatrix(_propProj);
@@ -2604,7 +3135,7 @@ function countVisiblePropsInScene(opts = {}) {
     tags.add(root.userData.propTag);
     instances++;
   });
-  const out = { unique: tags.size, tags: [...tags].sort(), instances, location: currentLoc, frustumOnly };
+  const out = { unique: tags.size, tags: [...tags].sort(), instances, location: locTag, frustumOnly };
   if (!frustumOnly) {
     const fr = countVisiblePropsInScene({ frustumOnly: true });
     out.frustumUnique = fr.unique;

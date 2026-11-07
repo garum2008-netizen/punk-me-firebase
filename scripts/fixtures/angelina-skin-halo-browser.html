@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Angelina halo browser upscale</title>
+  </head>
+  <body style="margin: 0; background: #111">
+    <script>
+      window.__renderSkin3x = async (imgUrl, cssW, cssH) => {
+        const img = new Image();
+        img.decoding = "sync";
+        await new Promise((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("image load failed"));
+          img.src = imgUrl;
+        });
+        const scale = 3;
+        const canvas = document.createElement("canvas");
+        canvas.width = cssW * scale;
+        canvas.height = cssH * scale;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        return { data: Array.from(id.data), w: canvas.width, h: canvas.height };
+      };
+    </script>
+  </body>
+</html>

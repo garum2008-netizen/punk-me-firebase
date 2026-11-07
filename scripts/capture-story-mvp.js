@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
@@ -48,7 +49,8 @@ async function snap(page, name) {
 
 (async () => {
   const browser = await chromium.launch();
-  const desk = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const desk = const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desk);
   await prep(desk);
   await desk.goto(`${base}/?dev=1&solo=1&v=story-mvp`, { waitUntil: "networkidle", timeout: 120000 });
   await enter(desk);
@@ -103,7 +105,8 @@ async function snap(page, name) {
     await snap(desk, `construction-stage-${stage}.png`);
   }
 
-  const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const mob = const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(mob);
   await prep(mob);
   await mob.goto(`${base}/?dev=1&solo=1&v=story-mvp-m`, { waitUntil: "networkidle", timeout: 120000 });
   await enter(mob);

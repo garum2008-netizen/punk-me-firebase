@@ -327,6 +327,12 @@ function wireModal() {
 }
 
 export async function initAccountAuth() {
+  if (typeof window !== "undefined" && window.__PUNK_LIFE_CH1_LOCAL__ === true) {
+    document.querySelectorAll(".account-auth-bar").forEach(el => {
+      el.hidden = true;
+    });
+    return;
+  }
   wireModal();
   window.addEventListener("hashchange", () => {
     if (location.hash === "#account") setModalOpen(true);

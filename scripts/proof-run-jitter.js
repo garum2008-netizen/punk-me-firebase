@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
@@ -263,7 +264,8 @@ async function runCellProbe(page, cell) {
 }
 
 async function runCellWithTimeout(browser, cell, attempt) {
-  const page = await browser.newPage({ viewport: cell.viewport });
+  const page = const page = await browser.newPage({ viewport: cell.viewport }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(page);
   await prep(page);
   await page.goto(`${base}/?dev=1&solo=1&v=jitter-${cell.label}-${cell.hero}-${cell.loc}-${cell.scenario}-a${attempt}`, {
     waitUntil: "domcontentloaded",

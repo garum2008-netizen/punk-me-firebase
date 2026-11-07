@@ -1,0 +1,17 @@
+{
+  "A": {
+    "portrait": { "browser": 13149, "lanczos": 12826 },
+    "world": { "browser": 9004, "lanczos": 8881 },
+    "browserSum": 22153
+  },
+  "B": {
+    "portrait": { "browser": 8311, "lanczos": 7937 },
+    "world": { "browser": 5085, "lanczos": 4800 },
+    "browserSum": 13396
+  },
+  "C": {
+    "portrait": { "browser": 304, "lanczos": 220 },
+    "world": { "browser": 198, "lanczos": 131 },
+    "browserSum": 502
+  }
+}

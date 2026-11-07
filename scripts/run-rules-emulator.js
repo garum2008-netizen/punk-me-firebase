@@ -8,13 +8,27 @@ const path = require("path");
 const root = path.join(__dirname, "..");
 const project = "punk-me-40605";
 const servePort = process.env.PUNK_PORT || "9876";
+const { applyFirebaseEmulatorEnv } = require("./firebase-emulator-env");
+const { startTestStaticServe } = require("./start-test-static-serve");
+const { dbPort, authPort } = applyFirebaseEmulatorEnv();
 
 function spawnEmulators() {
   return spawn(
     "npx",
     ["firebase", "emulators:start", "--only", "auth,database", "--project", project],
-    { cwd: root, stdio: "pipe", env: { ...process.env, FIREBASE_EMULATOR_HUB: "" } }
+    { cwd: root, stdio: "pipe", env: { ...process.env, FIREBASE_EMULATOR_HUB: "" }, detached: true }
   );
+}
+
+function killProcessGroup(child) {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch (_) {
+    try {
+      child.kill("SIGKILL");
+    } catch (_) {}
+  }
 }
 
 function waitForLog(proc, needle, timeoutMs = 90000) {
@@ -49,38 +63,43 @@ function runNode(script, extraEnv = {}) {
   });
 }
 
-function startServe() {
-  return new Promise((resolve, reject) => {
-    const child = spawn("npx", ["--yes", "serve", "-l", servePort, "."], {
-      cwd: root,
-      stdio: "pipe"
-    });
-    child.on("error", reject);
-    setTimeout(() => resolve(child), 3000);
+function closeHttpServer(srv) {
+  if (!srv) return Promise.resolve();
+  return new Promise(resolve => {
+    try {
+      srv.close(() => resolve());
+    } catch (_) {
+      resolve();
+    }
   });
 }
 
+function killEmulatorListenPorts() {
+  const { execSync } = require("child_process");
+  for (const port of [Number(dbPort), Number(authPort), 4400, 4500]) {
+    try {
+      execSync(`fuser -k ${port}/tcp 2>/dev/null || true`, { stdio: "ignore" });
+    } catch (_) {}
+  }
+}
+
 (async () => {
-  delete process.env.FIREBASE_DATABASE_EMULATOR_HOST;
-  delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
   const emu = spawnEmulators();
-  let serve;
+  let staticSrv;
+  let base;
   try {
     await waitForLog(emu, "All emulators ready");
     await runNode("test-database-rules.js");
     await runNode("test-save-fixtures.js");
-    serve = await startServe();
+    ({ srv: staticSrv, base } = await startTestStaticServe(root, servePort));
     await runNode("test-save-gameplay-emulator.js", {
-      PUNK_BASE: `http://127.0.0.1:${servePort}`
+      PUNK_BASE: base
     });
     console.log("run-rules-emulator: all tests PASS");
   } finally {
-    try {
-      serve?.kill("SIGKILL");
-    } catch (_) {}
-    try {
-      emu.kill("SIGKILL");
-    } catch (_) {}
+    await closeHttpServer(staticSrv);
+    killProcessGroup(emu);
+    killEmulatorListenPorts();
   }
 })().catch(e => {
   console.error(e);

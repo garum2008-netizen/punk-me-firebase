@@ -1,9 +1,11 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 
 (async () => {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const page = const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(page);
   await page.goto(`${base}/?dev=1&solo=1&v=dbg-framing`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("#charSelect.active", { timeout: 30000 }).catch(() => {});
   if (await page.locator("#charSelectConfirm").isVisible({ timeout: 8000 }).catch(() => false)) {

@@ -174,6 +174,38 @@ const CHARACTERS = {
     voice: { pitch: 1.05, rate: 0.88 },
     intro: { ru: "", en: "", da: "" }
   },
+  /** Hidden locomotion rig for life-ch1 slice player (2D cutout visible). Not an NPC id. */
+  life_ch1_proxy: {
+    id: "life_ch1_proxy",
+    playable: false,
+    npc: false,
+    poster: "imagine_images/Oo040.jpg",
+    look: {
+      scale: 0.96,
+      hairStyle: "mohawk",
+      hair: 0xff3399,
+      jacket: 0x2a0a28,
+      pants: 0x180818,
+      boots: 0x330022,
+      emissive: 0xff3399,
+      tint: 0xffbbaa,
+      chain: true,
+      choker: true,
+      spikes: false
+    },
+    anim: {
+      idle: ["Idle_Loop"],
+      walk: ["Walk_Formal_Loop", "Walk_Loop"],
+      run: ["Jog_Fwd_Loop"],
+      talk: ["Idle_Talking_Loop"],
+      emote: ["Idle_Torch_Loop"],
+      walkSpeed: 1.0,
+      idleSpeed: 1.0,
+      runSpeed: 1.05
+    },
+    voice: { pitch: 1.12, rate: 1.02 },
+    intro: { ru: "", en: "", da: "" }
+  },
   gravedigger: {
     id: "gravedigger",
     playable: false,
@@ -228,6 +260,7 @@ function characterIntroLine(id, lang) {
 
 window.CHARACTERS = CHARACTERS;
 window.PLAYABLE_CHARACTER_IDS = PLAYABLE_CHARACTER_IDS;
+window.LIFE_CH1_PLAYER_MESH_ID = "life_ch1_proxy";
 window.getCharacterDef = getCharacterDef;
 window.getPlayableCharacters = getPlayableCharacters;
 window.characterIntroLine = characterIntroLine;
