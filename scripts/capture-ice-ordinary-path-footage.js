@@ -340,7 +340,10 @@ async function completeOnboarding(page) {
       await page.waitForSelector("#gangModal.active");
       await visibleUiClick(page, '.npc-row[data-npc="razor"]', "gang razor row (fight)");
       await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
-      await visibleUiClick(page, 'button[onclick*="startNpcFight"]', "startNpcFight");
+      const fightStart = page.locator('button[onclick*="startNpcFight"]');
+      const fsBox = await fightStart.boundingBox();
+      logInput("ui_click", `startNpcFight @${Math.round(fsBox?.x || 0)},${Math.round(fsBox?.y || 0)}`);
+      await fightStart.click();
       await page.waitForFunction(
         () => {
           const duel = document.getElementById("duel3dHud");
@@ -353,31 +356,29 @@ async function completeOnboarding(page) {
       await page.waitForFunction(() => !document.getElementById("gangModal")?.classList.contains("active"), undefined, {
         timeout: 8000,
       });
-      for (let i = 0; i < 48; i++) {
-        const btn3d = page.locator('#duel3dHud:not(.hidden) [data-testid="duel3d-attack"]');
-        const box3 = await btn3d.boundingBox().catch(() => null);
-        const overlay2d = page.locator("#fightOverlay.active");
-        const overlayOpen = await overlay2d.isVisible().catch(() => false);
-        if (box3 && box3.width > 2 && box3.height > 2) {
-          await visibleUiClick(page, btn3d, "duel3dAttack");
-          await page.waitForTimeout(360);
-        } else if (overlayOpen) {
-          const fightBtn = page.locator('#fightOverlay.active button[onclick*="fightAttack"]').first();
-          const fb = await fightBtn.boundingBox();
-          if (fb && fb.width > 2 && fb.height > 2) {
-            logInput("ui_click", `fightAttack @${Math.round(fb.x)},${Math.round(fb.y)} ${Math.round(fb.width)}x${Math.round(fb.height)}`);
-            await fightBtn.click();
-            await page.waitForTimeout(300);
+      for (let i = 0; i < 28; i++) {
+        const snap = await page.evaluate(() => ({
+          step: window.me?.onboarding?.step,
+          fo: document.getElementById("fightOverlay")?.classList.contains("active"),
+          hud: !document.getElementById("duel3dHud")?.classList.contains("hidden")
+        }));
+        if (snap.fo) {
+          const btn = page.locator('#fightOverlay.active button[onclick*="fightAttack"]').first();
+          const b = await btn.boundingBox();
+          if (b && b.width > 2) {
+            logInput("ui_click", `fightAttack @${Math.round(b.x)},${Math.round(b.y)}`);
+            await btn.click();
           }
-        } else {
-          const advanced = await page.evaluate(() => (window.me?.onboarding?.step || 0) > 4);
-          if (advanced) break;
+        } else if (snap.hud) {
+          const btn = page.locator('[data-testid="duel3d-attack"]');
+          const b = await btn.boundingBox();
+          if (b && b.width > 2) await btn.click();
         }
-        if (await page.evaluate(() => (window.me?.onboarding?.step || 0) > 4 || !!window.me?.onboarding?.done)) break;
+        await page.waitForTimeout(380);
+        if (snap.step > 4 || snap.step === undefined) break;
+        if ((await page.evaluate(() => window.me?.onboarding?.step)) > 4) break;
       }
-      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 4 || !!window.me?.onboarding?.done, undefined, {
-        timeout: 90000,
-      });
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 4, undefined, { timeout: 25000 });
     } else if (step === 5) {
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
       await visibleUiClick(page, '#panelBottom button[onclick*="shopModal"]', "shop open");
@@ -483,12 +484,15 @@ async function playLifeCh1Ordinary(page) {
     timeout: 60000,
   });
   await waitReadableDialog(page, 1100);
-  await pickVisibleLifeCh1Choice(page);
-
-  if ((await nearWorldPoint(page, 2.5, -1.8)) > 1.2) {
-    await walkInteractCh1(page, 2.5, -1.8, 2.85, 20000);
+  const trust2 = page.locator(".life-ch1-choice >> nth=1");
+  if (await trust2.isVisible().catch(() => false)) {
+    await visibleUiClick(page, trust2, "life-ch1 choice (trust/mira branch 2)");
+  } else {
+    await pickVisibleLifeCh1Choice(page);
   }
-  await page.waitForSelector("#lifeCh1DlgOk", { timeout: 20000 });
+  await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 3, undefined, { timeout: 25000 });
+  await walkInteractCh1(page, 2.5, -1.8, 2.85, 65000);
+  await page.waitForSelector("#storyDialog.active #lifeCh1DlgOk, #lifeCh1DlgOk:not([hidden])", { timeout: 60000 });
   await waitReadableDialog(page, 1200);
   await visibleUiClick(page, "#lifeCh1DlgOk", "reflect OK");
   await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, { timeout: 25000 });
