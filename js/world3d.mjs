@@ -1531,10 +1531,18 @@ function checkPortals() {
 const LOCO_DT = 1 / 60;
 
 /** Life Ch1: steer camera toward quest guide while moving (keyboard/touch — not E2E-only). */
-/** Life Ch1: world-space walk toward quest guide (WASD still required; no position cheating). */
+function questGuideLocomotionActive() {
+  try {
+    return !!(window.LifeCh1Slice?.isActive?.() || window.Onboarding?.isActive?.());
+  } catch (_) {
+    return false;
+  }
+}
+
+/** Life Ch1 / onboarding: world-space walk toward guide beacon (WASD still required). */
 function lifeCh1GuideLocomotionDelta(input, step) {
   try {
-    if (!window.LifeCh1Slice?.isActive?.()) return null;
+    if (!questGuideLocomotionActive()) return null;
     const mag = Math.hypot(input.moveX, input.moveZ);
     if (mag < 0.05) return null;
     const t = guideTarget;
@@ -1558,7 +1566,7 @@ function lifeCh1GuideLocomotionDelta(input, step) {
 
 function lifeCh1SteerCameraWhileMoving(input) {
   try {
-    if (!window.LifeCh1Slice?.isActive?.()) return;
+    if (!questGuideLocomotionActive()) return;
     const mag = Math.hypot(input.moveX, input.moveZ);
     if (mag < 0.05) return;
     const t = guideTarget;

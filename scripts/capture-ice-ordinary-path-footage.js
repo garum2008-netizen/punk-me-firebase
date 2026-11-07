@@ -146,15 +146,20 @@ async function focusStage(page) {
 }
 
 async function walkKeys(page, bursts = 6, keyMs = 380) {
+  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, {
+    timeout: 120000,
+  });
   await focusStage(page);
+  const keys = ["w", "w", "a", "w", "d", "w"];
   for (let i = 0; i < bursts; i++) {
-    logInput("keyboard", "Shift+W walk burst");
+    const k = keys[i % keys.length];
+    logInput("keyboard", `Shift+${k.toUpperCase()} walk burst`);
     await page.keyboard.down("Shift");
-    await page.keyboard.down("w");
+    await page.keyboard.down(k);
     await page.waitForTimeout(keyMs);
-    await page.keyboard.up("w");
+    await page.keyboard.up(k);
     await page.keyboard.up("Shift");
-    await page.waitForTimeout(80);
+    await page.waitForTimeout(100);
   }
 }
 
@@ -189,7 +194,10 @@ async function completeOnboarding(page) {
     const step = st.onboardingStep;
     const stepBefore = step;
     if (step === 0) {
-      await walkKeys(page, 10, 400);
+      await walkKeys(page, 28, 420);
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 30000 }).catch(
+        () => {}
+      );
     } else if (step === 1) {
       if (st.location !== "street") await uiOpenMapTravel(page, "street");
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 1 || window.me?.onboarding?.done, undefined, {
@@ -411,6 +419,11 @@ async function runOrdinarySession(browser, viewport, label) {
     results.push(await runOrdinarySession(browser, { width: 1280, height: 720 }, "desktop"));
   } catch (e) {
     err = e;
+    try {
+      const page = await browser.newPage();
+      await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "domcontentloaded" }).catch(() => {});
+      await page.close();
+    } catch (_) {}
   } finally {
     await browser.close();
     try {
