@@ -472,6 +472,28 @@ async function playLifeCh1Ordinary(page) {
     fullPage: false
   });
   logScene("visual_cemetery", "cemetery cutout screenshot");
+  if (INPUT_MODE === "touch") {
+    const perf = await page.evaluate(() => {
+      return new Promise(resolve => {
+        const t0 = performance.now();
+        let frames = 0;
+        const tick = () => {
+          frames += 1;
+          if (performance.now() - t0 < 2000) requestAnimationFrame(tick);
+          else
+            resolve({
+              sampleMs: 2000,
+              frames,
+              approxFps: +(frames / 2).toFixed(1),
+              viewport: { w: innerWidth, h: innerHeight },
+              ua: navigator.userAgent
+            });
+        };
+        requestAnimationFrame(tick);
+      });
+    });
+    logScene("touch_perf", JSON.stringify(perf));
+  }
   return true;
 }
 
