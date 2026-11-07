@@ -90,8 +90,13 @@ function bootPlaywrightFirebaseStubSession() {
   function sliceCharSelectReady() {
     if (!window.CharSelect) return false;
     try {
-      if (new URLSearchParams(location.search).get("lifeCh1Slice") === "1") {
-        return window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() === true;
+      const qSlice = new URLSearchParams(location.search).get("lifeCh1Slice") === "1";
+      const localSlice = window.__PUNK_LIFE_CH1_LOCAL__ === true;
+      if (qSlice || localSlice) {
+        return (
+          typeof window.LifeCh1Slice?.isLifeCh1SliceEnabled === "function" &&
+          window.LifeCh1Slice.isLifeCh1SliceEnabled() === true
+        );
       }
     } catch (_) {}
     return true;
@@ -178,9 +183,13 @@ function bootLifeCh1LocalSession() {
   function sliceCharSelectReady() {
     if (!window.CharSelect) return false;
     try {
-      if (new URLSearchParams(location.search).get("lifeCh1Slice") === "1") {
-        return typeof window.LifeCh1Slice?.isLifeCh1SliceEnabled === "function" &&
-          window.LifeCh1Slice.isLifeCh1SliceEnabled();
+      const qSlice = new URLSearchParams(location.search).get("lifeCh1Slice") === "1";
+      const localSlice = window.__PUNK_LIFE_CH1_LOCAL__ === true;
+      if (qSlice || localSlice) {
+        return (
+          typeof window.LifeCh1Slice?.isLifeCh1SliceEnabled === "function" &&
+          window.LifeCh1Slice.isLifeCh1SliceEnabled() === true
+        );
       }
     } catch (_) {}
     return true;
