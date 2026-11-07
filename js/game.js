@@ -1085,7 +1085,7 @@ function bindGameShell() {
       onMove: (x, y, opts = {}) => {
         me.x = x; me.y = y;
         window.Onboarding?.onMove?.(x, y);
-        window.LifeCh1Slice?.onMove?.();
+        if (!opts.skipLifeCh1Move) window.LifeCh1Slice?.onMove?.();
         if (opts.sync3d === false) {
           clearTimeout(moveSaveTimer);
           moveSaveTimer = setTimeout(() => saveMe(), 450);
@@ -1940,9 +1940,19 @@ function renderBuildings() {
   ).join("");
 }
 
+function lifeCh1BlocksLegacyObjective() {
+  if (!window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) return false;
+  const st = window.me?.lifeCh1;
+  return !!(st && typeof st === "object" && !st.completed);
+}
+
 function renderQuest() {
   if (window.me?.onboarding && !window.me.onboarding.done) {
     window.Onboarding?.render?.();
+    return;
+  }
+  if (lifeCh1BlocksLegacyObjective()) {
+    if (window.LifeCh1Slice?.renderObjectivePanel?.()) return;
     return;
   }
   if (window.LifeCh1Slice?.renderObjectivePanel?.()) return;

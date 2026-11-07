@@ -83,6 +83,21 @@ export function clampStepIndex(st) {
   }
 }
 
+/** Resume in-progress slice after local/Firebase restore (prevents legacy StoryEngine HUD takeover). */
+export function resumeLifeCh1Progress(st) {
+  if (!st || st.completed || st.active) return;
+  const hasProgress =
+    (st.stepIndex || 0) > 0 ||
+    (st.startedAt || 0) > 0 ||
+    Object.keys(st.flags || {}).length > 0 ||
+    Object.keys(st.claimedSteps || {}).length > 0;
+  if (!hasProgress) return;
+  st.active = true;
+  try {
+    document.body.classList.add("life-ch1-active");
+  } catch (_) {}
+}
+
 export function defaultLifeCh1State() {
   return {
     v: 1,
@@ -293,6 +308,7 @@ export function restoreLocalOverlay() {
       parsed.claimedSteps = normalizeClaimedSteps(parsed.claimedSteps);
       me().lifeCh1 = parsed;
       clampStepIndex(me().lifeCh1);
+      resumeLifeCh1Progress(me().lifeCh1);
     }
   } catch (_) {}
 }
@@ -497,6 +513,7 @@ export async function tryStartAfterOnboarding() {
   st.active = true;
   st.startedAt = Date.now();
   st.stepIndex = 0;
+  delete st._moveStepBaseline;
   st.playerCutout = true;
   document.body.classList.add("life-ch1-active");
   applySliceAngelinaPlayerChrome();
@@ -516,7 +533,7 @@ export async function tryStartAfterOnboarding() {
   syncPlayerLifeCh1Skin();
   if (me()?.location === "room") {
     try {
-      window.goLocation?.("room");
+      window.World3D?.snapPlayerToLocationSpawn?.();
     } catch (_) {}
   }
   return true;
@@ -556,6 +573,15 @@ export function onMove() {
   if (!step || step.id !== "move") return;
   const p = me();
   if (p.location !== "room") return;
+  const st = ensureLifeCh1();
+  const pos = playerWorldPos();
+  if (st._moveStepBaseline == null) {
+    st._moveStepBaseline = { x: pos.x, z: pos.z };
+    return;
+  }
+  const dist = distWorld(pos.x, pos.z, st._moveStepBaseline.x, st._moveStepBaseline.z);
+  if (dist < 1.25) return;
+  delete st._moveStepBaseline;
   advanceStep();
   setSubtitle(
     L({
@@ -805,6 +831,7 @@ export function renderObjectivePanel() {
   if (!isLifeCh1SliceEnabled()) return false;
   const st = ensureLifeCh1(me());
   if (!st) return false;
+  resumeLifeCh1Progress(st);
   const box = document.getElementById("questBox");
   if (!box) return false;
   const title = L({

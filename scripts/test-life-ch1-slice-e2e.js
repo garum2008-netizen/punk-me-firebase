@@ -145,7 +145,10 @@ async function startSliceAfterChapter0Shortcut(page) {
     window.saveMe?.();
   });
   await page.waitForFunction(
-    () => window.LifeCh1Slice?.isActive?.() && window.me?.lifeCh1?.stepIndex === 0,
+    () =>
+      window.LifeCh1Slice?.isActive?.() &&
+      typeof window.me?.lifeCh1?.stepIndex === "number" &&
+      window.me.lifeCh1.stepIndex <= 1,
     undefined,
     { timeout: 30000 }
   );

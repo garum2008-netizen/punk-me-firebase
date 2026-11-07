@@ -206,19 +206,21 @@ function applyPlayerLifeCh1SkinOpts(opts = {}) {
   }
   const url = opts.url;
   lifeCh1PlayerSkin.url = url;
-  if (pl.root?.visible !== false) {
-    pl.root.visible = false;
-    lifeCh1PlayerSkin.rootVisible = false;
-  }
-  sp.visible = true;
-  if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = true;
   const tail = url.split("/").pop() || url;
   const loaded = sp.material.map?.image?.currentSrc || sp.material.map?.image?.src || "";
   if (loaded && loaded.includes(tail) && sp.material.opacity >= 1) {
+    if (pl.root?.visible !== false) {
+      pl.root.visible = false;
+      lifeCh1PlayerSkin.rootVisible = false;
+    }
+    sp.visible = true;
+    if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = true;
     layoutLifeCh1PlayerSprite(sp, sp.material.map);
     return true;
   }
+  sp.visible = false;
   sp.material.opacity = 0;
+  if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = false;
   texLoader.load(
     url,
     tex => {
@@ -232,6 +234,8 @@ function applyPlayerLifeCh1SkinOpts(opts = {}) {
         pl.root.visible = false;
         lifeCh1PlayerSkin.rootVisible = false;
       }
+      sp.visible = true;
+      if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = true;
       window.dispatchEvent(new CustomEvent("life-ch1-skin-texture-ready", { detail: { url } }));
     },
     undefined,
@@ -1513,10 +1517,48 @@ function checkPortals() {
 
 const LOCO_DT = 1 / 60;
 
+/** Life Ch1: steer camera toward quest guide while moving (keyboard/touch — not E2E-only). */
+function lifeCh1SteerCameraWhileMoving(input) {
+  try {
+    if (!window.LifeCh1Slice?.isActive?.()) return;
+    const mag = Math.hypot(input.moveX, input.moveZ);
+    if (mag < 0.05) return;
+    const t = guideTarget;
+    if (!t || t.wx == null || t.wz == null) return;
+    if (t.loc && t.loc !== currentLoc) return;
+    const pl = actors.get("player");
+    if (!pl) return;
+    const dx = t.wx - pl.wx;
+    const dz = t.wz - pl.wz;
+    if (Math.hypot(dx, dz) < 0.4) return;
+    cameraYaw = Math.atan2(dx, dz);
+  } catch (_) {}
+}
+
+function spawnPrefForLoc(locId) {
+  if (locId === "kitchen") return { x: -0.12, z: 0.36 };
+  if (locId === "elevator") return { x: 0, z: 0.02 };
+  return { x: 0, z: -1.2 };
+}
+
+function snapPlayerToLocationSpawn() {
+  const player = actors.get("player");
+  if (!player || !bounds) return false;
+  const spawnPref = spawnPrefForLoc(currentLoc);
+  const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
+  player.wx = clear.x;
+  player.wz = clear.z;
+  placeActorWorld(player, clear.x, clear.z, true);
+  const g = worldToGameLoc(clear.x, clear.z, bounds);
+  hooks.onMove?.(g.x, g.y, { sync3d: false, skipLifeCh1Move: true });
+  return true;
+}
+
 function processInput(dt) {
   const player = actors.get("player");
   if (!player || !bounds) return;
   const input = getInputState();
+  lifeCh1SteerCameraWhileMoving(input);
   const step = (motionProbe || input.run ? 7.2 : 4.5) * LOCO_DT;
   let mx = 0;
   let mz = 0;
@@ -1752,11 +1794,7 @@ function sync(data) {
   ensureCar(location === "street" && !isDuelActive() && (!!carVisible || locationProps.showCar));
 
   const playerActor = actors.get("player");
-  const spawnPref = currentLoc === "kitchen"
-    ? { x: -0.12, z: 0.36 }
-    : currentLoc === "elevator"
-      ? { x: 0, z: 0.02 }
-      : { x: 0, z: -1.2 };
+  const spawnPref = spawnPrefForLoc(currentLoc);
   if (playerActor && pointInsideCollider(playerActor.wx, playerActor.wz, furnitureColliders, 0.38)) {
     const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
     playerActor.group.position.x = clear.x;
@@ -2032,6 +2070,7 @@ const api = {
     return true;
   },
   setGuideTarget: t => { guideTarget = t; },
+  snapPlayerToLocationSpawn,
   setAngelinaLifeBillboard: setAngelinaLifeBillboard,
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
   setPlayerLifeCh1Skin,

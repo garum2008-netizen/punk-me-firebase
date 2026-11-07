@@ -128,17 +128,6 @@ async function dismissHowTo(page) {
 
 async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
   await dismissHowTo(page);
-  await page.evaluate(
-    ({ tx, tz, radius }) => {
-      const p = window.World3D?.getPlayerWorldPosition?.();
-      const d = p ? Math.hypot(tx - p.x, tz - p.z) : 999;
-      if (d > radius + 1 && window.World3D?.setPlayerWorldPosition) {
-        window.World3D.setPlayerWorldPosition(0, -1.2);
-      }
-    },
-    { tx, tz, radius }
-  );
-  await page.waitForTimeout(400);
   const canvas = page.locator("#stage3d");
   await canvas.click({ position: { x: 195, y: 300 } });
   const start = Date.now();
@@ -152,41 +141,27 @@ async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
     if (dist >= lastDist - 0.02) stall += 1;
     else stall = 0;
     lastDist = dist;
-    await page.evaluate(({ tx, tz }) => window.World3D?.faceWorldTargetForE2e?.(tx, tz), { tx, tz });
-    if (stall > 10) {
-      for (const key of ["w", "a", "s", "d"]) {
+    if (stall > 12) {
+      for (const key of ["s", "a", "d", "w"]) {
         await page.keyboard.down(key);
-        await page.waitForTimeout(180);
+        await page.waitForTimeout(220);
         await page.keyboard.up(key);
       }
       stall = 0;
     }
     await page.keyboard.down("Shift");
     await page.keyboard.down("w");
-    await page.waitForTimeout(380);
+    await page.waitForTimeout(400);
     await page.keyboard.up("w");
     await page.keyboard.up("Shift");
-    await page.waitForTimeout(50);
+    await page.waitForTimeout(60);
   }
   const last = await page.evaluate(() => window.World3D?.getPlayerWorldPosition?.());
   return { ok: false, last };
 }
 
 async function walkNearOrRetry(page, tx, tz, radius, label) {
-  let r = await walkNear(page, tx, tz, radius);
-  if (r && r.ok === false) {
-    logScene(
-      `${label}_retry`,
-      `Reach (${tx},${tz})`,
-      `Stuck at ${JSON.stringify(r.last)}`,
-      "lifeCh1E2e setPlayerWorldPosition(0,-1.2) then WASD retry",
-      "Recovery attempt (QA nav aid; not a story event)",
-      "Blocker: room locomotion edge case"
-    );
-    await page.evaluate(() => window.World3D?.setPlayerWorldPosition?.(0, -1.2));
-    await page.waitForTimeout(500);
-    r = await walkNear(page, tx, tz, radius, 60000);
-  }
+  const r = await walkNear(page, tx, tz, radius);
   if (r && r.ok === false) {
     logScene(label + "_fail", "Reach interact", "walkNear timeout", "WASD", JSON.stringify(r.last), "BLOCKER");
     return false;
@@ -194,9 +169,10 @@ async function walkNearOrRetry(page, tx, tz, radius, label) {
   return true;
 }
 
-async function bootAngelinaSlice(page, baseUrl) {
+async function bootAngelinaSlice(page, baseUrl, { useE2eNavAid = false } = {}) {
   const qs = firebaseEmulatorQueryString();
-  await page.goto(`${baseUrl}/?solo=1${qs}&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&v=ice-footage`, {
+  const e2e = useE2eNavAid ? "&lifeCh1E2e=1" : "";
+  await page.goto(`${baseUrl}/?solo=1${qs}&lifeCh1Slice=1&lifeCh1Local=1${e2e}&v=ice-footage`, {
     waitUntil: "domcontentloaded",
     timeout: 120000
   });
@@ -213,6 +189,7 @@ async function bootAngelinaSlice(page, baseUrl) {
   );
   await dismissHowTo(page);
   await page.evaluate(async () => {
+    // Test-only: skip chapter-0 onboarding gate for ICE harness (not used in prod hosts).
     window.me.onboarding = { step: 6, progress: {}, done: true };
     window.LifeCh1Slice?.ensureLifeCh1?.(window.me);
     await window.LifeCh1Slice?.tryStartAfterOnboarding?.();
@@ -299,20 +276,6 @@ async function playChapter1Desktop(page) {
     "WASD walk",
     `stepIndex=${await page.evaluate(() => window.me?.lifeCh1?.stepIndex)}`,
     ""
-  );
-
-  const postMove = await page.evaluate(() => {
-    const p = window.World3D?.getPlayerWorldPosition?.();
-    const ok = window.World3D?.setPlayerWorldPosition?.(0, -1.2);
-    return { before: p, ok, after: window.World3D?.getPlayerWorldPosition?.() };
-  });
-  logScene(
-    "post_move_nav_sync",
-    "Stabilize room position before mirror",
-    "Move step can wedge player at room edge",
-    "lifeCh1E2e setPlayerWorldPosition(0,-1.2)",
-    JSON.stringify(postMove),
-    "Not story content; locomotion recovery"
   );
 
   if (!(await walkNearOrRetry(page, -3.2, 2.5, 2.6, "mirror"))) completed = false;
@@ -462,7 +425,8 @@ async function savePlaywrightVideo(page, outName) {
     await playCtx.close();
     const recordingEndUtc = new Date();
     const recordingEndCet = cetTimestamp(recordingEndUtc);
-    const uncutFinal = path.join(OUT, "ice-ch1-ORIGINAL-UNCUT-session-390x844.webm");
+    const shaShort = SHA.slice(0, 12);
+    const uncutFinal = path.join(OUT, `ice-ch1-ORIGINAL-UNCUT-retake-${shaShort}-390x844.webm`);
     if (playVidTmp && fs.existsSync(playVidTmp)) {
       fs.copyFileSync(playVidTmp, uncutFinal);
       try {
@@ -472,7 +436,7 @@ async function savePlaywrightVideo(page, outName) {
 
     recordings.push({
       role: "original_uncut_session",
-      note: "Single continuous Playwright session; excerpts for Shorts must be cut by ICE from this file only",
+      note: "Single continuous Playwright session at final SHA; no E2E teleport; prior DEBUG uncut preserved separately",
       recordingStartCet,
       recordingEndCet,
       recordingStartUtc: recordingStartUtc.toISOString(),
