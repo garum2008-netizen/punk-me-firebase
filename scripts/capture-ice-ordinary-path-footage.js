@@ -359,8 +359,13 @@ async function completeOnboarding(page) {
           await visibleUiClick(page, btn3d, "duel3dAttack");
           await page.waitForTimeout(360);
         } else if (overlayOpen) {
-          await visibleUiClick(page, '#fightOverlay button[onclick*="fightAttack"]', "fightAttack");
-          await page.waitForTimeout(300);
+          const fightBtn = page.locator('#fightOverlay.active button[onclick*="fightAttack"]').first();
+          const fb = await fightBtn.boundingBox();
+          if (fb && fb.width > 2 && fb.height > 2) {
+            logInput("ui_click", `fightAttack @${Math.round(fb.x)},${Math.round(fb.y)} ${Math.round(fb.width)}x${Math.round(fb.height)}`);
+            await fightBtn.click();
+            await page.waitForTimeout(300);
+          }
         } else {
           const advanced = await page.evaluate(() => (window.me?.onboarding?.step || 0) > 4);
           if (advanced) break;
