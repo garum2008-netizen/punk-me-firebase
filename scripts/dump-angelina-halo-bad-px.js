@@ -13,7 +13,7 @@ const root = path.join(__dirname, "..");
 const rel = process.argv[2];
 const mode = process.argv[3] || "lanczos3";
 if (!rel) {
-  console.error("usage: dump-angelina-halo-bad-px.js <rel-path> [lanczos3|browser3]");
+  console.error("usage: dump-angelina-halo-bad-px.js <rel-path> [lanczos3|browser3|both]");
   process.exit(2);
 }
 
@@ -123,13 +123,31 @@ async function loadBrowser3(page, baseUrl, relPath, cssW, cssH) {
   return { data: Buffer.from(out.data), w: out.w, h: out.h };
 }
 
+function mergePixelSamples(a, b, limit = 12000) {
+  const seen = new Set();
+  const out = [];
+  for (const list of [a, b]) {
+    for (const p of list || []) {
+      const k = `${p.x},${p.y}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(p);
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
 (async () => {
   const abs = path.join(root, rel);
   let data;
   let w;
   let h;
-  if (mode === "browser3") {
+
+  if (mode === "both") {
     const meta = await sharp(abs).metadata();
+    const l = await loadLanczos3(abs);
+    const badL = listBad(l.data, l.w, l.h);
     const port = 8811 + Math.floor(Math.random() * 200);
     const srv = await serveStaticDir(root, port);
     const baseUrl = `http://127.0.0.1:${port}`;
@@ -142,9 +160,42 @@ async function loadBrowser3(page, baseUrl, relPath, cssW, cssH) {
     const b = await loadBrowser3(page, baseUrl, rel, meta.width, meta.height);
     await browser.close();
     srv.close();
-    data = b.data;
-    w = b.w;
-    h = b.h;
+    const badB = listBad(b.data, b.w, b.h);
+    const merged = mergePixelSamples(badL, badB, 500);
+    console.log(
+      JSON.stringify(
+        {
+          rel,
+          mode: "both",
+          lanczos3: { count: badL.length },
+          browser3: { count: badB.length },
+          count: badL.length + badB.length,
+          pixels: merged
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  if (mode === "browser3") {
+    const meta = await sharp(abs).metadata();
+    const port = 8811 + Math.floor(Math.random() * 200);
+    const srv = await serveStaticDir(root, port);
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const browser = await chromium.launch();
+    const context = await browser.newContext({ deviceScaleFactor: 3 });
+    await prepareProdHostSimContext(context, { prodHostSim: false, firebaseStub: false });
+    const page = await context.newPage();
+    await installProdFirebaseRouteBlock(page);
+    await page.goto(`${baseUrl}/scripts/fixtures/angelina-skin-halo-browser.html`);
+    const bgr = await loadBrowser3(page, baseUrl, rel, meta.width, meta.height);
+    await browser.close();
+    srv.close();
+    data = bgr.data;
+    w = bgr.w;
+    h = bgr.h;
   } else {
     const l = await loadLanczos3(abs);
     data = l.data;
@@ -152,7 +203,7 @@ async function loadBrowser3(page, baseUrl, relPath, cssW, cssH) {
     h = l.h;
   }
   const bad = listBad(data, w, h);
-  console.log(JSON.stringify({ rel, mode, count: bad.length, pixels: bad.slice(0, 500) }, null, 2));
+  console.log(JSON.stringify({ rel, mode, count: bad.length, pixels: bad.slice(0, 12000) }, null, 2));
 })().catch(e => {
   console.error(JSON.stringify({ error: String(e.message || e) }));
   process.exit(1);

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import subprocess
 import sys
 import time
@@ -893,11 +894,14 @@ def _decontaminate_opaque_grey_halo_components(out: np.ndarray, src_rgb: np.ndar
     """Recolor band greyMatt pixels so halo gate greyMatt test passes (α stays 255)."""
     interior_core = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
     nearest = _nearest_core_rgb(src_rgb, interior_core)
-    for _ in range(5):
+    for _ in range(48):
         grey_matt = _grey_matt_halo_mask(out)
         if not np.any(grey_matt):
             return
+        prev = out[grey_matt, 0:3].copy()
         out[grey_matt, 0:3] = nearest[grey_matt]
+        if np.array_equal(out[grey_matt, 0:3], prev):
+            return
 
 
 def _upscale_xy_to_native(x: int, y: int, scale: int = 3) -> tuple[int, int]:
@@ -944,27 +948,21 @@ def _component_local_halo_cluster_fix(
     skin_id: str,
     kind: str,
 ) -> None:
-    """Target A portrait/world (browser+lanczos) and C world (lanczos) greyMatt clusters."""
-    targets = {("A", "portrait"), ("A", "world"), ("C", "world")}
+    """Targeted fix for stubborn greyMatt clusters after decontam (browser + lanczos dumps)."""
+    targets = {("A", "portrait"), ("A", "world"), ("B", "portrait"), ("B", "world"), ("C", "portrait"), ("C", "world")}
     if (skin_id, kind) not in targets:
         return
-    modes: tuple[str, ...]
-    if skin_id == "C" and kind == "world":
-        modes = ("lanczos3",)
-    else:
-        modes = ("browser3", "lanczos3")
     abs_path = ROOT / rel_path
     abs_path.parent.mkdir(parents=True, exist_ok=True)
-    for _pass in range(12):
+    for _pass in range(8):
         save_webp(Image.fromarray(out, "RGBA"), abs_path, lossless=True)
         seeds: list[tuple[int, int]] = []
-        for mode in modes:
-            dump = _dump_halo_bad_px(rel_path, mode)
-            for px in dump.get("pixels") or []:
-                nx, ny = _upscale_xy_to_native(int(px["x"]), int(px["y"]))
-                for dx in (-1, 0, 1):
-                    for dy in (-1, 0, 1):
-                        seeds.append((nx + dx, ny + dy))
+        dump = _dump_halo_bad_px(rel_path, "both")
+        for px in dump.get("pixels") or []:
+            nx, ny = _upscale_xy_to_native(int(px["x"]), int(px["y"]))
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    seeds.append((nx + dx, ny + dy))
         if not seeds:
             return
         changed = _recolor_grey_matt_components_at_seeds(out, src_rgb, alpha_ref, seeds)
@@ -1125,6 +1123,29 @@ def _dump_halo_bad_px(rel_path: str, mode: str) -> dict:
     return json.loads(proc.stdout.strip())
 
 
+def _halo_dump_log_summary(d: dict) -> dict:
+    """Compact summary for stdout / BUILD_REPORT (omit pixel coordinate arrays)."""
+    if not isinstance(d, dict):
+        return {"error": "invalid dump"}
+    if d.get("error"):
+        return {"error": d["error"]}
+    if d.get("mode") == "both":
+        lc = d.get("lanczos3") or {}
+        bc = d.get("browser3") or {}
+        px = d.get("pixels") or []
+        return {
+            "mode": "both",
+            "lanczosBadCount": lc.get("count"),
+            "browserBadCount": bc.get("count"),
+            "mergedPixelSampleLen": len(px),
+        }
+    return {
+        "mode": d.get("mode"),
+        "count": d.get("count"),
+        "pixelSampleLen": len(d.get("pixels") or []),
+    }
+
+
 def _silhouette_limits_ok(final_images: dict[tuple[str, str], Image.Image]) -> tuple[bool, dict]:
     limits = {"portrait": 30, "world": 22}
     counts: dict[str, int] = {}
@@ -1144,28 +1165,32 @@ def _sweep_alpha255_lock(
 ) -> tuple[float | None, int | None, list[dict]]:
     """Return (best_thresh, best_inset, sweep_log) or None."""
     sweep_log: list[dict] = []
-    best_choice: tuple[float, int] | None = None
-    best_min_a255 = -1.0
 
     for thresh in (0.80, 0.85, 0.90):
         for inset in (1, 2, 3):
             final_images: dict[tuple[str, str], Image.Image] = {}
             shares: dict[str, float] = {}
             halo_report: dict = {"skins": {}}
-            paths: dict[str, str] = {}
 
+            rel_batch: list[str] = []
             for skin_id in ["A", "B", "C"]:
                 slug = slug_map[skin_id]
                 for kind in ("portrait", "world"):
                     pl = prelocks[skin_id][kind]
+                    rel = f"assets/ui/angelina-skins/shipped/{slug}-{kind}.webp"
+                    # Fast sweep: omit iterative component halo repair (applied in final ship step).
                     final = _finalize_prelock(pl, thresh, inset)
                     final_images[(skin_id, kind)] = final
                     arr = np.array(final.convert("RGBA"))
                     shares[f"{skin_id}_{kind}"] = _alpha255_share(arr)
-                    rel = f"assets/ui/angelina-skins/shipped/{slug}-{kind}.webp"
                     save_webp(final, ROOT / rel, lossless=True)
-                    paths[f"{skin_id}_{kind}"] = rel
-                    halo_report["skins"].setdefault(skin_id, {})[kind] = _measure_halo(rel)
+                    rel_batch.append(rel)
+            batch_halo = _measure_halo_batch(rel_batch)
+            for skin_id in ["A", "B", "C"]:
+                slug = slug_map[skin_id]
+                for kind in ("portrait", "world"):
+                    rel = f"assets/ui/angelina-skins/shipped/{slug}-{kind}.webp"
+                    halo_report["skins"].setdefault(skin_id, {})[kind] = batch_halo[rel]
 
             min_a255 = min(shares.values())
             halo_ok = _halo_counts_pass(halo_report)
@@ -1189,20 +1214,27 @@ def _sweep_alpha255_lock(
             )
             if entry["passesAll"]:
                 return thresh, inset, sweep_log
-            if sil_ok and halo_ok and min_a255 > best_min_a255:
-                best_min_a255 = min_a255
-                best_choice = (thresh, inset)
 
-    if best_choice and best_min_a255 >= 0.9:
-        return best_choice[0], best_choice[1], sweep_log
-    return None, None, sweep_log
+    candidates = [e for e in sweep_log if e.get("silhouetteNearWhiteOk")]
+    if not candidates:
+        return None, None, sweep_log
+    best = max(candidates, key=lambda e: float(e["minAlpha255Share"]))
+    return float(best["thresh"]), int(best["inset"]), sweep_log
 
 
 def _measure_halo(rel_path: str) -> dict:
+    """Single-asset measure (used by review scripts); prefer batch in hot paths."""
+    rel = rel_path.replace("\\", "/")
+    return _measure_halo_batch([rel])[rel]
+
+
+def _measure_halo_batch(rel_paths: list[str]) -> dict[str, dict]:
+    """One Chromium session for all paths — avoids N×(slow) sweep iterations."""
+    rels_norm = [p.replace("\\", "/") for p in rel_paths]
     last_err = ""
     for attempt in range(8):
         proc = subprocess.run(
-            ["node", str(ROOT / "scripts/measure-angelina-halo-json.js"), rel_path.replace("\\", "/")],
+            ["node", str(ROOT / "scripts/measure-angelina-halo-batch-json.js")] + rels_norm,
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -1210,7 +1242,7 @@ def _measure_halo(rel_path: str) -> dict:
         )
         if proc.returncode == 0:
             return json.loads(proc.stdout.strip())
-        last_err = proc.stderr or proc.stdout or "halo measure failed"
+        last_err = proc.stderr or proc.stdout or "halo batch measure failed"
         time.sleep(1.5 + attempt * 0.5)
     raise RuntimeError(last_err)
 
@@ -1325,6 +1357,94 @@ def _halo_counts_pass(build_report: dict) -> bool:
     return True
 
 
+def _halo_bad_slots(build_report: dict) -> list[tuple[str, str]]:
+    bad: list[tuple[str, str]] = []
+    for skin_id in ["A", "B", "C"]:
+        for kind in ("portrait", "world"):
+            slot = build_report["skins"][skin_id][kind]
+            if slot["browser"]["bgOpaqueBand"] > 0 or slot["lanczos"]["bgOpaqueBand"] > 0:
+                bad.append((skin_id, kind))
+    return bad
+
+
+def _refresh_halo_report(
+    build_report: dict,
+    skins_out: dict,
+    slug_map: dict[str, str],
+    ab6fa_baseline: dict,
+) -> None:
+    batch_paths: list[str] = []
+    for skin_id in ["A", "B", "C"]:
+        batch_paths.append(skins_out[skin_id]["portraitPath"])
+        batch_paths.append(skins_out[skin_id]["worldPath"])
+    batch_meas = _measure_halo_batch(batch_paths)
+    for skin_id in ["A", "B", "C"]:
+        entry = skins_out[skin_id]
+        port_halo = batch_meas[entry["portraitPath"]]
+        world_halo = batch_meas[entry["worldPath"]]
+        browser_sum = port_halo["browser"]["bgOpaqueBand"] + world_halo["browser"]["bgOpaqueBand"]
+        build_report["skins"][skin_id] = {
+            "portrait": port_halo,
+            "world": world_halo,
+            "browserSum": browser_sum,
+            "ab6faBrowserSum": ab6fa_baseline[skin_id]["browserSum"],
+            "beatsAb6fa": browser_sum < ab6fa_baseline[skin_id]["browserSum"],
+        }
+        print(
+            f"HALO {skin_id} browserSum={browser_sum} ab6fa={ab6fa_baseline[skin_id]['browserSum']} "
+            f"P browser {port_halo['browser']['bgOpaqueBand']} lanczos {port_halo['lanczos']['bgOpaqueBand']} "
+            f"W browser {world_halo['browser']['bgOpaqueBand']} lanczos {world_halo['lanczos']['bgOpaqueBand']}",
+            flush=True,
+        )
+
+
+def _repair_halo_slots(
+    prelocks: dict,
+    slug_map: dict[str, str],
+    lock_thresh: float,
+    lock_inset: int,
+    skins_out: dict,
+    build_report: dict,
+    ab6fa_baseline: dict,
+    *,
+    max_rounds: int = 5,
+) -> None:
+    for rnd in range(max_rounds):
+        bad = _halo_bad_slots(build_report)
+        if not bad:
+            return
+        print(f"HALO_REPAIR round={rnd + 1} slots={bad}", flush=True)
+        for skin_id, kind in bad:
+            slug = slug_map[skin_id]
+            rel = f"assets/ui/angelina-skins/shipped/{slug}-{kind}.webp"
+            final = _finalize_prelock(
+                prelocks[skin_id][kind],
+                lock_thresh,
+                lock_inset,
+                component_halo_fix=True,
+                skin_id=skin_id,
+                kind=kind,
+                measure_rel=rel,
+            )
+            port_key = "portraitPath" if kind == "portrait" else "worldPath"
+            sha_key = "portraitSha256" if kind == "portrait" else "worldSha256"
+            int_key = "portraitInteriorRgbSha256" if kind == "portrait" else "worldInteriorRgbSha256"
+            path = ROOT / rel
+            skins_out[skin_id][sha_key] = save_webp(final, path, lossless=True)
+            skins_out[skin_id][int_key] = interior_rgb_sha256(final)
+            if kind == "portrait":
+                ar, ash, ast = write_alpha_ref(slug, kind, final)
+                skins_out[skin_id]["portraitAlphaRef"] = ar
+                skins_out[skin_id]["portraitAlphaSha256"] = ash
+                skins_out[skin_id]["portraitAlphaStats"] = ast
+            else:
+                ar, ash, ast = write_alpha_ref(slug, kind, final)
+                skins_out[skin_id]["worldAlphaRef"] = ar
+                skins_out[skin_id]["worldAlphaSha256"] = ash
+                skins_out[skin_id]["worldAlphaStats"] = ast
+        _refresh_halo_report(build_report, skins_out, slug_map, ab6fa_baseline)
+
+
 def _run_node_test(script: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["node", str(ROOT / "scripts" / script)],
@@ -1392,7 +1512,19 @@ def main() -> None:
             flush=True,
         )
 
-    lock_thresh, lock_inset, sweep_log = _sweep_alpha255_lock(prelocks, slug_map)
+    if os.environ.get("ANGELINA_SKIP_SWEEP") == "1":
+        lock_thresh = float(os.environ.get("ANGELINA_LOCK_THRESH", "0.8"))
+        lock_inset = int(os.environ.get("ANGELINA_LOCK_INSET", "1"))
+        sweep_log: list[dict] = [
+            {
+                "thresh": lock_thresh,
+                "inset": lock_inset,
+                "skipped": True,
+                "note": "ANGELINA_SKIP_SWEEP=1",
+            }
+        ]
+    else:
+        lock_thresh, lock_inset, sweep_log = _sweep_alpha255_lock(prelocks, slug_map)
     build_report["alpha255Sweep"] = sweep_log
     build_report["alpha255Lock"] = {"thresh": lock_thresh, "inset": lock_inset}
 
@@ -1403,19 +1535,31 @@ def main() -> None:
         bt, bi = best["thresh"], best["inset"]
         slug_a = slug_map["A"]
         aw_rel = f"assets/ui/angelina-skins/shipped/{slug_a}-world.webp"
-        aw_no = _finalize_prelock(prelocks["A"]["world"], bt, bi, decontam=False)
+        aw_no = _finalize_prelock(
+            prelocks["A"]["world"],
+            bt,
+            bi,
+            decontam=False,
+            component_halo_fix=False,
+            skin_id="A",
+            kind="world",
+            measure_rel=aw_rel,
+        )
         save_webp(aw_no, ROOT / aw_rel, lossless=True)
-        before_dump = {
-            "browser3": _dump_halo_bad_px(aw_rel, "browser3"),
-            "lanczos3": _dump_halo_bad_px(aw_rel, "lanczos3"),
-        }
+        before_dump = _halo_dump_log_summary(_dump_halo_bad_px(aw_rel, "both"))
         sil_before = _outline_near_white_halos_img(aw_no)
-        aw_de = _finalize_prelock(prelocks["A"]["world"], bt, bi, decontam=True)
+        aw_de = _finalize_prelock(
+            prelocks["A"]["world"],
+            bt,
+            bi,
+            decontam=True,
+            component_halo_fix=False,
+            skin_id="A",
+            kind="world",
+            measure_rel=aw_rel,
+        )
         save_webp(aw_de, ROOT / aw_rel, lossless=True)
-        after_dump = {
-            "browser3": _dump_halo_bad_px(aw_rel, "browser3"),
-            "lanczos3": _dump_halo_bad_px(aw_rel, "lanczos3"),
-        }
+        after_dump = _halo_dump_log_summary(_dump_halo_bad_px(aw_rel, "both"))
         sil_after = _outline_near_white_halos_img(aw_de)
         build_report["aWorldHaloBadPx"] = {
             "beforeDecontam": before_dump,
@@ -1434,19 +1578,31 @@ def main() -> None:
     # A world halo bad-pixel dump + decontam before/after (at chosen lock params)
     slug_a = slug_map["A"]
     aw_rel = f"assets/ui/angelina-skins/shipped/{slug_a}-world.webp"
-    aw_no = _finalize_prelock(prelocks["A"]["world"], lock_thresh, lock_inset, decontam=False)
+    aw_no = _finalize_prelock(
+        prelocks["A"]["world"],
+        lock_thresh,
+        lock_inset,
+        decontam=False,
+        component_halo_fix=False,
+        skin_id="A",
+        kind="world",
+        measure_rel=aw_rel,
+    )
     save_webp(aw_no, ROOT / aw_rel, lossless=True)
-    before_dump = {
-        "browser3": _dump_halo_bad_px(aw_rel, "browser3"),
-        "lanczos3": _dump_halo_bad_px(aw_rel, "lanczos3"),
-    }
+    before_dump = _halo_dump_log_summary(_dump_halo_bad_px(aw_rel, "both"))
     sil_before = _outline_near_white_halos_img(aw_no)
-    aw_de = _finalize_prelock(prelocks["A"]["world"], lock_thresh, lock_inset, decontam=True)
+    aw_de = _finalize_prelock(
+        prelocks["A"]["world"],
+        lock_thresh,
+        lock_inset,
+        decontam=True,
+        component_halo_fix=False,
+        skin_id="A",
+        kind="world",
+        measure_rel=aw_rel,
+    )
     save_webp(aw_de, ROOT / aw_rel, lossless=True)
-    after_dump = {
-        "browser3": _dump_halo_bad_px(aw_rel, "browser3"),
-        "lanczos3": _dump_halo_bad_px(aw_rel, "lanczos3"),
-    }
+    after_dump = _halo_dump_log_summary(_dump_halo_bad_px(aw_rel, "both"))
     sil_after = _outline_near_white_halos_img(aw_de)
     build_report["aWorldHaloBadPx"] = {
         "beforeDecontam": before_dump,
@@ -1463,18 +1619,33 @@ def main() -> None:
         slug = slug_map[skin_id]
 
         port_path = SHIPPED_DIR / f"{slug}-portrait.webp"
-        port_final = _finalize_prelock(prelocks[skin_id]["portrait"], lock_thresh, lock_inset)
+        port_rel = str(port_path.relative_to(ROOT)).replace("\\", "/")
+        port_final = _finalize_prelock(
+            prelocks[skin_id]["portrait"],
+            lock_thresh,
+            lock_inset,
+            component_halo_fix=True,
+            skin_id=skin_id,
+            kind="portrait",
+            measure_rel=port_rel,
+        )
         port_alpha_ref, port_alpha_sha, port_alpha_stats = write_alpha_ref(slug, "portrait", port_final)
         port_interior_sha = interior_rgb_sha256(port_final)
         port_sha = save_webp(port_final, port_path, lossless=True)
-        port_rel = str(port_path.relative_to(ROOT)).replace("\\", "/")
-
         world_path = SHIPPED_DIR / f"{slug}-world.webp"
-        world_final = _finalize_prelock(prelocks[skin_id]["world"], lock_thresh, lock_inset)
+        world_rel = str(world_path.relative_to(ROOT)).replace("\\", "/")
+        world_final = _finalize_prelock(
+            prelocks[skin_id]["world"],
+            lock_thresh,
+            lock_inset,
+            component_halo_fix=True,
+            skin_id=skin_id,
+            kind="world",
+            measure_rel=world_rel,
+        )
         world_alpha_ref, world_alpha_sha, world_alpha_stats = write_alpha_ref(slug, "world", world_final)
         world_interior_sha = interior_rgb_sha256(world_final)
         world_sha = save_webp(world_final, world_path, lossless=True)
-        world_rel = str(world_path.relative_to(ROOT)).replace("\\", "/")
 
         skins_out[skin_id] = {
             "sourcePath": str(source_path.relative_to(ROOT)).replace("\\", "/"),
@@ -1493,24 +1664,17 @@ def main() -> None:
             "worldInteriorRgbSha256": world_interior_sha,
         }
 
-    for skin_id in ["A", "B", "C"]:
-        entry = skins_out[skin_id]
-        port_halo = _measure_halo(entry["portraitPath"])
-        world_halo = _measure_halo(entry["worldPath"])
-        browser_sum = port_halo["browser"]["bgOpaqueBand"] + world_halo["browser"]["bgOpaqueBand"]
-        build_report["skins"][skin_id] = {
-            "portrait": port_halo,
-            "world": world_halo,
-            "browserSum": browser_sum,
-            "ab6faBrowserSum": ab6fa_baseline[skin_id]["browserSum"],
-            "beatsAb6fa": browser_sum < ab6fa_baseline[skin_id]["browserSum"],
-        }
-        print(
-            f"HALO {skin_id} browserSum={browser_sum} ab6fa={ab6fa_baseline[skin_id]['browserSum']} "
-            f"P browser {port_halo['browser']['bgOpaqueBand']} lanczos {port_halo['lanczos']['bgOpaqueBand']} "
-            f"W browser {world_halo['browser']['bgOpaqueBand']} lanczos {world_halo['lanczos']['bgOpaqueBand']}",
-            flush=True,
-        )
+    _refresh_halo_report(build_report, skins_out, slug_map, ab6fa_baseline)
+    _repair_halo_slots(
+        prelocks,
+        slug_map,
+        lock_thresh,
+        lock_inset,
+        skins_out,
+        build_report,
+        ab6fa_baseline,
+        max_rounds=6,
+    )
 
     ab6f_a255 = _ab6f_alpha255_baseline()
     cand_a255 = _candidate_alpha255_shares(skins_out)

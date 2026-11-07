@@ -14,6 +14,7 @@
     "test:emulator": "node scripts/run-emulator-integration.js",
     "test:life-ch1-unit": "node scripts/test-life-ch1-slice-unit.js && node scripts/test-dev-coins-gate.js && node scripts/test-city-builds-sanitize.js",
     "test:life-ch1-e2e": "node scripts/run-life-ch1-e2e.js",
+    "capture:rc1-ch1": "node scripts/with-emulator-env.js node scripts/capture-rc1-ch1-evidence.js",
     "build:preview": "node scripts/build-preview.js",
     "test:preview-build": "node scripts/with-emulator-env.js node scripts/test-preview-build.js",
     "test:angelina-skin-manifest": "node scripts/test-angelina-skin-manifest.js",

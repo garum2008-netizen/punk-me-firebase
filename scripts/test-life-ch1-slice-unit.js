@@ -39,7 +39,7 @@ async function main() {
   assert(isLifeCh1SliceEnabled(), "localhost allows lifeCh1E2e=1");
   global.window = { __PUNK_PREVIEW__: false, __PUNK_LIFE_CH1_LOCAL__: true };
   global.location = { hostname: "halloween.punk.contractbot.dk", search: "" };
-  assert(isLifeCh1SliceEnabled(), "lifeCh1LocalSave flag enables slice on prod hostname");
+  assert(isLifeCh1SliceEnabled(), "__PUNK_LIFE_CH1_LOCAL__ enables slice on prod hostname (RC1 default via index.html)");
   delete global.window;
   delete global.location;
 
