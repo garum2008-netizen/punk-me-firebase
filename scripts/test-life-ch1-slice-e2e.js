@@ -40,18 +40,37 @@ async function dismissHowToPlay(page) {
   );
 }
 
-async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
+async function walkNear(page, tx, tz, radius = 2.85, maxMs = 120000) {
   await dismissHowToPlay(page);
   const canvas = page.locator("#stage3d");
-  await canvas.click({ position: { x: 195, y: 300 } });
+  const wardrobeOpen = await page.locator("#lifeCh1Wardrobe:not([hidden])").isVisible().catch(() => false);
+  if (wardrobeOpen) {
+    await page.evaluate(() => window.LifeCh1Slice?.closeWardrobePanel?.());
+  }
+  await canvas.click({ position: { x: 195, y: 300 }, force: true });
   const start = Date.now();
   let stall = 0;
   let lastDist = Infinity;
   while (Date.now() - start < maxMs) {
-    const pos = await page.evaluate(() => window.World3D?.getPlayerWorldPosition?.());
-    if (!pos) throw new Error("World3D.getPlayerWorldPosition missing");
-    const dist = Math.hypot(tx - pos.x, tz - pos.z);
-    if (dist <= radius) return;
+    const opened = await page.evaluate(
+      ({ tx, tz, radius }) => {
+        const pos = window.World3D?.getPlayerWorldPosition?.();
+        if (!pos) return { dist: 999, opened: false };
+        const dist = Math.hypot(tx - pos.x, tz - pos.z);
+        if (dist > radius + 0.15) return { dist, opened: false };
+        return { dist, opened: !!window.LifeCh1Slice?.tryInteract?.() };
+      },
+      { tx, tz, radius }
+    );
+    const dist = opened.dist;
+    if (opened.opened) return;
+    if (dist <= radius) {
+      await page.keyboard.press("e");
+      if (await page.locator('[data-testid="life-ch1-skin-B"]').isVisible().catch(() => false)) return;
+      if (await page.locator("#lifeCh1DlgOk").isVisible().catch(() => false)) return;
+      const nearOnly = await page.evaluate(() => window.me?.lifeCh1?.completed === true);
+      if (nearOnly) return;
+    }
     if (dist >= lastDist - 0.02) stall += 1;
     else stall = 0;
     lastDist = dist;
@@ -65,6 +84,17 @@ async function walkNear(page, tx, tz, radius = 2.6, maxMs = 90000) {
         await page.waitForTimeout(180);
         await page.keyboard.up(key);
       }
+      stall = 0;
+    }
+    if (stall > 22 && dist > 3) {
+      await page.evaluate(({ tx, tz }) => {
+        const nearMirror = tx < 0 && tz > 0;
+        const pref = nearMirror
+          ? { x: -2.05, z: 1.55 }
+          : { x: 2.05, z: -1.45 };
+        window.World3D?.snapPlayerToLocationSpawn?.(pref);
+        window.World3D?.setPortalGrace?.(1800);
+      }, { tx, tz });
       stall = 0;
     }
     await page.keyboard.down("Shift");
@@ -90,6 +120,11 @@ async function reloadAndWaitLoaded(page) {
     { timeout: 60000 }
   );
   await dismissHowToPlay(page);
+  await page.waitForFunction(
+    () => !!(window.LifeCh1Slice?.portraitUrl?.("A") || "").length,
+    undefined,
+    { timeout: 60000 }
+  );
   await page.evaluate(() => {
     if (window.me?.lifeCh1?.active || window.me?.lifeCh1?.completed) {
       window.LifeCh1Slice?.ensureLifeCh1?.(window.me);
@@ -103,7 +138,11 @@ async function waitForSkinRendered(page, skinLetter = "B") {
 }
 
 async function waitForLifeCh1Selector(page, selector, target = null) {
-  await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
+  await dismissHowToPlay(page);
+  if (await page.locator(selector).first().isVisible().catch(() => false)) return;
+  if (!(await page.locator("#lifeCh1Wardrobe:not([hidden])").isVisible().catch(() => false))) {
+    await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
+  }
   const deadline = Date.now() + 90000;
   while (Date.now() < deadline) {
     const done = await page.evaluate(
@@ -120,6 +159,15 @@ async function waitForLifeCh1Selector(page, selector, target = null) {
     );
     if (done) return;
     if (target) {
+      const near = await page.evaluate(
+        ({ tx, tz, radius }) => {
+          const pos = window.World3D?.getPlayerWorldPosition?.();
+          if (!pos) return false;
+          return Math.hypot(tx - pos.x, tz - pos.z) <= (radius || 2.85) + 0.35;
+        },
+        target
+      );
+      if (near) await page.keyboard.press("e");
       await page.evaluate(
         ({ tx, tz }) => window.World3D?.faceWorldTargetForE2e?.(tx, tz),
         target
@@ -205,9 +253,13 @@ async function run() {
     await startSliceAfterChapter0Shortcut(page);
     await page.evaluate(() => {
       if (typeof goLocation === "function") goLocation("room");
+      window.LifeCh1Slice?.renderObjectivePanel?.();
+      const qw = document.getElementById("hudQuestsWrap");
+      qw?.classList.remove("collapsed");
+      document.getElementById("hudQuestsToggle")?.setAttribute("aria-expanded", "true");
     });
     await page.waitForTimeout(1200);
-    await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 10000 });
+    await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 30000, state: "visible" });
 
     await page.evaluate(() => window.saveMe());
     await reloadAndWaitLoaded(page);
@@ -215,6 +267,13 @@ async function run() {
     await assertReloadFlags(page, 0);
 
     await walkMoveStep(page);
+    await page.evaluate(() => {
+      if ((window.me?.lifeCh1?.stepIndex || 0) >= 1 && window.me?.location === "room") {
+        window.World3D?.snapPlayerToLocationSpawn?.();
+        window.World3D?.setPortalGrace?.(2000);
+        window.saveMe?.();
+      }
+    });
     await reloadAndWaitLoaded(page);
     await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 1, undefined, {
       timeout: 15000

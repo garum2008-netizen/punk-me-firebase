@@ -57,13 +57,33 @@ function openHowTo() {
   });
 }
 
+function suppressAutoHowToForLifeCh1() {
+  try {
+    if (window.__PUNK_LIFE_CH1_LOCAL__ === true) return true;
+    const q = new URLSearchParams(location.search);
+    if (q.get("lifeCh1Slice") === "1" || q.get("lifeCh1Local") === "1") return true;
+    if (window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() && window.LifeCh1Slice?.isActive?.()) return true;
+  } catch (_) {}
+  return false;
+}
+
+export function dismissHowToOverlay(markSeen = true) {
+  if (markSeen) {
+    try {
+      localStorage.setItem(STORAGE_KEY, "1");
+    } catch (e) {}
+  }
+  document.getElementById("howToOverlay")?.classList.remove("active");
+}
+
 function initHowToPlay() {
   const btn = document.getElementById("btnHowTo");
   btn?.addEventListener("click", openHowTo);
   let seen = false;
   try { seen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (e) {}
-  if (!seen && location.hash !== "#account") {
+  if (!seen && location.hash !== "#account" && !suppressAutoHowToForLifeCh1()) {
     setTimeout(() => {
+      if (suppressAutoHowToForLifeCh1()) return;
       if (!window.__punkIsAccountModalOpen?.() && !document.getElementById("accountModal")?.classList.contains("active")) {
         openHowTo();
       }
@@ -73,4 +93,4 @@ function initHowToPlay() {
 
 window.openHowToPlay = openHowTo;
 window.initHowToPlay = initHowToPlay;
-export { initHowToPlay, openHowTo };
+export { initHowToPlay, openHowTo, dismissHowToOverlay };

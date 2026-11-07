@@ -352,6 +352,41 @@ function syncBeacon() {
   });
 }
 
+/** Room-only: if wedged at bounds far from current step beacon, respawn at door (not a quest skip). */
+function resyncLifeCh1RoomSpawnIfNeeded() {
+  const st = ensureLifeCh1();
+  if (!st || me()?.location !== "room") return;
+  if (st.completed) {
+    const pos = playerWorldPos();
+    if (pos.z > 4.85 || pos.x > 6.1 || pos.x < -6.1) {
+      try {
+        window.World3D?.snapPlayerToLocationSpawn?.();
+        window.World3D?.setPortalGrace?.(1800);
+      } catch (_) {}
+    }
+    return;
+  }
+  if (!isActive()) return;
+  const step = currentStep();
+  if (!step?.beacon || step.beacon.loc !== "room") return;
+  const pos = playerWorldPos();
+  const dist = distWorld(pos.x, pos.z, step.beacon.wx, step.beacon.wz);
+  const northBound = pos.z > 4.9 || pos.x > 6.2 || pos.x < -6.2;
+  const southStuck = step.id === "outfit" && dist > 3.2 && pos.z < 2.8 && Math.abs(pos.x) < 1.4;
+  const trustStuck =
+    (step.id === "trust" || step.id === "reflect") &&
+    (dist > 4.5 || northBound || Math.abs(pos.x) > 4.8);
+  if (dist > 5.5 || northBound || southStuck || trustStuck) {
+    try {
+      let pref = null;
+      if (step.id === "outfit") pref = { x: -2.05, z: 1.55 };
+      else if (step.id === "trust" || step.id === "reflect") pref = { x: 2.05, z: -1.45 };
+      window.World3D?.snapPlayerToLocationSpawn?.(pref);
+      window.World3D?.setPortalGrace?.(2200);
+    } catch (_) {}
+  }
+}
+
 function setSubtitle(text, ms = 4500) {
   const el = document.getElementById("voiceSubtitle");
   if (!el) return;
@@ -464,6 +499,13 @@ function advanceStep(extraReward = 0) {
     );
   } else {
     st.stepIndex = next;
+    const upcoming = steps[next];
+    if (upcoming?.id === "outfit" && me()?.location === "room") {
+      try {
+        window.World3D?.snapPlayerToLocationSpawn?.();
+        window.World3D?.setPortalGrace?.(2200);
+      } catch (_) {}
+    }
   }
   clampStepIndex(st);
   persistLocalOverlay();
@@ -516,6 +558,12 @@ export async function tryStartAfterOnboarding() {
   delete st._moveStepBaseline;
   st.playerCutout = true;
   document.body.classList.add("life-ch1-active");
+  try {
+    const { dismissHowToOverlay } = await import("../how-to-play.mjs");
+    dismissHowToOverlay(true);
+  } catch (_) {
+    document.getElementById("howToOverlay")?.classList.remove("active");
+  }
   applySliceAngelinaPlayerChrome();
   persistLocalOverlay();
   hooks.save?.();
@@ -534,6 +582,7 @@ export async function tryStartAfterOnboarding() {
   if (me()?.location === "room") {
     try {
       window.World3D?.snapPlayerToLocationSpawn?.();
+      window.World3D?.setPortalGrace?.(2500);
     } catch (_) {}
   }
   return true;
@@ -547,6 +596,7 @@ export function onBoot() {
     applySliceAngelinaPlayerChrome();
     if (me()?.onboarding?.done && ensureLifeCh1()?.active) {
       syncBeacon();
+      resyncLifeCh1RoomSpawnIfNeeded();
       renderObjectivePanel();
       updateChatPresetMode();
       applyMusicSceneClass();
@@ -561,13 +611,29 @@ export function onBoot() {
     }
   });
   if (typeof window !== "undefined") {
-    window.addEventListener("scene3d-ready", () => syncPlayerLifeCh1Skin(), { passive: true });
+    window.addEventListener("scene3d-ready", () => {
+      syncPlayerLifeCh1Skin();
+      const step = currentStep();
+      if (step?.id === "outfit" && me()?.location === "room" && isActive()) {
+        try {
+          window.World3D?.snapPlayerToLocationSpawn?.();
+          window.World3D?.setPortalGrace?.(2000);
+        } catch (_) {}
+      }
+    }, { passive: true });
     window.addEventListener("punk-player-actor-ready", () => syncPlayerLifeCh1Skin(), { passive: true });
     window.addEventListener("life-ch1-skin-texture-ready", () => syncPlayerLifeCh1Skin(), { passive: true });
   }
 }
 
+let lastRoomWedgeResyncMs = 0;
+
 export function onMove() {
+  if (!isActive() && !ensureLifeCh1()?.completed) return;
+  if (Date.now() - lastRoomWedgeResyncMs > 500) {
+    lastRoomWedgeResyncMs = Date.now();
+    resyncLifeCh1RoomSpawnIfNeeded();
+  }
   if (!isActive()) return;
   const step = currentStep();
   if (!step || step.id !== "move") return;
@@ -620,7 +686,18 @@ function pickTrustNode(dlg) {
 
 function openWardrobePanel() {
   const panel = document.getElementById("lifeCh1Wardrobe");
-  if (!panel || !skinManifest) return;
+  if (!panel) return false;
+  if (!skinManifest || !spec) {
+    void Promise.all([
+      skinManifest ? Promise.resolve(skinManifest) : loadAngelinaSkinManifest(),
+      spec ? Promise.resolve(spec) : loadSpec()
+    ]).then(([m, s]) => {
+      skinManifest = m;
+      spec = s;
+      openWardrobePanel();
+    });
+    return false;
+  }
   const st = ensureLifeCh1();
   wardrobePending.skin = readSelectedSkin(st);
   wardrobePending.outfitFlag = null;
@@ -712,6 +789,7 @@ function openWardrobePanel() {
   }
   updateWardrobeConfirmState();
   syncPlayerLifeCh1Skin();
+  return true;
 }
 
 function updateWardrobeConfirmState() {
@@ -811,8 +889,7 @@ export function tryInteract() {
     const step = currentStep();
     if (step?.interact && nearInteract(step.interact)) {
       if (step.id === "outfit") {
-        openWardrobePanel();
-        return true;
+        return openWardrobePanel();
       }
       if (step.dialogue) {
         showDialogue(step.dialogue);
@@ -859,6 +936,7 @@ export function renderObjectivePanel() {
     <div class="quest-step-text life-ch1-sub">${escapeHtml(L({ ru: "Жизненная глава · история первых дней", en: "Life chapter · first days story", da: "Liv kapitel · de første dage" }))}</div>
   </div>`;
   syncBeacon();
+  resyncLifeCh1RoomSpawnIfNeeded();
   const qw = document.getElementById("hudQuestsWrap");
   const qt = document.getElementById("hudQuestsToggle");
   if (qw?.classList.contains("collapsed")) {

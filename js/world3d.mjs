@@ -1502,6 +1502,9 @@ function tickNpcPatrols(dt) {
 function checkPortals() {
   if (motionProbe || captureFrameLock) return;
   if (performance.now() < portalGraceUntil) return;
+  try {
+    if (window.LifeCh1Slice?.isActive?.() && currentLoc === "room") return;
+  } catch (_) {}
   const player = actors.get("player");
   if (!player || !bounds) return;
   const portals = PORTALS[currentLoc] || [];
@@ -1518,6 +1521,31 @@ function checkPortals() {
 const LOCO_DT = 1 / 60;
 
 /** Life Ch1: steer camera toward quest guide while moving (keyboard/touch — not E2E-only). */
+/** Life Ch1: world-space walk toward quest guide (WASD still required; no position cheating). */
+function lifeCh1GuideLocomotionDelta(input, step) {
+  try {
+    if (!window.LifeCh1Slice?.isActive?.()) return null;
+    const mag = Math.hypot(input.moveX, input.moveZ);
+    if (mag < 0.05) return null;
+    const t = guideTarget;
+    if (!t || t.wx == null || t.wz == null || t.loc !== currentLoc) return null;
+    const pl = actors.get("player");
+    if (!pl) return null;
+    const dx = t.wx - pl.wx;
+    const dz = t.wz - pl.wz;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.45) return null;
+    const runScale = input.run ? 1.15 : 0.95;
+    const sliceBoost = 1.35;
+    return {
+      mx: (dx / dist) * step * runScale * sliceBoost,
+      mz: (dz / dist) * step * runScale * sliceBoost
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
 function lifeCh1SteerCameraWhileMoving(input) {
   try {
     if (!window.LifeCh1Slice?.isActive?.()) return;
@@ -1541,10 +1569,10 @@ function spawnPrefForLoc(locId) {
   return { x: 0, z: -1.2 };
 }
 
-function snapPlayerToLocationSpawn() {
+function snapPlayerToLocationSpawn(prep = null) {
   const player = actors.get("player");
   if (!player || !bounds) return false;
-  const spawnPref = spawnPrefForLoc(currentLoc);
+  const spawnPref = prep && prep.x != null && prep.z != null ? prep : spawnPrefForLoc(currentLoc);
   const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
   player.wx = clear.x;
   player.wz = clear.z;
@@ -1562,12 +1590,16 @@ function processInput(dt) {
   const step = (motionProbe || input.run ? 7.2 : 4.5) * LOCO_DT;
   let mx = 0;
   let mz = 0;
+  const lifeGuide = lifeCh1GuideLocomotionDelta(input, step);
   if (motionProbe) {
     const dirZ = motionProbe.moveZ ?? 1;
     const dirX = motionProbe.moveX ?? 0;
     const mag = Math.hypot(dirX, dirZ) || 1;
     mx = (dirX / mag) * step;
     mz = (dirZ / mag) * step;
+  } else if (lifeGuide) {
+    mx = lifeGuide.mx;
+    mz = lifeGuide.mz;
   } else {
     const fwd = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
     const right = new THREE.Vector3(fwd.z, 0, -fwd.x);

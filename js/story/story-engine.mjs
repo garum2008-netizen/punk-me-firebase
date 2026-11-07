@@ -988,7 +988,9 @@ export function initStoryEngine(h) {
       ensureStoryState(me());
       const bal = data.balance;
       const previewOrSlice =
-        window.__PUNK_PREVIEW__ === true || window.LifeCh1Slice?.isLifeCh1SliceEnabled?.();
+        window.__PUNK_PREVIEW__ === true ||
+        window.__PUNK_LIFE_CH1_LOCAL__ === true ||
+        window.LifeCh1Slice?.isLifeCh1SliceEnabled?.();
       if (bal?.startingCoins && !window.devCoinsEnabled?.() && !previewOrSlice) {
         const p = me();
         if (p.coins > bal.startingCoins + 50) p.coins = bal.startingCoins;

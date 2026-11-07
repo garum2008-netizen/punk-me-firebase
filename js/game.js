@@ -1943,7 +1943,14 @@ function renderBuildings() {
 function lifeCh1BlocksLegacyObjective() {
   if (!window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) return false;
   const st = window.me?.lifeCh1;
-  return !!(st && typeof st === "object" && !st.completed);
+  if (!st || typeof st !== "object" || st.completed) return false;
+  if (window.LifeCh1Slice?.isActive?.()) return true;
+  const progressed =
+    (st.stepIndex || 0) > 0 ||
+    (st.startedAt || 0) > 0 ||
+    Object.keys(st.flags || {}).length > 0 ||
+    Object.keys(st.claimedSteps || {}).length > 0;
+  return progressed;
 }
 
 function renderQuest() {
