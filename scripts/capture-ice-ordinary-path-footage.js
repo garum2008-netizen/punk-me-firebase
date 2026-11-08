@@ -655,18 +655,22 @@ async function runOrdinarySession(browser, viewport, label) {
   let videoSaveError = null;
   if (video) {
     try {
-      await video.saveAs(dest);
+      const vidTmp = await video.path();
+      if (vidTmp && fs.existsSync(vidTmp)) {
+        fs.copyFileSync(vidTmp, dest);
+      } else {
+        await video.saveAs(dest);
+      }
     } catch (e) {
       videoSaveError = String(e.message || e);
-    }
-    if (!fs.existsSync(dest)) {
       try {
-        const vidTmp = await video.path();
-        await new Promise(r => setTimeout(r, 400));
-        if (vidTmp && fs.existsSync(vidTmp)) fs.copyFileSync(vidTmp, dest);
-        else videoSaveError = videoSaveError || `no video file at ${vidTmp}`;
+        const entries = fs.readdirSync(videoDir).filter(f => f.endsWith(".webm"));
+        const newest = entries
+          .map(f => ({ f, m: fs.statSync(path.join(videoDir, f)).mtimeMs }))
+          .sort((a, b) => b.m - a.m)[0];
+        if (newest) fs.copyFileSync(path.join(videoDir, newest.f), dest);
       } catch (e2) {
-        videoSaveError = `${videoSaveError || ""}; ${e2.message || e2}`;
+        videoSaveError = `${videoSaveError}; fallback ${e2.message || e2}`;
       }
     }
   }

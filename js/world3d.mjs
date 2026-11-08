@@ -1555,7 +1555,7 @@ function checkPortals() {
   const px = player.group.position.x;
   const pz = player.group.position.z;
   const onboardSlack =
-    typeof window !== "undefined" && window.Onboarding?.isActive?.() ? 0.42 : 0;
+    typeof window !== "undefined" && window.Onboarding?.isActive?.() ? 1.15 : 0;
   for (const portal of portals) {
     if (Math.hypot(px - portal.x, pz - portal.z) < portal.r + onboardSlack) {
       hooks.onPortal?.(portal.to);
