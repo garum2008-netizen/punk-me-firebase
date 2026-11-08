@@ -121,7 +121,7 @@ async function samplePortalDiag(page) {
   }
 
   const trace = [];
-  await walkKeys(page, 28, 420);
+  await walkKeys(page, 12, 420);
   await page
     .waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 45000 })
     .catch(() => {});
@@ -131,25 +131,32 @@ async function samplePortalDiag(page) {
     ...(await page.evaluate(() => window.World3D?.getRoomColliderDiag?.() || {})),
     onboardingStep: await page.evaluate(() => window.me?.onboarding?.step),
   });
+  let reachedStreet = false;
+  const warm = await page.evaluate(() => ({
+    step: window.me?.onboarding?.step,
+    loc: window.me?.location,
+  }));
+  if (warm.loc === "street" && (warm.step || 0) >= 1) reachedStreet = true;
+
   const start = Date.now();
-  while (Date.now() - start < MAX_MS) {
+  while (Date.now() - start < MAX_MS && !reachedStreet) {
     const st = await page.evaluate(() => ({
       step: window.me?.onboarding?.step,
       loc: window.me?.location,
     }));
-    if (st.loc === "street") break;
-    if (st.step === 0 && trace.length === 0) {
-      trace.push({
-        t: Date.now() - start,
-        phase: "collider_before",
-        ...(await page.evaluate(() => window.World3D?.getRoomColliderDiag?.() || {})),
-      });
+    if (st.loc === "street" && (st.step || 0) >= 1) {
+      reachedStreet = true;
+      break;
     }
-    if (st.step < 1) {
-      await walkKeys(page, 8, 380);
+    if (st.loc !== "room") {
+      await page.waitForTimeout(200);
       continue;
     }
-    if (st.step === 1 && st.loc === "room") {
+    if (st.step < 1) {
+      await walkKeys(page, 6, 380);
+      continue;
+    }
+    if (st.step === 1) {
       await walkBurst(page, 420);
       trace.push({ t: Date.now() - start, phase: "portal_walk_post", ...(await samplePortalDiag(page)) });
     }
@@ -157,7 +164,7 @@ async function samplePortalDiag(page) {
   }
 
   const endLoc = await page.evaluate(() => window.me?.location);
-  const passed = endLoc === "street";
+  const passed = reachedStreet;
   const colliderAfter = await page.evaluate(() => window.World3D?.getRoomColliderDiag?.());
   trace.push({ t: Date.now() - start, phase: "final", ...(await samplePortalDiag(page)), passed });
 
