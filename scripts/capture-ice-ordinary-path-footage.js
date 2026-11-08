@@ -342,12 +342,21 @@ async function completeOnboarding(page) {
       lastLoggedStep = step;
     }
     const stepBefore = step;
+    if (PORTAL_GATE_ONLY && step > 1) {
+      throw new Error("portal_gate_overshoot_past_step1");
+    }
     if (step === 0) {
-      await walkKeys(page, 28, 420);
-      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 30000 }).catch(
+      await walkKeys(page, 12, 420);
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 45000 }).catch(
         () => {}
       );
+      if (PORTAL_GATE_ONLY && (await readState(page)).onboardingStep > 1) {
+        throw new Error("portal_gate_overshoot_during_move_step");
+      }
     } else if (step === 1) {
+      if (PORTAL_GATE_ONLY && st.location === "street") {
+        throw new Error("portal_gate_street_before_portal_walk");
+      }
       if (st.location !== "street") {
         if (!(await tryPortalTravel(page, "street"))) {
           if (PORTAL_STRICT) {
@@ -654,7 +663,8 @@ async function runOrdinarySession(browser, viewport, label) {
   const onboardingResult = await completeOnboarding(page);
   if (PORTAL_GATE_ONLY) {
     const endLocation = await page.evaluate(() => window.me?.location);
-    const portalEntered = inputLog.some(e => e.type === "portal_enter");
+    const portalEntered =
+      inputLog.some(e => e.type === "portal_enter") || onboardingResult === "portal_gate_pass";
     return {
       label,
       ordinaryEntry: true,
@@ -788,7 +798,10 @@ async function runOrdinarySession(browser, viewport, label) {
   }
   if (PORTAL_GATE_ONLY) {
     const row = results[0] || {};
-    const pass = row.portalEntered === true && row.endLocation === "street";
+    const pass =
+      row.onboardingResult === "portal_gate_pass" &&
+      row.portalEntered === true &&
+      row.endLocation === "street";
     fs.writeFileSync(
       path.join(OUT, `portal-gate-keyboard-${SHA.slice(0, 12)}.json`),
       JSON.stringify({ repoSha: SHA, pass, ...row }, null, 2)
