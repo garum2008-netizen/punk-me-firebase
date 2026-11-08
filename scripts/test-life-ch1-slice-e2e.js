@@ -23,6 +23,18 @@ const base = process.env.PUNK_BASE || "http://127.0.0.1:3456";
 const qs = `?solo=1${firebaseEmulatorQueryString()}&lifeCh1Slice=1&lifeCh1Local=1&lifeCh1E2e=1&v=life-ch1-slice-e2e`;
 const artifactsDir = process.env.PUNK_ARTIFACTS || "/opt/cursor/artifacts/life-ch1-e2e";
 
+async function focusStageForE2e(page) {
+  const wardrobeOpen = await page.locator("#lifeCh1Wardrobe:not([hidden])").isVisible().catch(() => false);
+  if (wardrobeOpen) {
+    await page.evaluate(() => window.LifeCh1Slice?.closeWardrobePanel?.());
+  }
+  const stage = page.locator("#stage3d");
+  const vp = page.viewportSize() || { width: 390, height: 844 };
+  const fx = Math.min(vp.width - 24, Math.round(vp.width * 0.56));
+  const fy = Math.min(vp.height - 120, Math.round(vp.height * 0.42));
+  await stage.click({ position: { x: fx, y: fy }, timeout: 15000 });
+}
+
 async function dismissHowToPlay(page) {
   await page.evaluate(() => {
     try {
@@ -47,7 +59,7 @@ async function walkNear(page, tx, tz, radius = 2.85, maxMs = 120000) {
   if (wardrobeOpen) {
     await page.evaluate(() => window.LifeCh1Slice?.closeWardrobePanel?.());
   }
-  await canvas.click({ position: { x: 195, y: 300 }, force: true });
+  await focusStageForE2e(page);
   const start = Date.now();
   let stall = 0;
   let lastDist = Infinity;
@@ -141,7 +153,7 @@ async function waitForLifeCh1Selector(page, selector, target = null) {
   await dismissHowToPlay(page);
   if (await page.locator(selector).first().isVisible().catch(() => false)) return;
   if (!(await page.locator("#lifeCh1Wardrobe:not([hidden])").isVisible().catch(() => false))) {
-    await page.locator("#stage3d").click({ position: { x: 195, y: 300 } });
+    await focusStageForE2e(page);
   }
   const deadline = Date.now() + 90000;
   while (Date.now() < deadline) {
@@ -364,12 +376,14 @@ async function run() {
 
 async function walkMoveStep(page) {
   await dismissHowToPlay(page);
-  const canvas = page.locator("#stage3d");
-  await canvas.click({ position: { x: 195, y: 300 } });
-  for (let i = 0; i < 10; i++) {
+  await focusStageForE2e(page);
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.down("Shift");
     await page.keyboard.down("w");
-    await page.waitForTimeout(350);
+    await page.waitForTimeout(380);
     await page.keyboard.up("w");
+    await page.keyboard.up("Shift");
+    await page.waitForTimeout(80);
     if ((await page.evaluate(() => window.me?.lifeCh1?.stepIndex ?? 0)) >= 1) return;
   }
   throw new Error("move step did not advance with real keys");

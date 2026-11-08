@@ -1553,7 +1553,8 @@ function lifeCh1GuideLocomotionDelta(input, step) {
     const mag = Math.hypot(input.moveX, input.moveZ);
     if (mag < 0.05) return null;
     const t = guideTarget;
-    if (!t || t.wx == null || t.wz == null || t.loc !== currentLoc) return null;
+    if (!t || t.wx == null || t.wz == null) return null;
+    if (t.loc != null && t.loc !== currentLoc) return null;
     const pl = actors.get("player");
     if (!pl) return null;
     const dx = t.wx - pl.wx;

@@ -3,7 +3,7 @@ const ONBOARDING_STEPS = [
   { id: "move", key: "moved", goal: 1, reward: { coins: 20, xp: 15 },
     target: () => ({ loc: "room", wx: -4.2, wz: 3.8 }) },
   { id: "go_street", key: "visit_street", goal: 1, reward: { coins: 30, xp: 20 },
-    target: () => ({ loc: "room", wx: 0, wz: 5.2 }) },
+    target: () => ({ loc: "room", wx: 0, wz: 5.5 }) },
   { id: "talk_razor", key: "talk_razor", goal: 1, reward: { coins: 40, xp: 25 },
     target: () => ({ loc: "street", npcId: "razor" }) },
   { id: "visit_cemetery", key: "visit_cemetery", goal: 1, reward: { coins: 50, xp: 30 },
@@ -16,8 +16,8 @@ const ONBOARDING_STEPS = [
 
 /** Portal waypoints when the player is not yet in the step's target location. */
 const PORTAL_WAYPOINTS = {
-  street: { room: { wx: 0, wz: 5.2 } },
-  cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.2 } }
+  street: { room: { wx: 0, wz: 5.5 } },
+  cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.5 } }
 };
 
 function stepIndex() {
@@ -107,13 +107,14 @@ function getGuideTarget() {
     if (window.me.location === "room") return { wx: tgt.wx, wz: tgt.wz };
     return waypointToReach("room") || null;
   }
-  if (tgt.loc && window.me.location !== tgt.loc) {
+  const here = window.me.location;
+  if (tgt.loc && here !== tgt.loc) {
     const wp = waypointToReach(tgt.loc);
-    if (wp) return { wx: wp.wx, wz: wp.wz };
+    if (wp) return { wx: wp.wx, wz: wp.wz, loc: here };
     return null;
   }
   if (tgt.npcId) return { npcId: tgt.npcId };
-  if (tgt.wx != null && tgt.wz != null) return { wx: tgt.wx, wz: tgt.wz };
+  if (tgt.wx != null && tgt.wz != null) return { wx: tgt.wx, wz: tgt.wz, loc: here };
   return null;
 }
 

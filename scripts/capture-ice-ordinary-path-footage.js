@@ -204,41 +204,39 @@ async function touchJoystickBurst(page, holdMs = 520) {
   await joy.waitFor({ state: "visible", timeout: 15000 });
   const box = await joy.boundingBox();
   if (!box) throw new Error("touchJoystick missing bounding box");
-  logInput("touch", "joystick hold forward");
-  await page.evaluate(async ({ dy, holdMs }) => {
-    const joy = document.getElementById("touchJoystick");
-    if (!joy) return;
-    const r = joy.getBoundingClientRect();
-    const x = r.left + r.width / 2;
-    const y = r.top + r.height / 2;
-    const pid = 2;
-    joy.dispatchEvent(
-      new PointerEvent("pointerdown", {
-        bubbles: true,
-        clientX: x,
-        clientY: y,
-        pointerId: pid,
-        pointerType: "touch",
-        isPrimary: true
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  logInput("touch_playwright", `joystick drag Playwright mouse @${Math.round(cx)},${Math.round(cy)} dy=-42ms=${holdMs}`);
+  await joy.scrollIntoViewIfNeeded().catch(() => {});
+  const [pointerSample] = await Promise.all([
+    page.evaluate(() =>
+      new Promise(resolve => {
+        const joy = document.getElementById("touchJoystick");
+        if (!joy) return resolve({ hasJoystick: false });
+        const t = setTimeout(() => resolve({ hasJoystick: true, timeout: true }), 3000);
+        joy.addEventListener(
+          "pointerdown",
+          e => {
+            clearTimeout(t);
+            resolve({ hasJoystick: true, isTrusted: e.isTrusted, pointerType: e.pointerType || null });
+          },
+          { once: true, capture: true }
+        );
       })
-    );
-    const frames = Math.max(4, Math.round(holdMs / 70));
-    for (let i = 0; i < frames; i++) {
-      const t = (i + 1) / frames;
-      joy.dispatchEvent(
-        new PointerEvent("pointermove", {
-          bubbles: true,
-          clientX: x,
-          clientY: y + dy * t,
-          pointerId: pid,
-          pointerType: "touch"
-        })
-      );
-      await new Promise(r => setTimeout(r, 70));
-    }
-    joy.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: pid, pointerType: "touch" }));
-  }, { dy: -42, holdMs });
-  await page.waitForTimeout(90);
+    ),
+    (async () => {
+      await page.mouse.move(cx, cy);
+      await page.mouse.down();
+    })(),
+  ]);
+  logInput("touch_trusted_probe", JSON.stringify(pointerSample));
+  const steps = Math.max(4, Math.round(holdMs / 70));
+  for (let i = 1; i <= steps; i++) {
+    const ny = cy - (42 * i) / steps;
+    await page.mouse.move(cx, ny, { steps: 2 });
+    await page.waitForTimeout(70);
+  }
+  await page.mouse.up();
 }
 
 async function walkKeys(page, bursts = 6, keyMs = 380) {
@@ -261,6 +259,29 @@ async function walkKeys(page, bursts = 6, keyMs = 380) {
     await page.keyboard.up("Shift");
     await page.waitForTimeout(100);
   }
+}
+
+async function tryPortalTravel(page, destLoc, maxMs = 38000) {
+  const startLoc = await page.evaluate(() => window.me?.location);
+  if (startLoc === destLoc) return true;
+  logInput("portal_attempt", `walk portal toward ${destLoc} from ${startLoc}`);
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    const loc = await page.evaluate(() => window.me?.location);
+    if (loc === destLoc) {
+      logInput("portal_enter", `${startLoc} → ${destLoc}`);
+      return true;
+    }
+    await focusStage(page);
+    await page.keyboard.down("Shift");
+    await page.keyboard.down("w");
+    await page.waitForTimeout(420);
+    await page.keyboard.up("w");
+    await page.keyboard.up("Shift");
+    await page.waitForTimeout(90);
+  }
+  logInput("portal_attempt", `timeout — still at ${await page.evaluate(() => window.me?.location)}`);
+  return false;
 }
 
 async function uiOpenMapTravel(page, locId) {
@@ -312,7 +333,9 @@ async function completeOnboarding(page) {
         () => {}
       );
     } else if (step === 1) {
-      if (st.location !== "street") await uiOpenMapTravel(page, "street");
+      if (st.location !== "street") {
+        if (!(await tryPortalTravel(page, "street"))) await uiOpenMapTravel(page, "street");
+      }
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 1 || window.me?.onboarding?.done, undefined, {
         timeout: 45000,
       });
@@ -338,7 +361,13 @@ async function completeOnboarding(page) {
         await page.click("#gangModal .close").catch(() => {});
       }
     } else if (step === 3) {
-      if (st.location !== "cemetery") await uiOpenMapTravel(page, "cemetery");
+      if (st.location !== "cemetery") {
+        if (st.location === "street") {
+          if (!(await tryPortalTravel(page, "cemetery"))) await uiOpenMapTravel(page, "cemetery");
+        } else {
+          await uiOpenMapTravel(page, "cemetery");
+        }
+      }
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 3 || window.me?.onboarding?.done, undefined, {
         timeout: 45000,
       });
@@ -543,7 +572,7 @@ async function playLifeCh1Ordinary(page) {
         requestAnimationFrame(tick);
       });
     });
-    logScene("touch_perf", JSON.stringify(perf));
+    logScene("headless_raf_sample", JSON.stringify({ ...perf, note: "Chromium headless rAF sample; not physical device FPS" }));
   }
   return true;
 }
