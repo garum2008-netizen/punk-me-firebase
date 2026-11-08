@@ -414,6 +414,9 @@ async function completeOnboarding(page) {
       });
     } else if (step === 2) {
       if (st.location !== "street") await uiOpenMapTravel(page, "street");
+      await page
+        .waitForFunction(() => window.me?.location === "street", undefined, { timeout: 90000 })
+        .catch(() => {});
       await visibleUiClick(page, '#panelBottom button[onclick*="gangModal"]', "gang → razor talk");
       await page.waitForSelector("#gangModal.active #gangList .npc-row[data-npc='razor']", { timeout: 60000 });
       await page.waitForFunction(
@@ -785,7 +788,7 @@ async function runOrdinarySession(browser, viewport, label) {
   try {
     if (PORTAL_GATE_ONLY) {
       results.push(await runOrdinarySession(browser, { width: 1280, height: 720 }, "portal-gate"));
-    } else if (INPUT_MODE === "touch") {
+    } else if (INPUT_MODE === "touch" || process.env.ORDINARY_PORTRAIT_ONLY === "1") {
       results.push(await runOrdinarySession(browser, { width: 390, height: 844 }, "portrait"));
     } else {
       results.push(await runOrdinarySession(browser, { width: 390, height: 844 }, "portrait"));
