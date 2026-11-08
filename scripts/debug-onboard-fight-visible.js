@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 const { chromium } = require("playwright");
-const { assertFirebaseEmulatorTestEnv, firebaseEmulatorQueryString } = require("./firebase-test-emulator-guard");
+const {
+  assertFirebaseEmulatorTestEnv,
+  firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock,
+} = require("./firebase-test-emulator-guard");
 assertFirebaseEmulatorTestEnv();
 const qs = firebaseEmulatorQueryString();
 
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await installProdFirebaseRouteBlock(page);
   await page.goto(`http://127.0.0.1:3456/?solo=1${qs}&v=dbg`, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => {
     localStorage.removeItem("punkme_lifech1_local_player_v1");

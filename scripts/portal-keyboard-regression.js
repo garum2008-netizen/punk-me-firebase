@@ -11,6 +11,7 @@ const { spawn, spawnSync } = require("child_process");
 const {
   assertFirebaseEmulatorTestEnv,
   firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock,
 } = require("./firebase-test-emulator-guard");
 
 assertFirebaseEmulatorTestEnv();
@@ -104,6 +105,7 @@ async function samplePortalDiag(page) {
     } catch (_) {}
   });
   const page = await ctx.newPage();
+  await installProdFirebaseRouteBlock(page);
   const qs = firebaseEmulatorQueryString();
   const entryUrl = `http://127.0.0.1:${PORT}/?solo=1${qs}&v=portal-regress`;
   await page.goto(entryUrl, { waitUntil: "domcontentloaded" });
