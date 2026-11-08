@@ -1627,16 +1627,6 @@ function spawnPrefForLoc(locId) {
   return { x: 0, z: -1.2 };
 }
 
-function snapPlayerClearForOnboardingPortal() {
-  const player = actors.get("player");
-  if (!player || !bounds || currentLoc !== "room") return false;
-  const clear = findClearSpawn(bounds, furnitureColliders, { x: 0, z: -1.05 });
-  player.wx = clear.x;
-  player.wz = clear.z;
-  placeActorWorld(player, clear.x, clear.z, true);
-  return true;
-}
-
 function snapPlayerToLocationSpawn(prep = null) {
   const player = actors.get("player");
   if (!player || !bounds) return false;
