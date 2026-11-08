@@ -346,10 +346,15 @@ async function completeOnboarding(page) {
       throw new Error("portal_gate_overshoot_past_step1");
     }
     if (step === 0) {
-      const moveBursts = PORTAL_GATE_ONLY ? 8 : 12;
-      await walkKeys(page, moveBursts, 380);
-      for (let i = 0; i < 12 && (await readState(page)).onboardingStep < 1; i++) {
-        await walkKeys(page, 2, 360);
+      if (PORTAL_GATE_ONLY) {
+        for (let i = 0; i < 14 && (await readState(page)).onboardingStep < 1; i++) {
+          await walkKeys(page, 1, 360);
+        }
+      } else {
+        await walkKeys(page, 12, 420);
+        for (let i = 0; i < 12 && (await readState(page)).onboardingStep < 1; i++) {
+          await walkKeys(page, 2, 360);
+        }
       }
       await page
         .waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 45000 })
