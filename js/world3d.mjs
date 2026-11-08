@@ -1516,81 +1516,52 @@ function tickNpcPatrols(dt) {
   });
 }
 
-function tryOnboardingMovingPortal(input) {
-  try {
-    if (!window.Onboarding?.isActive?.() || Math.hypot(input.moveX, input.moveZ) < 0.05) return;
-    const player = actors.get("player");
-    if (!player) return;
-    const step = window.me?.onboarding?.step ?? -1;
-    if (step === 1 && currentLoc === "room") {
-      const p = (PORTALS.room || []).find(pr => pr.to === "street");
-      if (p && Math.hypot(player.wx - p.x, player.wz - p.z) < 3.4) hooks.onPortal?.("street");
-    } else if (step === 3 && currentLoc === "street") {
-      const p = (PORTALS.street || []).find(pr => pr.to === "cemetery");
-      if (p && Math.hypot(player.wx - p.x, player.wz - p.z) < 4.2) hooks.onPortal?.("cemetery");
-    }
-  } catch (_) {}
+function onboardingPortalForStep(step, locId) {
+  if (step === 1 && locId === "room") return (PORTALS.room || []).find(p => p.to === "street") || null;
+  if (step === 3 && locId === "street") return (PORTALS.street || []).find(p => p.to === "cemetery") || null;
+  return null;
 }
 
-function applyOnboardingPortalNudge(player, input) {
-  try {
-    if (!window.Onboarding?.isActive?.() || !player || !bounds) return;
-    if (Math.hypot(input.moveX, input.moveZ) < 0.05) return;
-    const portal = getNearPortal();
-    if (!portal) return;
-    const d = Math.hypot(player.wx - portal.x, player.wz - portal.z);
-    if (d > portal.r + 0.35 || d < 0.15) return;
-    const step = 0.085;
-    const dx = portal.x - player.wx;
-    const dz = portal.z - player.wz;
-    const mag = Math.hypot(dx, dz) || 1;
-    const moved = moveWithCollision(
-      player.wx,
-      player.wz,
-      (dx / mag) * step,
-      (dz / mag) * step,
-      bounds,
-      furnitureColliders,
-      0.42
-    );
-    player.wx = moved.x;
-    player.wz = moved.z;
-    placeActorWorld(player, moved.x, moved.z, true);
-  } catch (_) {}
+function portalGuideStopDist(pl, guide) {
+  const base = window.Onboarding?.isActive?.() ? 0.12 : 0.45;
+  if (!pl || guide?.wx == null || !window.Onboarding?.isActive?.()) return base;
+  const step = window.me?.onboarding?.step ?? -1;
+  const portal = onboardingPortalForStep(step, currentLoc);
+  if (!portal) return base;
+  const dPortal = Math.hypot(pl.wx - portal.x, pl.wz - portal.z);
+  if (dPortal > portal.r * 0.92) return 0.03;
+  return base;
+}
+
+function portalCameraSteerCutoff(pl, guide) {
+  const base = 0.4;
+  if (!pl || guide?.wx == null || !window.Onboarding?.isActive?.()) return base;
+  const step = window.me?.onboarding?.step ?? -1;
+  const portal = onboardingPortalForStep(step, currentLoc);
+  if (!portal) return base;
+  const dPortal = Math.hypot(pl.wx - portal.x, pl.wz - portal.z);
+  if (dPortal > portal.r * 0.95) return portal.r * 0.25;
+  return base;
 }
 
 function checkPortals() {
   if (motionProbe || captureFrameLock) return;
   if (performance.now() < portalGraceUntil) return;
   try {
-    if (window.LifeCh1Slice?.isActive?.() && currentLoc === "room") return;
+    if (window.LifeCh1Slice?.isActive?.() && currentLoc === "room" && !window.Onboarding?.isActive?.())
+      return;
   } catch (_) {}
   const player = actors.get("player");
   if (!player || !bounds) return;
   const portals = PORTALS[currentLoc] || [];
-  const px = player.group.position.x;
-  const pz = player.group.position.z;
-  const onboardSlack =
-    typeof window !== "undefined" && window.Onboarding?.isActive?.() ? 1.15 : 0;
+  const px = player.wx ?? player.group.position.x;
+  const pz = player.wz ?? player.group.position.z;
   for (const portal of portals) {
-    if (Math.hypot(px - portal.x, pz - portal.z) < portal.r + onboardSlack) {
+    if (Math.hypot(px - portal.x, pz - portal.z) <= portal.r) {
       hooks.onPortal?.(portal.to);
       break;
     }
   }
-  try {
-    if (!window.Onboarding?.isActive?.() || !player) return;
-    const step = window.me?.onboarding?.step ?? -1;
-    const wantStreet = step === 1 && currentLoc === "room";
-    const wantCem = step === 3 && currentLoc === "street";
-    if (!wantStreet && !wantCem) return;
-    const near = getNearPortal();
-    if (!near) return;
-    const wantTo = wantStreet ? "street" : "cemetery";
-    if (near.to !== wantTo) return;
-    const d = Math.hypot(px - near.x, pz - near.z);
-    if (d <= near.r + 0.35) hooks.onPortal?.(near.to);
-  } catch (_) {}
 }
 
 const LOCO_DT = 1 / 60;
@@ -1618,7 +1589,7 @@ function lifeCh1GuideLocomotionDelta(input, step) {
     const dx = t.wx - pl.wx;
     const dz = t.wz - pl.wz;
     const dist = Math.hypot(dx, dz);
-    const stopDist = window.Onboarding?.isActive?.() ? 0.08 : 0.45;
+    const stopDist = portalGuideStopDist(pl, t);
     if (dist < stopDist) return null;
     const runScale = input.run ? 1.15 : 0.95;
     const sliceBoost = 1.35;
@@ -1643,7 +1614,8 @@ function lifeCh1SteerCameraWhileMoving(input) {
     if (!pl) return;
     const dx = t.wx - pl.wx;
     const dz = t.wz - pl.wz;
-    if (Math.hypot(dx, dz) < 0.4) return;
+    const cutoff = portalCameraSteerCutoff(pl, t);
+    if (Math.hypot(dx, dz) < cutoff) return;
     cameraYaw = Math.atan2(dx, dz);
   } catch (_) {}
 }
@@ -1706,8 +1678,6 @@ function processInput(dt) {
     placeActorWorld(player, px, pz, true);
     player.wx = px;
     player.wz = pz;
-    applyOnboardingPortalNudge(player, input);
-    tryOnboardingMovingPortal(input);
     player._fromLocomotion = false;
     player._gameSyncT = (player._gameSyncT || 0) - dt;
     if (!motionProbe && player._gameSyncT <= 0) {
@@ -2180,6 +2150,40 @@ const api = {
     const pl = actors.get("player");
     if (!pl) return { x: 0, z: 0, loc: currentLoc };
     return { x: pl.wx ?? 0, z: pl.wz ?? 0, loc: currentLoc };
+  },
+  getCameraYaw: () => cameraYaw,
+  getPortalReadOnlyDiag: () => {
+    const pl = actors.get("player");
+    const px = pl?.wx ?? pl?.group?.position?.x ?? 0;
+    const pz = pl?.wz ?? pl?.group?.position?.z ?? 0;
+    const step = window.me?.onboarding?.step ?? -1;
+    const portal = onboardingPortalForStep(step, currentLoc);
+    const dist = portal ? Math.hypot(px - portal.x, pz - portal.z) : null;
+    const input = readInputStateSnapshot();
+    const guide = guideTarget;
+    const gdist =
+      guide?.wx != null && pl ? Math.hypot(guide.wx - pl.wx, guide.wz - pl.wz) : null;
+    return {
+      loc: currentLoc,
+      step,
+      wx: px,
+      wz: pz,
+      gx: pl?.group?.position?.x,
+      gz: pl?.group?.position?.z,
+      portal,
+      distToPortal: dist,
+      insidePortal: portal && dist != null ? dist <= portal.r : false,
+      guideTarget: guide,
+      guideDist: gdist,
+      guideStopDist: pl && guide ? portalGuideStopDist(pl, guide) : null,
+      cameraSteerCutoff: pl && guide ? portalCameraSteerCutoff(pl, guide) : null,
+      cameraYaw,
+      moveX: input?.moveX,
+      moveZ: input?.moveZ,
+      portalGraceMs: Math.max(0, portalGraceUntil - performance.now()),
+      lifeCh1Active: !!window.LifeCh1Slice?.isActive?.(),
+      onboardingActive: !!window.Onboarding?.isActive?.(),
+    };
   },
   readInputState: () => readInputStateSnapshot(),
   setPlayerWorldPosition: (wx, wz) => {
