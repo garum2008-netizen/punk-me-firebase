@@ -2195,10 +2195,24 @@ const api = {
       onboardingActive: !!window.Onboarding?.isActive?.(),
       lifeGuideProbe: (() => {
         try {
-          const pl = actors.get("player");
           const inp = { moveX: 0, moveZ: 1, run: true };
-          const step = (7.2 * LOCO_DT);
+          const step = 7.2 * LOCO_DT;
           return lifeCh1GuideLocomotionDelta(inp, step);
+        } catch (_) {
+          return null;
+        }
+      })(),
+      northClearProbe: (() => {
+        try {
+          let x = px;
+          let z = pz;
+          for (let i = 0; i < 48; i++) {
+            const m = moveWithCollision(x, z, 0, 0.12, bounds, furnitureColliders, 0.42);
+            if (m.z <= z + 0.002) break;
+            x = m.x;
+            z = m.z;
+          }
+          return { maxX: x, maxZ: z, distToPortalAfter: portal ? Math.hypot(x - portal.x, z - portal.z) : null };
         } catch (_) {
           return null;
         }
