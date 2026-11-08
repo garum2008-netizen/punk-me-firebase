@@ -3,6 +3,7 @@
  */
 
 import * as Authority from "./authority.mjs";
+import { findNpcDialogue } from "./npc-dialogue.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -891,10 +892,7 @@ export function tryStoryNpc(npcId) {
   if (Authority.tryAuthorityNpc(npcId)) return true;
   if (!STORY_NPC_IDS.has(npcId)) return false;
   const loc = me().location;
-  const dlg = data.dialogues.find(d => {
-    if (d.location !== loc) return false;
-    return d.nodes?.some(n => (n.speaker || "").includes(npcId));
-  });
+  const dlg = findNpcDialogue(data.dialogues, npcId, loc, checkRequires);
   if (dlg) {
     openDialogueTree(dlg);
     return true;

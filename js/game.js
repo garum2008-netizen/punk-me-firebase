@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r5-accounts-r1";
+const GAME_VERSION = "living3d-v22r6-task03";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -369,7 +369,7 @@ function defaultPlayer() {
     pet: null,
     stats: { chain: 10, magic: 8, hp: 100, maxHp: 100 },
     quests: { active: "intro", progress: {} },
-    onboarding: { step: 0, progress: {}, done: false },
+    onboarding: { step: 0, progress: {}, done: false, paid: {} },
     jobCooldowns: { dig: 0, clean: 0, water: 0, cobwebs: 0 },
     lastJob: 0,
     built: 0,
@@ -436,7 +436,10 @@ function migratePlayerFromSave(raw) {
     if (v.story.materials != null && typeof v.story.materials !== "object") v.story.materials = {};
   }
   if (v.quests != null && typeof v.quests !== "object") v.quests = { active: "intro", progress: {} };
-  if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false };
+  else if (v.quests && (v.quests.progress == null || typeof v.quests.progress !== "object" || Array.isArray(v.quests.progress))) {
+    v.quests.progress = {};
+  }
+  if (v.onboarding != null && typeof v.onboarding !== "object") v.onboarding = { step: 0, progress: {}, done: false, paid: {} };
   if (v.inventory != null && typeof v.inventory !== "object") v.inventory = { materials: {}, spells: [] };
   return v;
 }
@@ -493,7 +496,15 @@ function applyFirebasePlayerSnapshot(snap) {
     me.inventory.materials = v.inventory?.materials || {};
     me.inventory.spells = Array.isArray(v.inventory?.spells) ? v.inventory.spells : [];
     me.quests = v.quests && typeof v.quests === "object" ? v.quests : me.quests;
-    me.onboarding = v.onboarding || me.onboarding || { step: 0, progress: {}, done: false };
+    if (!me.quests.progress || typeof me.quests.progress !== "object" || Array.isArray(me.quests.progress)) {
+      me.quests.progress = {};
+    }
+    const savedOnboarding = Object.prototype.hasOwnProperty.call(v, "onboarding") ? v.onboarding : undefined;
+    me.onboarding = window.Onboarding?.normalizeFromSave
+      ? window.Onboarding.normalizeFromSave(me, savedOnboarding)
+      : (savedOnboarding && typeof savedOnboarding === "object"
+        ? savedOnboarding
+        : { step: 0, progress: {}, done: false, paid: {} });
     me.story = v.story || me.story;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
@@ -561,8 +572,12 @@ function startFreshPlayerKeepAccount() {
         me.location = v.location || me.location;
         me.characterId =
           readStoredCharacterId() || (snap.exists() ? inferCharacterIdFromSave(v) : null) || null;
-        me.onboarding =
-          v.onboarding && typeof v.onboarding === "object" ? v.onboarding : { step: 0, progress: {}, done: false };
+        const savedOnboarding = Object.prototype.hasOwnProperty.call(v, "onboarding") ? v.onboarding : undefined;
+        me.onboarding = window.Onboarding?.normalizeFromSave
+          ? window.Onboarding.normalizeFromSave(me, savedOnboarding)
+          : (savedOnboarding && typeof savedOnboarding === "object"
+            ? savedOnboarding
+            : { step: 0, progress: {}, done: false, paid: {} });
         window.me = me;
         window.__playerLoaded = true;
         window.StoryEngine?.ensureStoryState?.(me);
@@ -668,15 +683,24 @@ function initResponsiveHud() {
   const qw = document.getElementById("hudQuestsWrap");
   qt?.addEventListener("click", e => {
     e.stopPropagation();
-    const collapsed = qw?.classList.toggle("collapsed");
-    qt.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    qt.textContent = collapsed ? "▸" : "▾";
+    qw?.classList.remove("collapsed");
+    const expanded = qw?.classList.toggle("expanded");
+    qt.setAttribute("aria-expanded", expanded ? "true" : "false");
+    qt.textContent = expanded ? "▾" : "▸";
   });
-  if (window.matchMedia("(max-width: 900px)").matches) {
-    qw?.classList.add("collapsed");
-    qt?.setAttribute("aria-expanded", "false");
-    if (qt) qt.textContent = "▸";
-  }
+  const questMq = window.matchMedia("(max-width: 900px)");
+  const applyQuestViewport = () => {
+    if (!questMq.matches) {
+      qw?.classList.remove("collapsed");
+      qt?.setAttribute("aria-expanded", "true");
+      if (qt) qt.textContent = "▾";
+    } else if (!qw?.classList.contains("expanded")) {
+      qt?.setAttribute("aria-expanded", "false");
+      if (qt) qt.textContent = "▸";
+    }
+  };
+  applyQuestViewport();
+  questMq.addEventListener?.("change", applyQuestViewport);
 }
 
 function syncStage3D() {
@@ -752,6 +776,7 @@ function init() {
       });
     }
   });
+  initResponsiveHud();
   document.getElementById("roomLayer").addEventListener("click", onRoomClick);
   window.addEventListener("keydown", onKey);
   window.addEventListener("hashchange", applyHashRoute);
@@ -774,12 +799,21 @@ function init() {
       onNpcClick: (nid) => openNpcDialog(nid),
       onInteract: () => {
         const playCtx = { toast, save: saveMe, hasDog };
+        const nid = window.World3D?.getNearestNpc?.() || null;
+        const primary = window.PunkInteract?.resolvePrimaryInteract?.({
+          location: me.location,
+          nearestNpcId: nid,
+          onboarding: me.onboarding
+        });
+        if (primary?.type === "npc") {
+          openNpcDialog(primary.npcId);
+          return;
+        }
         if (window.PlayV21?.tryInteract(me, playCtx)) return;
         if (window.World3D?.getNearestDog?.()) {
           petDog(true);
           return;
         }
-        const nid = window.World3D?.getNearestNpc?.();
         if (nid) openNpcDialog(nid);
       },
       onHints: h => window.updateContextHints?.(h),
@@ -1009,7 +1043,15 @@ function sanitizePlayer(p) {
     mood: p.mood,
     owner: isOwner,
     lastSeen: p.lastSeen,
-    linkedAuth: p.linkedAuth || null
+    linkedAuth: p.linkedAuth || null,
+    onboarding: p.onboarding && typeof p.onboarding === "object"
+      ? {
+          step: p.onboarding.step || 0,
+          progress: p.onboarding.progress && typeof p.onboarding.progress === "object" ? p.onboarding.progress : {},
+          done: !!p.onboarding.done,
+          paid: p.onboarding.paid && typeof p.onboarding.paid === "object" ? p.onboarding.paid : {}
+        }
+      : { step: 0, progress: {}, done: false, paid: {} }
   };
 }
 
@@ -1447,13 +1489,21 @@ function renderQuest() {
 }
 
 function questBump(key, amt = 1) {
+  if (!me?.quests || typeof me.quests !== "object") return;
+  const bumped = window.PunkQuest?.bumpQuest?.(me.quests, QUESTS, key, amt);
+  if (!bumped) {
+    if (!me.quests.progress || typeof me.quests.progress !== "object") me.quests.progress = {};
+  }
+  if (bumped && !bumped.changed) return;
   const qid = me.quests.active;
   if (!qid || !QUESTS[qid]) return;
   const need = QUESTS[qid].need;
-  if (!(key in need)) return;
-  me.quests.progress[key] = (me.quests.progress[key] || 0) + amt;
+  if (!bumped) {
+    if (!(key in need)) return;
+    me.quests.progress[key] = (me.quests.progress[key] || 0) + amt;
+  }
   const prog = me.quests.progress;
-  const done = Object.entries(need).every(([k, v]) => (prog[k] || 0) >= v);
+  const done = bumped ? bumped.completed : Object.entries(need).every(([k, v]) => (prog[k] || 0) >= v);
   if (done) {
     const r = QUESTS[qid].reward;
     if (!isOwner && r.coins) me.coins += r.coins;
