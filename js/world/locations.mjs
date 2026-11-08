@@ -221,7 +221,7 @@ export const PORTALS = {
     { to: "kitchen", labelKey: "door_kitchen", x: -6.2, z: 0, r: 1.2 },
     { to: "toilet", labelKey: "door_toilet", x: 6.2, z: 0, r: 1.2 },
     { to: "elevator", labelKey: "door_elevator", x: 0, z: -5.5, r: 1.3 },
-    { to: "street", labelKey: "door_street", x: 0, z: 5.5, r: 1.3 }
+    { to: "street", labelKey: "door_street", x: 0, z: 5.5, r: 1.5 }
   ],
   street: [
     { to: "elevator", labelKey: "door_home", x: -10, z: 0, r: 1.5 },

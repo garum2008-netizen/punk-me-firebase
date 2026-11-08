@@ -109,12 +109,13 @@ async function walkNear(page, tx, tz, radius = 2.85, maxMs = 120000) {
       }, { tx, tz });
       stall = 0;
     }
+    await focusStageForE2e(page);
     await page.keyboard.down("Shift");
     await page.keyboard.down("w");
-    await page.waitForTimeout(380);
+    await page.waitForTimeout(400);
     await page.keyboard.up("w");
     await page.keyboard.up("Shift");
-    await page.waitForTimeout(50);
+    await page.waitForTimeout(80);
   }
   const last = await page.evaluate(() => window.World3D?.getPlayerWorldPosition?.());
   throw new Error(`walkNear timeout target ${tx},${tz} last=${JSON.stringify(last)}`);

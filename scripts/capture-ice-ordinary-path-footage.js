@@ -273,6 +273,10 @@ async function tryPortalTravel(page, destLoc, maxMs = 38000) {
       return true;
     }
     await focusStage(page);
+    await page.evaluate(() => {
+      const t = window.Onboarding?.getGuideTarget?.();
+      if (t?.wx != null && t?.wz != null) window.World3D?.faceWorldTargetForE2e?.(t.wx, t.wz);
+    });
     await page.keyboard.down("Shift");
     await page.keyboard.down("w");
     await page.waitForTimeout(420);
