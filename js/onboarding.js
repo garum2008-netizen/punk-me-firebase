@@ -129,9 +129,16 @@ function onWorldMove(wx, wz) {
   const st = currentStep();
   if (!st || st.key !== "moved") return;
   if (wx == null || wz == null) return;
-  if (!window.me._onboardOriginW) window.me._onboardOriginW = { wx, wz };
-  const o = window.me._onboardOriginW;
-  if (Math.hypot(wx - o.wx, wz - o.wz) >= ONBOARD_WORLD_MOVE_DIST) bump("moved", 1);
+  const last = window.me._onboardLastW;
+  if (!last) {
+    window.me._onboardLastW = { wx, wz };
+    return;
+  }
+  const leg = Math.hypot(wx - last.wx, wz - last.wz);
+  if (leg < 0.02) return;
+  window.me._onboardLastW = { wx, wz };
+  window.me._onboardPathM = (window.me._onboardPathM || 0) + leg;
+  if (window.me._onboardPathM >= ONBOARD_WORLD_MOVE_DIST) bump("moved", 1);
 }
 
 function onMove(x, y) {
