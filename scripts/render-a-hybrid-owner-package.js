@@ -398,6 +398,7 @@ function gateVerdict(halo, sil, label) {
   assertEmulator();
   fs.mkdirSync(OUT, { recursive: true });
   const metricsPath = path.join(STORE, `preview-hybrid-a-${TAG}`, "hybrid-preview-metrics.json");
+  const metricsFallback = path.join(STORE, "preview-hybrid-a-t186", "hybrid-preview-metrics.json");
   if (!fs.existsSync(metricsPath)) {
     console.error("run preview-angelina-a-hybrid-owner.py first");
     process.exit(1);

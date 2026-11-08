@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-OWNER PREVIEW ONLY — localized A hybrid: frozen f174622 pipeline with semi_lock
-disabled on verified hand/shoe fringe CCs; fringe RGBA restored from contour 17fc69d path.
+OWNER PREVIEW ONLY — localized A hybrid: immutable frozen f174622 WebP + hand/shoe patches
+from contour 17fc69d only where semi-lock damage is verified (no full re-pipeline).
 """
 from __future__ import annotations
 
@@ -29,8 +29,9 @@ STORE = Path(
         "/cursor/stores/self/t179-halo-owner-review-f174622",
     )
 )
-OUT = Path(os.environ.get("ANGELINA_A_HYBRID_PREVIEW_OUT", STORE / "preview-hybrid-a-t186"))
-TAG = os.environ.get("ANGELINA_HYBRID_TAG", "t186")
+_OUT_ENV = os.environ.get("ANGELINA_A_HYBRID_PREVIEW_OUT")
+TAG = os.environ.get("ANGELINA_HYBRID_TAG", "t186-iter2")
+ITERATION = os.environ.get("ANGELINA_HYBRID_ITERATION", "iter2_immutable_frozen_patch")
 FROZEN = STORE / "frozen-candidate-f174622-webp"
 CONTOUR = STORE / "preview-contour-a-17fc69d"
 LOCK_THRESH = float(os.environ.get("ANGELINA_LOCK_THRESH", "0.8"))
@@ -50,6 +51,8 @@ BASELINE_CONTOUR = {
 
 PARAMS = {
     "mode": "localized_hybrid_preview_A_only",
+    "iteration": ITERATION,
+    "postPass": "shoe_greyMatt_revert_frozen_rgb_hand_nearest_core",
     "tag": TAG,
     "pipeline_git_sha": PIPELINE_SHA,
     "lock_thresh": LOCK_THRESH,
@@ -57,7 +60,7 @@ PARAMS = {
     "semi_lock_band_global": True,
     "semi_lock_exempt": "hand_shoe_semi_lock_hits_in_roi",
     "fringe_restore_source": "contour_17fc69d_semi_damage_pixels_only",
-    "merge": "frozen_pipeline_plus_localized_contour_patch",
+    "merge": "immutable_frozen_webp_plus_hand_shoe_contour_patch_only",
     "decontam": True,
     "component_halo_fix": False,
     "label": "OWNER_PREVIEW_NOT_SHIPPED",
@@ -158,18 +161,35 @@ def _effective_inset(kind: str) -> int:
     return inset
 
 
-def _roi_masks(alpha_ref: np.ndarray, kind: str) -> tuple[np.ndarray, np.ndarray]:
-    h, w = alpha_ref.shape
+def _tight_hand_shoe_roi(h: int, w: int, kind: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     yy, xx = np.mgrid[0:h, 0:w]
     xn = xx.astype(np.float64) / w
     yn = yy.astype(np.float64) / h
     if kind == "portrait":
-        hand = (xn > 0.44) & (yn > 0.1) & (yn < 0.5)
-        shoe = (yn > 0.78) & (xn > 0.14) & (xn < 0.86)
+        hand = (xn > 0.53) & (yn > 0.11) & (yn < 0.42)
+        shoe = (yn > 0.81) & (xn > 0.16) & (xn < 0.84)
     else:
-        hand = (xn > 0.38) & (yn > 0.06) & (yn < 0.52)
-        shoe = (yn > 0.72) & (xn > 0.1) & (xn < 0.9)
-    return hand, shoe
+        hand = (xn > 0.45) & (yn > 0.08) & (yn < 0.46)
+        shoe = (yn > 0.73) & (xn > 0.12) & (xn < 0.88)
+    jacket_guard = (xn > 0.32) & (xn < 0.68) & (yn > 0.44) & (yn < 0.78)
+    return hand, shoe, jacket_guard
+
+
+def _bad_pixel_native_seeds(kind: str, h: int, w: int) -> np.ndarray:
+    key = "portrait" if kind == "portrait" else "world"
+    path = STORE / f"bad-pixels/frozen_candidate_f174622-A_{key}.json"
+    if not path.is_file():
+        return np.zeros((h, w), dtype=bool)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    mask = np.zeros((h, w), dtype=bool)
+    for px in data.get("pixels", []):
+        nx, ny = int(px["x"]) // 3, int(px["y"]) // 3
+        if 0 <= nx < w and 0 <= ny < h:
+            mask[ny, nx] = True
+    if not np.any(mask):
+        return mask
+    struct = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=bool)
+    return ndimage.binary_dilation(mask, structure=struct, iterations=2)
 
 
 def _finalize_frozen_array(prelock: tuple, kind: str) -> np.ndarray:
@@ -186,54 +206,105 @@ def _finalize_frozen_array(prelock: tuple, kind: str) -> np.ndarray:
     return out2
 
 
-def _finalize_hybrid(prelock: tuple, kind: str) -> tuple[Image.Image, dict]:
-    src_rgb, alpha_ref = prelock[1], prelock[2]
-    contour_arr = _contour_finalize_array(prelock, kind)
-    exempt_mask, exempt_meta = _hand_shoe_fringe_exempt_mask(alpha_ref, kind)
-    out = prelock[0].copy()
-    b._decontaminate_grey_exterior_band(out, alpha_ref)
-    img = b.finish_shipped_variant(Image.fromarray(out, "RGBA"))
-    out2 = np.array(img, dtype=np.uint8)
-    inset = _effective_inset(kind)
-    b._apply_candidate_alpha255_lock(
-        out2,
-        src_rgb,
-        alpha_ref,
-        LOCK_THRESH,
-        inset,
-        semi_lock_band=True,
-        semi_lock_exempt=exempt_mask,
-    )
-    b._decontaminate_opaque_grey_halo_components(out2, src_rgb, alpha_ref)
-    frozen_arr = out2.copy()
-    hand_roi, shoe_roi = _roi_masks(alpha_ref, kind)
-    roi = hand_roi | shoe_roi
-    fringe = (alpha_ref < 0.965) & (alpha_ref > (4 / 255.0))
+def _load_baseline_arrays(kind: str) -> tuple[np.ndarray, np.ndarray]:
+    frozen_path = FROZEN / f"angelina-teen-A-{kind}.webp"
+    contour_path = CONTOUR / f"angelina-teen-A-{kind}-contour-preview-17fc69d.webp"
+    frozen = np.array(Image.open(frozen_path).convert("RGBA"), dtype=np.uint8)
+    contour = np.array(Image.open(contour_path).convert("RGBA"), dtype=np.uint8)
+    if frozen.shape != contour.shape:
+        raise SystemExit(f"frozen/contour size mismatch {kind}")
+    return frozen, contour
+
+
+def _verified_patch_mask(
+    frozen_arr: np.ndarray,
+    contour_arr: np.ndarray,
+    alpha_ref: np.ndarray,
+    kind: str,
+) -> tuple[np.ndarray, dict]:
+    h, w = frozen_arr.shape[0], frozen_arr.shape[1]
+    hand, shoe, jacket_guard = _tight_hand_shoe_roi(h, w, kind)
+    roi = (hand | shoe) & (~jacket_guard)
     fd_a = frozen_arr[:, :, 3].astype(np.int16)
     ct_a = contour_arr[:, :, 3].astype(np.int16)
-    semi_damage = roi & fringe & (fd_a == 255) & (ct_a < 220)
-    restore = semi_damage
+    fringe = (frozen_arr[:, :, 3] > 0) & (alpha_ref < 0.965)
+    semi_damage = (
+        roi
+        & fringe
+        & (fd_a == 255)
+        & (ct_a < 222)
+        & (fd_a - ct_a >= 10)
+    )
+    bad_near = _bad_pixel_native_seeds(kind, h, w)
+    struct = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=bool)
+    labeled, _ = ndimage.label(semi_damage, structure=struct)
+    touch_ids = {int(c) for c in np.unique(labeled[bad_near & semi_damage]) if c}
+    patch = np.zeros((h, w), dtype=bool)
+    components: list[dict] = []
+    for cid in set(int(c) for c in np.unique(labeled) if c):
+        comp = labeled == cid
+        area = int(np.sum(comp))
+        if area < 1:
+            continue
+        ys, xs = np.where(comp)
+        cy, cx = float(ys.mean()), float(xs.mean())
+        xn, yn = cx / w, cy / h
+        region_hand = hand[int(cy), int(cx)]
+        region_shoe = shoe[int(cy), int(cx)]
+        if jacket_guard[int(cy), int(cx)]:
+            continue
+        if not (region_hand or region_shoe):
+            continue
+        if area > 1800 and cid not in touch_ids:
+            continue
+        if not (region_hand or region_shoe) and cid not in touch_ids:
+            continue
+        if region_hand and area > 1200 and cid not in touch_ids:
+            continue
+        patch |= comp
+        components.append(
+            {
+                "componentId": cid,
+                "region": "hand" if region_hand else "shoe",
+                "areaPx": area,
+                "centroidNorm": [round(xn, 4), round(yn, 4)],
+                "touchesBadPixelBand": cid in touch_ids,
+            }
+        )
+    patch &= roi
+    return patch, {
+        "components": components,
+        "patchPx": int(np.sum(patch)),
+        "semiDamagePx": int(np.sum(semi_damage)),
+        "badPixelSeedPx": int(np.sum(bad_near)),
+    }
+
+
+def _finalize_hybrid(_prelock: tuple, kind: str) -> tuple[Image.Image, dict]:
+    alpha_ref = _prelock[2]
+    frozen_arr, contour_arr = _load_baseline_arrays(kind)
+    h, w = frozen_arr.shape[0], frozen_arr.shape[1]
+    patch, patch_meta = _verified_patch_mask(frozen_arr, contour_arr, alpha_ref, kind)
     out2 = frozen_arr.copy()
-    out2[restore] = contour_arr[restore]
-    dist_in = ndimage.distance_transform_edt(alpha_ref >= (64 / 255.0))
-    grey = b._grey_matt_halo_mask(out2) & (dist_in >= 5) & (~restore)
-    if np.any(grey):
-        out2[grey, 0:3] = src_rgb[grey]
-        grey = b._grey_matt_halo_mask(out2) & (dist_in >= 5) & (~restore)
-        if np.any(grey):
-            interior_core = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
-            nearest = b._nearest_core_rgb(src_rgb, interior_core)
-            out2[grey, 0:3] = nearest[grey]
+    if np.any(patch):
+        out2[patch] = contour_arr[patch]
+    hand, _shoe, _jacket = _tight_hand_shoe_roi(h, w, kind)
+    hand_patch = patch & hand
+    grey = b._grey_matt_halo_mask(out2)
+    revert = grey & (~hand_patch)
+    if np.any(revert):
+        out2[revert] = frozen_arr[revert]
+    hand_grey = b._grey_matt_halo_mask(out2) & hand_patch
+    if np.any(hand_grey):
+        src_rgb = _prelock[1]
+        interior = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
+        nearest = b._nearest_core_rgb(src_rgb, interior)
+        out2[hand_grey, 0:3] = nearest[hand_grey]
     meta = {
-        "exempt": exempt_meta,
-        "fringeRestorePx": int(np.sum(restore)),
-        "restoreBreakdown": {
-            "semiDamagePx": int(np.sum(semi_damage, dtype=np.int64)),
-            "alphaGapPx": 0,
-            "highAlphaStripPx": 0,
-        },
-        "effectiveInset": _effective_inset(kind),
-        "merge": "frozen_base_contour_patch_verified_roi",
+        "patch": patch_meta,
+        "patchPx": int(np.sum(patch)),
+        "merge": "immutable_frozen_webp_plus_hand_shoe_contour_patch_only",
+        "rootCausePriorIter": "re_pipeline_semi_lock_exempt drifted from frozen f174622 webp hashes",
     }
     return Image.fromarray(out2, "RGBA"), meta
 
@@ -265,8 +336,15 @@ def diff_vs_ref(proposed: Image.Image, ref: Image.Image) -> dict:
     }
 
 
+def _out_dir() -> Path:
+    if _OUT_ENV:
+        return Path(_OUT_ENV)
+    return STORE / f"preview-hybrid-a-{TAG}"
+
+
 def build_one(kind: str) -> dict:
     _assert_baseline_files()
+    out_dir = _out_dir()
     source_path = ROOT / "assets/ui/angelina-skins/source/angelina-teen-A.png"
     orig = Image.open(source_path).convert("RGBA")
     cut = b.build_cutout_from_source(orig, "A")
@@ -275,8 +353,8 @@ def build_one(kind: str) -> dict:
     pl = b._compose_6d21_prelock(orig, cut, variant, slug, kind)
     img, local_meta = _finalize_hybrid(pl[:3], kind)
     name = f"angelina-teen-A-{kind}-hybrid-preview-{TAG}.webp"
-    dest = OUT / name
-    OUT.mkdir(parents=True, exist_ok=True)
+    dest = out_dir / name
+    out_dir.mkdir(parents=True, exist_ok=True)
     b.save_webp(img, dest, lossless=True)
     serve_rel = f"assets/ui/angelina-skins/.owner-preview-only/{name}"
     serve = ROOT / serve_rel
@@ -305,7 +383,8 @@ def build_one(kind: str) -> dict:
 
 def main() -> None:
     report = {"params": PARAMS, "variants": [build_one("portrait"), build_one("world")]}
-    path = OUT / "hybrid-preview-metrics.json"
+    out_dir = _out_dir()
+    path = out_dir / "hybrid-preview-metrics.json"
     path.write_text(json.dumps(report, indent=2), encoding="utf8")
     print(json.dumps(report, indent=2))
 
