@@ -1554,8 +1554,10 @@ function checkPortals() {
   const portals = PORTALS[currentLoc] || [];
   const px = player.group.position.x;
   const pz = player.group.position.z;
+  const onboardSlack =
+    typeof window !== "undefined" && window.Onboarding?.isActive?.() ? 0.42 : 0;
   for (const portal of portals) {
-    if (Math.hypot(px - portal.x, pz - portal.z) < portal.r) {
+    if (Math.hypot(px - portal.x, pz - portal.z) < portal.r + onboardSlack) {
       hooks.onPortal?.(portal.to);
       break;
     }

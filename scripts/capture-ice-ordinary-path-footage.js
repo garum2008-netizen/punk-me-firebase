@@ -590,12 +590,18 @@ async function runOrdinarySession(browser, viewport, label) {
   const qs = firebaseEmulatorQueryString();
   const baseUrl = `http://127.0.0.1:${PORT}`;
   const entryUrl = `${baseUrl}/?solo=1${qs}&v=ice-ordinary-${label}`;
+  const passTag = ordinaryPassTag();
+  const videoDir = path.join(OUT, `playwright-video-${passTag}-${label}`);
+  fs.mkdirSync(videoDir, { recursive: true });
 
   const ctx = await browser.newContext({
     viewport,
     hasTouch: INPUT_MODE === "touch",
     isMobile: INPUT_MODE === "touch",
-    recordVideo: viewport.width >= 1000 ? { dir: OUT, size: { width: 1280, height: 720 } } : { dir: OUT, size: { width: 390, height: 844 } },
+    recordVideo:
+      viewport.width >= 1000
+        ? { dir: videoDir, size: { width: 1280, height: 720 } }
+        : { dir: videoDir, size: { width: 390, height: 844 } },
   });
   await ctx.addInitScript(() => {
     try {
@@ -641,7 +647,6 @@ async function runOrdinarySession(browser, viewport, label) {
 
   const shaShort = SHA.slice(0, 12);
   const suffix = viewport.width >= 1000 ? "desktop1280x720" : "mobile390x844";
-  const passTag = ordinaryPassTag();
   const inputTag = INPUT_MODE === "touch" ? "-touch" : "";
   const dest = path.join(
     OUT,
@@ -653,10 +658,16 @@ async function runOrdinarySession(browser, viewport, label) {
       await video.saveAs(dest);
     } catch (e) {
       videoSaveError = String(e.message || e);
+    }
+    if (!fs.existsSync(dest)) {
       try {
         const vidTmp = await video.path();
+        await new Promise(r => setTimeout(r, 400));
         if (vidTmp && fs.existsSync(vidTmp)) fs.copyFileSync(vidTmp, dest);
-      } catch (_e) {}
+        else videoSaveError = videoSaveError || `no video file at ${vidTmp}`;
+      } catch (e2) {
+        videoSaveError = `${videoSaveError || ""}; ${e2.message || e2}`;
+      }
     }
   }
 
