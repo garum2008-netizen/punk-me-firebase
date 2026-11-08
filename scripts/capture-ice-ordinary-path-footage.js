@@ -642,6 +642,7 @@ async function runOrdinarySession(browser, viewport, label) {
   const recordingEndCet = cetTimestamp(recordingEndUtc);
 
   const video = page.video();
+  await page.close();
 
   const shaShort = SHA.slice(0, 12);
   const suffix = viewport.width >= 1000 ? "desktop1280x720" : "mobile390x844";
