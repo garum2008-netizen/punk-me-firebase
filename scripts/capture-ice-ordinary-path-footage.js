@@ -254,6 +254,14 @@ async function touchJoystickBurst(page, holdMs = 520) {
   await page.mouse.up();
 }
 
+async function walkKeysUntil(page, predicate, maxBursts = 24, keyMs = 320) {
+  for (let i = 0; i < maxBursts; i++) {
+    if (await predicate()) return true;
+    await walkKeys(page, 1, keyMs);
+  }
+  return await predicate();
+}
+
 async function walkKeys(page, bursts = 6, keyMs = 380) {
   await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, {
     timeout: 120000,
@@ -347,9 +355,12 @@ async function completeOnboarding(page) {
     }
     if (step === 0) {
       if (PORTAL_GATE_ONLY) {
-        for (let i = 0; i < 14 && (await readState(page)).onboardingStep < 1; i++) {
-          await walkKeys(page, 1, 360);
-        }
+        await walkKeysUntil(
+          page,
+          async () => (await readState(page)).onboardingStep >= 1,
+          24,
+          280
+        );
       } else {
         await walkKeys(page, 12, 420);
         for (let i = 0; i < 12 && (await readState(page)).onboardingStep < 1; i++) {
