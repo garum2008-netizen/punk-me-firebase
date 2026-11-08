@@ -254,10 +254,26 @@ async function touchJoystickBurst(page, holdMs = 520) {
   await page.mouse.up();
 }
 
-async function walkKeysUntil(page, predicate, maxBursts = 24, keyMs = 320) {
+async function walkKeysUntil(page, predicate, maxBursts = 32, keyMs = 320) {
+  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, {
+    timeout: 120000,
+  });
   for (let i = 0; i < maxBursts; i++) {
     if (await predicate()) return true;
-    await walkKeys(page, 1, keyMs);
+    await focusStage(page);
+    await page.keyboard.down("Shift");
+    await page.keyboard.down("w");
+    for (let t = 0; t < keyMs; t += 45) {
+      await page.waitForTimeout(45);
+      if (await predicate()) {
+        await page.keyboard.up("w");
+        await page.keyboard.up("Shift");
+        return true;
+      }
+    }
+    await page.keyboard.up("w");
+    await page.keyboard.up("Shift");
+    await page.waitForTimeout(60);
   }
   return await predicate();
 }
