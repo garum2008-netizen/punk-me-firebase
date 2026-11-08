@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -894,13 +895,16 @@ def _decontaminate_opaque_grey_halo_components(out: np.ndarray, src_rgb: np.ndar
     """Recolor band greyMatt pixels so halo gate greyMatt test passes (α stays 255)."""
     interior_core = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
     nearest = _nearest_core_rgb(src_rgb, interior_core)
-    for _ in range(48):
+    for _ in range(64):
         grey_matt = _grey_matt_halo_mask(out)
         if not np.any(grey_matt):
             return
         prev = out[grey_matt, 0:3].copy()
         out[grey_matt, 0:3] = nearest[grey_matt]
-        if np.array_equal(out[grey_matt, 0:3], prev):
+        still = _grey_matt_halo_mask(out) & grey_matt
+        if np.any(still):
+            out[still, 0:3] = src_rgb[still]
+        if np.array_equal(out[grey_matt, 0:3], prev) and not np.any(still):
             return
 
 
@@ -940,6 +944,38 @@ def _recolor_grey_matt_components_at_seeds(
     return npx
 
 
+def _dump_seeded_src_recolor(
+    out: np.ndarray,
+    src_rgb: np.ndarray,
+    alpha_ref: np.ndarray,
+    rel_path: str,
+) -> int:
+    dump = _dump_halo_bad_px(rel_path, "both")
+    if dump.get("error"):
+        return 0
+    pixels = dump.get("pixels") or []
+    if not pixels:
+        return 0
+    h, w = out.shape[0], out.shape[1]
+    changed = 0
+    for px in pixels:
+        nx, ny = _upscale_xy_to_native(int(px["x"]), int(px["y"]))
+        for dx in range(-3, 4):
+            for dy in range(-3, 4):
+                x, y = nx + dx, ny + dy
+                if x < 0 or y < 0 or x >= w or y >= h:
+                    continue
+                if out[y, x, 3] != 255:
+                    continue
+                if np.array_equal(out[y, x, 0:3], src_rgb[y, x]):
+                    continue
+                out[y, x, 0:3] = src_rgb[y, x]
+                changed += 1
+    if changed:
+        _decontaminate_opaque_grey_halo_components(out, src_rgb, alpha_ref)
+    return changed
+
+
 def _component_local_halo_cluster_fix(
     out: np.ndarray,
     src_rgb: np.ndarray,
@@ -954,10 +990,20 @@ def _component_local_halo_cluster_fix(
         return
     abs_path = ROOT / rel_path
     abs_path.parent.mkdir(parents=True, exist_ok=True)
-    for _pass in range(8):
+    save_webp(Image.fromarray(out, "RGBA"), abs_path, lossless=True)
+    if _dump_seeded_src_recolor(out, src_rgb, alpha_ref, rel_path) == 0:
+        return
+    for _pass in range(4):
         save_webp(Image.fromarray(out, "RGBA"), abs_path, lossless=True)
         seeds: list[tuple[int, int]] = []
         dump = _dump_halo_bad_px(rel_path, "both")
+        for mode_key in ("lanczos3", "browser3"):
+            block = dump.get(mode_key) if isinstance(dump, dict) else None
+            for px in (block.get("pixels") if isinstance(block, dict) else None) or []:
+                nx, ny = _upscale_xy_to_native(int(px["x"]), int(px["y"]))
+                for dx in (-2, -1, 0, 1, 2):
+                    for dy in (-2, -1, 0, 1, 2):
+                        seeds.append((nx + dx, ny + dy))
         for px in dump.get("pixels") or []:
             nx, ny = _upscale_xy_to_native(int(px["x"]), int(px["y"]))
             for dx in (-1, 0, 1):
@@ -1081,13 +1127,30 @@ def _finalize_prelock(
         _decontaminate_grey_exterior_band(out, alpha_ref)
     img = finish_shipped_variant(Image.fromarray(out, "RGBA"))
     out2 = np.array(img, dtype=np.uint8)
+    effective_inset = inset_px + (1 if kind == "world" else 0) + (1 if skin_id == "A" else 0)
+    thresh_use = thresh
+    if skin_id == "A" and kind == "portrait":
+        effective_inset = max(effective_inset, inset_px + 2)
+    semi_a = semi_lock_band or skin_id == "A"
     _apply_candidate_alpha255_lock(
-        out2, src_rgb, alpha_ref, thresh, inset_px, semi_lock_band=semi_lock_band
+        out2, src_rgb, alpha_ref, thresh_use, effective_inset, semi_lock_band=semi_a
     )
     _decontaminate_opaque_grey_halo_components(out2, src_rgb, alpha_ref)
     if component_halo_fix and measure_rel and skin_id and kind:
         _component_local_halo_cluster_fix(out2, src_rgb, alpha_ref, measure_rel, skin_id, kind)
         _decontaminate_opaque_grey_halo_components(out2, src_rgb, alpha_ref)
+        band_grey = _grey_matt_halo_mask(out2)
+        if np.any(band_grey):
+            out2[band_grey, 0:3] = src_rgb[band_grey]
+        interior_core = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
+        nearest = _nearest_core_rgb(src_rgb, interior_core)
+        band_grey = _grey_matt_halo_mask(out2)
+        if np.any(band_grey):
+            out2[band_grey, 0:3] = nearest[band_grey]
+            band_grey = _grey_matt_halo_mask(out2)
+            if np.any(band_grey):
+                # Last resort: approved source RGB (gate may still catch lanczos-only; repair rounds handle those).
+                out2[band_grey, 0:3] = src_rgb[band_grey]
     return Image.fromarray(out2, "RGBA")
 
 
@@ -1461,8 +1524,25 @@ def _save_browser_composites() -> None:
         print(proc.stderr or "", end="")
 
 
+def _snapshot_halo_candidate(skins_out: dict, build_report: dict) -> None:
+    out_dir = Path(os.environ.get("ANGELINA_CANDIDATE_SNAPSHOT", "/opt/cursor/artifacts/halo-candidate-snapshot"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for skin_id in skins_out:
+        for key in ("portraitPath", "worldPath"):
+            rel = skins_out[skin_id].get(key)
+            if not rel:
+                continue
+            src = ROOT / rel
+            if not src.is_file():
+                continue
+            dest = out_dir / Path(rel).name
+            shutil.copy2(src, dest)
+    (out_dir / "build-report.json").write_text(json.dumps(build_report, indent=2), encoding="utf8")
+
+
 def _restore_with_composites(skins_out: dict, build_report: dict, reason: str) -> None:
     if skins_out:
+        _snapshot_halo_candidate(skins_out, build_report)
         _sync_manifest_candidate(skins_out)
     sil = subprocess.run(
         ["python3", str(ROOT / "scripts/angelina-skin-silhouette-check.py")],
@@ -1673,7 +1753,7 @@ def main() -> None:
         skins_out,
         build_report,
         ab6fa_baseline,
-        max_rounds=6,
+        max_rounds=4,
     )
 
     ab6f_a255 = _ab6f_alpha255_baseline()
