@@ -148,14 +148,23 @@ async function visibleUiClick(page, target, detail, opts = {}) {
   if (!box || box.width < 2 || box.height < 2) {
     throw new Error(`visibleUiClick: not hittable — ${detail}`);
   }
-  const topEl = await page.evaluate(
+  const probe = await page.evaluate(
     ({ cx, cy }) => {
       const hit = document.elementFromPoint(cx, cy);
-      return hit ? `${hit.tagName}${hit.id ? "#" + hit.id : ""}` : "none";
+      if (!hit) return { hit: "none" };
+      return {
+        hit: `${hit.tagName}${hit.id ? "#" + hit.id : ""}`,
+        id: hit.id || "",
+        testid: hit.getAttribute?.("data-testid") || "",
+        onclick: (hit.getAttribute?.("onclick") || "").slice(0, 80),
+      };
     },
     { cx: box.x + box.width / 2, cy: box.y + box.height / 2 }
   );
-  logInput("ui_click", `${detail} @${Math.round(box.x)},${Math.round(box.y)} hit=${topEl}`);
+  logInput(
+    "ui_click",
+    `${detail} @${Math.round(box.x + box.width / 2)},${Math.round(box.y + box.height / 2)} hit=${probe.hit} id=${probe.id} testid=${probe.testid} onclick=${probe.onclick}`
+  );
   await loc.click({ timeout: 15000 });
 }
 
@@ -206,7 +215,11 @@ async function touchJoystickBurst(page, holdMs = 520) {
   if (!box) throw new Error("touchJoystick missing bounding box");
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
-  logInput("touch_playwright", `joystick drag Playwright mouse @${Math.round(cx)},${Math.round(cy)} dy=-42ms=${holdMs}`);
+  logInput(
+    "touch_status",
+    "UNVERIFIED — automation uses Playwright mouse drag on #touchJoystick; not physical touchscreen certification"
+  );
+  logInput("touch_playwright", `joystick drag @${Math.round(cx)},${Math.round(cy)} dy=-42ms=${holdMs}`);
   await joy.scrollIntoViewIfNeeded().catch(() => {});
   const [pointerSample] = await Promise.all([
     page.evaluate(() =>
@@ -261,7 +274,7 @@ async function walkKeys(page, bursts = 6, keyMs = 380) {
   }
 }
 
-async function tryPortalTravel(page, destLoc, maxMs = 38000) {
+async function tryPortalTravel(page, destLoc, maxMs = 55000) {
   const startLoc = await page.evaluate(() => window.me?.location);
   if (startLoc === destLoc) return true;
   logInput("portal_attempt", `walk portal toward ${destLoc} from ${startLoc}`);
@@ -273,10 +286,6 @@ async function tryPortalTravel(page, destLoc, maxMs = 38000) {
       return true;
     }
     await focusStage(page);
-    await page.evaluate(() => {
-      const t = window.Onboarding?.getGuideTarget?.();
-      if (t?.wx != null && t?.wz != null) window.World3D?.faceWorldTargetForE2e?.(t.wx, t.wz);
-    });
     await page.keyboard.down("Shift");
     await page.keyboard.down("w");
     await page.waitForTimeout(420);
@@ -381,10 +390,7 @@ async function completeOnboarding(page) {
       await page.waitForSelector("#gangModal.active");
       await visibleUiClick(page, '.npc-row[data-npc="razor"]', "gang razor row (fight)");
       await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
-      const fightStart = page.locator('button[onclick*="startNpcFight"]');
-      const fsBox = await fightStart.boundingBox();
-      logInput("ui_click", `startNpcFight @${Math.round(fsBox?.x || 0)},${Math.round(fsBox?.y || 0)}`);
-      await fightStart.click();
+      await visibleUiClick(page, 'button[onclick*="startNpcFight"]', "startNpcFight");
       await page.waitForFunction(
         () => {
           const duel = document.getElementById("duel3dHud");
@@ -405,10 +411,8 @@ async function completeOnboarding(page) {
         }));
         if (snap.fo) {
           const btn = page.locator('#fightOverlay.active button[onclick*="fightAttack"]').first();
-          const b = await btn.boundingBox();
-          if (b && b.width > 2) {
-            logInput("ui_click", `fightAttack @${Math.round(b.x)},${Math.round(b.y)}`);
-            await btn.click();
+          if (await btn.isVisible().catch(() => false)) {
+            await visibleUiClick(page, btn, "fightAttack");
           }
         } else if (snap.hud) {
           const btn = page.locator('[data-testid="duel3d-attack"]');
@@ -582,7 +586,7 @@ async function playLifeCh1Ordinary(page) {
 }
 
 async function runOrdinarySession(browser, viewport, label) {
-  const prodHits = { n: 0 };
+  const prodHits = { n: 0, urls: [] };
   const qs = firebaseEmulatorQueryString();
   const baseUrl = `http://127.0.0.1:${PORT}`;
   const entryUrl = `${baseUrl}/?solo=1${qs}&v=ice-ordinary-${label}`;
@@ -603,8 +607,10 @@ async function runOrdinarySession(browser, viewport, label) {
   const page = await ctx.newPage();
   await installProdFirebaseRouteBlock(page);
   await page.route("**/*", route => {
-    if (isProdFirebaseRequest(route.request().url())) {
+    const url = route.request().url();
+    if (isProdFirebaseRequest(url)) {
       prodHits.n += 1;
+      if (prodHits.urls.length < 32) prodHits.urls.push(url);
       return route.abort();
     }
     return route.continue();
@@ -629,7 +635,7 @@ async function runOrdinarySession(browser, viewport, label) {
   const recordingEndUtc = new Date();
   const recordingEndCet = cetTimestamp(recordingEndUtc);
 
-  const vidTmp = await page.video()?.path();
+  const video = page.video();
   await page.close();
   await ctx.close();
 
@@ -641,11 +647,17 @@ async function runOrdinarySession(browser, viewport, label) {
     OUT,
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
-  if (vidTmp && fs.existsSync(vidTmp)) {
-    fs.copyFileSync(vidTmp, dest);
+  let videoSaveError = null;
+  if (video) {
     try {
-      fs.unlinkSync(vidTmp);
-    } catch (_) {}
+      await video.saveAs(dest);
+    } catch (e) {
+      videoSaveError = String(e.message || e);
+      try {
+        const vidTmp = await video.path();
+        if (vidTmp && fs.existsSync(vidTmp)) fs.copyFileSync(vidTmp, dest);
+      } catch (_e) {}
+    }
   }
 
   return {
@@ -659,6 +671,10 @@ async function runOrdinarySession(browser, viewport, label) {
     recordingEndCet,
     chapter1CompletedInSession: completed,
     prodFirebaseBlocks: prodHits.n,
+    prodFirebaseDeniedUrls: prodHits.urls.slice(),
+    prodNetworkCoverageNote:
+      "Blocked URLs listed when prod host matched; zero blocks means no prod host appeared, not full egress inventory.",
+    videoSaveError,
     file: dest,
     inputLog: inputLog.slice(),
     scenes: scenes.slice(),

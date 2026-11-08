@@ -1516,6 +1516,33 @@ function tickNpcPatrols(dt) {
   });
 }
 
+function applyOnboardingPortalNudge(player, input) {
+  try {
+    if (!window.Onboarding?.isActive?.() || !player || !bounds) return;
+    if (Math.hypot(input.moveX, input.moveZ) < 0.05) return;
+    const portal = getNearPortal();
+    if (!portal) return;
+    const d = Math.hypot(player.wx - portal.x, player.wz - portal.z);
+    if (d > portal.r + 0.35 || d < 0.15) return;
+    const step = 0.085;
+    const dx = portal.x - player.wx;
+    const dz = portal.z - player.wz;
+    const mag = Math.hypot(dx, dz) || 1;
+    const moved = moveWithCollision(
+      player.wx,
+      player.wz,
+      (dx / mag) * step,
+      (dz / mag) * step,
+      bounds,
+      furnitureColliders,
+      0.42
+    );
+    player.wx = moved.x;
+    player.wz = moved.z;
+    placeActorWorld(player, moved.x, moved.z, true);
+  } catch (_) {}
+}
+
 function checkPortals() {
   if (motionProbe || captureFrameLock) return;
   if (performance.now() < portalGraceUntil) return;
@@ -1560,7 +1587,8 @@ function lifeCh1GuideLocomotionDelta(input, step) {
     const dx = t.wx - pl.wx;
     const dz = t.wz - pl.wz;
     const dist = Math.hypot(dx, dz);
-    if (dist < 0.45) return null;
+    const stopDist = window.Onboarding?.isActive?.() ? 0.08 : 0.45;
+    if (dist < stopDist) return null;
     const runScale = input.run ? 1.15 : 0.95;
     const sliceBoost = 1.35;
     return {
@@ -1637,7 +1665,7 @@ function processInput(dt) {
       mz = (fwd.z * nz + right.z * nx) * step;
     }
   }
-  if (mx !== 0 || mz !== 0) {
+    if (mx !== 0 || mz !== 0) {
     const cols = furnitureColliders;
     const moved = moveWithCollision(player.wx, player.wz, mx, mz, bounds, cols, 0.42);
     const px = moved.x;
@@ -1645,6 +1673,9 @@ function processInput(dt) {
     player._intentRun = motionProbe ? true : input.run;
     player._fromLocomotion = true;
     placeActorWorld(player, px, pz, true);
+    player.wx = px;
+    player.wz = pz;
+    applyOnboardingPortalNudge(player, input);
     player._fromLocomotion = false;
     player._gameSyncT = (player._gameSyncT || 0) - dt;
     if (!motionProbe && player._gameSyncT <= 0) {

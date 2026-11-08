@@ -50,6 +50,22 @@ for (let pass = 1; pass <= 3; pass++) {
     summary.passes.push(row);
     break;
   }
+  const sha12 = SHA.slice(0, 12);
+  const immMeta = path.join(OUT, `ice-ordinary-footage-metadata-${sha12}-pass${String(pass).padStart(2, "0")}-immutable.json`);
+  try {
+    fs.copyFileSync(row.metadataPath, immMeta);
+    row.immutableMetadataPath = immMeta;
+  } catch (e) {
+    row.immutableMetadataPathError = String(e.message || e);
+  }
+  const immInput = path.join(OUT, `ice-ordinary-input-log-${sha12}-pass${String(pass).padStart(2, "0")}-immutable.json`);
+  try {
+    const glob = fs.readdirSync(OUT).find(f => f.startsWith(`ice-ordinary-input-log-${sha12}-pass${String(pass).padStart(2, "0")}`));
+    if (glob) fs.copyFileSync(path.join(OUT, glob), immInput);
+    row.immutableInputLogPath = immInput;
+  } catch (e) {
+    row.immutableInputLogPathError = String(e.message || e);
+  }
   summary.passes.push(row);
 }
 
