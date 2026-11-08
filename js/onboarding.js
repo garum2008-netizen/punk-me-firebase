@@ -120,6 +120,10 @@ function getGuideTarget() {
 
 function syncGuideTarget() {
   if (!window.World3D?.setGuideTarget) return;
+  const st = currentStep();
+  if (st?.key === "visit_street" && window.me?.location === "room") {
+    window.World3D?.snapPlayerClearForOnboardingPortal?.();
+  }
   World3D.setGuideTarget(getGuideTarget());
 }
 
