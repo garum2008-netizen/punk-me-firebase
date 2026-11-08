@@ -56,6 +56,23 @@ async function focusStage(page) {
   await stage.click({ position: { x: fx, y: fy }, timeout: 15000 });
 }
 
+async function walkKeys(page, bursts = 8, keyMs = 380) {
+  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, {
+    timeout: 120000,
+  });
+  await focusStage(page);
+  const keys = ["w", "w", "a", "w", "d", "w"];
+  for (let i = 0; i < bursts; i++) {
+    const k = keys[i % keys.length];
+    await page.keyboard.down("Shift");
+    await page.keyboard.down(k);
+    await page.waitForTimeout(keyMs);
+    await page.keyboard.up(k);
+    await page.keyboard.up("Shift");
+    await page.waitForTimeout(100);
+  }
+}
+
 async function walkBurst(page, keyMs = 420) {
   await focusStage(page);
   await page.keyboard.down("Shift");
@@ -118,8 +135,8 @@ async function samplePortalDiag(page) {
         ...(await page.evaluate(() => window.World3D?.getRoomColliderDiag?.() || {})),
       });
     }
-    if (st.step === 0) {
-      for (let i = 0; i < 4; i++) await walkBurst(page, 400);
+    if (st.step < 1) {
+      await walkKeys(page, 8, 380);
       continue;
     }
     if (st.step === 1 && st.loc === "room") {
