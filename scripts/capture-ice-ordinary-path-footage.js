@@ -22,8 +22,14 @@ const ROOT = path.join(__dirname, "..");
 const OUT = process.env.PUNK_ICE_OUT || path.join("/opt/cursor/artifacts", "ice-ch1-footage");
 const PORT = Number(process.env.PUNK_PORT || "3463");
 const SHA = spawnSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).stdout.trim();
-const ORDINARY_PASS = Number(process.env.ORDINARY_PASS || "1");
+const ORDINARY_PASS_RAW = process.env.ORDINARY_PASS || "1";
+const ORDINARY_PASS = Number(ORDINARY_PASS_RAW);
 const INPUT_MODE = process.env.ORDINARY_INPUT || "keyboard";
+
+function ordinaryPassTag() {
+  if (Number.isFinite(ORDINARY_PASS)) return `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
+  return `pass-${String(ORDINARY_PASS_RAW).replace(/[^a-zA-Z0-9_-]/g, "")}`;
+}
 
 let t0 = 0;
 const inputLog = [];
@@ -501,7 +507,7 @@ async function playLifeCh1Ordinary(page) {
   logScene("ch1_complete", "lifeCh1.completed=true");
   await page.waitForTimeout(400);
   const shaShort = SHA.slice(0, 12);
-  const passTag = `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
+  const passTag = ordinaryPassTag();
   await uiOpenMapTravel(page, "street");
   await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 20000 });
   await page.waitForTimeout(280);
@@ -596,7 +602,7 @@ async function runOrdinarySession(browser, viewport, label) {
 
   const shaShort = SHA.slice(0, 12);
   const suffix = viewport.width >= 1000 ? "desktop1280x720" : "mobile390x844";
-  const passTag = `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
+  const passTag = ordinaryPassTag();
   const inputTag = INPUT_MODE === "touch" ? "-touch" : "";
   const dest = path.join(
     OUT,
@@ -621,8 +627,8 @@ async function runOrdinarySession(browser, viewport, label) {
     chapter1CompletedInSession: completed,
     prodFirebaseBlocks: prodHits.n,
     file: dest,
-    inputLog,
-    scenes,
+    inputLog: inputLog.slice(),
+    scenes: scenes.slice(),
     ...ffprobeMeta(dest),
   };
 }
@@ -674,7 +680,7 @@ async function runOrdinarySession(browser, viewport, label) {
     failure: err ? String(err.message || err) : null,
   };
 
-  const passTag = `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
+  const passTag = ordinaryPassTag();
   const metaPass = path.join(OUT, `ice-ordinary-footage-metadata-${passTag}.json`);
   fs.writeFileSync(metaPass, JSON.stringify(report, null, 2));
   fs.writeFileSync(path.join(OUT, "ice-ordinary-footage-metadata.json"), JSON.stringify(report, null, 2));

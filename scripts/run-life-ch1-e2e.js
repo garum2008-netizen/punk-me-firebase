@@ -129,9 +129,10 @@ function restartEmulators(emu) {
 }
 
 (async () => {
-  validateRules();
   const useExisting =
     process.env.LIFE_CH1_E2E_USE_EXISTING_EMULATOR === "1" && process.env.FIREBASE_DATABASE_EMULATOR_HOST;
+  if (!useExisting) validateRules();
+  else console.log("life-ch1-e2e: skipping rules emulators:exec (using existing RTDB host)");
   let emu = useExisting ? null : spawnEmulators();
   let serve;
   const exitCodes = [];
