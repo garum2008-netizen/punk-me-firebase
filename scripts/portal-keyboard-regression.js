@@ -110,8 +110,7 @@ async function samplePortalDiag(page) {
       step: window.me?.onboarding?.step,
       loc: window.me?.location,
     }));
-    if (st.step >= 1 && st.loc === "street") break;
-    if (st.step >= 2 && st.loc === "street") break;
+    if (st.loc === "street") break;
     if (st.step === 0 && trace.length === 0) {
       trace.push({
         t: Date.now() - start,
@@ -119,14 +118,13 @@ async function samplePortalDiag(page) {
         ...(await page.evaluate(() => window.World3D?.getRoomColliderDiag?.() || {})),
       });
     }
-    if (st.step === 1 || (st.step === 0 && Date.now() - start > 8000)) {
-      if (st.step === 0) {
-        await walkBurst(page, 380);
-      }
-      if (st.step === 1 && st.loc === "room") {
-        await walkBurst(page, 420);
-        trace.push({ t: Date.now() - start, phase: "portal_walk_post", ...(await samplePortalDiag(page)) });
-      }
+    if (st.step === 0) {
+      for (let i = 0; i < 4; i++) await walkBurst(page, 400);
+      continue;
+    }
+    if (st.step === 1 && st.loc === "room") {
+      await walkBurst(page, 420);
+      trace.push({ t: Date.now() - start, phase: "portal_walk_post", ...(await samplePortalDiag(page)) });
     }
     await page.waitForTimeout(80);
   }
@@ -157,8 +155,8 @@ async function samplePortalDiag(page) {
     videoExists: fs.existsSync(vidDest),
     trace,
     minDist:
-      trace.filter(t => t.distToStreetPortal != null).sort((a, b) => a.distToStreetPortal - b.distToStreetPortal)[0]
-        ?.distToStreetPortal ?? null,
+      trace.filter(t => t.distToPortal != null).sort((a, b) => a.distToPortal - b.distToPortal)[0]?.distToPortal ?? null,
+    colliderAfter,
   };
   const outJson = path.join(OUT, `portal-keyboard-regression-${SHA.slice(0, 12)}.json`);
   fs.writeFileSync(outJson, JSON.stringify(report, null, 2));
