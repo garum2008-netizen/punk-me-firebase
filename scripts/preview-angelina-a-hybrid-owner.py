@@ -30,8 +30,8 @@ STORE = Path(
     )
 )
 _OUT_ENV = os.environ.get("ANGELINA_A_HYBRID_PREVIEW_OUT")
-TAG = os.environ.get("ANGELINA_HYBRID_TAG", "t186-iter2")
-ITERATION = os.environ.get("ANGELINA_HYBRID_ITERATION", "iter2_immutable_frozen_patch")
+TAG = os.environ.get("ANGELINA_HYBRID_TAG", "t186-iter3")
+ITERATION = os.environ.get("ANGELINA_HYBRID_ITERATION", "iter3_hand_patch_shoe_src_rgb_badseed")
 FROZEN = STORE / "frozen-candidate-f174622-webp"
 CONTOUR = STORE / "preview-contour-a-17fc69d"
 LOCK_THRESH = float(os.environ.get("ANGELINA_LOCK_THRESH", "0.8"))
@@ -52,7 +52,7 @@ BASELINE_CONTOUR = {
 PARAMS = {
     "mode": "localized_hybrid_preview_A_only",
     "iteration": ITERATION,
-    "postPass": "shoe_greyMatt_revert_frozen_rgb_hand_nearest_core",
+    "postPass": "hand_contour_patch_only_shoe_badseed_src_nearest",
     "tag": TAG,
     "pipeline_git_sha": PIPELINE_SHA,
     "lock_thresh": LOCK_THRESH,
@@ -253,13 +253,11 @@ def _verified_patch_mask(
         region_shoe = shoe[int(cy), int(cx)]
         if jacket_guard[int(cy), int(cx)]:
             continue
-        if not (region_hand or region_shoe):
+        if region_shoe or not region_hand:
             continue
         if area > 1800 and cid not in touch_ids:
             continue
-        if not (region_hand or region_shoe) and cid not in touch_ids:
-            continue
-        if region_hand and area > 1200 and cid not in touch_ids:
+        if area > 1200 and cid not in touch_ids:
             continue
         patch |= comp
         components.append(
@@ -286,17 +284,25 @@ def _finalize_hybrid(_prelock: tuple, kind: str) -> tuple[Image.Image, dict]:
     h, w = frozen_arr.shape[0], frozen_arr.shape[1]
     patch, patch_meta = _verified_patch_mask(frozen_arr, contour_arr, alpha_ref, kind)
     out2 = frozen_arr.copy()
-    if np.any(patch):
-        out2[patch] = contour_arr[patch]
-    hand, _shoe, _jacket = _tight_hand_shoe_roi(h, w, kind)
+    hand, shoe, _jacket = _tight_hand_shoe_roi(h, w, kind)
     hand_patch = patch & hand
+    if np.any(hand_patch):
+        out2[hand_patch] = contour_arr[hand_patch]
+    src_rgb = _prelock[1]
+    bad_shoe = _bad_pixel_native_seeds(kind, h, w) & shoe
+    if np.any(bad_shoe):
+        out2[bad_shoe, 0:3] = src_rgb[bad_shoe]
     grey = b._grey_matt_halo_mask(out2)
-    revert = grey & (~hand_patch)
-    if np.any(revert):
-        out2[revert] = frozen_arr[revert]
+    shoe_grey = grey & shoe & (~hand_patch)
+    if np.any(shoe_grey):
+        interior = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
+        nearest = b._nearest_core_rgb(src_rgb, interior)
+        out2[shoe_grey, 0:3] = nearest[shoe_grey]
+        still = b._grey_matt_halo_mask(out2) & shoe_grey
+        if np.any(still):
+            out2[still, 0:3] = src_rgb[still]
     hand_grey = b._grey_matt_halo_mask(out2) & hand_patch
     if np.any(hand_grey):
-        src_rgb = _prelock[1]
         interior = ndimage.distance_transform_edt(alpha_ref >= 0.99) >= 3
         nearest = b._nearest_core_rgb(src_rgb, interior)
         out2[hand_grey, 0:3] = nearest[hand_grey]
