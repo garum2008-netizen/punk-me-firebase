@@ -121,6 +121,16 @@ async function samplePortalDiag(page) {
   }
 
   const trace = [];
+  await walkKeys(page, 28, 420);
+  await page
+    .waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 45000 })
+    .catch(() => {});
+  trace.push({
+    t: 0,
+    phase: "collider_before",
+    ...(await page.evaluate(() => window.World3D?.getRoomColliderDiag?.() || {})),
+    onboardingStep: await page.evaluate(() => window.me?.onboarding?.step),
+  });
   const start = Date.now();
   while (Date.now() - start < MAX_MS) {
     const st = await page.evaluate(() => ({
