@@ -4,7 +4,11 @@ const fs = require("fs");
 const path = require("path");
 const http = require("http");
 const { spawn, spawnSync } = require("child_process");
-const { assertFirebaseEmulatorTestEnv, firebaseEmulatorQueryString } = require("./firebase-test-emulator-guard");
+const {
+  assertFirebaseEmulatorTestEnv,
+  firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock,
+} = require("./firebase-test-emulator-guard");
 
 assertFirebaseEmulatorTestEnv();
 
@@ -50,6 +54,7 @@ function serveRoot() {
     } catch (_) {}
   });
   const page = await ctx.newPage();
+  await installProdFirebaseRouteBlock(page);
   const qs = firebaseEmulatorQueryString();
   await page.goto(`http://127.0.0.1:${PORT}/?solo=1${qs}&v=collider-diag`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("#charSelect.active", { timeout: 120000 });

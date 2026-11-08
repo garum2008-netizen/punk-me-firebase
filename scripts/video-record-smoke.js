@@ -5,7 +5,11 @@ const fs = require("fs");
 const path = require("path");
 const http = require("http");
 const { spawn, spawnSync } = require("child_process");
-const { assertFirebaseEmulatorTestEnv, firebaseEmulatorQueryString } = require("./firebase-test-emulator-guard");
+const {
+  assertFirebaseEmulatorTestEnv,
+  firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock,
+} = require("./firebase-test-emulator-guard");
 
 assertFirebaseEmulatorTestEnv();
 
@@ -67,6 +71,7 @@ function ffprobeMeta(file) {
     recordVideo: { dir: videoDir, size: { width: 640, height: 360 } },
   });
   const page = await ctx.newPage();
+  await installProdFirebaseRouteBlock(page);
   const qs = firebaseEmulatorQueryString();
   await page.goto(`http://127.0.0.1:${PORT}/?solo=1${qs}&v=video-smoke`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(6000);
