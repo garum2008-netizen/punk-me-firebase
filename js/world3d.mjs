@@ -1516,6 +1516,22 @@ function tickNpcPatrols(dt) {
   });
 }
 
+function tryOnboardingMovingPortal(input) {
+  try {
+    if (!window.Onboarding?.isActive?.() || Math.hypot(input.moveX, input.moveZ) < 0.05) return;
+    const player = actors.get("player");
+    if (!player) return;
+    const step = window.me?.onboarding?.step ?? -1;
+    if (step === 1 && currentLoc === "room") {
+      const p = (PORTALS.room || []).find(pr => pr.to === "street");
+      if (p && Math.hypot(player.wx - p.x, player.wz - p.z) < 3.4) hooks.onPortal?.("street");
+    } else if (step === 3 && currentLoc === "street") {
+      const p = (PORTALS.street || []).find(pr => pr.to === "cemetery");
+      if (p && Math.hypot(player.wx - p.x, player.wz - p.z) < 4.2) hooks.onPortal?.("cemetery");
+    }
+  } catch (_) {}
+}
+
 function applyOnboardingPortalNudge(player, input) {
   try {
     if (!window.Onboarding?.isActive?.() || !player || !bounds) return;
@@ -1680,7 +1696,7 @@ function processInput(dt) {
       mz = (fwd.z * nz + right.z * nx) * step;
     }
   }
-    if (mx !== 0 || mz !== 0) {
+  if (mx !== 0 || mz !== 0) {
     const cols = furnitureColliders;
     const moved = moveWithCollision(player.wx, player.wz, mx, mz, bounds, cols, 0.42);
     const px = moved.x;
@@ -1691,6 +1707,7 @@ function processInput(dt) {
     player.wx = px;
     player.wz = pz;
     applyOnboardingPortalNudge(player, input);
+    tryOnboardingMovingPortal(input);
     player._fromLocomotion = false;
     player._gameSyncT = (player._gameSyncT || 0) - dt;
     if (!motionProbe && player._gameSyncT <= 0) {

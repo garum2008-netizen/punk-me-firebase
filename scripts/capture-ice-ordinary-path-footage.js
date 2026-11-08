@@ -642,7 +642,6 @@ async function runOrdinarySession(browser, viewport, label) {
   const recordingEndCet = cetTimestamp(recordingEndUtc);
 
   const video = page.video();
-  await ctx.close();
 
   const shaShort = SHA.slice(0, 12);
   const suffix = viewport.width >= 1000 ? "desktop1280x720" : "mobile390x844";
@@ -657,12 +656,16 @@ async function runOrdinarySession(browser, viewport, label) {
       await video.saveAs(dest);
     } catch (e) {
       videoSaveError = String(e.message || e);
-      try {
-        const vidTmp = await video.path();
-        if (vidTmp && fs.existsSync(vidTmp)) fs.copyFileSync(vidTmp, dest);
-      } catch (e2) {
-        videoSaveError = `${videoSaveError}; path fallback: ${e2.message || e2}`;
-      }
+    }
+  }
+  await ctx.close();
+  if (video && !fs.existsSync(dest)) {
+    try {
+      const vidTmp = await video.path();
+      if (vidTmp && fs.existsSync(vidTmp)) fs.copyFileSync(vidTmp, dest);
+      else videoSaveError = videoSaveError || `no file after close: ${vidTmp}`;
+    } catch (e2) {
+      videoSaveError = `${videoSaveError || ""}; post-close: ${e2.message || e2}`;
     }
   }
 
