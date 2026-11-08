@@ -25,6 +25,8 @@ const SHA = spawnSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8
 const ORDINARY_PASS_RAW = process.env.ORDINARY_PASS || "1";
 const ORDINARY_PASS = Number(ORDINARY_PASS_RAW);
 const INPUT_MODE = process.env.ORDINARY_INPUT || "keyboard";
+const PORTAL_GATE_ONLY = process.env.PORTAL_GATE_ONLY === "1";
+const PORTAL_STRICT = process.env.PORTAL_STRICT === "1" || PORTAL_GATE_ONLY;
 
 function ordinaryPassTag() {
   if (Number.isFinite(ORDINARY_PASS)) return `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
@@ -347,7 +349,20 @@ async function completeOnboarding(page) {
       );
     } else if (step === 1) {
       if (st.location !== "street") {
-        if (!(await tryPortalTravel(page, "street"))) await uiOpenMapTravel(page, "street");
+        if (!(await tryPortalTravel(page, "street"))) {
+          if (PORTAL_STRICT) {
+            logScene("portal_gate_fail", "keyboard portal timeout room→street");
+            throw new Error("portal_street_keyboard_failed");
+          }
+          await uiOpenMapTravel(page, "street");
+        }
+      }
+      if (PORTAL_GATE_ONLY) {
+        const locNow = await page.evaluate(() => window.me?.location);
+        const diag = await page.evaluate(() => window.World3D?.getPortalReadOnlyDiag?.() || null);
+        logScene("portal_gate_result", JSON.stringify({ loc: locNow, diag }));
+        if (locNow !== "street") throw new Error("portal_gate_expected_street");
+        return "portal_gate_pass";
       }
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 1 || window.me?.onboarding?.done, undefined, {
         timeout: 45000,
@@ -636,8 +651,26 @@ async function runOrdinarySession(browser, viewport, label) {
   await dismissHowTo(page);
   await page.waitForFunction(() => window.World3D?.isReady?.(), undefined, { timeout: 120000 }).catch(() => {});
 
-  await completeOnboarding(page);
-  const completed = await playLifeCh1Ordinary(page);
+  const onboardingResult = await completeOnboarding(page);
+  if (PORTAL_GATE_ONLY) {
+    const endLocation = await page.evaluate(() => window.me?.location);
+    const portalEntered = inputLog.some(e => e.type === "portal_enter");
+    return {
+      label,
+      ordinaryEntry: true,
+      portalGateOnly: true,
+      portalEntered,
+      endLocation,
+      chapter1CompletedInSession: false,
+      prodFirebaseBlocks: prodHits.n,
+      prodFirebaseDeniedUrls: prodHits.urls.slice(),
+      file: null,
+      inputLog: inputLog.slice(),
+      scenes: scenes.slice(),
+      onboardingResult,
+    };
+  }
+  const completed = onboardingResult === true ? await playLifeCh1Ordinary(page) : false;
   const recordingEndUtc = new Date();
   const recordingEndCet = cetTimestamp(recordingEndUtc);
 
@@ -694,7 +727,9 @@ async function runOrdinarySession(browser, viewport, label) {
   const results = [];
   let err = null;
   try {
-    if (INPUT_MODE === "touch") {
+    if (PORTAL_GATE_ONLY) {
+      results.push(await runOrdinarySession(browser, { width: 1280, height: 720 }, "portal-gate"));
+    } else if (INPUT_MODE === "touch") {
       results.push(await runOrdinarySession(browser, { width: 390, height: 844 }, "portrait"));
     } else {
       results.push(await runOrdinarySession(browser, { width: 390, height: 844 }, "portrait"));
@@ -750,6 +785,16 @@ async function runOrdinarySession(browser, viewport, label) {
   if (err) {
     console.error("ORDINARY capture failed:", err);
     process.exit(1);
+  }
+  if (PORTAL_GATE_ONLY) {
+    const row = results[0] || {};
+    const pass = row.portalEntered === true && row.endLocation === "street";
+    fs.writeFileSync(
+      path.join(OUT, `portal-gate-keyboard-${SHA.slice(0, 12)}.json`),
+      JSON.stringify({ repoSha: SHA, pass, ...row }, null, 2)
+    );
+    console.log("PORTAL_GATE_ONLY", JSON.stringify({ pass, endLocation: row.endLocation, portalEntered: row.portalEntered }));
+    process.exit(pass ? 0 : 1);
   }
   console.log("ORDINARY capture done:", JSON.stringify(report, null, 2));
 })();
