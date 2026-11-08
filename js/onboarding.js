@@ -54,6 +54,8 @@ function completeStep() {
   toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + (r.coins || 0));
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
+  const nextSt = currentStep();
+  if (nextSt?.key === "visit_street") window.World3D?.setPortalGrace?.(1400);
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
     window.me.onboarding.done = true;
     toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");
