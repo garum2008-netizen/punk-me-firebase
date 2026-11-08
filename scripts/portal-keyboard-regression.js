@@ -49,8 +49,21 @@ function serveRoot() {
 }
 
 async function focusStage(page) {
-  const stage = page.locator("#stage3d, canvas#world3d").first();
-  await stage.click({ position: { x: 200, y: 200 }, timeout: 15000 }).catch(() => {});
+  const stage = page.locator("#stage3d");
+  const vp = page.viewportSize() || { width: 1280, height: 720 };
+  const fx = Math.min(vp.width - 24, Math.round(vp.width * 0.56));
+  const fy = Math.min(vp.height - 120, Math.round(vp.height * 0.42));
+  await stage.click({ position: { x: fx, y: fy }, timeout: 15000 });
+}
+
+async function walkBurst(page, keyMs = 420) {
+  await focusStage(page);
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("w");
+  await page.waitForTimeout(keyMs);
+  await page.keyboard.up("w");
+  await page.keyboard.up("Shift");
+  await page.waitForTimeout(90);
 }
 
 async function samplePortalDiag(page) {
@@ -101,19 +114,11 @@ async function samplePortalDiag(page) {
     if (st.step >= 2 && st.loc === "street") break;
     if (st.step === 1 || (st.step === 0 && Date.now() - start > 8000)) {
       if (st.step === 0) {
-        await focusStage(page);
-        await page.keyboard.down("w");
-        await page.waitForTimeout(400);
-        await page.keyboard.up("w");
+        await walkBurst(page, 380);
       }
       if (st.step === 1 && st.loc === "room") {
-        await focusStage(page);
-        trace.push({ t: Date.now() - start, phase: "portal_walk", ...(await samplePortalDiag(page)) });
-        await page.keyboard.down("Shift");
-        await page.keyboard.down("w");
-        await page.waitForTimeout(420);
-        await page.keyboard.up("w");
-        await page.keyboard.up("Shift");
+        await walkBurst(page, 420);
+        trace.push({ t: Date.now() - start, phase: "portal_walk_post", ...(await samplePortalDiag(page)) });
       }
     }
     await page.waitForTimeout(80);
@@ -125,16 +130,13 @@ async function samplePortalDiag(page) {
 
   const vidDest = path.join(OUT, `portal-regress-${SHA.slice(0, 12)}.webm`);
   const video = page.video();
+  await ctx.close();
   try {
     await video.saveAs(vidDest);
   } catch (e) {
-    await page.close().catch(() => {});
-    await ctx.close();
     const p = await video.path();
     if (p && fs.existsSync(p)) fs.copyFileSync(p, vidDest);
   }
-  await page.close().catch(() => {});
-  await ctx.close();
 
   const report = {
     repoSha: SHA,

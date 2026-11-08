@@ -2183,6 +2183,16 @@ const api = {
       portalGraceMs: Math.max(0, portalGraceUntil - performance.now()),
       lifeCh1Active: !!window.LifeCh1Slice?.isActive?.(),
       onboardingActive: !!window.Onboarding?.isActive?.(),
+      lifeGuideProbe: (() => {
+        try {
+          const pl = actors.get("player");
+          const inp = { moveX: 0, moveZ: 1, run: true };
+          const step = (7.2 * LOCO_DT);
+          return lifeCh1GuideLocomotionDelta(inp, step);
+        } catch (_) {
+          return null;
+        }
+      })(),
     };
   },
   readInputState: () => readInputStateSnapshot(),

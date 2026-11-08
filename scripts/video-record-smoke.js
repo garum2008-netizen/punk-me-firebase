@@ -73,19 +73,16 @@ function ffprobeMeta(file) {
   const dest = path.join(OUT, `video-record-smoke-${sha12}.webm`);
   const video = page.video();
   let saveErr = null;
+  await ctx.close();
   try {
     await video.saveAs(dest);
   } catch (e) {
     saveErr = String(e.message || e);
-  }
-  await page.close();
-  await ctx.close();
-  if (!fs.existsSync(dest)) {
     try {
       const p = await video.path();
       if (p && fs.existsSync(p)) fs.copyFileSync(p, dest);
     } catch (e2) {
-      saveErr = `${saveErr || ""}; ${e2.message || e2}`;
+      saveErr = `${saveErr}; ${e2.message || e2}`;
     }
   }
   await browser.close();

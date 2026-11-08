@@ -650,22 +650,18 @@ async function runOrdinarySession(browser, viewport, label) {
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
   let videoSaveError = null;
+  await ctx.close();
   if (video) {
     try {
       await video.saveAs(dest);
     } catch (e) {
       videoSaveError = String(e.message || e);
-    }
-  }
-  await page.close();
-  await ctx.close();
-  if (video && !fs.existsSync(dest)) {
-    try {
-      const vidTmp = await video.path();
-      if (vidTmp && fs.existsSync(vidTmp)) fs.copyFileSync(vidTmp, dest);
-      else videoSaveError = videoSaveError || `no file after close: ${vidTmp}`;
-    } catch (e2) {
-      videoSaveError = `${videoSaveError || ""}; post-close: ${e2.message || e2}`;
+      try {
+        const vidTmp = await video.path();
+        if (vidTmp && fs.existsSync(vidTmp)) fs.copyFileSync(vidTmp, dest);
+      } catch (e2) {
+        videoSaveError = `${videoSaveError}; ${e2.message || e2}`;
+      }
     }
   }
 
