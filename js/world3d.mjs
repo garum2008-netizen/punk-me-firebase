@@ -1629,12 +1629,7 @@ function spawnPrefForLoc(locId) {
 function snapPlayerClearForOnboardingPortal() {
   const player = actors.get("player");
   if (!player || !bounds || currentLoc !== "room") return false;
-  const pref = { x: 0, z: -1.05 };
-  const clear = findClearSpawn(bounds, furnitureColliders, pref);
-  const stuck = pointInsideCollider(player.wx, player.wz, furnitureColliders, 0.4);
-  const probe = moveWithCollision(player.wx, player.wz, 0, 0.2, bounds, furnitureColliders, 0.42);
-  const northBlocked = probe.z <= player.wz + 0.015;
-  if (!stuck && !northBlocked) return false;
+  const clear = findClearSpawn(bounds, furnitureColliders, { x: 0, z: -1.05 });
   player.wx = clear.x;
   player.wz = clear.z;
   placeActorWorld(player, clear.x, clear.z, true);
