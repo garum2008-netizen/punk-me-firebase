@@ -472,6 +472,14 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 }
 .hud-quests-wrap.collapsed .quest-box,
 .hud-quests-wrap.collapsed .daily-quest-hud { display: none; }
+@media (max-width: 900px) {
+  .hud-quests-wrap:not(.expanded) .quest-box,
+  .hud-quests-wrap:not(.expanded) .daily-quest-hud { display: none; }
+}
+@media (min-width: 901px) {
+  .hud-quests-wrap .quest-box { display: block; }
+  .hud-quests-wrap .daily-quest-hud { display: block; }
+}
 .hud-desktop-only { display: flex; }
 .dock-scroll-row { display: contents; }
 @media (max-width: 900px) {
