@@ -33,8 +33,11 @@ function softPointsMaterial(color, size, opacity = 0.75) {
   });
 }
 
-function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
+function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22, label = "") {
+  const id = label || `collider_${list.length}`;
   list.push({
+    id,
+    label: label || id,
     minX: cx - halfW - pad,
     maxX: cx + halfW + pad,
     minZ: cz - halfD - pad,
@@ -134,7 +137,7 @@ export function addPumpkin(root, x, z, colliders) {
   g.add(body, stem, face);
   g.position.set(x, 0, z);
   root.add(g);
-  pushCollider(colliders, x, z, 0.22, 0.22, 0.15);
+  pushCollider(colliders, x, z, 0.22, 0.22, 0.15, "room_pumpkin");
 }
 
 export function addFloatingGhost(root) {
@@ -157,7 +160,7 @@ export function addSofa(root, x, z, colliders) {
   const back = wall(2.2, 0.7, 0.15, mat);
   back.position.set(x, 0.55, z - 0.38);
   root.add(base, back);
-  pushCollider(colliders, x, z, 1.1, 0.45);
+  pushCollider(colliders, x - 0.15, z, 0.58, 0.34, 0.14, "room_sofa");
 }
 
 export function addAmpStack(root, x, z, colliders) {

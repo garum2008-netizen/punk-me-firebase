@@ -54,12 +54,6 @@ function completeStep() {
   toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + (r.coins || 0));
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
-  try {
-    const next = ONBOARDING_STEPS[window.me.onboarding.step];
-    if (next?.key === "visit_street" && window.me?.location === "room") {
-      window.World3D?.snapPlayerClearForOnboardingPortal?.();
-    }
-  } catch (_) {}
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
     window.me.onboarding.done = true;
     toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");

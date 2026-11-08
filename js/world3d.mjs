@@ -11,7 +11,8 @@ import {
   resolveWorldPosition,
   moveWithCollision,
   findClearSpawn,
-  pointInsideCollider
+  pointInsideCollider,
+  diagnoseColliderMotion
 } from "./world/locations.mjs";
 import { updateProcedural, markActorVisibleWhenReady, setPlayerRootVisibilityGuard } from "./character-rig.mjs";
 import {
@@ -2162,6 +2163,54 @@ const api = {
     return { x: pl.wx ?? 0, z: pl.wz ?? 0, loc: currentLoc };
   },
   getCameraYaw: () => cameraYaw,
+  getRoomColliderDiag: () => {
+    const probes = [
+      { name: "north@0,0.76", x: 0, z: 0.76 },
+      { name: "north@0,-1.05", x: 0, z: -1.05 },
+      { name: "north@0,spawn", x: 0, z: -1.2 },
+      { name: "north@3,0.76", x: 3, z: 0.76 },
+      { name: "north@-3,0.76", x: -3, z: 0.76 },
+      { name: "east@0,0.76", x: 0, z: 0.76 },
+      { name: "south@0,2.2", x: 0, z: 2.2 }
+    ];
+    const dirs = [
+      { name: "north", dx: 0, dz: 0.2 },
+      { name: "south", dx: 0, dz: -0.2 },
+      { name: "east", dx: 0.2, dz: 0 },
+      { name: "west", dx: -0.2, dz: 0 }
+    ];
+    const northSweep = [];
+    let x = 0;
+    let z = -1.05;
+    for (let i = 0; i < 60; i++) {
+      const m = moveWithCollision(x, z, 0, 0.12, bounds, furnitureColliders, 0.42);
+      northSweep.push({ step: i, x, z, next: m });
+      if (m.z <= z + 0.001) break;
+      x = m.x;
+      z = m.z;
+    }
+    return {
+      loc: currentLoc,
+      bounds,
+      colliderCount: furnitureColliders.length,
+      colliders: furnitureColliders.map((b, i) => ({
+        index: i,
+        id: b.id,
+        label: b.label,
+        minX: b.minX,
+        maxX: b.maxX,
+        minZ: b.minZ,
+        maxZ: b.maxZ
+      })),
+      probes: probes.map(p => ({
+        ...p,
+        inside: pointInsideCollider(p.x, p.z, furnitureColliders, 0.42),
+        motions: diagnoseColliderMotion(p.x, p.z, dirs, bounds, furnitureColliders, 0.42)
+      })),
+      northSweepFromClearSpawn: northSweep,
+      northSweepMaxZ: northSweep.length ? northSweep[northSweep.length - 1].z : null
+    };
+  },
   getPortalReadOnlyDiag: () => {
     const pl = actors.get("player");
     const px = pl?.wx ?? pl?.group?.position?.x ?? 0;

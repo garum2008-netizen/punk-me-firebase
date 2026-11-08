@@ -112,6 +112,13 @@ async function samplePortalDiag(page) {
     }));
     if (st.step >= 1 && st.loc === "street") break;
     if (st.step >= 2 && st.loc === "street") break;
+    if (st.step === 0 && trace.length === 0) {
+      trace.push({
+        t: Date.now() - start,
+        phase: "collider_before",
+        ...(await page.evaluate(() => window.World3D?.getRoomColliderDiag?.() || {})),
+      });
+    }
     if (st.step === 1 || (st.step === 0 && Date.now() - start > 8000)) {
       if (st.step === 0) {
         await walkBurst(page, 380);
@@ -126,6 +133,7 @@ async function samplePortalDiag(page) {
 
   const endLoc = await page.evaluate(() => window.me?.location);
   const passed = endLoc === "street";
+  const colliderAfter = await page.evaluate(() => window.World3D?.getRoomColliderDiag?.());
   trace.push({ t: Date.now() - start, phase: "final", ...(await samplePortalDiag(page)), passed });
 
   const vidDest = path.join(OUT, `portal-regress-${SHA.slice(0, 12)}.webm`);
@@ -138,6 +146,7 @@ async function samplePortalDiag(page) {
     if (p && fs.existsSync(p)) fs.copyFileSync(p, vidDest);
   }
 
+  const colliderBefore = trace.find(t => t.northSweepMaxZ != null) || null;
   const report = {
     repoSha: SHA,
     entryUrl,
