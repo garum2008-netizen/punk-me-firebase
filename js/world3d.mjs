@@ -1562,6 +1562,19 @@ function checkPortals() {
       break;
     }
   }
+  try {
+    if (!window.Onboarding?.isActive?.() || !player) return;
+    const step = window.me?.onboarding?.step ?? -1;
+    const wantStreet = step === 1 && currentLoc === "room";
+    const wantCem = step === 3 && currentLoc === "street";
+    if (!wantStreet && !wantCem) return;
+    const near = getNearPortal();
+    if (!near) return;
+    const wantTo = wantStreet ? "street" : "cemetery";
+    if (near.to !== wantTo) return;
+    const d = Math.hypot(px - near.x, pz - near.z);
+    if (d <= near.r + 0.35) hooks.onPortal?.(near.to);
+  } catch (_) {}
 }
 
 const LOCO_DT = 1 / 60;

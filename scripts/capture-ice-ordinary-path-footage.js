@@ -642,7 +642,6 @@ async function runOrdinarySession(browser, viewport, label) {
   const recordingEndCet = cetTimestamp(recordingEndUtc);
 
   const video = page.video();
-  await page.close();
   await ctx.close();
 
   const shaShort = SHA.slice(0, 12);
@@ -655,22 +654,14 @@ async function runOrdinarySession(browser, viewport, label) {
   let videoSaveError = null;
   if (video) {
     try {
-      const vidTmp = await video.path();
-      if (vidTmp && fs.existsSync(vidTmp)) {
-        fs.copyFileSync(vidTmp, dest);
-      } else {
-        await video.saveAs(dest);
-      }
+      await video.saveAs(dest);
     } catch (e) {
       videoSaveError = String(e.message || e);
       try {
-        const entries = fs.readdirSync(videoDir).filter(f => f.endsWith(".webm"));
-        const newest = entries
-          .map(f => ({ f, m: fs.statSync(path.join(videoDir, f)).mtimeMs }))
-          .sort((a, b) => b.m - a.m)[0];
-        if (newest) fs.copyFileSync(path.join(videoDir, newest.f), dest);
+        const vidTmp = await video.path();
+        if (vidTmp && fs.existsSync(vidTmp)) fs.copyFileSync(vidTmp, dest);
       } catch (e2) {
-        videoSaveError = `${videoSaveError}; fallback ${e2.message || e2}`;
+        videoSaveError = `${videoSaveError}; path fallback: ${e2.message || e2}`;
       }
     }
   }
