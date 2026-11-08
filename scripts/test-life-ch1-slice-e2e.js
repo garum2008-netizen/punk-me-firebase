@@ -59,6 +59,13 @@ async function walkNear(page, tx, tz, radius = 2.85, maxMs = 120000) {
   if (wardrobeOpen) {
     await page.evaluate(() => window.LifeCh1Slice?.closeWardrobePanel?.());
   }
+  await page.evaluate(
+    ({ tx, tz }) => {
+      const loc = window.me?.location;
+      window.World3D?.setGuideTarget?.({ wx: tx, wz: tz, loc });
+    },
+    { tx, tz }
+  );
   await focusStageForE2e(page);
   const start = Date.now();
   let stall = 0;
