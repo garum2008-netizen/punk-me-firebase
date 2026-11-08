@@ -123,9 +123,25 @@ function syncGuideTarget() {
   World3D.setGuideTarget(getGuideTarget());
 }
 
+const ONBOARD_WORLD_MOVE_DIST = 1.15;
+
+function onWorldMove(wx, wz) {
+  const st = currentStep();
+  if (!st || st.key !== "moved") return;
+  if (wx == null || wz == null) return;
+  if (!window.me._onboardOriginW) window.me._onboardOriginW = { wx, wz };
+  const o = window.me._onboardOriginW;
+  if (Math.hypot(wx - o.wx, wz - o.wz) >= ONBOARD_WORLD_MOVE_DIST) bump("moved", 1);
+}
+
 function onMove(x, y) {
   const st = currentStep();
   if (!st || st.key !== "moved") return;
+  if (document.body?.classList?.contains("mode-world3d")) {
+    const w = window.World3D?.getPlayerWorldPosition?.();
+    if (w) onWorldMove(w.x, w.z);
+    return;
+  }
   if (!window.me._onboardOrigin) window.me._onboardOrigin = { x, y };
   const o = window.me._onboardOrigin;
   if (Math.hypot(x - o.x, y - o.y) > 8) bump("moved", 1);
@@ -169,6 +185,7 @@ window.Onboarding = {
   render: renderOnboardingQuest,
   syncGuideTarget,
   onMove,
+  onWorldMove,
   onEnterLocation,
   onTalkRazor,
   onVisitCemetery,

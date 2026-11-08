@@ -1691,6 +1691,7 @@ function processInput(dt) {
     player.wz = pz;
     player._fromLocomotion = false;
     player._gameSyncT = (player._gameSyncT || 0) - dt;
+    if (window.Onboarding?.onWorldMove) window.Onboarding.onWorldMove(px, pz);
     if (!motionProbe && player._gameSyncT <= 0) {
       player._gameSyncT = 0.1;
       const g = worldToGameLoc(px, pz, bounds);
