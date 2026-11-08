@@ -642,8 +642,6 @@ async function runOrdinarySession(browser, viewport, label) {
   const recordingEndCet = cetTimestamp(recordingEndUtc);
 
   const video = page.video();
-  await page.close();
-
   const shaShort = SHA.slice(0, 12);
   const suffix = viewport.width >= 1000 ? "desktop1280x720" : "mobile390x844";
   const inputTag = INPUT_MODE === "touch" ? "-touch" : "";
@@ -659,6 +657,7 @@ async function runOrdinarySession(browser, viewport, label) {
       videoSaveError = String(e.message || e);
     }
   }
+  await page.close();
   await ctx.close();
   if (video && !fs.existsSync(dest)) {
     try {
