@@ -10,7 +10,7 @@ const {
 } = require("./firebase-test-emulator-guard");
 
 const root = path.join(__dirname, "..");
-const ARTIFACTS = "/opt/cursor/artifacts";
+const ARTIFACTS = process.env.ANGELINA_COMPOSITE_OUT || "/opt/cursor/artifacts";
 const manifestPath =
   process.env.ANGELINA_COMPOSITE_MANIFEST ||
   path.join(root, "data/story/angelina-skin-manifest.json");

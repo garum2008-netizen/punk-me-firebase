@@ -1753,7 +1753,7 @@ def main() -> None:
         skins_out,
         build_report,
         ab6fa_baseline,
-        max_rounds=4,
+        max_rounds=int(os.environ.get("ANGELINA_HALO_REPAIR_MAX_ROUNDS", "4")),
     )
 
     ab6f_a255 = _ab6f_alpha255_baseline()

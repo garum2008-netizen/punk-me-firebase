@@ -11,3 +11,5 @@ dist-preview/
 .wrangler-preview-functions-out/
 __pycache__/
 .tmp-main-glb-render-diff/
+assets/ui/angelina-skins/.owner-preview-only/
+assets/ui/angelina-skins/.owner-review-serve/
