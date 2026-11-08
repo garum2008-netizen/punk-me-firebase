@@ -2281,7 +2281,6 @@ const api = {
   },
   setGuideTarget: t => { guideTarget = t; },
   snapPlayerToLocationSpawn,
-  snapPlayerClearForOnboardingPortal,
   setAngelinaLifeBillboard: setAngelinaLifeBillboard,
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
   setPlayerLifeCh1Skin,
