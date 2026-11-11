@@ -1,0 +1,29 @@
+{
+  "finishedAt": "2026-11-11T12:18:00+01:00",
+  "media": {
+    "checked": 5,
+    "http200": 5,
+    "contentTypes": [
+      "image/jpeg",
+      "image/png"
+    ]
+  },
+  "gateway": {
+    "health": 200,
+    "anonymousMediaRoute": 401
+  },
+  "signatureDraft": {
+    "id": "6af442e5f41d6d2bbb6444d1",
+    "status": "draft",
+    "dueAt": null,
+    "sharedNow": false,
+    "comparison": {
+      "status": "drift",
+      "liveStatus": "draft",
+      "dueAt": null,
+      "edit": false,
+      "schedule": false
+    }
+  },
+  "bypass": "No Cloudflare worker calls Buffer. A caller that already has Buffer access can still create a post without the media gate. Those callers are not in this repository."
+}

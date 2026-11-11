@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-11-11T11:55:00+01:00",
-  "stage": "approval-batch-pending",
+  "updatedAt": "2026-11-11T12:18:00+01:00",
+  "stage": "autopilot-idle",
   "queueUntouched": true,
   "scheduledByThisRun": [],
   "signatureDraft": {
@@ -112,5 +112,19 @@
       "reason": "Children's channels and the book projects stay outside this legal desk."
     }
   ],
-  "resume": "Do not edit Buffer. Do not schedule any item until its own approval record is approved for the hash in approval-batch.json. Approving the revised signature text does not edit draft 6af442e5f41d6d2bbb6444d1."
+  "resume": "No independent task is ready. The 16 versions stay pending_owner until each full text is approved. Do not schedule them from this checkpoint.",
+  "queue": "ice-editorial/queue.json",
+  "execution": {
+    "continuousProcess": false,
+    "reason": "This cloud session ends when the run ends. No background worker is left looping. The next authorized run reads queue.json and starts at selectNext.",
+    "lastResume": {
+      "next": null,
+      "pendingOwner": [
+        "owner-batch-2026-11-11",
+        "repair-imageless-existing-posts"
+      ],
+      "continue": false,
+      "reason": "no_authorized_independent_work"
+    }
+  }
 }

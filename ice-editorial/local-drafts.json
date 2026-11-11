@@ -1,0 +1,24 @@
+{
+  "status": "local_draft",
+  "inApprovalBatch": false,
+  "buffer": null,
+  "items": [
+    {
+      "id": "cisg-form-local",
+      "topic": "cisg-article-11",
+      "channel": "linkedin",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "brand": "INNA KRAGH",
+      "mediaUrl": "",
+      "intendedDueAt": null,
+      "status": "local_draft",
+      "sources": [
+        "CISG Article 11",
+        "CISG Articles 12 and 96",
+        "CISG Articles 14 to 23",
+        "Regulation (EU) No 910/2014, Article 25"
+      ],
+      "text": "Teaching example, not a client matter.\n\nTwo companies exchange emails that describe the goods, the price and the quantity. Neither signs a document. One later says there is no contract because nothing was signed.\n\nWhere the CISG applies, Article 11 says a contract of sale need not be concluded in or evidenced by writing, and is not subject to any other requirement as to form. It may be proved by any means, including witnesses. Article 12 can set Article 11 aside when a contracting state has made the declaration in Article 96 and a party has its place of business in that state.\n\nArticle 11 does not decide whether these particular emails are an offer and an acceptance. Articles 14 to 23 still have to be met. It also does not turn an email into a qualified electronic signature under Regulation (EU) No 910/2014.\n\nBefore treating a chain of emails as a contract, identify whether the CISG applies, whether Article 12 displaces Article 11, and which message accepts the offer.\n\nInna Kragh · international contract law"
+    }
+  ]
+}

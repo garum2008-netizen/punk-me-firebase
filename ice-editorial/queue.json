@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-11T12:18:00+01:00",
+  "tasks": [
+    {
+      "id": "owner-batch-2026-11-11",
+      "priority": 1,
+      "status": "pending_owner",
+      "kind": "owner_decision",
+      "title": "Read the full text of each of the 16 versions before approving any hash",
+      "source": "ice-editorial/approval-batch.json",
+      "next": "Leave the batch pending until the owner approves specific ids after reading the text."
+    },
+    {
+      "id": "repair-imageless-existing-posts",
+      "priority": 3,
+      "status": "pending_owner",
+      "kind": "owner_decision",
+      "title": "Decide whether three existing Facebook posts may receive an image without any other change",
+      "posts": ["6ae0faf745591c35732a10bd", "6ab30180ff828cdd0bfef62e", "6ab301cd9b9f20530d111adf"],
+      "next": "Do not edit them unless that exact repair is authorized."
+    },
+    {
+      "id": "schedule-batch-2026-11-11",
+      "priority": 2,
+      "status": "blocked",
+      "kind": "schedule",
+      "dependsOn": [
+        "owner-batch-2026-11-11"
+      ],
+      "title": "Schedule only a version whose id and hash were explicitly approved",
+      "next": "Do not call Buffer for this task."
+    },
+    {
+      "id": "audit-media-urls",
+      "priority": 10,
+      "status": "done",
+      "kind": "audit",
+      "maxAttempts": 3,
+      "title": "Check that the withheld stills and the signature test image still resolve as public images",
+      "next": "HEAD the known R2 URLs and record the result. Do not attach them to the 16 versions.",
+      "evidence": {
+        "checked": 5,
+        "reachable": 5,
+        "attachedToBatch": false,
+        "finishedAt": "2026-11-11T12:18:00+01:00"
+      },
+      "finishedAt": "2026-11-11T12:18:00+01:00"
+    },
+    {
+      "id": "sync-signature-draft",
+      "priority": 11,
+      "status": "done",
+      "kind": "sync",
+      "maxAttempts": 3,
+      "title": "Read the existing signature draft and compare it with the revised proposal",
+      "targetId": "6af442e5f41d6d2bbb6444d1",
+      "next": "Record drift. Do not edit the draft.",
+      "evidence": {
+        "postId": "6af442e5f41d6d2bbb6444d1",
+        "status": "drift",
+        "liveStatus": "draft",
+        "dueAt": null,
+        "edit": false,
+        "schedule": false,
+        "finishedAt": "2026-11-11T12:18:00+01:00"
+      },
+      "finishedAt": "2026-11-11T12:18:00+01:00"
+    },
+    {
+      "id": "audit-worker-health",
+      "priority": 12,
+      "status": "done",
+      "kind": "audit",
+      "maxAttempts": 3,
+      "title": "Read the public health of the ICE gateway",
+      "next": "GET /health. Do not call an authenticated image route.",
+      "evidence": {
+        "url": "https://inna-content-engine-gateway.garum2008.workers.dev/health",
+        "http": 200,
+        "authConfigured": true,
+        "mediaRouteWithoutToken": 401,
+        "finishedAt": "2026-11-11T12:18:00+01:00"
+      },
+      "finishedAt": "2026-11-11T12:18:00+01:00"
+    },
+    {
+      "id": "local-draft-cisg-form",
+      "priority": 13,
+      "status": "done",
+      "kind": "draft_local",
+      "maxAttempts": 3,
+      "title": "Prepare a CISG form note outside the 16-version batch",
+      "next": "Store the full text locally. Do not add it to the approval batch and do not create a Buffer post.",
+      "evidence": {
+        "file": "ice-editorial/local-drafts.json",
+        "inApprovalBatch": false,
+        "bufferPost": null,
+        "finishedAt": "2026-11-11T12:18:00+01:00"
+      },
+      "finishedAt": "2026-11-11T12:18:00+01:00"
+    }
+  ]
+}
