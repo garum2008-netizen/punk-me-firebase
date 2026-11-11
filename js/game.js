@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
 const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r6-ch1";
+const GAME_VERSION = "living3d-v22r7-angel";
 window.GAME_VERSION = GAME_VERSION;
 window.__punkFirebaseReady =
   window.__punkFirebaseReady ||
@@ -318,8 +318,6 @@ const QUESTS = {
   }
 };
 
-const ALL_SHOP = [...SHOP.clothes, ...SHOP.chains, ...SHOP.magic, ...SHOP.pets, ...SHOP.materials];
-
 let auth, db, uid, isOwner = false;
 let presenceRef = null;
 let presenceListenRef = null;
@@ -491,6 +489,7 @@ function applyFirebasePlayerSnapshot(snap) {
   if (snap.exists()) {
     const v = migratePlayerFromSave(snap.val());
     me = { ...defaultPlayer(), ...v };
+    me._coinBaseline = me.coins;
     if (devCoinsEnabled()) me.coins = 9999;
     me.inventory = { materials: {}, spells: [], ...(v.inventory || {}) };
     me.inventory.materials = v.inventory?.materials || {};
@@ -515,6 +514,7 @@ function applyFirebasePlayerSnapshot(snap) {
   }
   window.me = me;
   window.__playerLoaded = true;
+  if (typeof me._coinBaseline !== "number") me._coinBaseline = devCoinsEnabled() ? 100 : me.coins;
   if (!me.characterId) {
     me.characterId = resolveCharacterIdForPlayer(me, { allowAvatarInfer: snap.exists() });
   }
@@ -808,6 +808,10 @@ function init() {
           openNpcDialog(primary.npcId);
           return;
         }
+        if (me.location === "construction" && !nid && me.story?.flags?.joined_gang) {
+          window.StoryEngine?.buildHangoutStage?.();
+          return;
+        }
         if (window.PlayV21?.tryInteract(me, playCtx)) return;
         if (window.World3D?.getNearestDog?.()) {
           petDog(true);
@@ -991,6 +995,29 @@ function hideLoading() {
   if (el) el.style.display = "none";
 }
 
+let coinRetryTimer = null;
+let coinRetryCount = 0;
+
+function scheduleCoinRetry() {
+  if (coinRetryTimer || coinRetryCount >= 4) return;
+  coinRetryCount += 1;
+  coinRetryTimer = setTimeout(() => {
+    coinRetryTimer = null;
+    saveMe();
+  }, 1700);
+}
+
+function publishProfile(coins) {
+  if (!uid || !db) return;
+  db.ref("publicProfiles/" + uid)
+    .set({
+      name: me.name || "Player",
+      avatar: me.avatar || "",
+      coins: coins ?? 0
+    })
+    .catch(() => {});
+}
+
 function saveMe() {
   if (!uid) return;
   if (!window.__playerLoaded) return;
@@ -999,15 +1026,40 @@ function saveMe() {
   if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
   me.lastSeen = Date.now();
   const payload = sanitizePlayer(me);
+  const baseline = typeof me._coinBaseline === "number" ? me._coinBaseline : payload.coins;
+  const serverCoins = devCoinsEnabled() ? baseline : payload.coins;
+  const gained = !devCoinsEnabled() && serverCoins > baseline;
+  const maxGain = window.PunkEconomy?.MAX_COIN_GAIN || 250;
+  if (gained && serverCoins - baseline > maxGain) {
+    console.warn("coin gain exceeds server cap; progress saved without the coin jump");
+    payload.coins = baseline;
+    db.ref("players/" + uid).update(payload).catch(() => {});
+    publishProfile(baseline);
+    pushPresence();
+    return;
+  }
+  if (gained) delete payload.coins;
+  else payload.coins = serverCoins;
   // players/{uid} must succeed even when publicProfiles is denied (pre-rules-publish).
-  db.ref("players/" + uid).update(payload);
-  db.ref("publicProfiles/" + uid)
-    .set({
-      name: payload.name || me.name || "Player",
-      avatar: payload.avatar || me.avatar || "",
-      coins: payload.coins ?? 0
-    })
-    .catch(() => {});
+  db.ref("players/" + uid).update(payload).catch(() => {});
+  if (gained) {
+    publishProfile(baseline);
+    db.ref("players/" + uid)
+      .update({
+        coins: serverCoins,
+        economy: { gainAt: firebase.database.ServerValue.TIMESTAMP }
+      })
+      .then(() => {
+        me._coinBaseline = serverCoins;
+        coinRetryCount = 0;
+        publishProfile(serverCoins);
+      })
+      .catch(() => scheduleCoinRetry());
+  } else {
+    me._coinBaseline = serverCoins;
+    coinRetryCount = 0;
+    publishProfile(serverCoins);
+  }
   pushPresence();
 }
 
@@ -1274,7 +1326,12 @@ function afterLocationChange() {
   if (me.location === "roof" && !window.StoryEngine?.ensureStoryState(me).events.roof_scrap_once) {
     const st = window.StoryEngine.ensureStoryState(me);
     st.materials.scrap = (st.materials.scrap || 0) + 2;
+    st.materials.board = (st.materials.board || 0) + 1;
     st.events.roof_scrap_once = true;
+    if (!me.inventory.materials || typeof me.inventory.materials !== "object") me.inventory.materials = {};
+    me.inventory.materials.scrap = st.materials.scrap;
+    me.inventory.materials.board = st.materials.board;
+    saveMe();
   }
   if (me.location === "elevator" && me._pkgTaken) {
     window.StoryEngine?.fireStoryEvent?.("package_roof");
@@ -1552,8 +1609,14 @@ function openNpcDialog(nid) {
   if (!n) return;
   const lines = npcLines(n);
   const line = lines[Math.floor(Math.random() * lines.length)];
+  const scrap = window.StoryEngine?.ensureStoryState?.(me)?.materials?.scrap || 0;
+  const boltTrade = nid === "bolt" && scrap > 0
+    ? `<button class="btn secondary" onclick="StoryEngine.sellScrap()">${escapeHtml(t("sell_scrap"))} (${scrap})</button>
+       ${scrap >= 5 ? `<button class="btn" onclick="StoryEngine.smeltScrap()">${escapeHtml(t("smelt_chain"))}</button>` : ""}`
+    : "";
   document.getElementById("dialogArea").innerHTML =
     `<div class="dialog-box"><b>${escapeHtml(tNpcName(nid))}:</b> ${escapeHtml(line)}</div>
+     ${boltTrade}
      <button class="btn danger" onclick="closeModal('gangModal'); startNpcFight('${nid}')">${escapeHtml(t("chain_fight"))}</button>
      ${n.quest ? `<button class="btn secondary" onclick="acceptQuest('${n.quest}')">${escapeHtml(t("accept_quest"))}</button>` : ""}`;
   openModal("gangModal");
@@ -1592,8 +1655,23 @@ function acceptQuest(qid) {
   toast(t("quest_new") + " " + questTitle(qid));
 }
 
+function hangoutShopItems() {
+  const cat = window.PunkHangout?.shopItems || [];
+  return cat.map(it => ({
+    ...it,
+    cat: "materials",
+    img: "imagine_images/BtmE4.jpg"
+  }));
+}
+
+function allShopItems() {
+  return [...SHOP.clothes, ...SHOP.chains, ...SHOP.magic, ...SHOP.pets, ...SHOP.materials, ...hangoutShopItems()];
+}
+
 function renderShop() {
-  const items = SHOP[shopTab] || [];
+  const items = shopTab === "materials"
+    ? [...(SHOP.materials || []), ...hangoutShopItems()]
+    : (SHOP[shopTab] || []);
   document.getElementById("shopGrid").innerHTML = items.map(it => {
     const own = me.owned.includes(it.id);
     return `<div class="card">
@@ -1611,17 +1689,26 @@ function renderShop() {
 }
 
 function buyItem(id) {
-  const it = ALL_SHOP.find(x => x.id === id);
+  const it = allShopItems().find(x => x.id === id);
   if (!it) return;
   if (it.cat !== "materials" && me.owned.includes(id)) return;
   if (!isOwner && me.coins < it.price) {
     const short = it.price - me.coins;
     toast(t("notEnough") + " — " + short + " " + (t("coins_short") || ""));
+    window.__angelinaFlags = window.__angelinaFlags || {};
+    window.__angelinaFlags.broke = true;
     window.StoryEngine?.beginEarnCoins?.(short, { returnLabel: tShop(id) });
     return;
   }
   if (!isOwner) me.coins -= it.price;
-  if (it.cat === "materials") {
+  if (it.storyMat) {
+    const st = window.StoryEngine?.ensureStoryState?.(me);
+    if (st) {
+      st.materials[it.storyMat] = (st.materials[it.storyMat] || 0) + (it.qty || 1);
+      if (!me.inventory.materials || typeof me.inventory.materials !== "object") me.inventory.materials = {};
+      me.inventory.materials[it.storyMat] = st.materials[it.storyMat];
+    }
+  } else if (it.cat === "materials") {
     me.inventory.materials[it.build] = (me.inventory.materials[it.build] || 0) + 1;
   } else if (it.cat === "magic") {
     me.inventory.spells.push(it.spell);
@@ -1646,6 +1733,10 @@ function buyItem(id) {
   renderAll();
   renderShop();
   toast(t("bought_item") + " " + tShop(it.id));
+  if (it.id === "mat_brick" || it.storyMat === "brick") {
+    window.__angelinaFlags = window.__angelinaFlags || {};
+    window.__angelinaFlags.brick = true;
+  }
   window.PlayV21?.syncCosmetics?.(me);
   window.Onboarding?.onShopBuy?.();
 }
@@ -1912,6 +2003,9 @@ function npcTurn() {
 function endFight(win) {
   document.getElementById("fightOverlay").classList.remove("active");
   const shieldLeft = fight ? fight.shield : 0;
+  window.__angelinaFlags = window.__angelinaFlags || {};
+  window.__angelinaFlags.won = !!win;
+  window.__angelinaFlags.lost = !win;
   if (win) {
     const reward = 70 + Math.floor(Math.random() * 40);
     if (!isOwner) me.coins += reward;

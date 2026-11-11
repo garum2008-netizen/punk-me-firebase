@@ -12,7 +12,7 @@
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
         },
         "coins": {
-          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999999"
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999999 && (auth.token.admin == true || (!data.exists() && newData.val() <= 100) || newData.val() <= data.val() || (newData.val() <= data.val() + 250 && newData.parent().child('economy').child('gainAt').val() == now && (!data.parent().child('economy').child('gainAt').exists() || now - data.parent().child('economy').child('gainAt').val() >= 1500)))"
         },
         "xp": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999999"
@@ -63,7 +63,10 @@
           ".validate": "newData.isNumber()"
         },
         "owner": {
-          ".validate": "newData.isBoolean()"
+          ".validate": "newData.isBoolean() && (newData.val() == false || auth.token.admin == true)"
+        },
+        "economy": {
+          ".validate": "!newData.exists() || newData.child('gainAt').isNumber()"
         },
         "pet": {
           ".validate": "!newData.exists() || newData.val() == null || (newData.isString() && newData.val().length <= 32)"
@@ -109,7 +112,7 @@
       "$uid": {
         ".read": true,
         ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['name', 'coins']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 64 && newData.child('coins').isNumber() && newData.child('coins').val() >= 0 && newData.child('coins').val() <= 999999999 && (!newData.hasChild('avatar') || (newData.child('avatar').isString() && newData.child('avatar').val().length <= 512))"
+        ".validate": "newData.hasChildren(['name', 'coins']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 64 && newData.child('coins').isNumber() && newData.child('coins').val() >= 0 && newData.child('coins').val() <= 999999999 && (!newData.hasChild('avatar') || (newData.child('avatar').isString() && newData.child('avatar').val().length <= 512)) && (!newData.hasChild('gainAt') || newData.child('gainAt').isNumber()) && (auth.token.admin == true || (!data.exists() && newData.child('coins').val() <= 100) || newData.child('coins').val() <= data.child('coins').val() || newData.child('coins').val() <= root.child('players').child($uid).child('coins').val())"
       }
     },
     "presence": {

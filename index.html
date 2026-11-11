@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="PUNK ME — оригинальная мультиплеерная неоновая ночь панк-банды подростков.">
 <title>PUNK ME — Живая неоновая ночь</title>
-<link rel="stylesheet" href="css/game.css?v=living3d-v22r6-ch1">
-<link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r6-ch1">
+<link rel="stylesheet" href="css/game.css?v=living3d-v22r7-angel">
+<link rel="stylesheet" href="css/account-auth.css?v=living3d-v22r7-angel">
 </head>
 <body>
 <div id="charSelect" class="char-select" aria-hidden="true">
@@ -51,6 +51,23 @@
     <div id="entities"></div>
   </div>
   <div class="loc-name" id="locTitle" data-i18n-loc="room">Комната панка</div>
+  <div id="guideDock">
+    <div id="chapterStrip">Глава 0. Новенький в доме 13</div>
+    <button type="button" id="btnWhere" data-i18n="btn_where">Куда идти?</button>
+    <button type="button" id="btnJournal" data-i18n="btn_journal">Журнал</button>
+  </div>
+  <div id="angelinaLayer" hidden>
+    <div id="angelinaBubble">
+      <div class="angelina-name">Angelina</div>
+      <div id="angelinaLine"></div>
+      <div class="angelina-actions">
+        <button type="button" id="angelinaRepeat" data-i18n="angelina_repeat">Ещё раз</button>
+        <button type="button" id="angelinaMin" aria-label="Minimize">_</button>
+        <button type="button" id="angelinaMute" aria-label="Mute">×</button>
+      </div>
+    </div>
+    <button type="button" id="angelinaChip" hidden>Angelina</button>
+  </div>
   <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
   <div id="contextHint" class="context-hint" aria-live="polite"></div>
   <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
@@ -59,8 +76,8 @@
   <div id="storyConstructionHud" aria-live="polite">
     <div class="stage-name"></div>
     <div class="need-line"></div>
-    <button type="button" class="btn secondary" style="margin-top:6px" onclick="StoryEngine?.whereToGetMaterials?.()">?</button>
-    <button type="button" class="btn" style="margin-top:6px;margin-left:6px" onclick="StoryEngine?.buildHangoutStage?.()">Build</button>
+    <button type="button" id="hangoutWhereBtn" class="btn secondary" style="margin-top:6px" data-i18n="hangout_where" onclick="StoryEngine?.whereToGetMaterials?.()">Where?</button>
+    <button type="button" id="hangoutBuildBtn" class="btn" style="margin-top:6px;margin-left:6px" data-i18n="hangout_build" onclick="StoryEngine?.buildHangoutStage?.()">Build</button>
   </div>
   <div id="storyDialog" role="dialog" aria-modal="true">
     <div class="story-dialog-panel">
@@ -90,6 +107,7 @@
       <div class="badge hud-online-combined"><span data-i18n="online">Здесь</span>: <strong id="onlineCount">0</strong> · <span data-i18n="onlineGlobal">Всего</span>: <strong id="onlineGlobal">0</strong></div>
       <div class="lang-switch hud-desktop-only" id="langSwitch">
         <button type="button" class="lang-btn" data-lang="ru">RU</button>
+        <button type="button" class="lang-btn" data-lang="uk">UK</button>
         <button type="button" class="lang-btn" data-lang="en">EN</button>
         <button type="button" class="lang-btn" data-lang="da">DA</button>
       </div>
@@ -251,6 +269,13 @@
   </div>
 </div>
 <div id="howToOverlay" class="howto-overlay"></div>
+<div class="modal" id="visionJournal">
+  <div class="modal-card">
+    <h2 data-i18n="journal_title">Журнал дома 13</h2>
+    <div id="visionJournalBody"></div>
+    <button type="button" class="btn" id="visionJournalClose" data-i18n="howto_gotit">Понятно</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -258,32 +283,34 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
-<script src="js/characters.js?v=living3d-v22r6-ch1"></script>
-<script src="js/i18n.js?v=living3d-v22r6-ch1"></script>
-<script src="js/voice.js?v=living3d-v22r6-ch1"></script>
-<script src="js/onboarding.js?v=living3d-v22r6-ch1"></script>
-<script type="module" src="js/context-hints.mjs?v=living3d-v22r6-ch1"></script>
-<script type="module" src="js/how-to-play.mjs?v=living3d-v22r6-ch1"></script>
-<script type="module" src="js/world3d.mjs?v=living3d-v22r6-ch1"></script>
-<script type="module" src="js/char-select.mjs?v=living3d-v22r6-ch1"></script>
-<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r6-ch1"></script>
-<script src="js/life.js?v=living3d-v22r6-ch1"></script>
-<script src="js/game.js?v=living3d-v22r6-ch1"></script>
+<script src="js/characters.js?v=living3d-v22r7-angel"></script>
+<script src="js/i18n.js?v=living3d-v22r7-angel"></script>
+<script src="js/voice.js?v=living3d-v22r7-angel"></script>
+<script src="js/onboarding.js?v=living3d-v22r7-angel"></script>
+<script type="module" src="js/context-hints.mjs?v=living3d-v22r7-angel"></script>
+<script type="module" src="js/how-to-play.mjs?v=living3d-v22r7-angel"></script>
+<script type="module" src="js/world3d.mjs?v=living3d-v22r7-angel"></script>
+<script type="module" src="js/char-select.mjs?v=living3d-v22r7-angel"></script>
+<script type="module" src="js/play-features-v21.mjs?v=living3d-v22r7-angel"></script>
+<script src="js/life.js?v=living3d-v22r7-angel"></script>
+<script src="js/game.js?v=living3d-v22r7-angel"></script>
 <script type="module">
-  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r6-ch1";
-  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r6-ch1";
-  import { resolvePrimaryInteract, allowLocationProp } from "./js/interact-priority.mjs?v=living3d-v22r6-ch1";
-  import { bumpQuest } from "./js/quest-progress.mjs?v=living3d-v22r6-ch1";
+  import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r7-angel";
+  import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r7-angel";
+  import { resolvePrimaryInteract, allowLocationProp } from "./js/interact-priority.mjs?v=living3d-v22r7-angel";
+  import { bumpQuest } from "./js/quest-progress.mjs?v=living3d-v22r7-angel";
+  import { initAngelina } from "./js/angelina.mjs?v=living3d-v22r7-angel";
   window.PunkInteract = { resolvePrimaryInteract, allowLocationProp };
   window.PunkQuest = { bumpQuest };
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
+  initAngelina();
   window.throwDogBall = () => window.PlayV21?.throwBallForDog(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.(), hasDog: () => window.me?.pet === "pet_dog" || (window.me?.owned || []).includes("pet_dog") });
   window.toggleRoomDecor = () => window.PlayV21?.toggleDecorMode(window.me, { toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   window.me = window.me || {};
 </script>
 <script type="module">
-  import { initAccountAuth } from "./js/account-auth.mjs?v=living3d-v22r6-ch1";
+  import { initAccountAuth } from "./js/account-auth.mjs?v=living3d-v22r7-angel";
   initAccountAuth().catch(err => console.error("initAccountAuth", err));
   document.getElementById("btnAccountSignOutLoading")?.addEventListener("click", () => window.__punkSignOut?.());
 </script>

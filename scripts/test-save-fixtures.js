@@ -76,16 +76,32 @@ async function run() {
     const custom = await admin.auth().createCustomToken(uid);
     const auth = await authCustomToken(custom);
 
+    const clientWrite = data.owner === true ? { ...data, owner: false } : data;
+    if (data.owner === true) {
+      const denied = await fetchJson(dbUrl(`players/${uid}`, auth.idToken), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      if (denied.status === 200) {
+        throw new Error(`fixture ${id} owner=true should be denied`);
+      }
+    }
     const res = await fetchJson(dbUrl(`players/${uid}`, auth.idToken), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
+      body: JSON.stringify(clientWrite)
     });
     if (res.status !== 200) {
       throw new Error(`fixture ${id} write denied: ${res.status} ${res.body}`);
     }
 
-    const patch = { ...data, coins: (data.coins || 0) + 1, lastSeen: Date.now() };
+    const patch = {
+      ...clientWrite,
+      coins: (clientWrite.coins || 0) + 1,
+      lastSeen: Date.now(),
+      economy: { gainAt: { ".sv": "timestamp" } }
+    };
     const res2 = await fetchJson(dbUrl(`players/${uid}`, auth.idToken), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

@@ -41,6 +41,10 @@ Original punk-gang teens for **PUNK ME**. Visual references live in `imagine_ima
 
 ## NPC-only
 
+### Angelina (Ангелина) — guide, not a playable skin
+- **Look:** There is no approved Angelina sculpt in the repo. She reuses the Neon Rebel mesh (`punk_pink.glb`) with a lilac accent, small emissive wing pins and a halo, so she is not a copy of Vienna and not the selected hero.
+- **Role:** Stands beside the player in House 13, Pumpkin City. Says the goal, the control, and what can be built. Mute, minimize, and “again” sit on her bubble. She is not in the character select.
+
 ### Ghost (Призрак сцены)
 - **Look:** Pale skin, lavender hair, stage headphones. Ref: `imagine_images/ilRF3.jpg`
 - **Role:** Ambient lore, bass-night warnings, no playable slot yet.

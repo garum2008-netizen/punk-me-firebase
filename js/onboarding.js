@@ -131,14 +131,16 @@ function renderOnboardingQuest() {
   const st = currentStep();
   if (!st) return;
   const i = stepIndex() + 1;
-  const title = typeof t === "function" ? t("onboard_title") : "Your mission";
+  const title = window.StoryChapters?.chapterTitle?.(0) || (typeof t === "function" ? t("onboard_title") : "Your mission");
   const stepTitle = typeof t === "function" ? t(`onboard_${st.id}_title`) : st.id;
   const stepText = typeof t === "function" ? t(`onboard_${st.id}_text`) : "";
+  const blurb = window.StoryChapters?.stepBlurb?.(st.id) || (typeof t === "function" ? t("build_now_line") : "");
   const prog = progress()[st.key] || 0;
   box.innerHTML = `<div class="quest-tracker">
     <b>${escapeHtml(title)}</b> <span class="quest-step-num">${i}/${ONBOARDING_STEPS.length}</span>
     <div class="quest-step-title">${escapeHtml(stepTitle)}</div>
     <div class="quest-step-text">${escapeHtml(stepText)}</div>
+    <div class="quest-step-text">${escapeHtml(blurb)}</div>
     <div class="quest-progress">${prog}/${st.goal}</div>
   </div>`;
 }
@@ -223,6 +225,7 @@ window.Onboarding = {
   onWinFight,
   onShopBuy,
   getGuideTarget,
+  currentStepId: () => currentStep()?.id || null,
   normalizeFromSave,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

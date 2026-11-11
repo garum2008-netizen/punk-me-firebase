@@ -174,6 +174,42 @@ const CHARACTERS = {
     voice: { pitch: 1.05, rate: 0.88 },
     intro: { ru: "", en: "", da: "" }
   },
+  angelina: {
+    id: "angelina",
+    playable: false,
+    npc: false,
+    guide: true,
+    poster: "imagine_images/Oo040.jpg",
+    look: {
+      scale: 0.92,
+      hairStyle: "bob",
+      hair: 0xc77dff,
+      jacket: 0x2a1038,
+      pants: 0x140818,
+      boots: 0x221018,
+      emissive: 0xff66ee,
+      tint: 0xffc8aa,
+      chain: false,
+      choker: true,
+      spikes: false
+    },
+    anim: {
+      idle: ["Idle_Loop"],
+      walk: ["Walk_Loop"],
+      run: ["Jog_Fwd_Loop"],
+      talk: ["Idle_Talking_Loop"],
+      emote: ["Idle_Talking_Loop"],
+      walkSpeed: 1.05,
+      idleSpeed: 1.0,
+      runSpeed: 1.1
+    },
+    voice: { pitch: 1.22, rate: 1.05 },
+    intro: {
+      ru: "Ангелина. Не твой скин — твой проводник по дому 13.",
+      en: "Angelina. Not your skin — your guide through House 13.",
+      da: "Angelina. Ikke dit skin — din guide gennem hus 13."
+    }
+  },
   gravedigger: {
     id: "gravedigger",
     playable: false,

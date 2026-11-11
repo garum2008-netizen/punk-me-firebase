@@ -144,13 +144,61 @@ async function run() {
   r = await fetchJson(dbUrl(`players/${bobUid}`, aliceAuth.idToken));
   assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status}`);
 
-  console.log("rules: alice write own coins");
+  console.log("rules: alice naked coin increase → deny");
   r = await fetchJson(dbUrl(`players/${aliceUid}/coins`, aliceAuth.idToken), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(101)
   });
-  assert(r.status === 200, `alice write own: ${r.status} ${r.body}`);
+  assert(r.status === 401 || r.json?.error, `expected deny, got ${r.status} ${r.body}`);
+
+  console.log("rules: alice stamped +50 → allow");
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coins: 150, economy: { gainAt: { ".sv": "timestamp" } } })
+  });
+  assert(r.status === 200, `stamped gain: ${r.status} ${r.body}`);
+
+  console.log("rules: alice second gain inside interval → deny");
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coins: 200, economy: { gainAt: { ".sv": "timestamp" } } })
+  });
+  assert(r.status === 401 || r.json?.error, `expected interval deny, got ${r.status} ${r.body}`);
+
+  console.log("rules: alice spend coins → allow");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/coins`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(40)
+  });
+  assert(r.status === 200, `spend: ${r.status} ${r.body}`);
+
+  console.log("rules: alice jump +9999 → deny");
+  r = await fetchJson(dbUrl(`players/${aliceUid}`, aliceAuth.idToken), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coins: 10040, economy: { gainAt: { ".sv": "timestamp" } } })
+  });
+  assert(r.status === 401 || r.json?.error, `expected delta deny, got ${r.status} ${r.body}`);
+
+  console.log("rules: alice owner=true → deny");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/owner`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(true)
+  });
+  assert(r.status === 401 || r.json?.error, `expected owner deny, got ${r.status} ${r.body}`);
+
+  console.log("rules: alice public profile above private balance → deny");
+  r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "TestPunk", coins: 9000 })
+  });
+  assert(r.status === 401 || r.json?.error, `expected profile deny, got ${r.status} ${r.body}`);
 
   console.log("rules: alice write pet string (pet_dog)");
   r = await fetchJson(dbUrl(`players/${aliceUid}/pet`, aliceAuth.idToken), {

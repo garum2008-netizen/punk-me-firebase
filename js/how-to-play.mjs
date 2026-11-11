@@ -18,6 +18,7 @@ function howToHtml() {
     ? `<div class="howto-extras">
       <div class="lang-switch" id="howtoLangSwitch">
         <button type="button" class="lang-btn" data-lang="ru">RU</button>
+        <button type="button" class="lang-btn" data-lang="uk">UK</button>
         <button type="button" class="lang-btn" data-lang="en">EN</button>
         <button type="button" class="lang-btn" data-lang="da">DA</button>
       </div>
@@ -62,13 +63,7 @@ function initHowToPlay() {
   btn?.addEventListener("click", openHowTo);
   let seen = false;
   try { seen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (e) {}
-  if (!seen && location.hash !== "#account") {
-    setTimeout(() => {
-      if (!window.__punkIsAccountModalOpen?.() && !document.getElementById("accountModal")?.classList.contains("active")) {
-        openHowTo();
-      }
-    }, 800);
-  }
+  /* First visit stays in the room with Angelina. The ? button still opens controls. */
 }
 
 window.openHowToPlay = openHowTo;

@@ -43,4 +43,26 @@ export function updateProcedural(actor, dt, _playerPos, _talking) {
   if (bones.head && rest.headX !== undefined) {
     bones.head.rotation.x = rest.headX + sway - 0.03;
   }
+  if (!actor.isGuide || !actor._mood) return;
+  const mood = actor._mood;
+  if (bones.head && rest.headX !== undefined) {
+    if (mood === "eyeroll") {
+      bones.head.rotation.z = Math.sin(t * 1.4) * 0.35;
+      bones.head.rotation.x = rest.headX - 0.28;
+    } else if (mood === "cheer") {
+      bones.head.rotation.x = rest.headX - 0.22;
+      bones.head.rotation.z = Math.sin(t * 3) * 0.06;
+    } else if (mood === "talk" || mood === "point") {
+      bones.head.rotation.x = rest.headX + Math.sin(t * 4) * 0.06;
+      bones.head.rotation.z = 0;
+    } else if (mood === "smirk") {
+      bones.head.rotation.z = 0.18;
+      bones.head.rotation.x = rest.headX - 0.06;
+    }
+  }
+  if (bones.rightArm && rest.rightArmX !== undefined && (mood === "point" || mood === "cheer")) {
+    bones.rightArm.rotation.x = rest.rightArmX - (mood === "cheer" ? 0.9 : 1.15);
+  } else if (bones.rightArm && rest.rightArmX !== undefined) {
+    bones.rightArm.rotation.x = rest.rightArmX;
+  }
 }

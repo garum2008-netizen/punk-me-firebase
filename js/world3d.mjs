@@ -54,6 +54,9 @@ function resolveAnimName(name) {
 
 const DOG_FOLLOW_DIST = 1.2;
 const DOG_FOLLOW_SIDE = 0.45;
+const ANG_DIST = 1.2;
+const ANG_SIDE = -0.75;
+const _angHead = new THREE.Vector3();
 let punkDogTemplate = null;
 let renderer, scene, camera, clock, raycaster, pointer;
 let hooks = {};
@@ -329,6 +332,96 @@ function updateDogFollow(dt, pl) {
   dog._spd = spd;
   dog._anim = following ? "hop" : "idle";
   if (dog._meshyDog) updateMeshyDogAnim(dog, dt, following ? "hop" : "idle", spd);
+}
+
+function attachAngelWings(actor) {
+  if (actor._wings || !actor.group) return;
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xffb6f0,
+    emissive: 0xff66cc,
+    emissiveIntensity: 0.35,
+    roughness: 0.45
+  });
+  [-1, 1].forEach(s => {
+    const pin = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.035, 0.03), mat);
+    pin.position.set(s * 0.16, 1.32, -0.08);
+    pin.rotation.z = s * -0.55;
+    g.add(pin);
+  });
+  const halo = new THREE.Mesh(
+    new THREE.TorusGeometry(0.07, 0.008, 6, 14),
+    new THREE.MeshStandardMaterial({ color: 0xffee88, emissive: 0xffcc44, emissiveIntensity: 0.6 })
+  );
+  halo.rotation.x = Math.PI / 2;
+  halo.position.set(0, 1.72, 0);
+  g.add(halo);
+  actor.group.add(g);
+  actor._wings = g;
+}
+
+function ensureAngelina() {
+  let a = actors.get("angelina");
+  if (!a) {
+    a = createActorFromCatalog("angelina", "angelina");
+    if (!a) return null;
+    a.isGuide = true;
+    a.isNpc = false;
+    attachAngelWings(a);
+  }
+  return a;
+}
+
+function updateAngelinaFollow(dt, pl) {
+  const angel = actors.get("angelina");
+  if (!angel || !pl || !bounds) return;
+  const duel = isDuelActive();
+  const yaw = pl.group.rotation.y;
+  let tx;
+  let tz;
+  if (duel) {
+    tx = pl.wx + 2.15;
+    tz = pl.wz + 0.35;
+  } else {
+    tx = pl.wx - Math.sin(yaw) * ANG_DIST + Math.cos(yaw) * ANG_SIDE;
+    tz = pl.wz - Math.cos(yaw) * ANG_DIST - Math.sin(yaw) * ANG_SIDE;
+  }
+  const tgt = clampWorld(tx, tz);
+  const lerp = Math.min(1, dt * 6.5);
+  angel.wx += (tgt.x - angel.wx) * lerp;
+  angel.wz += (tgt.z - angel.wz) * lerp;
+  angel.group.position.set(angel.wx, 0, angel.wz);
+  angel.group.visible = true;
+  if (angel.root) angel.root.visible = true;
+  const move = Math.hypot(tgt.x - angel.wx, tgt.z - angel.wz);
+  const faceX = pl.wx - angel.wx;
+  const faceZ = pl.wz - angel.wz;
+  const ty = Math.atan2(faceX, faceZ);
+  let diff = ty - angel.group.rotation.y;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  angel.group.rotation.y += diff * Math.min(1, dt * 8);
+  const playerSpd = pl._spd || 0;
+  const following = !duel && (move > 0.05 || playerSpd > 0.2);
+  angel._locoSpeed = following ? Math.max(playerSpd, 0.4) : 0;
+  angel._spd = angel._locoSpeed;
+  fadeTo(angel, following ? (playerSpd > 2.2 ? "run" : "walk") : "idle");
+  if (angel._wings) angel._wings.rotation.y = Math.sin(sceneTime * 2.2) * 0.12;
+  angel._mood = window.Angelina?.currentMood?.() || "talk";
+}
+
+function projectAngelina() {
+  const angel = actors.get("angelina");
+  if (!angel || !camera) return;
+  const canvas = document.getElementById("stage3d");
+  if (!canvas) return;
+  _angHead.set(angel.wx, 1.7, angel.wz);
+  _angHead.project(camera);
+  const w = canvas.clientWidth || window.innerWidth;
+  const h = canvas.clientHeight || window.innerHeight;
+  const x = (_angHead.x * 0.5 + 0.5) * w;
+  const y = (-_angHead.y * 0.5 + 0.5) * h;
+  window.Angelina?.place?.(x, y, _angHead.z > 1);
 }
 
 function ensureCar(show) {
@@ -1204,7 +1297,8 @@ function sync(data) {
     hooks.onMove?.(g.x, g.y);
   }
 
-  const keep = new Set(["player"]);
+  const keep = new Set(["player", "angelina"]);
+  ensureAngelina();
   if (player) {
     const a = ensureActor("player", player.characterId || "vienna", false);
     if (!motionProbe) {
@@ -1341,6 +1435,12 @@ function onPointer(e) {
     if (d < bestD) { bestD = d; best = id.replace("npc_", ""); }
   });
   if (best) hooks.onNpcClick?.(best);
+  else {
+    const angel = actors.get("angelina");
+    if (angel && hit && Math.hypot(angel.wx - hit.point.x, angel.wz - hit.point.z) < 1.4) {
+      window.Angelina?.repeat?.();
+    }
+  }
 }
 
 function loop() {
@@ -1352,6 +1452,7 @@ function loop() {
   tickNpcPatrols(dt);
   const pl = actors.get("player");
   if (pl && actors.get("dog")) updateDogFollow(dt, pl);
+  if (pl) updateAngelinaFollow(dt, pl);
   if (pl) {
     pl._vy = (pl._vy || 0) - 14 * dt;
     let y = (pl.group.position.y || 0) + pl._vy * dt;
@@ -1412,6 +1513,8 @@ function loop() {
   if (motionProbe && pl?.isPlayer) notePlayerMotion(pl);
   tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
   tickStory(dt);
+  projectAngelina();
+  window.Angelina?.tick?.();
   lastCameraDt = dt;
   if (!captureFrameLock) updateThirdPersonCamera(dt);
   else if (captureHideActors?.length && !motionProbe) {
@@ -1538,6 +1641,16 @@ const api = {
   getNearestDog: getNearestDogId,
   getNearPortal,
   setGuideTarget: t => { guideTarget = t; },
+  getGuideCompanion: () => {
+    const a = actors.get("angelina");
+    if (!a?.group) return null;
+    return {
+      id: "angelina",
+      visible: a.group.visible !== false && !!a.root?.visible,
+      wx: a.wx,
+      wz: a.wz
+    };
+  },
   refreshHangoutStage: stage => {
     if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
   },

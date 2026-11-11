@@ -149,7 +149,7 @@ export async function loadAllCc0Templates() {
   const ids = typeof PLAYABLE_CHARACTER_IDS !== "undefined"
     ? PLAYABLE_CHARACTER_IDS
     : ["razor", "vienna", "cobalt", "mohawk"];
-  await Promise.all(ids.map(id => loadMeshyTemplateForCharacter(id)));
+  await Promise.all([...ids, "angelina"].map(id => loadMeshyTemplateForCharacter(id)));
   return templateByCharacter;
 }
 

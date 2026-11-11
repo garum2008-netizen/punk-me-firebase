@@ -793,6 +793,15 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 }
 #storyConstructionHud.active { display: block; }
 #storyConstructionHud .need-line { margin: 6px 0; }
+@media (max-width: 900px) {
+  #storyConstructionHud {
+    left: auto;
+    right: 12px;
+    top: 52px;
+    bottom: auto;
+    max-width: min(280px, 72vw);
+  }
+}
 .badge-stat-authority { flex-wrap: wrap; max-width: 140px; }
 .badge-stat-authority .authority-rank { font-size: 9px; opacity: 0.85; width: 100%; }
 .authority-bar-wrap {
@@ -801,4 +810,52 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .authority-bar {
   height: 100%; width: 0%; background: linear-gradient(90deg, #ff8800, #ff00ff); border-radius: 4px;
   transition: width 0.35s ease;
+}
+#guideDock {
+  position: absolute; top: 40px; left: 8px; z-index: 26;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: auto;
+}
+#chapterStrip {
+  font-size: 12px; font-weight: 800; color: #ffe27a;
+  background: rgba(20, 8, 36, 0.92); border: 1px solid #ffe27a;
+  border-radius: 999px; padding: 4px 10px; max-width: min(280px, 70vw);
+}
+#guideDock button {
+  font: inherit; color: #fff; cursor: pointer;
+  background: rgba(20, 8, 36, 0.92); border: 1px solid #c77dff;
+  border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 700;
+}
+#angelinaLayer {
+  position: fixed; z-index: 32; width: min(340px, 34vw);
+  left: auto; right: 12px; top: 48px;
+  pointer-events: none;
+}
+#angelinaBubble {
+  background: rgba(18, 8, 32, 0.94); border: 1px solid #c77dff;
+  border-radius: 14px; padding: 8px 10px; color: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.angelina-name { color: #e7b6ff; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; }
+#angelinaLine { font-size: 13px; line-height: 1.35; margin: 4px 0 6px; max-height: 7.2em; overflow: auto; pointer-events: auto; }
+.angelina-actions { display: flex; gap: 6px; pointer-events: auto; }
+.angelina-actions button, #angelinaChip {
+  pointer-events: auto; font: inherit; color: #fff; cursor: pointer;
+  background: #3a1848; border: 1px solid #c77dff; border-radius: 8px;
+  padding: 4px 8px; font-size: 11px;
+}
+#angelinaChip { margin-top: 4px; }
+#visionJournal { position: fixed; z-index: 190; }
+.quest-box { max-height: 34vh; overflow: auto; }
+@media (max-width: 900px) {
+  #guideDock { top: 28px; }
+  #guideDock button { font-size: 11px; padding: 5px 8px; }
+  #angelinaLayer {
+    top: 112px;
+    bottom: auto;
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+  #angelinaLine { font-size: 12px; max-height: 3.6em; }
 }

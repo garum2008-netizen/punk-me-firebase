@@ -106,6 +106,34 @@ async function main() {
   });
   log("quest-visible", questVisible, await page.locator("#questBox").innerText().catch(() => ""));
 
+  await page.waitForFunction(() => {
+    const line = document.getElementById("angelinaLine")?.textContent || "";
+    const quest = document.getElementById("questBox")?.innerText || "";
+    const guide = window.World3D?.getGuideCompanion?.();
+    return line.length > 40 && /PUNK ME ANGEL|дом 13|House 13|hus 13/i.test(line + " " + quest)
+      && /WASD|джойстик|joystick/i.test(quest)
+      && !!document.getElementById("btnWhere")
+      && !!guide?.visible;
+  }, { timeout: 25000 });
+  const opening = await page.evaluate(() => ({
+    line: document.getElementById("angelinaLine")?.textContent || "",
+    hello: document.getElementById("angelinaLayer")?.dataset.hello || "",
+    quest: document.getElementById("questBox")?.innerText || "",
+    hero: window.me.characterId,
+    guide: window.World3D?.getGuideCompanion?.() || null
+  }));
+  log(
+    "opening-answers",
+    opening.hero === "cobalt" && opening.guide?.id === "angelina"
+      && (opening.line.includes("PUNK ME ANGEL") || opening.hello === "1"),
+    opening.line.slice(0, 180)
+  );
+  await page.click("#btnJournal");
+  const journal = await page.locator("#visionJournalBody").innerText();
+  log("journal-build", /Декор|Decor|Dekor/.test(journal) && /склеп|crypt|krypt/i.test(journal), journal.slice(0, 180));
+  await page.click("#visionJournalClose");
+  await shot(page, "ch1-opening.png");
+
   await walkUntilMoved(page);
   const afterMove = await page.evaluate(() => ({
     step: window.me.onboarding.step,
@@ -229,11 +257,22 @@ async function main() {
   await dismissHowTo(page);
   const mobile = await page.evaluate(() => {
     const joy = document.getElementById("touchJoystick");
+    const bubble = document.getElementById("angelinaBubble");
     const shown = joy && getComputedStyle(joy).display !== "none" && getComputedStyle(document.getElementById("touchControls")).display !== "none";
+    let covers = false;
+    if (joy && bubble && !bubble.hidden) {
+      const a = joy.getBoundingClientRect();
+      const b = bubble.getBoundingClientRect();
+      const overlap = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+        * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+      covers = overlap > a.width * a.height * 0.15;
+    }
     return {
       shown,
+      covers,
       characterId: window.me?.characterId,
-      joined: !!window.me?.story?.flags?.joined_gang
+      joined: !!window.me?.story?.flags?.joined_gang,
+      guide: !!window.World3D?.getGuideCompanion?.()?.visible
     };
   });
   const box = await page.locator("#touchJoystick").boundingBox();
@@ -243,7 +282,7 @@ async function main() {
     await page.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2);
     await page.mouse.up();
   }
-  log("mobile-controls", mobile.shown === true && mobile.characterId === "cobalt" && mobile.joined === true, JSON.stringify(mobile));
+  log("mobile-controls", mobile.shown === true && mobile.covers !== true && mobile.characterId === "cobalt" && mobile.joined === true && mobile.guide === true, JSON.stringify(mobile));
   await shot(page, "ch1-mobile.png");
 
   const serious = errors.filter(e => !/WebGL|GL Driver/i.test(e));

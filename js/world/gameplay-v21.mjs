@@ -30,11 +30,20 @@ function setHud(html) {
 }
 
 function loadDecor() {
+  const saved = window.me?.story?.roomDecor;
+  if (Array.isArray(saved) && saved.length) return saved.map(d => ({ ...d }));
   try { return JSON.parse(localStorage.getItem(DECOR_KEY) || "[]"); } catch { return []; }
 }
 
 function saveDecor(items) {
-  localStorage.setItem(DECOR_KEY, JSON.stringify(items));
+  try { localStorage.setItem(DECOR_KEY, JSON.stringify(items)); } catch {}
+  if (window.me) {
+    window.me.story = window.me.story || {};
+    window.me.story.roomDecor = (items || []).map(d => ({ id: d.id, x: d.x, z: d.z, rot: d.rot || 0 }));
+    window.__angelinaFlags = window.__angelinaFlags || {};
+    window.__angelinaFlags.decor = true;
+    window.saveMe?.();
+  }
 }
 
 export function bindGameplayToWorld3D(api, getCtx) {
@@ -450,6 +459,9 @@ function stopDuel3D(win) {
     setTimeout(() => res.classList.add("hidden"), 3200);
   }
   window._duel3dEnd?.(win);
+  window.__angelinaFlags = window.__angelinaFlags || {};
+  window.__angelinaFlags.won = !!win;
+  window.__angelinaFlags.lost = !win;
 }
 
 function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {

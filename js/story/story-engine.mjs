@@ -4,6 +4,8 @@
 
 import * as Authority from "./authority.mjs";
 import { findNpcDialogue } from "./npc-dialogue.mjs";
+import { firstShortMaterial, spendMaterials, SCRAP_SELL_PRICE, SMELT_SCRAP_COST, HANGOUT_SHOP } from "../hangout-materials.mjs";
+import { MAX_COIN_GAIN, MIN_GAIN_INTERVAL_MS, STARTING_COIN_CAP } from "../economy-guard.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -36,6 +38,10 @@ const STORY_NPC_IDS = new Set([
 ]);
 
 let data = { quests: [], dialogues: [], jobs: [], balance: null, hangout: null };
+
+if (typeof window !== "undefined") {
+  window.PunkHangout = { shopItems: HANGOUT_SHOP };
+}
 let hooks = {};
 let loaded = false;
 let idleSec = 0;
@@ -325,6 +331,8 @@ function onJoinedGang() {
   const p = me();
   const st = ensureStoryState(p);
   st.flags.joined_gang = true;
+  window.__angelinaFlags = window.__angelinaFlags || {};
+  window.__angelinaFlags.joined = true;
   if ((st.authority || 0) < 100) st.authority = 100;
   st.gang_rank = "gang_member";
   st.auth = st.auth || {};
@@ -335,6 +343,8 @@ function onJoinedGang() {
   }
   st.chapter = Math.max(st.chapter || 1, 2);
   Authority.renderAuthorityHud(p);
+  // Pizza, Keeper, and Roof stay on the authority ladder. Razor's duel, the fee,
+  // and the flyer tag each finish initiation on their own — they do not queue those trials.
   if (!st.quest.completed.q_hangout_build && !st.quest.activeId) {
     startQuest("q_hangout_build");
   }
@@ -377,6 +387,10 @@ function pickNextObjective() {
   const p = me();
   const st = ensureStoryState(p);
   if (st.quest.activeId) return;
+  if (st.flags.joined_gang && !st.quest.completed?.q_hangout_build) {
+    startQuest("q_hangout_build");
+    return;
+  }
   if (!st.flags.joined_gang && p.onboarding?.done) {
     if (
       !st.quest.completed?.q_initiation_pay &&
@@ -655,6 +669,13 @@ export function renderObjectivePanel() {
       });
     }
   } else {
+    const lead = window.StoryChapters?.leadObjective?.(p, st);
+    if (lead) {
+      title = lead.title;
+      objective = lead.objective;
+      sub = lead.sub;
+      if (lead.beacon) setBeacon(lead.beacon);
+    } else {
     const authObj = !st.flags.joined_gang ? Authority.getAuthorityObjective(p) : null;
     if (authObj) {
       title = authObj.title;
@@ -671,6 +692,14 @@ export function renderObjectivePanel() {
         sub = L(step.hint_60s);
         if (hintLevel >= 3) sub += " · " + L({ ru: "Показать путь", en: "Show path", da: "Vis vej" });
       }
+      if (q.id === "q_hangout_build") {
+        const stage = data.hangout?.stages?.[st.hangoutStage];
+        if (stage) {
+          objective = L(stage.name) + ` (${st.hangoutStage + 1}/4) — ` + L(stage.hint);
+        }
+        const why = window.StoryChapters?.hangoutWhy?.();
+        if (why) sub = why;
+      }
     } else if (st.hangoutStage < 4 && st.flags.joined_gang) {
       title = L(data.hangout?.title || {});
       const stage = data.hangout?.stages?.[st.hangoutStage];
@@ -683,6 +712,7 @@ export function renderObjectivePanel() {
         en: "Explore — NPCs call out to you",
         da: "Udforsk — NPC'er kalder"
       });
+    }
     }
     }
   }
@@ -712,7 +742,7 @@ export function updateConstructionHud() {
   }
   const st = ensureStoryState(p);
   const stage = data.hangout?.stages?.[st.hangoutStage];
-  if (!stage) {
+  if (!st.flags.joined_gang || !stage || st.hangoutStage >= 4) {
     hud.classList.remove("active");
     return;
   }
@@ -727,40 +757,113 @@ export function updateConstructionHud() {
     L(stage.name) + ` (${st.hangoutStage + 1}/4)`;
 }
 
+function syncMaterialMirror(st, key) {
+  const p = me();
+  if (!p.inventory || typeof p.inventory !== "object") p.inventory = { materials: {}, spells: [] };
+  if (!p.inventory.materials || typeof p.inventory.materials !== "object" || Array.isArray(p.inventory.materials)) {
+    p.inventory.materials = {};
+  }
+  p.inventory.materials[key] = st.materials[key] || 0;
+}
+
+function grantMaterial(id, qty) {
+  const st = ensureStoryState(me());
+  st.materials[id] = (st.materials[id] || 0) + qty;
+  syncMaterialMirror(st, id);
+  return st.materials[id];
+}
+
 export function buildHangoutStage() {
   const p = me();
   const st = ensureStoryState(p);
+  if (!st.flags.joined_gang) {
+    hooks.toast?.(L({ ru: "Сначала нашивка банды", en: "Join the gang first", da: "Bliv medlem først" }));
+    return false;
+  }
   if (p.location !== "construction") {
     hooks.toast?.(L({ ru: "Иди на Стройку", en: "Go to Construction site", da: "Gå til byggepladsen" }));
-    return;
+    return false;
   }
   const stage = data.hangout?.stages?.[st.hangoutStage];
-  if (!stage) return;
-  const need = stage.need || {};
-  for (const [k, n] of Object.entries(need)) {
-    if ((st.materials[k] || 0) < n) {
-      hooks.toast?.(L(stage.hint));
-      setBeacon(stage.beacon || "obj_hangout_site");
-      syncBeacon();
-      return;
-    }
+  if (!stage) return false;
+  const spent = spendMaterials(st.materials, stage.need || {});
+  if (!spent) {
+    hooks.toast?.(L(stage.hint));
+    whereToGetMaterials();
+    return false;
   }
-  for (const [k, n] of Object.entries(need)) st.materials[k] -= n;
+  st.materials = spent;
+  Object.keys(stage.need || {}).forEach(k => syncMaterialMirror(st, k));
   st.hangoutStage += 1;
+  p.xp = (p.xp || 0) + 30;
   window.World3D?.refreshHangoutStage?.(st.hangoutStage);
-  hooks.toast?.(L({ ru: "Этап построен!", en: "Stage built!", da: "Etape bygget!" }));
-  if (st.hangoutStage >= 4) fireStoryEvent("hangout_complete");
+  hooks.toast?.(L({ ru: "Этап построен!", en: "Stage built!", da: "Etape bygget!" }) + " " + L(stage.name));
+  if (st.hangoutStage >= 4) {
+    window.__angelinaFlags = window.__angelinaFlags || {};
+    window.__angelinaFlags.hangout = true;
+    fireStoryEvent("hangout_complete");
+  }
   checkStepComplete();
   renderObjectivePanel();
+  updateConstructionHud();
   hooks.save?.();
+  return true;
 }
 
 export function whereToGetMaterials() {
-  const st = ensureStoryState(me());
+  const p = me();
+  const st = ensureStoryState(p);
   const stage = data.hangout?.stages?.[st.hangoutStage];
-  if (stage?.beacon) setBeacon(stage.beacon);
+  const short = firstShortMaterial(st.materials, stage?.need || {});
+  let beacon = "npc_bolt";
+  if (short?.key === "board" && p.location === "construction") beacon = "npc_vintik";
+  else if (!short && stage?.beacon) beacon = stage.beacon;
+  setBeacon(beacon);
   syncBeacon();
+  const prices = data.balance?.materialPrices || {};
+  if (short && prices[short.key]) {
+    const cost = prices[short.key] * short.missing;
+    if (p.coins < cost) {
+      beginEarnCoins(cost - p.coins, { returnBeacon: beacon, returnLabel: short.key });
+    }
+  }
   hooks.toast?.(L(stage?.hint || {}));
+}
+
+export function sellScrap(count) {
+  const p = me();
+  const st = ensureStoryState(p);
+  const have = st.materials.scrap || 0;
+  const n = Math.max(0, Math.min(have, count == null ? have : count));
+  if (n < 1) {
+    hooks.toast?.(L({ ru: "Нет лома", en: "No scrap", da: "Intet skrot" }));
+    return false;
+  }
+  const price = data.balance?.materialPrices?.scrapSell || SCRAP_SELL_PRICE;
+  st.materials.scrap = have - n;
+  syncMaterialMirror(st, "scrap");
+  if (!window.isOwner) p.coins += price * n;
+  hooks.toast?.(L({ ru: "Лом продан", en: "Scrap sold", da: "Skrot solgt" }) + ` +${price * n}`);
+  hooks.save?.();
+  renderObjectivePanel();
+  return true;
+}
+
+export function smeltScrap() {
+  const st = ensureStoryState(me());
+  if ((st.materials.scrap || 0) < SMELT_SCRAP_COST) {
+    hooks.toast?.(L({ ru: "Нужно 5 лома на одну цепь", en: "Need 5 scrap for one chain", da: "Kræver 5 skrot til én kæde" }));
+    return false;
+  }
+  st.materials.scrap -= SMELT_SCRAP_COST;
+  st.materials.chain = (st.materials.chain || 0) + 1;
+  syncMaterialMirror(st, "scrap");
+  syncMaterialMirror(st, "chain");
+  hooks.toast?.(L({ ru: "Дядя Болт переплавил лом в цепь", en: "Uncle Bolt smelted scrap into a chain", da: "Onkel Bolt smeltede skrot til en kæde" }));
+  hooks.save?.();
+  renderObjectivePanel();
+  updateConstructionHud();
+  return true;
 }
 
 function tryCallouts() {
@@ -911,6 +1014,19 @@ export function tryStoryNpc(npcId) {
     openDialogueTree(dlg);
     return true;
   }
+  if (npcId === "foreman" && story().flags.joined_gang && !story().events.foreman_bricks) {
+    grantMaterial("brick", 10);
+    story().events.foreman_bricks = true;
+    hooks.toast?.(L({
+      ru: "Список прораба: +10 кирпичей",
+      en: "Foreman's list: +10 bricks",
+      da: "Formandens liste: +10 mursten"
+    }));
+    hooks.save?.();
+    renderObjectivePanel();
+    updateConstructionHud();
+    return true;
+  }
   if (npcId === "razor" && !story().flags.joined_gang && story().quest.activeId === "q_initiation_pay") {
     payInitiationFee();
     return true;
@@ -983,12 +1099,8 @@ export function initStoryEngine(h) {
   return loadStoryData()
     .then(() => {
       ensureStoryState(me());
-      const bal = data.balance;
-      if (bal?.startingCoins && !window.devCoinsEnabled?.()) {
-        const p = me();
-        if (p.coins > bal.startingCoins + 50) p.coins = bal.startingCoins;
-      }
       renderObjectivePanel();
+      window.PunkEconomy = { MAX_COIN_GAIN, MIN_GAIN_INTERVAL_MS, STARTING_COIN_CAP };
       window.StoryEngine = api;
       window.StoryEngine.openNoRatChoice = () => Authority.openNoRatChoice?.();
       window.StoryEngine.openTrialsChooserDialog = () => Authority.openTrialsChooserDialog?.();
@@ -1020,6 +1132,8 @@ const api = {
   tryStoryPurchase,
   buildHangoutStage,
   whereToGetMaterials,
+  sellScrap,
+  smeltScrap,
   setBeacon,
   syncBeacon,
   resolveGuideTarget,

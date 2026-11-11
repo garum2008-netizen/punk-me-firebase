@@ -173,6 +173,8 @@ function escapeHtml(s) {
 
 export function getAuthorityObjective(p = me()) {
   const st = ensureAuthority(p);
+  // Joining through Razor's duel, the 150-coin fee, or flyer tags skips the
+  // Pizza / Keeper / Roof ladder. Those tasks stay available only before initiation.
   if (st.flags?.joined_gang) return null;
   const stageNum = st.auth.stage;
   const stages = pathData?.stages || [];

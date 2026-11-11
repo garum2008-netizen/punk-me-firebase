@@ -5,7 +5,8 @@ export const ACCENT_HUES = {
   pink: 0.92,
   teal: 0.52,
   green: 0.35,
-  orange: 0.08
+  orange: 0.08,
+  lilac: 0.78
 };
 
 const accentTexCache = new Map();
@@ -103,7 +104,8 @@ export function accentForActor(characterId, actorId) {
     ghost: "orange",
     vienna: "pink",
     razor: "orange",
-    gravedigger: "orange"
+    gravedigger: "orange",
+    angelina: "lilac"
   };
   if (byChar[characterId]) return byChar[characterId];
   if (actorId.startsWith("demo_")) {
