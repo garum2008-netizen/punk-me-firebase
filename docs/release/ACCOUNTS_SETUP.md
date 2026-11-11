@@ -20,7 +20,7 @@
 
 ### Откат (rollback)
 
-1. **Rules:** в Console вернуть предыдущую версию rules (вкладка **Rules** → **History** / сохранённая копия с `players.read: true`).
+1. **Rules:** в Console вернуть **текст rules, скопированный до публикации**, или вкладка **Rules** → **History**. Не использовать `live-published-open.json` (не совпадает с live).
 2. **Сайт:** откатить хостинг на предыдущий релиз (`living3d-v22r4-loadfix` или последний стабильный).
 3. Порядок отката: можно сначала **rules** (старый JS снова читает `players`), затем статику — или одновременно. Не оставлять новые rules + старый JS надолго.
 
@@ -57,8 +57,25 @@
 1. Гость → **Войти** → link Google/email → тот же **uid**.
 2. Другой браузер → тот же аккаунт → тот же save.
 3. **Выйти** → новый anonymous; старые данные в RTDB не удаляются.
-4. `owner.html` — Google sign-in + **admin Custom Claim** (`node scripts/set-admin-claim.mjs`).
-5. Перед публикацией rules: `docs/release/RULES_PUBLISH_CHECKLIST.md`.
+4. `owner.html` — Google sign-in + **admin Custom Claim**:
+
+   ```bash
+   gcloud auth application-default login
+   gcloud auth application-default set-quota-project punk-me-40605
+   node scripts/set-admin-claim.mjs --email garum2008@gmail.com
+   ```
+
+   Без JSON-ключей в репозитории; можно из **Google Cloud Shell** на Mac владельца.
+
+5. Перед публикацией rules: `docs/release/RULES_PUBLISH_CHECKLIST.md` (скопировать **текущие** rules из Console для отката).
+
+### Резервная копия `/players` (только чтение)
+
+```bash
+gcloud auth application-default login
+gcloud auth application-default set-quota-project punk-me-40605
+node scripts/backup-players-export.js
+```
 
 ## 5. Тесты
 
