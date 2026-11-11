@@ -1449,12 +1449,15 @@ function renderQuest() {
 function questBump(key, amt = 1) {
   const qid = me.quests.active;
   if (!qid || !QUESTS[qid]) return;
+  if (!me.quests.completed) me.quests.completed = {};
+  if (me.quests.completed[qid]) return;
   const need = QUESTS[qid].need;
   if (!(key in need)) return;
   me.quests.progress[key] = (me.quests.progress[key] || 0) + amt;
   const prog = me.quests.progress;
   const done = Object.entries(need).every(([k, v]) => (prog[k] || 0) >= v);
   if (done) {
+    me.quests.completed[qid] = true;
     const r = QUESTS[qid].reward;
     if (!isOwner && r.coins) me.coins += r.coins;
     if (r.xp) me.xp += r.xp;
@@ -1538,6 +1541,11 @@ window.toggleVoiceMute = function () {
 };
 
 function acceptQuest(qid) {
+  if (!me.quests.completed) me.quests.completed = {};
+  if (me.quests.completed[qid]) {
+    toast(t("quest_already"));
+    return;
+  }
   me.quests.active = qid;
   me.quests.progress = {};
   saveMe();
@@ -1577,7 +1585,7 @@ function buyItem(id) {
   if (it.cat === "materials") {
     me.inventory.materials[it.build] = (me.inventory.materials[it.build] || 0) + 1;
   } else if (it.cat === "magic") {
-    me.inventory.spells.push(it.spell);
+    if (!me.inventory.spells.includes(it.spell)) me.inventory.spells.push(it.spell);
     if (!me.owned.includes(id)) me.owned.push(id);
   } else if (it.cat === "pets") {
     me.pet = it.id;
