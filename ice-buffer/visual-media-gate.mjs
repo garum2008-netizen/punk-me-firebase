@@ -197,21 +197,22 @@ export function prepareVisualDraft(input) {
     channelId: input.channelId,
     schedulingType: "automatic",
     saveToDraft: true,
-    text: String((input && input.text) || ""),
-    assets: [
+    text: String((input && input.text) || "")
+  };
+  if (gate.status !== "text_only") {
+    request.assets = [
       {
         image: {
           url: gate.image_url,
           metadata: { altText: (input && input.altText) || "ICE visual" }
         }
       }
-    ]
-  };
-  if (input && input.service === "linkedin") request.metadata = {};
-  else request.metadata = { facebook: { type: "post" } };
+    ];
+  }
+  if (!(input && input.service === "linkedin")) request.metadata = { facebook: { type: "post" } };
   return {
     ok: true,
-    status: "ready_for_attach",
+    status: gate.status === "text_only" ? "text_only" : "ready_for_attach",
     publish: false,
     idempotencyKey,
     channel: channel.channel,

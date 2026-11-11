@@ -146,6 +146,17 @@ test("a visual Buffer draft requires a key, a public image, and the matching cha
   assert.equal(ready.request.mode, undefined);
   assert.equal(ready.request.assets[0].image.url, PNG);
   assert.equal(ready.request.metadata.facebook.type, "post");
+  const textOnly = prepareVisualDraft({
+    idempotencyKey: "ice-eudi-20261120-teach",
+    channelId: "6a9d9227cd8b9c702c197a40",
+    audience: "business",
+    service: "linkedin",
+    visual: false,
+    text: "Teaching example."
+  });
+  assert.equal(textOnly.status, "text_only");
+  assert.equal(textOnly.request.assets, undefined);
+  assert.equal(textOnly.request.metadata, undefined);
 });
 
 test("image generation without a stored public URL fails closed", () => {

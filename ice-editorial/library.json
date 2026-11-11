@@ -1,0 +1,110 @@
+{
+  "updatedAt": "2026-11-11T10:30:00.000Z",
+  "owner": "Inna Kragh",
+  "executor": "Cursor Commander",
+  "publication": "disabled_until_owner_approval",
+  "channels": {
+    "business": {
+      "linkedin": { "id": "6a9d9227cd8b9c702c197a40", "name": "INNA KRAGH", "brand": "INNA KRAGH" },
+      "facebook": { "id": "6a9d9398cd8b9c702c1981cd", "name": "Legal Tech Counsellor", "brand": "Legal Tech Counsellor" }
+    },
+    "children_not_used_by_this_desk": [
+      { "id": "6ad64323778b240e2f5abcb6", "name": "PUNK ME ANGEL", "service": "youtube" },
+      { "id": "6ad507a4778b240e2f4bb2d6", "name": "Angel&Chris Play", "service": "youtube" },
+      { "id": "6ad50e6f778b240e2f4c26d0", "name": "angelinalinakragh", "service": "instagram" }
+    ],
+    "missing": [
+      "No Buffer channel is named Inna Kragh on YouTube. Both YouTube channels in this organization are children's channels.",
+      "Talk & Grow Kids is not connected in this Buffer organization.",
+      "LAW OF CODE, other legal books, and the Danish Emma stories have no publishing channel here."
+    ]
+  },
+  "recovered": {
+    "bufferQueue": {
+      "source": "Buffer organization My organization, posts due 12-30 November 2026",
+      "status": "partial",
+      "note": "First 30 edges were read. hasNextPage was true. No post was edited.",
+      "imagelessInThatPage": ["6ab30180ff828cdd0bfef62e", "6ab301cd9b9f20530d111adf"]
+    },
+    "r2": {
+      "source": "ice-public-media prefix ice-media/",
+      "objectCount": 74,
+      "usableStills": {
+        "fca": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/4d43ad070399b0b1640ce1eca9932cd0-2026-09-21-fca-incoterms-1080x1350.jpg",
+        "saas": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/122c20b4b4762c5b04630e291b0a2027-2026-09-22-saas-agreement-1080x1350.jpg",
+        "ndaConsultancyFee": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/5414ee68f38990d7507b0ebf82e48fc3-2026-09-30-nda-consultancy-1080x1350.jpg",
+        "supply": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/3b2fa0e8f4fc6c88c5b0f4ce17dd74ef-2026-09-25-supply-agreement-1080x1350.jpg"
+      },
+      "excludedFromNewPosts": ["ice-promo-*", "ice-media/gate-20261108/", "ice-media/generated/ice-final-20261111-verify.png"]
+    }
+  },
+  "inaccessible": [
+    "Grok bot conversation transcripts and their unpublished drafts",
+    "Private repository contractbot-local-ai",
+    "Owner approval records that were not written into Buffer or this repository"
+  ],
+  "campaignsLeftUntouched": {
+    "sixVideoPilot": "Recovered video files remain in R2. No additional publication was created.",
+    "contractbotBookDemos": "Existing LinkedIn draft 6af0b0a2229bf05dafc57a23 was not edited and its count was not expanded."
+  },
+  "calendar": [
+    {
+      "date": "2026-11-16",
+      "slot": "LinkedIn and Facebook",
+      "topic": "FCA risk after handover to the carrier",
+      "decision": "hold",
+      "reason": "LinkedIn post 6ad3c780769b4579348f5968 is already scheduled that morning on delivery and risk.",
+      "approval": "existing_queue"
+    },
+    {
+      "date": "2026-11-17",
+      "slot": "Short legal video",
+      "topic": "A short contract with an undefined liability cap",
+      "decision": "hold",
+      "reason": "No verified cartoon exists. Related clause-reading posts 6aef7962d6bbae6fa1a777d8 and 6aef796a562f2e6de977630e are already scheduled for 13 November.",
+      "approval": "pending_owner"
+    },
+    {
+      "date": "2026-11-18",
+      "slot": "LinkedIn and article",
+      "topic": "A supplier does not deliver the promised SaaS integration",
+      "decision": "hold",
+      "reason": "Facebook post 6ae0fc53fa60e928f57de1b3 already covers an unread SaaS order form on 19 November. No still states the integration point.",
+      "approval": "existing_queue"
+    },
+    {
+      "date": "2026-11-19",
+      "slot": "Short legal video",
+      "topic": "An NDA that never defines confidential information",
+      "decision": "hold",
+      "reason": "The recovered NDA still is about a consultancy fee after acceptance, so it does not match this lesson.",
+      "approval": "pending_owner"
+    },
+    {
+      "date": "2026-11-20",
+      "slot": "LinkedIn text, Facebook held",
+      "topic": "When an electronic signature has legal effect",
+      "decision": "create_linkedin_draft_only",
+      "reason": "No verified EUDI or eIDAS image is in the library. Facebook stays empty until one exists.",
+      "approval": "pending_owner",
+      "bufferDraftId": "6af442e5f41d6d2bbb6444d1",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "status": "draft",
+      "sharedNow": false,
+      "assets": 0
+    }
+  ],
+  "analytics": {
+    "organization": "My organization",
+    "channels": ["INNA KRAGH", "Legal Tech Counsellor"],
+    "window": "2026-10-12 to 2026-11-11",
+    "metricsUpdatedAt": "2026-11-10T20:35:26.900Z",
+    "posts": 48,
+    "reactions": 35,
+    "comments": 0,
+    "impressions": 1004,
+    "reach": 695,
+    "shares": 0,
+    "engagementRate": 4.08
+  }
+}

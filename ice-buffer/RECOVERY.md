@@ -14,6 +14,9 @@ Status values:
 - `blocked_unconfirmed_media` — Buffer did not return the image.
 - `blocked_channel_separation` — a business post was aimed at a children's channel, or the reverse.
 - `duplicate_conflict` — the idempotency key already belongs to a different image or Buffer post.
+- `text_only` — the package is not visual, so the draft is saved without an attachment.
+
+The editorial desk is `ice-editorial/`. `reviewPackage` refuses client material, children's channels, a picture whose topic does not match the lesson, and any item already present in the queue. A new package may be saved as a draft. It is not scheduled or published until the owner approves that exact text, channel, and date. The library and the seven-day decisions are in `ice-editorial/library.json`.
 
 Recovery:
 
