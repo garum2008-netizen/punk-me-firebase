@@ -97,7 +97,7 @@
       "status": 404,
       "local_bytes": 39715,
       "local_sha256": "16319975c73e714f1a546442a6e15df45c81501e4d5a23aca687cc33f9ba5349",
-      "r2_fragments_verified": ["C00", "C01", "C02"]
+      "r2_fragments_verified": ["C00", "C01", "C02", "C03"]
     },
     {
       "name": "wk16-comedy-nda.png",
