@@ -8,7 +8,6 @@ const FIREBASE_CONFIG = {
   appId: "1:761070335468:web:4bffd5120ef98e79f47cc9",
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
-const OWNER_EMAIL = "garum2008@gmail.com";
 const GAME_VERSION = "living3d-v22r6-ch1-playable";
 window.GAME_VERSION = GAME_VERSION;
 /** localStorage full player blob — life-ch1 local release candidate (no cloud RTDB). */
@@ -21,21 +20,29 @@ window.__punkFirebaseReady =
   });
 const PRESENCE_STALE_MS = 120000;
 
+function isLoopbackEmulatorHost(host) {
+  const h = String(host || "").trim().toLowerCase();
+  return h === "127.0.0.1" || h === "localhost" || h === "::1";
+}
+
 function connectFirebaseEmulatorsIfRequested() {
   try {
+    const pageHost = String(location.hostname || "").toLowerCase();
+    const localPage = pageHost === "localhost" || pageHost === "127.0.0.1" || pageHost === "::1" || pageHost.endsWith(".localhost");
+    if (!localPage) return;
     const q = new URLSearchParams(location.search);
     if (!q.has("firebaseEmulator")) return;
-    const host = q.get("firebaseEmulatorHost") || "127.0.0.1";
-    const dbPortRaw = q.get("firebaseEmulatorDbPort");
-    const authPortRaw = q.get("firebaseEmulatorAuthPort");
-    if (!dbPortRaw || !authPortRaw) {
-      console.warn("firebaseEmulator=1 requires firebaseEmulatorDbPort and firebaseEmulatorAuthPort");
+    const requested = q.get("firebaseEmulatorHost") || "127.0.0.1";
+    if (!isLoopbackEmulatorHost(requested)) {
+      console.warn("firebase emulator host rejected");
       return;
     }
-    const dbPort = parseInt(dbPortRaw, 10);
-    const authPort = parseInt(authPortRaw, 10);
-    firebase.database().useEmulator(host, dbPort);
-    firebase.auth().useEmulator(`http://${host}:${authPort}`);
+    const dbPort = parseInt(q.get("firebaseEmulatorDbPort") || "", 10);
+    const authPort = parseInt(q.get("firebaseEmulatorAuthPort") || "", 10);
+    if (!Number.isInteger(dbPort) || dbPort < 1 || dbPort > 65535) return;
+    if (!Number.isInteger(authPort) || authPort < 1 || authPort > 65535) return;
+    firebase.database().useEmulator(requested, dbPort);
+    firebase.auth().useEmulator(`http://${requested}:${authPort}`);
   } catch (e) {
     console.warn("Firebase emulator connect failed", e);
   }
@@ -1055,10 +1062,13 @@ function init() {
       uid = u.uid;
       window.uid = uid;
       isOwner = false;
+      window.isOwner = false;
       try {
-        const token = await u.getIdTokenResult();
+        const token = await u.getIdTokenResult(true);
         isOwner = token.claims.admin === true;
-      } catch (_) {}
+      } catch (_) {
+        isOwner = false;
+      }
       window.isOwner = isOwner;
       window.__punkUpdateAccountUi?.(u);
       syncHudDebugVisibility();
@@ -1492,7 +1502,6 @@ function sanitizePlayer(p) {
     energy: p.energy,
     mood: p.mood,
     onboarding: p.onboarding || { step: 0, progress: {}, done: false },
-    owner: isOwner,
     lastSeen: p.lastSeen,
     linkedAuth: p.linkedAuth || null
   };

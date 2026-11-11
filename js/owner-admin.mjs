@@ -4,6 +4,7 @@ import {
   isFirebaseEmulatorQueryRequested,
   isLocalFirebaseTestHost
 } from "./firebase-emulator.mjs";
+import { ownerSessionAllowed } from "./owner-session.mjs";
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyACAXPV9H4vfWNUoRYEWzXi6CSX0kpCaho",
@@ -32,14 +33,27 @@ if (!window.toast) {
   window.toast = ownerToast;
 }
 
-async function userHasAdminClaim(user) {
+async function confirmOwnerSession(user, db) {
   if (!user || user.isAnonymous) return false;
+  let adminClaim = false;
   try {
-    const token = await user.getIdTokenResult();
-    return token.claims.admin === true;
+    const token = await user.getIdTokenResult(true);
+    adminClaim = token.claims.admin === true;
   } catch (_) {
     return false;
   }
+  if (!adminClaim) return false;
+  try {
+    await db.ref("players").limitToFirst(1).once("value");
+  } catch (_) {
+    return false;
+  }
+  return ownerSessionAllowed({
+    signedIn: true,
+    anonymous: false,
+    adminClaim: true,
+    databaseConfirmed: true
+  });
 }
 
 async function loadStats(db) {
@@ -75,7 +89,7 @@ function setUi({ user, denied, admin }) {
   if (!user) st.textContent = t("owner_sign_in_prompt");
   else if (denied) st.textContent = t("owner_admin_claim_hint");
   else if (!admin) st.textContent = t("owner_admin_claim_hint");
-  else st.textContent = `${t("owner_welcome")} ${user.email || user.uid}`;
+  else st.textContent = t("owner_welcome");
 }
 
 export async function initOwnerAdmin() {
@@ -130,15 +144,16 @@ export async function initOwnerAdmin() {
       setUi({ user: null, denied: false, admin: false });
       return;
     }
-    const admin = await userHasAdminClaim(user);
-    if (!admin) {
+    const allowed = await confirmOwnerSession(user, db);
+    if (!allowed) {
       setUi({ user, denied: true, admin: false });
       return;
     }
     setUi({ user, denied: false, admin: true });
     try {
       await loadStats(db);
-    } catch (e) {
+    } catch (_) {
+      setUi({ user, denied: true, admin: false });
       document.getElementById("ownerStatus").textContent = t("owner_rules_hint");
     }
   });

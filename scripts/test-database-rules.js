@@ -179,6 +179,31 @@ async function run() {
   r = await fetchJson(dbUrl(`players/${bobUid}`, adminAuth.idToken));
   assert(r.status === 200, `admin bob: ${r.status}`);
 
+  console.log("rules: alice cannot set owner true");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/owner`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(true)
+  });
+  assert(r.status === 401 || r.json?.error, `alice owner true: ${r.status}`);
+
+  console.log("rules: alice can set owner false");
+  r = await fetchJson(dbUrl(`players/${aliceUid}/owner`, aliceAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(false)
+  });
+  assert(r.status === 200, `alice owner false: ${r.status} ${r.body}`);
+
+  console.log("rules: admin can set owner true on their own record");
+  const adminUid = adminAuth.localId || "admin-user";
+  r = await fetchJson(dbUrl(`players/${adminUid}/owner`, adminAuth.idToken), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(true)
+  });
+  assert(r.status === 200, `admin owner true: ${r.status} ${r.body}`);
+
   console.log("rules: publicProfiles read without auth → allow");
   r = await fetchJson(dbUrl(`publicProfiles/${aliceUid}`));
   assert(r.status === 200 && r.json?.name, `public profile: ${r.status}`);

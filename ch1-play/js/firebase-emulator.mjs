@@ -1,10 +1,35 @@
 /** Connect compat Firebase to local emulators when ?firebaseEmulator=1 (tests only). */
-export function isLocalFirebaseTestHost() {
+const LOOPBACK_EMULATOR_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
+
+export function isLoopbackEmulatorHost(host) {
+  const h = String(host || "").trim().toLowerCase();
+  return LOOPBACK_EMULATOR_HOSTS.has(h);
+}
+
+export function isLocalFirebaseTestHost(hostname) {
   try {
-    const h = globalThis.location?.hostname?.toLowerCase?.() || "";
-    return h === "localhost" || h === "127.0.0.1" || h.endsWith(".localhost");
+    const h = String(hostname ?? globalThis.location?.hostname ?? "").toLowerCase();
+    return h === "localhost" || h === "127.0.0.1" || h === "::1" || h.endsWith(".localhost");
   } catch (_) {
     return false;
+  }
+}
+
+/** Null unless this page is local and the emulator host is loopback. */
+export function resolveFirebaseEmulatorTarget(search, pageHost) {
+  try {
+    const q = new URLSearchParams(search || "");
+    if (!q.has("firebaseEmulator")) return null;
+    if (!isLocalFirebaseTestHost(pageHost)) return null;
+    const requested = q.get("firebaseEmulatorHost") || "127.0.0.1";
+    if (!isLoopbackEmulatorHost(requested)) return null;
+    const dbPort = parseInt(q.get("firebaseEmulatorDbPort") || "", 10);
+    const authPort = parseInt(q.get("firebaseEmulatorAuthPort") || "", 10);
+    if (!Number.isInteger(dbPort) || dbPort < 1 || dbPort > 65535) return null;
+    if (!Number.isInteger(authPort) || authPort < 1 || authPort > 65535) return null;
+    return { host: requested, dbPort, authPort };
+  } catch (_) {
+    return null;
   }
 }
 
@@ -24,26 +49,18 @@ export function isFirebaseEmulatorConnected() {
 export function connectFirebaseEmulatorsIfRequested(firebase) {
   globalThis.__punkFirebaseEmulatorConnected = false;
   try {
-    const q = new URLSearchParams(globalThis.location?.search || "");
-    if (!q.has("firebaseEmulator")) return false;
-    if (!isLocalFirebaseTestHost()) {
-      console.warn("firebaseEmulator=1 ignored on non-local host");
+    const target = resolveFirebaseEmulatorTarget(globalThis.location?.search || "", globalThis.location?.hostname);
+    if (!target) {
+      if (isFirebaseEmulatorQueryRequested() && !isLocalFirebaseTestHost()) {
+        console.warn("firebaseEmulator=1 ignored on non-local host");
+      }
       return false;
     }
-    const host = q.get("firebaseEmulatorHost") || "127.0.0.1";
-    const dbPortRaw = q.get("firebaseEmulatorDbPort");
-    const authPortRaw = q.get("firebaseEmulatorAuthPort");
-    if (!dbPortRaw || !authPortRaw) {
-      console.warn("firebaseEmulator=1 requires firebaseEmulatorDbPort and firebaseEmulatorAuthPort query params");
-      return false;
-    }
-    const dbPort = parseInt(dbPortRaw, 10);
-    const authPort = parseInt(authPortRaw, 10);
     if (firebase?.database) {
-      firebase.database().useEmulator(host, dbPort);
+      firebase.database().useEmulator(target.host, target.dbPort);
     }
     if (firebase?.auth) {
-      firebase.auth().useEmulator(`http://${host}:${authPort}`);
+      firebase.auth().useEmulator(`http://${target.host}:${target.authPort}`);
     }
     globalThis.__punkFirebaseEmulatorConnected = true;
     return true;
