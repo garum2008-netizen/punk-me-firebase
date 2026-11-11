@@ -82,7 +82,7 @@
       "label": "ContractBot DK",
       "publication": "schedule",
       "approved": true,
-      "go_required": false,
+      "go_required": true,
       "visual": "image",
       "channels": ["linkedin_inna", "facebook_legal"]
     },
@@ -91,7 +91,7 @@
       "label": "ContractBot EU",
       "publication": "schedule",
       "approved": true,
-      "go_required": false,
+      "go_required": true,
       "visual": "image",
       "channels": ["linkedin_inna", "facebook_legal"]
     },

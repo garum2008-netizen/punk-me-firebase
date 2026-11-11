@@ -192,6 +192,8 @@ class FactoryTest(unittest.TestCase):
         drafted = pipe.process(job["id"])
         self.assertEqual(drafted["status"], "DRAFT")
         self.assertEqual(pipe.schedule(job["id"], permission=True, execute=True)["status"], "DRAFT")
+        self.assertEqual(pipe.approve(job["id"], permission=True)["status"], "DRAFT")
+        pipe.go_grants.add("contractbot_dk")
         approved = pipe.approve(job["id"], permission=False)
         self.assertEqual(approved["status"], "DRAFT")
         approved = pipe.approve(job["id"], permission=True)
