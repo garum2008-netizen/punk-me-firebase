@@ -311,6 +311,8 @@
   import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r6-ch1-angelina-rc1";
   import { initStoryEngine } from "./js/story/story-engine.mjs?v=living3d-v22r6-ch1-angelina-rc1";
   import { initLifeCh1Slice } from "./js/story/life-ch1-slice.mjs?v=life-ch1-slice-m1";
+  import * as InteractPriority from "./js/interact-priority.mjs?v=ch1-playable";
+  window.InteractPriority = InteractPriority;
   initPlayV21();
   initStoryEngine({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });
   initLifeCh1Slice({ toast: m => window.toast?.(m), save: () => window.saveMe?.() });

@@ -1462,7 +1462,24 @@ function tickNpcPatrols(dt) {
   const pl = actors.get("player");
   actors.forEach((a, id) => {
     if (!id.startsWith("npc_")) return;
+    const stepId = window.Onboarding?.currentStepId?.();
+    const pinRazor = (stepId === "talk_razor" || stepId === "win_fight") && a.characterId === "razor" && currentLoc === "street";
     const greet = NPC_QUEST_GREET[currentLoc]?.[a.characterId];
+    if (pinRazor && greet?.anchor) {
+      a.wx = greet.anchor.x;
+      a.wz = greet.anchor.z;
+      a.group.position.x = a.wx;
+      a.group.position.z = a.wz;
+      if (pl) {
+        const dx = pl.wx - a.wx;
+        const dz = pl.wz - a.wz;
+        a.group.rotation.y = Math.atan2(dx, dz);
+      }
+      a._spd = 0;
+      fadeTo(a, "idle");
+      updateLocomotionTimeScale(a);
+      return;
+    }
     if (greet && pl) {
       const d = Math.hypot(pl.wx - a.wx, pl.wz - a.wz);
       if (d < greet.range) {
@@ -1545,6 +1562,15 @@ function portalCameraSteerCutoff(pl, guide) {
   return base;
 }
 
+function onboardingAllowsPortal(to) {
+  if (!window.Onboarding?.isActive?.()) return true;
+  const id = window.Onboarding.currentStepId?.();
+  if (id === "go_street") return to === "street";
+  if (id === "talk_razor" || id === "win_fight") return to === "street";
+  if (id === "visit_cemetery") return to === "street" || to === "cemetery";
+  return true;
+}
+
 function checkPortals() {
   if (motionProbe || captureFrameLock) return;
   if (performance.now() < portalGraceUntil) return;
@@ -1559,6 +1585,7 @@ function checkPortals() {
   const pz = player.wz ?? player.group.position.z;
   for (const portal of portals) {
     if (Math.hypot(px - portal.x, pz - portal.z) <= portal.r) {
+      if (!onboardingAllowsPortal(portal.to)) continue;
       hooks.onPortal?.(portal.to);
       break;
     }
@@ -1715,6 +1742,11 @@ function getNearestDogId() {
 function getNearestNpcId() {
   const pl = actors.get("player");
   if (!pl) return null;
+  const stepId = window.Onboarding?.currentStepId?.();
+  if ((stepId === "talk_razor" || stepId === "win_fight") && currentLoc === "street") {
+    const razor = actors.get("npc_razor");
+    if (razor && Math.hypot(pl.wx - razor.wx, pl.wz - razor.wz) < 3.1) return "razor";
+  }
   let best = null;
   let bestD = 2.4;
   actors.forEach((a, id) => {
@@ -2270,6 +2302,19 @@ const api = {
     return true;
   },
   setGuideTarget: t => { guideTarget = t; },
+  getNpcAnchor: npcId => {
+    const greet = NPC_QUEST_GREET[currentLoc]?.[npcId];
+    if (greet?.anchor && Number.isFinite(greet.anchor.x) && Number.isFinite(greet.anchor.z)) {
+      return { x: greet.anchor.x, z: greet.anchor.z, loc: currentLoc };
+    }
+    const anchored = NPC_WORLD[currentLoc]?.[npcId];
+    if (anchored) return { x: anchored.x, z: anchored.z, loc: currentLoc };
+    const actor = actors.get("npc_" + npcId);
+    if (actor && Number.isFinite(actor.wx) && Number.isFinite(actor.wz)) {
+      return { x: actor.wx, z: actor.wz, loc: currentLoc };
+    }
+    return null;
+  },
   snapPlayerToLocationSpawn,
   setAngelinaLifeBillboard: setAngelinaLifeBillboard,
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),

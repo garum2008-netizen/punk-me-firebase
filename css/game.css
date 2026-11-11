@@ -850,6 +850,8 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 @media (min-width: 901px) {
   .chat-toggle { display: none; }
   .chat { padding: 8px; }
+  .hud-quests-wrap.collapsed .quest-box,
+  .hud-quests-wrap.collapsed .daily-quest-hud { display: block; }
 }
 .gameplay-hud:empty {
   display: none !important;
@@ -1085,12 +1087,23 @@ body.life-ch1-active .hud-quests-wrap {
   max-height: 18vh;
   overflow: hidden;
 }
-@media (max-width: 520px) {
-  body.life-ch1-active .hud-column {
-    max-height: 16vh;
+@media (max-width: 900px) {
+  .hud-quests-wrap.collapsed .quest-box,
+  .hud-quests-wrap.collapsed .daily-quest-hud {
+    display: block;
   }
-  body.life-ch1-active .life-ch1-tracker {
-    max-width: min(68vw, 240px);
+  .hud-column,
+  body.life-ch1-active .hud-column {
+    max-height: 46vh;
+    overflow: visible;
+  }
+  body.life-ch1-active .hud-quests-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+  .quest-box {
+    max-height: 42vh;
+    overflow: auto;
   }
 }
 

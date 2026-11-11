@@ -444,6 +444,11 @@ function findPortalTo(fromLoc, toLoc) {
 }
 
 export function syncBeacon() {
+  if (window.Onboarding?.isActive?.()) {
+    window.Onboarding.syncGuideTarget?.();
+    return;
+  }
+  if (window.LifeCh1Slice?.isActive?.()) return;
   const t = resolveGuideTarget();
   window.World3D?.setGuideTarget?.(t);
   if (t?.ui === "decor") hooks.toast?.(L({ ru: "Нажми «Декор» внизу", en: "Tap Decor below", da: "Tryk Dekor" }));

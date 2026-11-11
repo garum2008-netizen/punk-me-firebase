@@ -93,4 +93,4 @@ function initHowToPlay() {
 
 window.openHowToPlay = openHowTo;
 window.initHowToPlay = initHowToPlay;
-export { initHowToPlay, openHowTo, dismissHowToOverlay };
+export { initHowToPlay, openHowTo };

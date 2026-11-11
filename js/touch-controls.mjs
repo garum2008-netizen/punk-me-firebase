@@ -58,7 +58,15 @@ export function initTouchControls(opts = {}) {
     if (joyId !== 1) return;
     joyUp({ ...e, pointerId: 1 });
   });
-  joy.addEventListener("pointercancel", resetKnob);
+  const joyCancel = e => {
+    if (e?.pointerId != null && joyId != null && e.pointerId !== joyId) return;
+    try {
+      if (e?.pointerId != null) joy.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+    joyId = null;
+    resetKnob();
+  };
+  joy.addEventListener("pointercancel", joyCancel);
 
   interact?.addEventListener("click", () => touchInteract());
 
