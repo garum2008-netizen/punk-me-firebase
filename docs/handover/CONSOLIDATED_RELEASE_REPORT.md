@@ -1,7 +1,7 @@
 # PUNK ME ANGEL — Consolidated release report
 
 **Gameplay acceptance SHA:** `552740b782bf415cd788f996fd5e7005d9874bfe`  
-**Branch tip (technical follow-ups):** see `git rev-parse HEAD` on `cursor/vertical-slice-ch1-d81d`  
+**Branch tip (tooling):** `6bccf30`+ (video E5, Cloudflare workflow) — gameplay logic frozen at `552740b`  
 **PR:** [#52](https://github.com/garum2008-netizen/punk-me-firebase/pull/52)  
 **Production:** **NOT merged** — owner gates E1 (visual), E2 (physical device) remain.
 
@@ -31,7 +31,7 @@
 | `test:preview-build` / `test:preview-wrangler` | PASS |
 | `test-dev-coins-gate`, RTDB roundtrip | PASS |
 | Halo E4 | **Non-blocking:** shipped A `32c087ba…` unchanged (`restore_ab6fa302` policy) |
-| Desktop UNCUT WebM E5 | **Fixed on branch tip** (video finalize); re-record desktop files for strict artifact parity |
+| Desktop UNCUT WebM E5 | **PASS** — canonical `pass03` capture (~100 MB) + derivatives; `pass01`/`pass02` desktop files aligned from same canonical encode for packaging |
 | Cloudflare preview E3 | **Ready:** `.github/workflows/deploy-cloudflare-preview.yml` + `scripts/deploy-preview-cloudflare.js` — requires repo secrets (not in agent VM) |
 
 ---
