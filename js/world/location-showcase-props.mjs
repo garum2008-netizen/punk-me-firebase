@@ -16,6 +16,15 @@ function box(w, h, d, m) {
   return mesh;
 }
 
+/** Floor decal. rotateX then translateZ lifts the mesh to head height, so position is set in world space. */
+function floorDecal(geometry, material, x, y, z) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(x, y, z);
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
 function tagged(tag, obj) {
   const g = obj.isGroup ? obj : new THREE.Group();
   if (!obj.isGroup) g.add(obj);
@@ -389,14 +398,14 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("elev_sticker_13", box(0.2, 0.2, 0.02, mat(0x00ffff, 0x00ffff)).translateX(-1).translateY(1.35).translateZ(-1.42)));
     root.add(tagged("elev_cabinet", box(0.35, 0.9, 0.2, mat(0x3a3a48)).translateX(1.2).translateY(0.45).translateZ(-0.8)));
     root.add(tagged("elev_fire_ext", box(0.15, 0.45, 0.12, mat(0xcc2222, 0xff0000)).translateX(-1.25).translateY(0.8).translateZ(1.15)));
-    root.add(tagged("elev_floor_mat", new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8), mat(0x2a3040)).rotateX(-Math.PI / 2).translateY(0.01)));
+    root.add(tagged("elev_floor_mat", floorDecal(new THREE.PlaneGeometry(1.8, 1.8), mat(0x2a3040), 0, 0.01, 0)));
     root.add(tagged("elev_call_button", new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.03, 12), mat(0xffcc00, 0xffaa00)).rotateX(Math.PI / 2).translateX(1.32).translateY(1.35).translateZ(0.32)));
     root.add(tagged("elev_info_card", box(0.22, 0.14, 0.01, mat(0xffffff)).translateX(1.33).translateY(0.85).translateZ(0.46)));
     root.add(tagged("elev_bumper_rail", box(0.05, 0.4, 1.5, mat(0x888899)).translateX(-1.05).translateY(0.2).translateZ(0)));
     root.add(tagged("elev_led_strip", box(1.8, 0.04, 0.04, mat(0x00ffcc, 0x00ffcc)).translateY(0.05).translateZ(-1.42)));
     root.add(tagged("elev_speaker", box(0.12, 0.18, 0.08, mat(0x222228)).translateY(2.2).translateX(0.5)));
     root.add(tagged("elev_camera_dome", new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), mat(0x111118)).translateY(2.28).translateX(-0.4)));
-    root.add(tagged("elev_scuff_mark", new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), mat(0x1a1820)).rotateX(-Math.PI / 2).translateY(0.012).translateZ(0.3)));
+    root.add(tagged("elev_scuff_mark", floorDecal(new THREE.PlaneGeometry(0.6, 0.3), mat(0x1a1820), 0, 0.012, 0.3)));
   } else if (locId === "kitchen") {
     root.add(tagged("kitchen_stove", box(0.7, 0.9, 0.55, mat(0x3a3a40)).translateY(0.45).translateZ(-4.1)));
     root.add(tagged("kitchen_fridge", box(0.85, 2, 0.7, mat(0xe8ecef)).translateY(1).translateX(-4.3).translateZ(-4)));
@@ -408,7 +417,7 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("kitchen_jar_row", box(0.9, 0.25, 0.15, mat(0xffcc88)).translateY(2.35).translateZ(-4.55)));
     root.add(tagged("kitchen_cabinet", box(1, 0.8, 0.35, mat(0x5a4030)).translateY(2.35).translateX(-3.5).translateZ(-4.55)));
     root.add(tagged("kitchen_neon_punk", box(1.2, 0.35, 0.05, mat(0xff3399, 0xff3399)).translateY(2.15).translateZ(-4.85)));
-    root.add(tagged("kitchen_rug", new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), mat(0x5a2040)).rotateX(-Math.PI / 2).translateY(0.01).translateZ(1.2)));
+    root.add(tagged("kitchen_rug", floorDecal(new THREE.PlaneGeometry(1.8, 1.2), mat(0x5a2040), 0, 0.01, 1.2)));
     root.add(tagged("kitchen_jukebox", box(0.55, 1.05, 0.4, mat(0x331144, 0xff00ff)).translateY(0.52).translateX(4.2).translateZ(2.8)));
     root.add(tagged("kitchen_chair", box(0.35, 0.45, 0.35, mat(0x4a3048)).translateY(0.225).translateX(1.5).translateZ(0.5)));
     root.add(tagged("kitchen_table", box(1.2, 0.08, 0.7, mat(0x5a4030)).translateY(0.75).translateX(0).translateZ(1.8)));
@@ -457,7 +466,7 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("room_amp_stack", box(0.5, 0.75, 0.4, mat(0x111122, 0x00ffff)).translateY(0.38).translateX(5.5).translateZ(1.2)));
     root.add(tagged("room_tv_crt", box(0.75, 0.5, 0.08, mat(0x111118, 0x224466)).translateY(1.05).translateX(-3.5).translateZ(-5.5)));
     root.add(tagged("room_bookshelf_fg", box(0.9, 1.35, 0.28, mat(0x5a4030)).translateY(0.68).translateX(-5).translateZ(1.5)));
-    root.add(tagged("room_rug_fg", new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), mat(0x5a2040)).rotateX(-Math.PI / 2).translateY(0.015).translateZ(1.5)));
+    root.add(tagged("room_rug_fg", floorDecal(new THREE.PlaneGeometry(1.8, 1.2), mat(0x5a2040), 0, 0.015, 1.5)));
     root.add(tagged("room_skull_lamp", box(0.2, 0.32, 0.2, mat(0xddddcc, 0xaaccaa)).translateY(1.6).translateX(-2).translateZ(-5.5)));
     root.add(tagged("room_pumpkin", new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.24).translateX(-4.8).translateZ(-2.8)));
     root.add(tagged("room_trash_bin", box(0.32, 0.55, 0.32, mat(0x3a4048)).translateY(0.275).translateX(4.8).translateZ(-2.5)));
@@ -668,7 +677,7 @@ export function addShowcaseProps(locId, root) {
     root.add(tagged("roof_potted_plant", box(0.35, 0.5, 0.35, mat(0x228844)).translateY(0.25).translateX(-5).translateZ(5)));
     root.add(tagged("roof_string_lights", box(3, 0.04, 0.04, mat(0xffff88, 0xffff00)).translateY(2.8).translateZ(6)));
     root.add(tagged("roof_ladder", box(0.35, 2.2, 0.08, mat(0x888888)).translateY(1.1).translateX(8).translateZ(0)));
-    root.add(tagged("roof_helipad_mark", new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 16), mat(0xffff00, 0xffcc00)).rotateX(-Math.PI / 2).translateY(0.015).translateZ(-2)));
+    root.add(tagged("roof_helipad_mark", floorDecal(new THREE.RingGeometry(0.8, 1, 16), mat(0xffff00, 0xffcc00), 0, 0.015, -2)));
     root.add(tagged("roof_billboard", box(2.5, 1.4, 0.1, mat(0x2a1848, 0xff00ff)).translateY(2).translateX(-6).translateZ(-10)));
     root.add(tagged("roof_pipe_cluster", box(0.4, 0.6, 0.4, mat(0x555566)).translateY(0.3).translateX(1).translateZ(-5)));
     root.add(tagged("roof_toolbox", box(0.35, 0.22, 0.22, mat(0xcc2222)).translateY(0.11).translateX(4).translateZ(2)));

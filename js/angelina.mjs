@@ -273,15 +273,29 @@ export function initAngelina() {
   if (booted) return;
   booted = true;
   bind();
-  const unlock = () => { voiceUnlocked = true; };
+  const unlock = () => {
+    voiceUnlocked = true;
+    if (pendingSpeech && voiceOn()) speak(pendingSpeech);
+  };
   window.addEventListener("pointerdown", unlock, { once: true });
   window.addEventListener("keydown", unlock, { once: true });
   window.Angelina = {
-    tick, repeat, showWhere, openJournal, place, currentMood, initAngelina
+    tick, repeat, showWhere, openJournal, place, currentMood, onLanguage, initAngelina
   };
   window.Onboarding?.render?.();
   window.StoryEngine?.renderObjectivePanel?.();
   setInterval(() => {
     if (window.me?.characterId) tick();
   }, 900);
+}
+
+export function onLanguage() {
+  const row = getLine(currentId);
+  if (row) {
+    const text = lineText({ text: row }, lang());
+    render(text, currentId);
+    speak(text);
+  }
+  paintChapter();
+  window.Onboarding?.render?.();
 }

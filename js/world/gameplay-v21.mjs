@@ -39,7 +39,12 @@ function saveDecor(items) {
   try { localStorage.setItem(DECOR_KEY, JSON.stringify(items)); } catch {}
   if (window.me) {
     window.me.story = window.me.story || {};
-    window.me.story.roomDecor = (items || []).map(d => ({ id: d.id, x: d.x, z: d.z, rot: d.rot || 0 }));
+    window.me.story.roomDecor = (items || []).map(d => ({
+      type: d.type || d.id || "sofa",
+      x: d.x,
+      z: d.z,
+      rot: d.rot || 0
+    }));
     window.__angelinaFlags = window.__angelinaFlags || {};
     window.__angelinaFlags.decor = true;
     window.saveMe?.();

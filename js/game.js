@@ -734,7 +734,11 @@ function init() {
   window.me = me;
   window.__playerLoaded = false;
   window.saveMe = saveMe;
-  window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
+  window.onLanguageChanged = () => {
+    renderAll();
+    applyI18nDom();
+    window.Angelina?.onLanguage?.();
+  };
   initLanguage();
   document.querySelectorAll(".lang-btn").forEach(btn => {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);

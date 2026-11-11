@@ -54,8 +54,8 @@ function resolveAnimName(name) {
 
 const DOG_FOLLOW_DIST = 1.2;
 const DOG_FOLLOW_SIDE = 0.45;
-const ANG_DIST = 1.2;
-const ANG_SIDE = -0.75;
+const ANG_DIST = 0.9;
+const ANG_SIDE = 0.55;
 const _angHead = new THREE.Vector3();
 let punkDogTemplate = null;
 let renderer, scene, camera, clock, raycaster, pointer;
@@ -358,6 +358,30 @@ function attachAngelWings(actor) {
   g.add(halo);
   actor.group.add(g);
   actor._wings = g;
+  const plate = document.createElement("canvas");
+  plate.width = 256;
+  plate.height = 64;
+  const ctx = plate.getContext("2d");
+  ctx.fillStyle = "rgba(18, 8, 32, 0.88)";
+  ctx.fillRect(4, 8, 248, 48);
+  ctx.strokeStyle = "#e7b6ff";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(4, 8, 248, 48);
+  ctx.fillStyle = "#ffe27a";
+  ctx.font = "bold 28px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Angelina", 128, 34);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(plate),
+    transparent: true,
+    depthTest: false
+  }));
+  sprite.position.set(0, 2.05, 0);
+  sprite.scale.set(0.72, 0.18, 1);
+  sprite.renderOrder = 10;
+  actor.group.add(sprite);
+  actor._nameplate = sprite;
 }
 
 function ensureAngelina() {
@@ -372,30 +396,46 @@ function ensureAngelina() {
   return a;
 }
 
+function guideStandPoint(pl, duel) {
+  // Screen-right, a short step toward the camera. The left of the frame is the
+  // quest panel, so a left-side offset hides her behind the UI.
+  const side = duel ? 1.45 : 0.78;
+  const front = duel ? 0.15 : 0.42;
+  const rx = -Math.cos(cameraYaw);
+  const rz = Math.sin(cameraYaw);
+  const fx = Math.sin(cameraYaw);
+  const fz = Math.cos(cameraYaw);
+  return {
+    x: pl.wx + fx * front + rx * side,
+    z: pl.wz + fz * front + rz * side
+  };
+}
+
 function updateAngelinaFollow(dt, pl) {
   const angel = actors.get("angelina");
   if (!angel || !pl || !bounds) return;
   const duel = isDuelActive();
-  const yaw = pl.group.rotation.y;
-  let tx;
-  let tz;
-  if (duel) {
-    tx = pl.wx + 2.15;
-    tz = pl.wz + 0.35;
-  } else {
-    tx = pl.wx - Math.sin(yaw) * ANG_DIST + Math.cos(yaw) * ANG_SIDE;
-    tz = pl.wz - Math.cos(yaw) * ANG_DIST - Math.sin(yaw) * ANG_SIDE;
+  const slot = guideStandPoint(pl, duel);
+  let tx = slot.x;
+  let tz = slot.z;
+  let tgt = clampWorld(tx, tz, 0.28);
+  if (Math.hypot(tgt.x - tx, tgt.z - tz) > 0.4) {
+    tx = pl.wx - (slot.x - pl.wx);
+    tz = pl.wz - (slot.z - pl.wz);
+    tgt = clampWorld(tx, tz, 0.28);
   }
-  const tgt = clampWorld(tx, tz);
-  const lerp = Math.min(1, dt * 6.5);
+  const gap = Math.hypot(tgt.x - angel.wx, tgt.z - angel.wz);
+  const lerp = gap > 2.2 ? 1 : Math.min(1, dt * 6.5);
   angel.wx += (tgt.x - angel.wx) * lerp;
   angel.wz += (tgt.z - angel.wz) * lerp;
+  angel._visPushX = 0;
+  angel._visPushZ = 0;
   angel.group.position.set(angel.wx, 0, angel.wz);
   angel.group.visible = true;
   if (angel.root) angel.root.visible = true;
   const move = Math.hypot(tgt.x - angel.wx, tgt.z - angel.wz);
-  const faceX = pl.wx - angel.wx;
-  const faceZ = pl.wz - angel.wz;
+  const faceX = (duel ? pl.wx : camera.position.x) - angel.wx;
+  const faceZ = (duel ? pl.wz : camera.position.z) - angel.wz;
   const ty = Math.atan2(faceX, faceZ);
   let diff = ty - angel.group.rotation.y;
   while (diff > Math.PI) diff -= Math.PI * 2;
@@ -518,7 +558,7 @@ function clampWorld(x, z, radius = 0.42) {
 }
 
 function separateActors() {
-  const list = [...actors.values()].filter(a => !a.isDog);
+  const list = [...actors.values()].filter(a => !a.isDog && !a.isGuide);
   const dog = actors.get("dog");
   const pl = actors.get("player");
   if (dog && pl) {
@@ -1649,6 +1689,26 @@ const api = {
       visible: a.group.visible !== false && !!a.root?.visible,
       wx: a.wx,
       wz: a.wz
+    };
+  },
+  getGuideFrame: () => {
+    const a = actors.get("angelina");
+    const canvas = document.getElementById("stage3d");
+    if (!a?.group || !camera || !canvas) return null;
+    const w = canvas.clientWidth || 1;
+    const h = canvas.clientHeight || 1;
+    const project = (x, y, z) => {
+      const p = new THREE.Vector3(x, y, z).project(camera);
+      return { x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * h, behind: p.z > 1 };
+    };
+    const head = project(a.wx, 1.55, a.wz);
+    const feet = project(a.wx, 0.08, a.wz);
+    return {
+      head, feet,
+      heightPx: Math.abs(feet.y - head.y),
+      wx: a.wx,
+      wz: a.wz,
+      inFrame: head.x > w * 0.08 && head.x < w * 0.92 && head.y > h * 0.06 && head.y < h * 0.72 && feet.y > head.y && Math.abs(feet.y - head.y) > 70
     };
   },
   refreshHangoutStage: stage => {
