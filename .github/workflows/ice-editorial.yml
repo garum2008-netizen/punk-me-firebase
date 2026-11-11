@@ -7,7 +7,6 @@ on:
       - ice-buffer/**
       - .github/workflows/ice-editorial.yml
   push:
-    branches: [main]
     paths:
       - ice-editorial/**
       - ice-buffer/**
