@@ -142,6 +142,46 @@ async function waitReadableDialog(page, minMs = 900) {
   await page.waitForTimeout(ms);
 }
 
+async function ensureStreetLocation(page) {
+  let loc = await page.evaluate(() => window.me?.location);
+  if (loc === "street") return;
+  logScene("ensure_street", `travel to street from ${loc}`);
+  if (!(await tryPortalTravel(page, "street", 75000))) {
+    await uiOpenMapTravel(page, "street");
+  }
+  await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 120000 });
+  loc = await page.evaluate(() => window.me?.location);
+  if (loc !== "street") {
+    throw new Error(`ensureStreetLocation: still on ${loc} after portal/map travel`);
+  }
+}
+
+async function openGangWithRazor(page, detail) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await ensureStreetLocation(page);
+    await visibleUiClick(page, '#panelBottom button[onclick*="gangModal"]', `${detail} attempt=${attempt + 1}`);
+    const razor = page.locator("#gangModal.active #gangList .npc-row[data-npc='razor']");
+    if (await razor.isVisible({ timeout: 12000 }).catch(() => false)) {
+      await page.waitForFunction(
+        () => {
+          const row = document.querySelector("#gangList .npc-row[data-npc='razor']");
+          if (!row) return false;
+          const r = row.getBoundingClientRect();
+          return r.width > 4 && r.height > 4;
+        },
+        undefined,
+        { timeout: 20000 }
+      );
+      return;
+    }
+    logScene("gang_razor_retry", `no razor row attempt ${attempt + 1}`);
+    await page.click("#gangModal .close").catch(() => {});
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(400);
+  }
+  throw new Error("openGangWithRazor: razor row never visible");
+}
+
 async function visibleUiClick(page, target, detail, opts = {}) {
   const loc = typeof target === "string" ? page.locator(target).first() : target.first();
   await loc.waitFor({ state: "visible", timeout: 30000 });
@@ -413,22 +453,7 @@ async function completeOnboarding(page) {
         timeout: 45000,
       });
     } else if (step === 2) {
-      if (st.location !== "street") await uiOpenMapTravel(page, "street");
-      await page
-        .waitForFunction(() => window.me?.location === "street", undefined, { timeout: 90000 })
-        .catch(() => {});
-      await visibleUiClick(page, '#panelBottom button[onclick*="gangModal"]', "gang → razor talk");
-      await page.waitForSelector("#gangModal.active #gangList .npc-row[data-npc='razor']", { timeout: 60000 });
-      await page.waitForFunction(
-        () => {
-          const row = document.querySelector("#gangList .npc-row[data-npc='razor']");
-          if (!row) return false;
-          const r = row.getBoundingClientRect();
-          return r.width > 4 && r.height > 4;
-        },
-        undefined,
-        { timeout: 30000 }
-      );
+      await openGangWithRazor(page, "gang → razor talk");
       await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row", { scroll: true });
       await page.waitForTimeout(600);
       const storyDlg = page.locator("#storyDialog:not([hidden]), .story-dialog-overlay.active");
@@ -458,9 +483,7 @@ async function completeOnboarding(page) {
         timeout: 45000,
       });
     } else if (step === 4) {
-      if (st.location !== "street") await uiOpenMapTravel(page, "street");
-      await visibleUiClick(page, '#panelBottom button[onclick*="gangModal"]', "gang → razor fight");
-      await page.waitForSelector("#gangModal.active #gangList .npc-row[data-npc='razor']", { timeout: 60000 });
+      await openGangWithRazor(page, "gang → razor fight");
       await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", { scroll: true });
       await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
       await visibleUiClick(page, 'button[onclick*="startNpcFight"]', "startNpcFight");
