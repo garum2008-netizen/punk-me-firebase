@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "defaultPlacement": "macDarwinDefault",
+  "missions": {
+    "EMMA-RECOVERY-20261111": {
+      "title": "Emma recovery mac checkpoint",
+      "placement": "macDarwinDefault",
+      "promptFile": "missions/EMMA-RECOVERY-20261111.prompt.md",
+      "source": {
+        "repositoryUrl": "https://github.com/garum2008-netizen/punk-me-firebase",
+        "startingRef": "main"
+      },
+      "preflight": {
+        "requireDarwin": true,
+        "paths": [
+          "/Applications/Inna Audiobook.app",
+          "~/Developer/emma-mystical-stories"
+        ]
+      },
+      "recovery": {
+        "projectRoot": "~/Developer/emma-mystical-stories",
+        "checkpointDir": "~/Developer/emma-mystical-stories/.cursor-checkpoints",
+        "backupRepositoryUrl": "https://github.com/garum2008-netizen/inna-ai-backend",
+        "backupSubpath": "private/emma-recovery-backup"
+      },
+      "tags": ["emma", "mac", "darwin", "recovery"]
+    }
+  },
+  "tagRouting": [
+    {
+      "tagsAny": ["mac", "darwin", "emma", "audiobook"],
+      "placement": "macDarwinDefault"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "workers": {
+    "inna-mac": {
+      "displayName": "inna-mac",
+      "privateWorkerId": "d9254d28-f188-40bb-bd12-e5dd1104add2",
+      "usePrivateWorker": true,
+      "os": "darwin",
+      "computerUse": true,
+      "cursorEnv": {
+        "type": "machine",
+        "name": "inna-mac"
+      },
+      "registerFromPaths": [
+        "~/Developer/emma-mystical-stories",
+        "~/Developer/punk-me-firebase"
+      ]
+    }
+  },
+  "placements": {
+    "macDarwinDefault": {
+      "workerRef": "inna-mac",
+      "forbidCloudFallback": true
+    }
+  }
+}
