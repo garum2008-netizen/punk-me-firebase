@@ -52,7 +52,7 @@ export function normalizeIdempotencyKey(key) {
 export function decideRetry(attempt, status) {
   if (attempt >= 3) return false;
   if (status == null) return true;
-  return status === 429 || status >= 500;
+  return status === 403 || status === 429 || status >= 500;
 }
 
 export function assessChannel(channelId, audience) {
@@ -179,6 +179,44 @@ export function duplicateDecision(existing, incoming) {
     return { action: "conflict", status: "duplicate_conflict", error_code: "DUPLICATE_MEDIA" };
   }
   return { action: "reuse", status: existing.status, error_code: null };
+}
+
+export function prepareVisualDraft(input) {
+  const idempotencyKey = normalizeIdempotencyKey(input && input.idempotencyKey);
+  if (!idempotencyKey) {
+    return { ok: false, status: "blocked_missing_media", error_code: "IDEMPOTENCY_KEY", publish: false };
+  }
+  if (input && (input.sharedNow === true || input.mode === "shareNow")) {
+    return { ok: false, status: "blocked_publish_not_authorized", error_code: "PUBLISH_NOT_AUTHORIZED", publish: false };
+  }
+  const channel = assessChannel(input && input.channelId, input && input.audience);
+  if (!channel.ok) return { ...channel, publish: false };
+  const gate = gateAction({ ...input, action: "draft", audience: (input && input.audience) || channel.channel });
+  if (!gate.ok) return { ...gate, publish: false };
+  const request = {
+    channelId: input.channelId,
+    schedulingType: "automatic",
+    saveToDraft: true,
+    text: String((input && input.text) || ""),
+    assets: [
+      {
+        image: {
+          url: gate.image_url,
+          metadata: { altText: (input && input.altText) || "ICE visual" }
+        }
+      }
+    ]
+  };
+  if (input && input.service === "linkedin") request.metadata = {};
+  else request.metadata = { facebook: { type: "post" } };
+  return {
+    ok: true,
+    status: "ready_for_attach",
+    publish: false,
+    idempotencyKey,
+    channel: channel.channel,
+    request
+  };
 }
 
 export function imageStoredResponse(stored) {

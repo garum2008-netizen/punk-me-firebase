@@ -39,7 +39,7 @@ function normalizeIdempotencyKey(key) {
 function decideRetry(attempt, status) {
   if (attempt >= 3) return false;
   if (status == null) return true;
-  return status === 429 || status >= 500;
+  return status === 403 || status === 429 || status >= 500;
 }
 
 function wait(ms) {

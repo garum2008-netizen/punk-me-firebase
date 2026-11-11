@@ -2,6 +2,8 @@
 
 The live worker is `inna-content-engine-gateway`. It stores generated images in the public R2 bucket `ice-public-media` and writes one status object per idempotency key at `ice-status/<key>.json`. It does not call Buffer and it does not publish.
 
+Visual image generation requires an idempotency key and returns only the public image URL. The base64 payload is not a successful media result. Buffer credentials stay in the authorized Buffer client. `prepareVisualDraft` is the only payload that may create a visual draft: it forces `saveToDraft`, omits immediate publishing, and refuses a channel whose audience does not match. No Cloudflare worker contains a Buffer API call. Ask Inna calls the gateway only for text.
+
 Status values:
 
 - `ready_for_attach` — a public JPEG, PNG, or WebP URL passed validation. A draft may be created. Publication is still blocked.
@@ -21,4 +23,4 @@ Recovery:
 4. Write the Buffer post id back through `POST /api/media/status`. A different post id for the same key returns `duplicate_conflict`.
 5. Leave the existing Buffer queue unchanged. Children's channels and the business channels stay on their own channel class.
 
-Image storage and the public HEAD check retry at most three times, and only for a network failure, HTTP 429, or HTTP 5xx.
+Image storage and the public HEAD check retry at most three times. A retry is used for a network failure, a brief public HTTP 403, HTTP 429, or HTTP 5xx. A missing idempotency key blocks image generation before any image is requested.

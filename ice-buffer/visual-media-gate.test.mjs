@@ -8,7 +8,8 @@ import {
   duplicateDecision,
   gateAction,
   imageStoredResponse,
-  normalizeIdempotencyKey
+  normalizeIdempotencyKey,
+  prepareVisualDraft
 } from "./visual-media-gate.mjs";
 
 const PNG = "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/gate-20261108/b2b-6-clauses-en.png";
@@ -98,10 +99,53 @@ test("the same idempotency key is reused and a second post id conflicts", () => 
 });
 
 test("retries stop after three attempts and skip permanent errors", () => {
+  assert.equal(decideRetry(1, 403), true);
   assert.equal(decideRetry(1, 503), true);
   assert.equal(decideRetry(1, null), true);
   assert.equal(decideRetry(1, 400), false);
   assert.equal(decideRetry(3, 503), false);
+});
+
+test("a visual Buffer draft requires a key, a public image, and the matching channel", () => {
+  const missing = prepareVisualDraft({ channelId: BUSINESS, audience: "business", text: "x" });
+  assert.equal(missing.error_code, "IDEMPOTENCY_KEY");
+  const noImage = prepareVisualDraft({
+    idempotencyKey: "ice-final-20261111-verify",
+    channelId: BUSINESS,
+    audience: "business",
+    text: "x"
+  });
+  assert.equal(noImage.status, "blocked_missing_media");
+  const child = prepareVisualDraft({
+    idempotencyKey: "ice-final-20261111-verify",
+    channelId: CHILDREN,
+    audience: "business",
+    imageUrl: PNG,
+    text: "x"
+  });
+  assert.equal(child.status, "blocked_channel_separation");
+  const publish = prepareVisualDraft({
+    idempotencyKey: "ice-final-20261111-verify",
+    channelId: BUSINESS,
+    audience: "business",
+    imageUrl: PNG,
+    text: "x",
+    mode: "shareNow"
+  });
+  assert.equal(publish.status, "blocked_publish_not_authorized");
+  const ready = prepareVisualDraft({
+    idempotencyKey: "ice-final-20261111-verify",
+    channelId: BUSINESS,
+    audience: "business",
+    imageUrl: PNG,
+    text: "ICE final integration check. Do not publish.",
+    altText: "ICE final integration check"
+  });
+  assert.equal(ready.publish, false);
+  assert.equal(ready.request.saveToDraft, true);
+  assert.equal(ready.request.mode, undefined);
+  assert.equal(ready.request.assets[0].image.url, PNG);
+  assert.equal(ready.request.metadata.facebook.type, "post");
 });
 
 test("image generation without a stored public URL fails closed", () => {
