@@ -14,7 +14,22 @@ let orbitCb = null;
 let orbitDragging = false;
 let lastX = 0;
 
+function storyUiOpen() {
+  if (typeof document === "undefined") return false;
+  if (document.getElementById("storyDialog")?.classList.contains("active")) return true;
+  if (document.getElementById("howToOverlay")?.classList.contains("active")) return true;
+  return !!document.querySelector(".modal.active");
+}
+
 export function getInputState() {
+  if (storyUiOpen()) {
+    state.moveX = 0;
+    state.moveZ = 0;
+    state.jump = false;
+    state.interact = false;
+    state.run = false;
+    return state;
+  }
   const up = state.w || state.arrowup;
   const down = state.s || state.arrowdown;
   const left = state.a || state.arrowleft;
@@ -48,8 +63,10 @@ export function initControls3D(canvas, onOrbitDelta) {
   canvas.addEventListener("pointercancel", onPtrUp);
 }
 
-function onKeyDown(e) {
+export function applyKeyDown(e) {
+  if (e.repeat) return;
   if (e.target?.matches?.("input, textarea, select")) return;
+  if (storyUiOpen()) return;
   const k = e.key.toLowerCase();
   if (k === "w" || k === "a" || k === "s" || k === "d") state[k] = true;
   if (e.key === "ArrowUp") state.arrowup = true;
@@ -59,6 +76,10 @@ function onKeyDown(e) {
   if (e.key === "Shift") state.shift = true;
   if (e.key === " ") { state.jump = true; e.preventDefault(); }
   if (k === "e") state.interact = true;
+}
+
+function onKeyDown(e) {
+  applyKeyDown(e);
 }
 
 function onKeyUp(e) {
