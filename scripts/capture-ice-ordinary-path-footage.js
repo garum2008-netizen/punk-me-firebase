@@ -723,7 +723,8 @@ async function runOrdinarySession(browser, viewport, label) {
   const baseUrl = `http://127.0.0.1:${PORT}`;
   const entryUrl = `${baseUrl}/?solo=1${qs}&v=ice-ordinary-${label}`;
   const passTag = ordinaryPassTag();
-  const videoDir = path.join(OUT, `playwright-video-${passTag}-${label}`);
+  const videoDir = path.join(OUT, `playwright-video-${passTag}-${label}-${Date.now()}`);
+  if (fs.existsSync(videoDir)) fs.rmSync(videoDir, { recursive: true, force: true });
   fs.mkdirSync(videoDir, { recursive: true });
 
   const ctx = await browser.newContext({
@@ -824,9 +825,17 @@ async function runOrdinarySession(browser, viewport, label) {
   }
   await ctx.close();
   if (video) {
-    await new Promise(r => setTimeout(r, 800));
+    let tmp = null;
+  for (let attempt = 0; attempt < 30; attempt++) {
+      await new Promise(r => setTimeout(r, 400));
+      try {
+        tmp = await video.path();
+      } catch (_) {
+        tmp = null;
+      }
+      if (tmp && fs.existsSync(tmp) && fs.statSync(tmp).size > 2_000_000) break;
+    }
     try {
-      const tmp = await video.path();
       if (tmp && fs.existsSync(tmp)) {
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         fs.copyFileSync(tmp, dest);
@@ -836,7 +845,7 @@ async function runOrdinarySession(browser, viewport, label) {
     } catch (e) {
       videoSaveError = String(e.message || e);
       const fallback = findWebmUnder(videoDir);
-      if (fallback && fs.existsSync(fallback)) {
+      if (fallback && fs.existsSync(fallback) && fs.statSync(fallback).size > 2_000_000) {
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         fs.copyFileSync(fallback, dest);
         videoSaveError = null;
