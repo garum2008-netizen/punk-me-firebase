@@ -602,13 +602,30 @@ async function walkInteractCh1(page, tx, tz, radius = 2.85, maxMs = 38000) {
   throw new Error(`walkInteractCh1 timeout ${tx},${tz} last=${JSON.stringify(last)}`);
 }
 
+async function advanceLifeCh1MoveStep(page) {
+  await dismissHowTo(page);
+  await focusStage(page);
+  const deadline = Date.now() + 150000;
+  while (Date.now() < deadline) {
+    const st = await readState(page);
+    if ((st.lifeCh1?.stepIndex || 0) >= 1) {
+      logScene("ch1_move", `stepIndex=${st.lifeCh1.stepIndex}`);
+      return;
+    }
+    await walkKeys(page, 6, 420);
+    await page.waitForTimeout(120);
+  }
+  const st = await readState(page);
+  if ((st.lifeCh1?.stepIndex || 0) < 1) {
+    throw new Error(`move step did not advance via UI (stepIndex=${st.lifeCh1?.stepIndex ?? "?"})`);
+  }
+  logScene("ch1_move", `stepIndex=${st.lifeCh1.stepIndex}`);
+}
+
 async function playLifeCh1Ordinary(page) {
   await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 120000 });
   logScene("ch1_start", "Life Ch1 panel after onboarding");
-  await walkKeys(page, 12, 350);
-  const st = await readState(page);
-  if ((st.lifeCh1?.stepIndex || 0) < 1) throw new Error("move step did not advance via UI");
-  logScene("ch1_move", `stepIndex=${st.lifeCh1.stepIndex}`);
+  await advanceLifeCh1MoveStep(page);
 
   await walkInteractCh1(page, -3.2, 2.5);
   logScene("ch1_mirror", "wardrobe interact");
