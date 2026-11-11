@@ -602,7 +602,20 @@ async function walkInteractCh1(page, tx, tz, radius = 2.85, maxMs = 38000) {
   throw new Error(`walkInteractCh1 timeout ${tx},${tz} last=${JSON.stringify(last)}`);
 }
 
+async function ensureRoomForLifeCh1(page) {
+  let loc = await page.evaluate(() => window.me?.location);
+  if (loc === "room") return;
+  logScene("ensure_room", `Life Ch1 move requires room, currently ${loc}`);
+  await uiOpenMapTravel(page, "room");
+  await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 120000 });
+  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 45000 });
+  await focusStage(page);
+  await page.evaluate(() => window.World3D?.snapPlayerToLocationSpawn?.()).catch(() => {});
+  await page.waitForTimeout(400);
+}
+
 async function advanceLifeCh1MoveStep(page) {
+  await ensureRoomForLifeCh1(page);
   await dismissHowTo(page);
   await focusStage(page);
   const deadline = Date.now() + 150000;
