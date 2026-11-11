@@ -1,0 +1,125 @@
+{
+  "status": "pending_owner",
+  "items": [
+    {
+      "id": "eudi-20261120",
+      "bufferDraftId": "6af442e5f41d6d2bbb6444d1",
+      "proposedDueAt": "2026-11-20T08:00:00+01:00",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "approval": {
+        "status": "pending_owner",
+        "version": "651e0f9337834ebbeec9a4b1f7d3060dfab9afa164d5d97926e99e2e5f866218",
+        "channelId": "6a9d9227cd8b9c702c197a40",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-11-20T08:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "gdpr-20261204",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-04T08:00:00+01:00",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "approval": {
+        "status": "pending_owner",
+        "version": "b441ff5296121945b876141bd4090f9a413336a4e23d27158dc1643fe0ca9694",
+        "channelId": "6a9d9227cd8b9c702c197a40",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-04T08:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "nda-20261208",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-08T08:00:00+01:00",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "approval": {
+        "status": "pending_owner",
+        "version": "e460b0e903befda05b3e5b000a6be4754ed0b5eaf9191ea3994a59f3105658a6",
+        "channelId": "6a9d9227cd8b9c702c197a40",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-08T08:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "ip-20261211",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-11T08:00:00+01:00",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "approval": {
+        "status": "pending_owner",
+        "version": "0ba55766e8406c35095326602cb5204b9ca196735c5fae1a632c5764a2010b54",
+        "channelId": "6a9d9227cd8b9c702c197a40",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-11T08:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "cisg-20261214",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-14T08:00:00+01:00",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "approval": {
+        "status": "pending_owner",
+        "version": "ebc5e5a5183a48590af2fa0a3a8a159627c5a3714bba8060ff081a407c6c88f7",
+        "channelId": "6a9d9227cd8b9c702c197a40",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-14T08:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "indemnity-20261218",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-18T08:00:00+01:00",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "approval": {
+        "status": "pending_owner",
+        "version": "8db9251a9830ef268a52edfeab9d0deabc697b521639a370791baaf38cb6a27c",
+        "channelId": "6a9d9227cd8b9c702c197a40",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-18T08:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "language-20261222",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-22T08:00:00+01:00",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "approval": {
+        "status": "pending_owner",
+        "version": "8eb421b10e9052633f1f1ed7af9f0a87469fe52b4da06a2d21e2fecc593f5a81",
+        "channelId": "6a9d9227cd8b9c702c197a40",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-22T08:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "subcontract-20261223",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-23T08:00:00+01:00",
+      "channelId": "6a9d9227cd8b9c702c197a40",
+      "approval": {
+        "status": "pending_owner",
+        "version": "70fd6a937476c74c677d88c3f25b172d2dfb59643407a27d5dd2119895f92b32",
+        "channelId": "6a9d9227cd8b9c702c197a40",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-23T08:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    }
+  ]
+}

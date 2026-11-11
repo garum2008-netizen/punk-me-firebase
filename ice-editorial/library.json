@@ -106,5 +106,21 @@
     "reach": 695,
     "shares": 0,
     "engagementRate": 4.08
-  }
+  },
+  "queueRead": {
+    "november": { "posts": 51, "hasNextPage": false },
+    "december": { "posts": 17, "hasNextPage": false },
+    "imagelessLeftUntouched": [
+      { "id": "6ae0faf745591c35732a10bd", "status": "draft", "dueAt": "2026-11-04T08:49:00.000Z", "channel": "facebook", "note": "Danish six-point checklist" },
+      { "id": "6ab30180ff828cdd0bfef62e", "status": "scheduled", "dueAt": "2026-11-18T18:00:00.000Z", "channel": "facebook", "note": "Retention of title. Existing schedule preserved." },
+      { "id": "6ab301cd9b9f20530d111adf", "status": "draft", "dueAt": "2026-11-21T21:57:00.000Z", "channel": "facebook", "note": "Danish law and CISG myth" }
+    ],
+    "duplicateClusters": [
+      "The cross-border cash sentence is repeated across several November drafts.",
+      "Clear contracts. Lower risks. Stronger business. is a promotional series, not a case analysis.",
+      "Payment and delivery disagree is queued more than once."
+    ]
+  },
+  "reviewSlate": "ice-editorial/review-packages.mjs",
+  "checkpoint": "ice-editorial/CHECKPOINT.json"
 }

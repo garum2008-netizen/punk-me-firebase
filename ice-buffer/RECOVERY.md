@@ -16,7 +16,7 @@ Status values:
 - `duplicate_conflict` — the idempotency key already belongs to a different image or Buffer post.
 - `text_only` — the package is not visual, so the draft is saved without an attachment.
 
-The editorial desk is `ice-editorial/`. `reviewPackage` refuses client material, children's channels, a picture whose topic does not match the lesson, and any item already present in the queue. A new package may be saved as a draft. It is not scheduled or published until the owner approves that exact text, channel, and date. The library and the seven-day decisions are in `ice-editorial/library.json`.
+The editorial desk is `ice-editorial/`. `reviewPackage` refuses client material, children's channels, a picture whose topic does not match the lesson, and any item already present in the queue. A new package may be saved as a draft. `scheduleApproved` sends a dated Buffer update only when a separate approval record names the approver and the time, and when that record's version matches the text, channel, media and date. Silence, a pending record, and any later edit all stop the schedule. The game hosting config ignores `ice-editorial/` and `ice-buffer/`, so this desk is not published with the PUNK ME site.
 
 Recovery:
 

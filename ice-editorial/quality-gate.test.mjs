@@ -21,6 +21,7 @@ function base(overrides) {
     scenario: "A typed name in an email is treated as a signed change to a liability cap.",
     risk: "A typed name is not automatically a qualified electronic signature.",
     lesson: "Record who signed, which document, and which signature level the contract requires.",
+    framework: "Article 25 of Regulation (EU) No 910/2014 gives a qualified electronic signature the effect of a handwritten signature.",
     cta: "Check the signing method before relying on it.",
     sources: ["Regulation (EU) No 910/2014, Article 25"],
     text: "Teaching example. A typed name is not automatically a qualified electronic signature.",

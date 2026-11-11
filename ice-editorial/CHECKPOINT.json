@@ -1,0 +1,69 @@
+{
+  "updatedAt": "2026-11-11T10:40:00+01:00",
+  "stage": "approval-gate-tested",
+  "queueUntouched": true,
+  "scheduledByThisRun": [],
+  "signatureDraft": {
+    "id": "6af442e5f41d6d2bbb6444d1",
+    "bufferStatus": "draft",
+    "approval": "pending_owner",
+    "version": "651e0f9337834ebbeec9a4b1f7d3060dfab9afa164d5d97926e99e2e5f866218"
+  },
+  "reviewPackages": [
+    {
+      "id": "eudi-20261120",
+      "version": "651e0f9337834ebbeec9a4b1f7d3060dfab9afa164d5d97926e99e2e5f866218",
+      "status": "pending_owner"
+    },
+    {
+      "id": "gdpr-20261204",
+      "version": "b441ff5296121945b876141bd4090f9a413336a4e23d27158dc1643fe0ca9694",
+      "status": "pending_owner"
+    },
+    {
+      "id": "nda-20261208",
+      "version": "e460b0e903befda05b3e5b000a6be4754ed0b5eaf9191ea3994a59f3105658a6",
+      "status": "pending_owner"
+    },
+    {
+      "id": "ip-20261211",
+      "version": "0ba55766e8406c35095326602cb5204b9ca196735c5fae1a632c5764a2010b54",
+      "status": "pending_owner"
+    },
+    {
+      "id": "cisg-20261214",
+      "version": "ebc5e5a5183a48590af2fa0a3a8a159627c5a3714bba8060ff081a407c6c88f7",
+      "status": "pending_owner"
+    },
+    {
+      "id": "indemnity-20261218",
+      "version": "8db9251a9830ef268a52edfeab9d0deabc697b521639a370791baaf38cb6a27c",
+      "status": "pending_owner"
+    },
+    {
+      "id": "language-20261222",
+      "version": "8eb421b10e9052633f1f1ed7af9f0a87469fe52b4da06a2d21e2fecc593f5a81",
+      "status": "pending_owner"
+    },
+    {
+      "id": "subcontract-20261223",
+      "version": "70fd6a937476c74c677d88c3f25b172d2dfb59643407a27d5dd2119895f92b32",
+      "status": "pending_owner"
+    }
+  ],
+  "held": [
+    {
+      "id": "legal-comedy",
+      "reason": "No verified legal cartoon or short video is available. A visual post will not be marked ready without one."
+    },
+    {
+      "id": "contractbot-product-education",
+      "reason": "This repository does not contain a verified list of ContractBot product behaviour, so no product claim is drafted."
+    },
+    {
+      "id": "books-and-children",
+      "reason": "PUNK ME ANGEL, Angel&Chris Play, angelinalinakragh, LAW OF CODE and the Emma stories stay outside this legal desk."
+    }
+  ],
+  "resume": "Do not edit the existing Buffer queue. Do not schedule a review package until its approval record has status approved, an approver, an approvedAt time, and the same version, channel, media and date."
+}

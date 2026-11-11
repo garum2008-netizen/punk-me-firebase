@@ -1,7 +1,7 @@
 import { prepareVisualDraft } from "../ice-buffer/visual-media-gate.mjs";
 
 const CONFIDENTIAL = /clarges/i;
-const REQUIRED = ["scenario", "risk", "lesson", "cta", "text"];
+const REQUIRED = ["scenario", "framework", "risk", "lesson", "cta", "text"];
 
 export function reviewPackage(pkg) {
   const reasons = [];
@@ -13,7 +13,7 @@ export function reviewPackage(pkg) {
   }
   if (!pkg || !Array.isArray(pkg.sources) || pkg.sources.length < 1) reasons.push("missing_source");
   if (pkg && pkg.audience === "children") reasons.push("children_not_in_legal_desk");
-  if (!pkg || (pkg.approval !== "pending_owner" && pkg.approval !== "existing_queue")) reasons.push("approval_missing");
+  if (!pkg || (pkg.approval !== "pending_owner" && pkg.approval !== "existing_queue" && pkg.approval !== "approved")) reasons.push("approval_missing");
   if (pkg && Array.isArray(pkg.collisions) && pkg.collisions.length > 0) reasons.push("queue_collision");
   if (pkg && pkg.visual === true) {
     if (!pkg.imageUrl) reasons.push("missing_media");

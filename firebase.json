@@ -9,6 +9,6 @@
   },
   "hosting": {
     "public": ".",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "package-lock.json"]
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "package-lock.json", "ice-editorial/**", "ice-buffer/**", ".github/**"]
   }
 }
