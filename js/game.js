@@ -596,6 +596,7 @@ function startFreshPlayerKeepAccount() {
 }
 
 function hasDog() {
+  if (window.Onboarding?.needsTutorialDog?.()) return true;
   return me.pet === "pet_dog" || (me.owned || []).includes("pet_dog");
 }
 
@@ -1444,6 +1445,7 @@ function renderPlayers() {
 function petDog(fromLife) {
   if (!fromLife) LifeEngine.barkAndPet();
   toast(t("petHappy"));
+  window.Onboarding?.onPetDog?.();
   me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
   window.PlayV21?.bumpDaily?.(me, "pet_dog", { toast, save: saveMe });
   if (!isOwner) me.coins += 6;

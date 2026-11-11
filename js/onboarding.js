@@ -1,22 +1,28 @@
-/** First-session onboarding chain (RU/EN/DA via i18n). */
+/** Chapter 0 onboarding — TZ house 13 chain, Angelina guides (RU/EN/DA via i18n). */
 const ONBOARDING_STEPS = [
   { id: "move", key: "moved", goal: 1, reward: { coins: 20, xp: 15 },
-    target: () => ({ loc: "room", wx: -4.2, wz: 3.8 }) },
-  { id: "go_street", key: "visit_street", goal: 1, reward: { coins: 30, xp: 20 },
-    target: () => ({ loc: "room", wx: 0, wz: 5.2 }) },
-  { id: "talk_razor", key: "talk_razor", goal: 1, reward: { coins: 40, xp: 25 },
-    target: () => ({ loc: "street", npcId: "razor" }) },
-  { id: "visit_cemetery", key: "visit_cemetery", goal: 1, reward: { coins: 50, xp: 30 },
-    target: () => ({ loc: "street", wx: 10, wz: -2 }) },
-  { id: "win_fight", key: "win_fight", goal: 1, reward: { coins: 80, xp: 45 },
-    target: () => ({ loc: "street", npcId: "razor" }) },
-  { id: "shop_buy", key: "shop_buy", goal: 1, reward: { coins: 25, xp: 35 },
-    target: () => ({ loc: "room", wx: -1, wz: 0, ui: "shop" }) }
+    target: () => ({ loc: "room", wx: -2.5, wz: 3.5 }) },
+  { id: "visit_kitchen", key: "visit_kitchen", goal: 1, reward: { coins: 25, xp: 18 },
+    target: () => ({ loc: "room", wx: -6.2, wz: 0 }) },
+  { id: "pet_dog", key: "pet_dog", goal: 3, reward: { coins: 30, xp: 22 },
+    target: () => ({ loc: "room", wx: -2.5, wz: 3.5 }) },
+  { id: "visit_elevator", key: "visit_elevator", goal: 1, reward: { coins: 25, xp: 18 },
+    target: () => ({ loc: "room", wx: 0, wz: -5.5 }) },
+  { id: "visit_street", key: "visit_street", goal: 1, reward: { coins: 30, xp: 20 },
+    target: () => {
+      const here = window.me?.location;
+      if (here === "elevator") return { wx: 0.85, wz: -0.45 };
+      return { loc: "room", wx: 0, wz: 5.2 };
+    } },
+  { id: "talk_razor", key: "talk_razor", goal: 1, reward: { coins: 40, xp: 30 },
+    target: () => ({ loc: "street", npcId: "razor" }) }
 ];
 
 /** Portal waypoints when the player is not yet in the step's target location. */
 const PORTAL_WAYPOINTS = {
-  street: { room: { wx: 0, wz: 5.2 } },
+  kitchen: { room: { wx: -6.2, wz: 0 } },
+  elevator: { room: { wx: 0, wz: -5.5 }, street: { wx: -10, wz: 0 } },
+  street: { room: { wx: 0, wz: 5.2 }, elevator: { wx: 0.85, wz: -0.45 } },
   cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.2 } }
 };
 
@@ -121,6 +127,10 @@ function saveMeQuiet() {
   if (window.saveMe) saveMe();
 }
 
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 function renderOnboardingQuest() {
   const box = document.getElementById("questBox");
   if (!box) return;
@@ -131,12 +141,14 @@ function renderOnboardingQuest() {
   const st = currentStep();
   if (!st) return;
   const i = stepIndex() + 1;
-  const title = typeof t === "function" ? t("onboard_title") : "Your mission";
+  const title = typeof t === "function" ? t("onboard_title") : "Chapter 0";
   const stepTitle = typeof t === "function" ? t(`onboard_${st.id}_title`) : st.id;
   const stepText = typeof t === "function" ? t(`onboard_${st.id}_text`) : "";
+  const angelina = typeof t === "function" ? t(`angelina_${st.id}_hint`) : "";
   const prog = progress()[st.key] || 0;
   box.innerHTML = `<div class="quest-tracker">
     <b>${escapeHtml(title)}</b> <span class="quest-step-num">${i}/${ONBOARDING_STEPS.length}</span>
+    <div class="angelina-guide"><span class="angelina-name">Angelina</span> — ${escapeHtml(angelina)}</div>
     <div class="quest-step-title">${escapeHtml(stepTitle)}</div>
     <div class="quest-step-text">${escapeHtml(stepText)}</div>
     <div class="quest-progress">${prog}/${st.goal}</div>
@@ -161,7 +173,10 @@ function getGuideTarget() {
   if (tgt.loc && window.me.location !== tgt.loc) {
     const wp = waypointToReach(tgt.loc);
     if (wp) return { wx: wp.wx, wz: wp.wz };
-    return null;
+    if (tgt.loc === "room" && window.me.location !== "room") {
+      return waypointToReach("room") || tgt;
+    }
+    return tgt.wx != null ? { wx: tgt.wx, wz: tgt.wz } : null;
   }
   if (tgt.npcId) return { npcId: tgt.npcId };
   if (tgt.wx != null && tgt.wz != null) return { wx: tgt.wx, wz: tgt.wz };
@@ -184,14 +199,23 @@ function onMove(x, y) {
 function onEnterLocation(loc) {
   const st = currentStep();
   if (!st) return;
+  if (st.key === "visit_kitchen" && loc === "kitchen") bump("visit_kitchen", 1);
+  if (st.key === "visit_elevator" && loc === "elevator") bump("visit_elevator", 1);
   if (st.key === "visit_street" && loc === "street") bump("visit_street", 1);
-  if (st.key === "visit_cemetery" && loc === "cemetery") bump("visit_cemetery", 1);
 }
 
-function onTalkRazor() { bump("talk_razor", 1); }
-function onVisitCemetery() { if (window.me?.location === "cemetery") bump("visit_cemetery", 1); }
-function onWinFight() { bump("win_fight", 1); }
-function onShopBuy() { bump("shop_buy", 1); }
+function onPetDog() {
+  bump("pet_dog", 1);
+}
+
+function onTalkRazor() {
+  bump("talk_razor", 1);
+}
+
+function needsTutorialDog() {
+  const st = currentStep();
+  return !!(st && st.key === "pet_dog" && window.Onboarding?.isActive?.());
+}
 
 function adaptSpawnLocation() {
   if (!window.me?.onboarding || window.me.onboarding.done) return;
@@ -218,11 +242,11 @@ window.Onboarding = {
   syncGuideTarget,
   onMove,
   onEnterLocation,
+  onPetDog,
   onTalkRazor,
-  onVisitCemetery,
-  onWinFight,
-  onShopBuy,
   getGuideTarget,
   normalizeFromSave,
-  isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
+  needsTutorialDog,
+  isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done),
+  ONBOARDING_STEPS
 };

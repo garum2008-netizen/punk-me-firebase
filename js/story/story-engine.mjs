@@ -1001,7 +1001,12 @@ export function initStoryEngine(h) {
 }
 
 export function onOnboardingComplete() {
-  Authority.startAuthorityPath(me());
+  const p = me();
+  const st = ensureStoryState(p);
+  st.chapter = Math.max(st.chapter || 0, 1);
+  st.quest.completed = st.quest.completed || {};
+  st.quest.completed.q_tutorial = true;
+  Authority.startAuthorityPath(p);
   pickNextObjective();
   renderObjectivePanel();
   Authority.renderAuthorityHud();

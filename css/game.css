@@ -433,6 +433,8 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   border-radius: 16px; padding: 16px;
 }
 .howto-controls { white-space: pre-wrap; font-size: 13px; line-height: 1.45; opacity: 0.92; }
+.quest-tracker .angelina-guide { font-size: 12px; color: #c8f0ff; margin-top: 6px; line-height: 1.35; }
+.quest-tracker .angelina-name { color: #ffb8f0; font-weight: 600; }
 .quest-tracker .quest-step-num { color: #0ff; font-size: 12px; }
 .quest-tracker .quest-step-title { color: #ff6ec7; margin-top: 4px; }
 .quest-tracker .quest-progress { font-size: 11px; opacity: 0.85; margin-top: 6px; }
