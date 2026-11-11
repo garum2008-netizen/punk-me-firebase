@@ -1,4 +1,4 @@
-/** Shared keyboard + pointer orbit state for World3D. */
+/** Keyboard and the virtual joystick keep separate vectors. Neither device wipes the other. */
 const state = {
   w: false, a: false, s: false, d: false,
   arrowup: false, arrowdown: false, arrowleft: false, arrowright: false,
@@ -7,22 +7,66 @@ const state = {
   interact: false,
   moveX: 0,
   moveZ: 0,
-  run: false
+  run: false,
+  source: "idle"
 };
+
+const touch = { x: 0, z: 0, run: false, active: false };
 
 let orbitCb = null;
 let orbitDragging = false;
 let lastX = 0;
 
-export function getInputState() {
+function keyboardVector() {
   const up = state.w || state.arrowup;
   const down = state.s || state.arrowdown;
   const left = state.a || state.arrowleft;
   const right = state.d || state.arrowright;
-  state.moveX = (right ? 1 : 0) - (left ? 1 : 0);
-  state.moveZ = (up ? 1 : 0) - (down ? 1 : 0);
-  state.run = state.shift;
+  return {
+    x: (right ? 1 : 0) - (left ? 1 : 0),
+    z: (up ? 1 : 0) - (down ? 1 : 0),
+    run: state.shift
+  };
+}
+
+function touchLayerEnabled() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return true;
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+
+export function getInputState() {
+  const key = keyboardVector();
+  if (key.x || key.z) {
+    state.moveX = key.x;
+    state.moveZ = key.z;
+    state.run = key.run;
+    state.source = "keyboard";
+  } else if (touch.active && touchLayerEnabled()) {
+    state.moveX = touch.x;
+    state.moveZ = touch.z;
+    state.run = touch.run;
+    state.source = "touch";
+  } else {
+    state.moveX = 0;
+    state.moveZ = 0;
+    state.run = false;
+    state.source = "idle";
+  }
   return state;
+}
+
+/** Shared by key listeners and tests. Repeat on E does not re-arm interact. */
+export function setKey(name, down, { repeat = false } = {}) {
+  const on = !!down;
+  if (name === "w" || name === "a" || name === "s" || name === "d") state[name] = on;
+  if (name === "arrowup") state.arrowup = on;
+  if (name === "arrowdown") state.arrowdown = on;
+  if (name === "arrowleft") state.arrowleft = on;
+  if (name === "arrowright") state.arrowright = on;
+  if (name === "shift") state.shift = on;
+  if (name === " " && on) state.jump = true;
+  if (name === "e" && on && !repeat) state.interact = true;
+  return getInputState();
 }
 
 export function consumeJump() {
@@ -51,24 +95,24 @@ export function initControls3D(canvas, onOrbitDelta) {
 function onKeyDown(e) {
   if (e.target?.matches?.("input, textarea, select")) return;
   const k = e.key.toLowerCase();
-  if (k === "w" || k === "a" || k === "s" || k === "d") state[k] = true;
-  if (e.key === "ArrowUp") state.arrowup = true;
-  if (e.key === "ArrowDown") state.arrowdown = true;
-  if (e.key === "ArrowLeft") state.arrowleft = true;
-  if (e.key === "ArrowRight") state.arrowright = true;
-  if (e.key === "Shift") state.shift = true;
-  if (e.key === " ") { state.jump = true; e.preventDefault(); }
-  if (k === "e") state.interact = true;
+  if (k === "w" || k === "a" || k === "s" || k === "d") setKey(k, true);
+  if (e.key === "ArrowUp") setKey("arrowup", true);
+  if (e.key === "ArrowDown") setKey("arrowdown", true);
+  if (e.key === "ArrowLeft") setKey("arrowleft", true);
+  if (e.key === "ArrowRight") setKey("arrowright", true);
+  if (e.key === "Shift") setKey("shift", true);
+  if (e.key === " ") { setKey(" ", true); e.preventDefault(); }
+  if (k === "e") setKey("e", true, { repeat: !!e.repeat });
 }
 
 function onKeyUp(e) {
   const k = e.key.toLowerCase();
-  if (k === "w" || k === "a" || k === "s" || k === "d") state[k] = false;
-  if (e.key === "ArrowUp") state.arrowup = false;
-  if (e.key === "ArrowDown") state.arrowdown = false;
-  if (e.key === "ArrowLeft") state.arrowleft = false;
-  if (e.key === "ArrowRight") state.arrowright = false;
-  if (e.key === "Shift") state.shift = false;
+  if (k === "w" || k === "a" || k === "s" || k === "d") setKey(k, false);
+  if (e.key === "ArrowUp") setKey("arrowup", false);
+  if (e.key === "ArrowDown") setKey("arrowdown", false);
+  if (e.key === "ArrowLeft") setKey("arrowleft", false);
+  if (e.key === "ArrowRight") setKey("arrowright", false);
+  if (e.key === "Shift") setKey("shift", false);
 }
 
 function onPtrDown(e) {
@@ -90,11 +134,12 @@ function onPtrUp() {
   orbitDragging = false;
 }
 
-/** Touch layer fills move/run (joystick). */
+/** Virtual joystick. Does not clear keyboard flags. */
 export function setTouchMove(x, z, run) {
-  state.moveX = x;
-  state.moveZ = z;
-  state.run = !!run;
+  touch.x = x;
+  touch.z = z;
+  touch.run = !!run;
+  touch.active = Math.hypot(x, z) > 0.02;
 }
 
 export function touchJump() {

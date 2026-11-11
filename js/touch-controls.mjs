@@ -37,14 +37,26 @@ export function initTouchControls(opts = {}) {
     if (e.pointerId !== joyId) return;
     moveKnob(e, knob, maxR);
   });
-  joy.addEventListener("pointerup", e => {
-    if (e.pointerId !== joyId) return;
+  const endJoy = e => {
+    if (joyId != null && e.pointerId !== joyId) return;
     joyId = null;
+    if (joy.hasPointerCapture?.(e.pointerId)) {
+      try { joy.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
     resetKnob();
-  });
-  joy.addEventListener("pointercancel", resetKnob);
+  };
+  joy.addEventListener("pointerup", endJoy);
+  joy.addEventListener("pointercancel", endJoy);
 
-  interact?.addEventListener("click", () => touchInteract());
+  interact?.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    touchInteract();
+  });
+  const jump = document.getElementById("touchJump");
+  jump?.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    touchJump();
+  });
 
   const stage = document.getElementById("stage3d");
   stage?.addEventListener("pointerdown", e => {
