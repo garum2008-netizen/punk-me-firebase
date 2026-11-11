@@ -3,6 +3,7 @@
  */
 
 import * as Authority from "./authority.mjs";
+import { findNpcDialogue } from "./npc-dialogue.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -299,7 +300,9 @@ function applyEffects(effects) {
         break;
       }
       case "start_duel":
-        window.startNpcFight?.(e.id === "razor" ? "razor" : e.id);
+        if (!ensureStoryState(me()).flags.joined_gang) {
+          window.startNpcFight?.(e.id === "razor" ? "razor" : e.id);
+        }
         break;
       case "authority":
         Authority.addAuthority(e.value, p);
@@ -319,8 +322,19 @@ function applyEffects(effects) {
 }
 
 function onJoinedGang() {
-  const st = ensureStoryState(me());
-  st.chapter = Math.max(st.chapter, 2);
+  const p = me();
+  const st = ensureStoryState(p);
+  st.flags.joined_gang = true;
+  if ((st.authority || 0) < 100) st.authority = 100;
+  st.gang_rank = "gang_member";
+  st.auth = st.auth || {};
+  st.auth.stage = Math.max(st.auth.stage || 1, 5);
+  if (p) {
+    p.authority = st.authority;
+    p.gang_rank = st.gang_rank;
+  }
+  st.chapter = Math.max(st.chapter || 1, 2);
+  Authority.renderAuthorityHud(p);
   if (!st.quest.completed.q_hangout_build && !st.quest.activeId) {
     startQuest("q_hangout_build");
   }
@@ -341,6 +355,7 @@ export function startQuest(qid) {
   renderObjectivePanel();
   syncBeacon();
   logEvent("quest_start", qid);
+  checkStepComplete();
 }
 
 function completeQuest(qid) {
@@ -818,7 +833,7 @@ function showDialogueNode(dlg, node) {
     body.innerHTML = node.choices
       .map(c => {
         const ok = checkRequires(c.requires);
-        return `<button type="button" class="btn story-choice" data-next="${c.next}" ${ok ? "" : "disabled"}>
+        return `<button type="button" class="btn story-choice" data-choice="${c.id}" data-next="${c.next}" ${ok ? "" : "disabled"}>
           <span class="choice-text">${escapeHtml(L(c.text))}</span>
           <small class="choice-hint">${escapeHtml(L(c.hint || {}))}</small>
         </button>`;
@@ -826,7 +841,7 @@ function showDialogueNode(dlg, node) {
       .join("");
     body.querySelectorAll(".story-choice").forEach(btn => {
       btn.onclick = () => {
-        const c = node.choices.find(x => x.next === btn.dataset.next || x.id === btn.dataset.choice);
+        const c = node.choices.find(x => x.id === btn.dataset.choice) || node.choices.find(x => x.next === btn.dataset.next);
         applyEffects(c?.effects);
         if (c?.next === "END") closeDialogue();
         else {
@@ -891,10 +906,7 @@ export function tryStoryNpc(npcId) {
   if (Authority.tryAuthorityNpc(npcId)) return true;
   if (!STORY_NPC_IDS.has(npcId)) return false;
   const loc = me().location;
-  const dlg = data.dialogues.find(d => {
-    if (d.location !== loc) return false;
-    return d.nodes?.some(n => (n.speaker || "").includes(npcId));
-  });
+  const dlg = findNpcDialogue(data.dialogues, npcId, loc, checkRequires);
   if (dlg) {
     openDialogueTree(dlg);
     return true;

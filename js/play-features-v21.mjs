@@ -1,5 +1,7 @@
 /** v21 playable systems: interactables, jobs, daily quests, room decor, dog fetch. */
 
+import { allowLocationProp } from "./interact-priority.mjs";
+
 const DECOR_KEY = "punkme_room_decor_v21";
 const DAILY_KEY = "punkme_daily_v21";
 
@@ -61,8 +63,10 @@ export function initPlayV21(ctx) {
         return true;
       }
       if (loc === "street") {
+        const nearestNpcId = window.World3D?.getNearestNpc?.() || null;
+        if (!allowLocationProp("street", { nearestNpcId, onboarding: me.onboarding })) return false;
         hooks.toast(t("interact_arcade"));
-        me.coins += 12;
+        if (!window.isOwner) me.coins += 12;
         me.xp += 5;
         hooks.save();
         return true;

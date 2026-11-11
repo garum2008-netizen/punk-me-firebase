@@ -20,6 +20,50 @@ const PORTAL_WAYPOINTS = {
   cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.2 } }
 };
 
+function ensureOnboardingShape(ob) {
+  const src = ob && typeof ob === "object" ? ob : {};
+  const step = Number.isFinite(src.step) ? src.step : 0;
+  return {
+    step,
+    progress: src.progress && typeof src.progress === "object" && !Array.isArray(src.progress) ? src.progress : {},
+    done: !!src.done,
+    paid: src.paid && typeof src.paid === "object" && !Array.isArray(src.paid) ? src.paid : {}
+  };
+}
+
+/**
+ * Restore onboarding from RTDB. Saves that never stored `onboarding`
+ * must not pay the move reward again.
+ */
+function normalizeFromSave(player, saved) {
+  if (saved && typeof saved === "object") return ensureOnboardingShape(saved);
+  const ob = ensureOnboardingShape(null);
+  const location = player?.location;
+  const progressed =
+    (player?.xp || 0) > 0 ||
+    (player?.coins || 0) > 100 ||
+    (!!location && location !== "room");
+  if (progressed) {
+    ob.paid.move = true;
+    if ((player?.xp || 0) >= 15 || (!!location && location !== "room")) ob.step = 1;
+  }
+  const joined =
+    player?.gang_rank === "gang_member" ||
+    player?.story?.flags?.joined_gang ||
+    player?.story?.gang_rank === "gang_member";
+  if (joined) {
+    ob.done = true;
+    ob.step = ONBOARDING_STEPS.length;
+  }
+  return ob;
+}
+
+function ensurePlayerOnboarding() {
+  if (!window.me) return null;
+  window.me.onboarding = ensureOnboardingShape(window.me.onboarding);
+  return window.me.onboarding;
+}
+
 function stepIndex() {
   if (!window.me?.onboarding) return -1;
   if (window.me.onboarding.done) return -1;
@@ -38,9 +82,10 @@ function progress() {
 function bump(key, amt = 1) {
   const st = currentStep();
   if (!st || st.key !== key) return;
-  const p = window.me.onboarding.progress;
-  p[key] = (p[key] || 0) + amt;
-  if (p[key] >= st.goal) completeStep();
+  const ob = ensurePlayerOnboarding();
+  if (!ob) return;
+  ob.progress[key] = (ob.progress[key] || 0) + amt;
+  if (ob.progress[key] >= st.goal) completeStep();
   else saveMeQuiet();
   renderOnboardingQuest();
 }
@@ -48,10 +93,17 @@ function bump(key, amt = 1) {
 function completeStep() {
   const st = currentStep();
   if (!st) return;
+  const ob = ensurePlayerOnboarding();
+  if (!ob) return;
   const r = st.reward || {};
-  if (!window.isOwner && r.coins) window.me.coins += r.coins;
-  if (r.xp) window.me.xp += r.xp;
-  toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + (r.coins || 0));
+  const alreadyPaid = !!ob.paid[st.id];
+  if (!alreadyPaid) {
+    if (!window.isOwner && r.coins) window.me.coins += r.coins;
+    if (r.xp) window.me.xp += r.xp;
+    ob.paid[st.id] = true;
+  }
+  const shown = alreadyPaid ? 0 : (r.coins || 0);
+  toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + shown);
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
@@ -154,9 +206,7 @@ function adaptSpawnLocation() {
 
 function initOnboarding() {
   if (!window.me) return;
-  if (!window.me.onboarding) {
-    window.me.onboarding = { step: 0, progress: {}, done: false };
-  }
+  ensurePlayerOnboarding();
   renderOnboardingQuest();
   syncGuideTarget();
 }
@@ -173,5 +223,6 @@ window.Onboarding = {
   onWinFight,
   onShopBuy,
   getGuideTarget,
+  normalizeFromSave,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };
