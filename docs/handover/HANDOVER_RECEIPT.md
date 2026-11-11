@@ -3,7 +3,7 @@
 **Date:** 2026-11-11 (UTC)  
 **Owner:** Inna Kragh (t198u, 11.11.2026 11:27 CET)  
 **Repo:** `garum2008-netizen/punk-me-firebase`  
-**Docs commit:** `752213b` (slice `0badbab` + handover; branch `cursor/vertical-slice-ch1-d81d`)
+**Docs commit:** `1875340f70a27b899c654dc59afbe7412da3544e` (`docs/handover/*` on `cursor/vertical-slice-ch1-d81d`, PR #52)
 
 ## Verdict
 
