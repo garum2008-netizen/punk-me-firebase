@@ -1,0 +1,104 @@
+#accountModal.modal.active {
+  z-index: 210;
+  display: block;
+}
+body.account-modal-open .howto-overlay {
+  display: none !important;
+}
+.account-conflict-dialog {
+  z-index: 220;
+}
+.account-auth-bar {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto;
+}
+#loading .account-auth-bar,
+#charSelect .account-auth-bar {
+  margin-top: 16px;
+  padding: 0 12px;
+}
+#loading .btn-account,
+#charSelect .btn-account {
+  font-size: 15px;
+  font-weight: 800;
+  min-height: 44px;
+  padding: 10px 22px;
+  min-width: 140px;
+}
+.account-hud-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+}
+.account-hud-chip {
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(30, 10, 50, 0.92);
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-hud-chip.linked { border-color: rgba(255, 0, 255, 0.5); color: #0ff; }
+.btn-account {
+  font-size: 11px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.45);
+  background: rgba(20, 8, 40, 0.95);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-account.secondary { opacity: 0.9; }
+#accountModal .account-panel { max-width: min(400px, 92vw); }
+#accountModal .account-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+#accountModal input {
+  width: 100%;
+  padding: 8px;
+  margin: 6px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  background: #1a0a2e;
+  color: #fff;
+}
+.account-conflict-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 0, 12, 0.75);
+  padding: 16px;
+}
+.account-conflict-dialog.active { display: flex; }
+.account-conflict-panel {
+  background: rgba(14, 8, 28, 0.98);
+  border: 2px solid #ff00ff;
+  border-radius: 14px;
+  padding: 16px;
+  max-width: 400px;
+}
+.account-conflict-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.hud-account-row { margin: 2px 0 4px; }
+@media (max-width: 900px) {
+  .hud-account-row {
+    position: fixed;
+    top: 44px;
+    right: 6px;
+    z-index: 30;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+}

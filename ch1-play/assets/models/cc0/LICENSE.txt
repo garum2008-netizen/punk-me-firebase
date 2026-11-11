@@ -1,0 +1,11 @@
+Model credits — PUNK ME (living3d)
+
+Meshy hero GLBs (CC BY 4.0): see assets/models/meshy/LICENSE.txt
+  — punk_pink.glb (Neon Rebel / Vienna), mohawk.glb, cobalt.glb, razor.glb
+
+Pet: assets/models/pets/punk_dog.glb (project asset; see assets/models/README.md)
+
+Previously vendored Khronos / Three.js CC0 example meshes (soldier, xbot, robot-expressive,
+fox, michelle, cesium-man) were removed from this branch; runtime NPCs use the Meshy GLBs above.
+
+No CC0 character GLBs are shipped in this build.

@@ -1,0 +1,126 @@
+{
+  "version": 2,
+  "sliceOnly": true,
+  "promoDeployForbidden": true,
+  "notes": "Owner t569u approved PNGs. Alpha via offline rembg isnet-general-use matte (RGB identical to source); defringe 1–2px. Rebuild: python3 scripts/build-angelina-skin-assets.py",
+  "forbiddenAssets": [
+    "angelina-teen-C.png"
+  ],
+  "skins": {
+    "A": {
+      "id": "A",
+      "title": {
+        "ru": "A — классика (розовый пуховик)",
+        "en": "A — classic (pink puffer)",
+        "da": "A — klassisk"
+      },
+      "source": {
+        "path": "assets/ui/angelina-skins/source/angelina-teen-A.png",
+        "sha256": "5453bb3e7380bbe9a8b2323b45b7773e238942dd295296ea7c430f0097e013f7",
+        "pixels": "744×1334"
+      },
+      "portrait": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-portrait.webp",
+        "sha256": "32c087bab481062de9be824a30265b321ab65a118d7271ccd1cab26cf1ad3cb7",
+        "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-A-portrait-alpha.png",
+        "alphaSha256": "8e8e7847c85036be3aa6f30122d682b053ea6fa8613f2274393731984e00bd4f",
+        "alphaStats": {
+          "width": 372,
+          "height": 940,
+          "opaquePixels": 176991
+        },
+        "interiorRgbSha256": "93eb5ca0ddb3b21669570649fcc2854625f1eb79c479042b3969cc9be6032b2d"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-A-world.webp",
+        "sha256": "52de8c1cb55c7b45e960fe3eb1402f5b325c87fffceabc51d5ebf2124efa0933",
+        "derivative": "rembg alpha matte + padded bbox crop + 280px wide WebP",
+        "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-A-world-alpha.png",
+        "alphaSha256": "57ac8143d0ac93fdf3e7cf3ab333ad3ee9bf4b6ba27e967aa4de35afcfb065b9",
+        "alphaStats": {
+          "width": 280,
+          "height": 707,
+          "opaquePixels": 99943
+        },
+        "interiorRgbSha256": "c10c8770ec674033500a2347d2b1fc5e9e1ccb2f134371df91833017812d4b8e"
+      }
+    },
+    "B": {
+      "id": "B",
+      "title": {
+        "ru": "B — панк-подросток (джинсовка с заплатками)",
+        "en": "B — punk teen (patched denim)",
+        "da": "B — punk teen"
+      },
+      "source": {
+        "path": "assets/ui/angelina-skins/source/angelina-teen-B.png",
+        "sha256": "4e5d65977b0f196002d3c2d740a3cf865594e6fd71c1967fd5bafa379839bf93",
+        "pixels": "744×1334"
+      },
+      "portrait": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-portrait.webp",
+        "sha256": "7782eebc5743c98f7e334f829996da9576332634e7147597b7c0e4a677389dad",
+        "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-B-portrait-alpha.png",
+        "alphaSha256": "4002336e771bb45d9c2c0fb1a5bd8df07d4faba75caeb6ca8ecdd266d3b8e766",
+        "alphaStats": {
+          "width": 372,
+          "height": 967,
+          "opaquePixels": 182817
+        },
+        "interiorRgbSha256": "08d5e8fe41315ff33a906c7de5283f66e0c95e52d14511886e8a8f99741ca4d0"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-B-world.webp",
+        "sha256": "37ebbc678e750bed295834e779fbbc7d7d0821ccb09a31d4dc15b12ab725315c",
+        "derivative": "rembg alpha matte + padded bbox crop + 280px wide WebP",
+        "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-B-world-alpha.png",
+        "alphaSha256": "fdcc6eb1d61eca4317d66e2e8c288c702e9959578aafbfcc067c91ccceb15c8d",
+        "alphaStats": {
+          "width": 280,
+          "height": 728,
+          "opaquePixels": 103345
+        },
+        "interiorRgbSha256": "0ce73fa9c06fe055b3bea66dae1cec71b0254f2ea8b5e61d0a5ee8b7696292b5"
+      }
+    },
+    "C": {
+      "id": "C",
+      "title": {
+        "ru": "C — ангел-рокер (жилет с крыльями, v2)",
+        "en": "C — angel rocker (wings vest, c-v2)",
+        "da": "C — angel rocker"
+      },
+      "finalArtSlot": "c-v2-only",
+      "source": {
+        "path": "assets/ui/angelina-skins/source/angelina-teen-C-v2.png",
+        "sha256": "c454454a00dfa74bde62ffbc7405b4eca0da0a49e718f5bdf68fb509b12aa2db",
+        "pixels": "720×1280"
+      },
+      "portrait": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-portrait.webp",
+        "sha256": "38e7e1fb1e5905fdb8cae530458b1bcce6df99468362c05b4d44752dcf6f1f62",
+        "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-C-v2-portrait-alpha.png",
+        "alphaSha256": "5c48ad32020e689d85835d1aa6b470ae4257b204548b486603717575204f97ba",
+        "alphaStats": {
+          "width": 372,
+          "height": 814,
+          "opaquePixels": 156042
+        },
+        "interiorRgbSha256": "fcdfc77b56f6130eae4fc897b89fb7bac0b194dfbd4bbac3833cb5cd9a1502f3"
+      },
+      "world": {
+        "path": "assets/ui/angelina-skins/shipped/angelina-teen-C-v2-world.webp",
+        "sha256": "a8d786984e24b5e40814682177a184fe1044ca6f27c5acce88f1573f47e24c56",
+        "derivative": "rembg alpha matte + padded bbox crop + 280px wide WebP",
+        "alphaRef": "assets/ui/angelina-skins/alpha-ref/angelina-teen-C-v2-world-alpha.png",
+        "alphaSha256": "f5cb76f4c806989050c71b8ec8067ad78744097b34f289ea18027f7f409807a9",
+        "alphaStats": {
+          "width": 280,
+          "height": 612,
+          "opaquePixels": 87829
+        },
+        "interiorRgbSha256": "8843ecceb1a2eed83e95d3d0d0b4847ca92bffbfd2b717180c15847da80f2376"
+      }
+    }
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "bestRow": "R1",
+  "rows": [
+    {
+      "row": "R1",
+      "description": "Reference: straight RGBA Lanczos; no clamp; no lum≥60 nearest-core",
+      "minAlpha255Share": 0.9082,
+      "alpha255ShareGate": true,
+      "silhouetteGate": true,
+      "haloZeroGate": false,
+      "passesAllGates": false,
+      "haloTotalBadPx": 36,
+      "alpha255Share": {
+        "A_portrait": 0.9339,
+        "A_world": 0.9251,
+        "B_portrait": 0.929,
+        "B_world": 0.9082,
+        "C_portrait": 0.934,
+        "C_world": 0.9145
+      },
+      "silhouetteNearWhite": {
+        "A_portrait": 0,
+        "A_world": 0,
+        "B_portrait": 0,
+        "B_world": 0,
+        "C_portrait": 0,
+        "C_world": 0
+      },
+      "haloBadPx": {
+        "A_portrait": { "browser": 3, "lanczos": 17 },
+        "A_world": { "browser": 3, "lanczos": 7 },
+        "B_portrait": { "browser": 0, "lanczos": 0 },
+        "B_world": { "browser": 0, "lanczos": 0 },
+        "C_portrait": { "browser": 0, "lanczos": 0 },
+        "C_world": { "browser": 0, "lanczos": 6 }
+      },
+      "resize": { "premultipliedLanczos": false, "clamp": "none" },
+      "nearestCoreFilterLum60": false
+    },
+    {
+      "row": "R2",
+      "description": "Premultiplied Lanczos only",
+      "minAlpha255Share": 0.9091,
+      "haloTotalBadPx": 93,
+      "passesAllGates": false,
+      "alpha255Share": {
+        "A_portrait": 0.9371,
+        "A_world": 0.926,
+        "B_portrait": 0.93,
+        "B_world": 0.9091,
+        "C_portrait": 0.9351,
+        "C_world": 0.9149
+      },
+      "silhouetteNearWhite": {
+        "A_portrait": 0,
+        "A_world": 0,
+        "B_portrait": 0,
+        "B_world": 0,
+        "C_portrait": 0,
+        "C_world": 0
+      },
+      "haloBadPx": {
+        "A_portrait": { "browser": 21, "lanczos": 7 },
+        "A_world": { "browser": 16, "lanczos": 14 },
+        "B_portrait": { "browser": 1, "lanczos": 0 },
+        "B_world": { "browser": 2, "lanczos": 0 },
+        "C_portrait": { "browser": 6, "lanczos": 5 },
+        "C_world": { "browser": 1, "lanczos": 20 }
+      },
+      "resize": { "premultipliedLanczos": true, "clamp": "none" },
+      "nearestCoreFilterLum60": false
+    },
+    {
+      "row": "R3",
+      "description": "R2 + nearest-core lum≥60 filter",
+      "minAlpha255Share": 0.9091,
+      "haloTotalBadPx": 88,
+      "passesAllGates": false,
+      "alpha255Share": {
+        "A_portrait": 0.9371,
+        "A_world": 0.926,
+        "B_portrait": 0.93,
+        "B_world": 0.9091,
+        "C_portrait": 0.9351,
+        "C_world": 0.9149
+      },
+      "silhouetteNearWhite": {
+        "A_portrait": 0,
+        "A_world": 0,
+        "B_portrait": 0,
+        "B_world": 0,
+        "C_portrait": 0,
+        "C_world": 0
+      },
+      "haloBadPx": {
+        "A_portrait": { "browser": 21, "lanczos": 7 },
+        "A_world": { "browser": 16, "lanczos": 14 },
+        "B_portrait": { "browser": 1, "lanczos": 0 },
+        "B_world": { "browser": 1, "lanczos": 0 },
+        "C_portrait": { "browser": 6, "lanczos": 5 },
+        "C_world": { "browser": 1, "lanczos": 16 }
+      },
+      "resize": { "premultipliedLanczos": true, "clamp": "none" },
+      "nearestCoreFilterLum60": true
+    },
+    {
+      "row": "R4",
+      "description": "R2 + clamp semi only (no opaque ring)",
+      "minAlpha255Share": 0.9107,
+      "haloTotalBadPx": 47,
+      "passesAllGates": false,
+      "alpha255Share": {
+        "A_portrait": 0.9303,
+        "A_world": 0.9138,
+        "B_portrait": 0.9314,
+        "B_world": 0.9107,
+        "C_portrait": 0.9352,
+        "C_world": 0.9137
+      },
+      "silhouetteNearWhite": {
+        "A_portrait": 0,
+        "A_world": 0,
+        "B_portrait": 0,
+        "B_world": 0,
+        "C_portrait": 0,
+        "C_world": 0
+      },
+      "haloBadPx": {
+        "A_portrait": { "browser": 8, "lanczos": 1 },
+        "A_world": { "browser": 15, "lanczos": 13 },
+        "B_portrait": { "browser": 1, "lanczos": 0 },
+        "B_world": { "browser": 1, "lanczos": 0 },
+        "C_portrait": { "browser": 2, "lanczos": 2 },
+        "C_world": { "browser": 2, "lanczos": 2 }
+      },
+      "resize": { "premultipliedLanczos": true, "clamp": "semi" },
+      "nearestCoreFilterLum60": false
+    }
+  ]
+}

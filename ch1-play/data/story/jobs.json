@@ -1,0 +1,107 @@
+{
+  "jobs": [
+    {
+      "id": "pizza_delivery",
+      "loc": "city",
+      "employer": "npc_tony",
+      "title": { "ru": "Доставка пиццы", "en": "Pizza delivery", "da": "Pizzaudbringning" },
+      "minutes": 3,
+      "payMin": 40,
+      "payMax": 70,
+      "xp": 15,
+      "energy": -10,
+      "action": "pizza_delivery",
+      "callout": {
+        "sound": "sfx_horn",
+        "bubble": {
+          "ru": "Эй, свободные руки! Пицца сама себя не довезёт!",
+          "en": "Hey, free hands! Pizza won't deliver itself!",
+          "da": "Hey, ledige hænder! Pizzaen leverer ikke sig selv!"
+        }
+      }
+    },
+    {
+      "id": "cemetery_night",
+      "loc": "cemetery",
+      "employer": "npc_gravedigger",
+      "title": { "ru": "Ночная смена", "en": "Night shift", "da": "Nattevagt" },
+      "minutes": 4,
+      "payMin": 60,
+      "payMax": 90,
+      "xp": 20,
+      "energy": -10,
+      "action": "cemetery_night",
+      "callout": {
+        "sound": "sfx_lantern",
+        "bubble": {
+          "ru": "Кто тут?! А… живой. Поможешь старику?",
+          "en": "Who's there?! Oh… alive. Help an old man?",
+          "da": "Hvem er der?! Åh… levende. Vil du hjælpe en gammel mand?"
+        }
+      }
+    },
+    {
+      "id": "construction_helper",
+      "loc": "construction",
+      "employer": "npc_vintik",
+      "title": { "ru": "Подсобник", "en": "Site helper", "da": "Byggehjælper" },
+      "minutes": 3,
+      "payMin": 45,
+      "payMax": 45,
+      "xp": 15,
+      "energy": -10,
+      "action": "construction_helper",
+      "rewardMaterials": { "board": 2 },
+      "callout": {
+        "sound": "sfx_crane",
+        "bubble": {
+          "ru": "Нужны доски? Возьми каску — три минуты, плата сразу!",
+          "en": "Need boards? Grab a helmet — three minutes, paid on the spot!",
+          "da": "Mangler brædder? Tag en hjelm — tre minutter, betaling med det samme!"
+        }
+      }
+    },
+    {
+      "id": "flyer_post",
+      "loc": "street",
+      "employer": "npc_razor",
+      "title": { "ru": "Расклейка флаеров", "en": "Flyer run", "da": "Plakattur" },
+      "minutes": 2,
+      "payMin": 30,
+      "payMax": 30,
+      "xp": 10,
+      "energy": -10,
+      "rep": 5,
+      "action": "flyer_post",
+      "callout": {
+        "sound": "sfx_whistle",
+        "bubble": {
+          "ru": "Есть смена на флаеры — быстро и по делу!",
+          "en": "Flyer shift — quick and useful!",
+          "da": "Plakattur — hurtigt og nyttigt!"
+        }
+      }
+    },
+    {
+      "id": "dishes_zoya",
+      "loc": "kitchen",
+      "employer": "npc_zoya",
+      "title": { "ru": "Мойка посуды", "en": "Dish washing", "da": "Opvask" },
+      "minutes": 2,
+      "payMin": 25,
+      "payMax": 25,
+      "xp": 8,
+      "energy": -10,
+      "action": "dishes_zoya",
+      "rewardEnergy": 40,
+      "callout": {
+        "sound": "sfx_spoon",
+        "bubble": {
+          "ru": "Эй, панчонок! Помоги бабушке с тарелками!",
+          "en": "Hey, punk! Help grandma with the dishes!",
+          "da": "Hey, punk! Hjælp bedstemor med tallerkenerne!"
+        }
+      }
+    }
+  ]
+}

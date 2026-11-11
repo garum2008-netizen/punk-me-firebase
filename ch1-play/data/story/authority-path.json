@@ -1,0 +1,356 @@
+{
+  "authorityMax": 100,
+  "ranks": [
+    {
+      "id": "newbie",
+      "min": 0,
+      "max": 19,
+      "label": { "ru": "Новенький", "en": "Newbie", "da": "Ny" },
+      "gang_rank": "newbie"
+    },
+    {
+      "id": "watched",
+      "min": 20,
+      "max": 44,
+      "label": { "ru": "Под присмотром", "en": "Watched", "da": "Under opsyn" },
+      "gang_rank": "watched"
+    },
+    {
+      "id": "trial",
+      "min": 45,
+      "max": 79,
+      "label": { "ru": "Испытуемый", "en": "Trial", "da": "Prøve" },
+      "gang_rank": "trial"
+    },
+    {
+      "id": "one_of_us",
+      "min": 80,
+      "max": 99,
+      "label": { "ru": "Свой", "en": "One of us", "da": "En af os" },
+      "gang_rank": "one_of_us"
+    },
+    {
+      "id": "gang_member",
+      "min": 100,
+      "max": 100,
+      "label": { "ru": "Член банды", "en": "Gang member", "da": "Bandemedlem" },
+      "gang_rank": "gang_member"
+    }
+  ],
+  "stages": [
+    {
+      "id": 1,
+      "key": "teasing",
+      "authorityRange": [0, 20],
+      "title": {
+        "ru": "Этап 1: Насмешки",
+        "en": "Stage 1: Teasing",
+        "da": "Trin 1: Drilleri"
+      },
+      "intro": {
+        "speaker": "mohawk",
+        "text": {
+          "ru": "Глянь, какой чистенький! Кеды мамины?",
+          "en": "Look how clean! Mommy's sneakers?",
+          "da": "Se hvor pæn! Mors sneakers?"
+        }
+      },
+      "choices": [
+        {
+          "id": "joke",
+          "text": {
+            "ru": "Отшутиться",
+            "en": "Joke back",
+            "da": "Vær sjov tilbage"
+          },
+          "hint": { "ru": "Авторитет +5", "en": "Authority +5", "da": "Autoritet +5" },
+          "authority": 5,
+          "effects": [{ "type": "flag", "value": "auth_s1_joke" }]
+        },
+        {
+          "id": "walk",
+          "text": {
+            "ru": "Промолчать и уйти",
+            "en": "Walk away quietly",
+            "da": "Gå stille væk"
+          },
+          "hint": { "ru": "0, но запомнят", "en": "0, they'll remember", "da": "0, de husker" },
+          "authority": 0,
+          "effects": [{ "type": "flag", "value": "auth_s1_walk" }]
+        },
+        {
+          "id": "snap",
+          "text": {
+            "ru": "Огрызнуться",
+            "en": "Snap back",
+            "da": "Svar igen"
+          },
+          "hint": { "ru": "Авторитет +2", "en": "Authority +2", "da": "Autoritet +2" },
+          "authority": 2,
+          "effects": [{ "type": "flag", "value": "auth_s1_snap" }]
+        },
+        {
+          "id": "run",
+          "text": {
+            "ru": "Сбежать / пожаловаться",
+            "en": "Run / tattle",
+            "da": "Løb / sladre"
+          },
+          "hint": { "ru": "Авторитет −5", "en": "Authority −5", "da": "Autoritet −5" },
+          "authority": -5,
+          "effects": [{ "type": "flag", "value": "auth_s1_run" }]
+        }
+      ],
+      "completeMinAuthority": 15
+    },
+    {
+      "id": 2,
+      "key": "character_tests",
+      "authorityRange": [20, 45],
+      "title": {
+        "ru": "Этап 2: Проверка",
+        "en": "Stage 2: Character tests",
+        "da": "Trin 2: Karaktertest"
+      },
+      "tasks": [
+        {
+          "id": "pizza",
+          "objective": {
+            "ru": "Сгоняй за пиццей для банды (Город, Тони)",
+            "en": "Fetch pizza for the gang (City, Tony)",
+            "da": "Hent pizza til banden (By, Tony)"
+          },
+          "beacon": "npc_tony",
+          "complete_on": "event:auth_pizza_done",
+          "authority": 8,
+          "needCoins": 15
+        },
+        {
+          "id": "no_rat",
+          "objective": {
+            "ru": "Не сдай банду смотрителю на Кладбище",
+            "en": "Don't rat out the gang to the Keeper",
+            "da": "Sladre ikke om banden til Vogteren"
+          },
+          "beacon": "npc_gravedigger",
+          "complete_on": "event:auth_no_rat",
+          "authority": 7
+        },
+        {
+          "id": "cobalt_item",
+          "objective": {
+            "ru": "Верни потерянную вещь Кобальта (Крыша)",
+            "en": "Return Cobalt's lost item (Roof)",
+            "da": "Aflever Kobalts tabte ting (Tag)"
+          },
+          "beacon": "npc_cobalt_roof",
+          "complete_on": "event:auth_cobalt_item",
+          "authority": 7
+        },
+        {
+          "id": "ghost_prank",
+          "objective": {
+            "ru": "Выдержи розыгрыш с призраком (WC)",
+            "en": "Handle Plukh's prank (WC)",
+            "da": "Klare Plukhs spøg (WC)"
+          },
+          "beacon": "npc_plukh",
+          "complete_on": "event:auth_ghost_prank",
+          "authority": 5
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "key": "trials",
+      "authorityRange": [45, 80],
+      "title": {
+        "ru": "Этап 3: Испытания",
+        "en": "Stage 3: Trials",
+        "da": "Trin 3: Prøver"
+      },
+      "trials": [
+        {
+          "id": "cemetery",
+          "name": {
+            "ru": "Смелость: ночная смена",
+            "en": "Courage: night shift",
+            "da": "Mod: nattevagt"
+          },
+          "objective": {
+            "ru": "Ночная смена на Кладбище до рассвета",
+            "en": "Cemetery night shift until dawn",
+            "da": "Nattevagt på Kirkegården"
+          },
+          "beacon": "npc_gravedigger",
+          "complete_on": "event:auth_trial_cemetery",
+          "authority": 12,
+          "retry": true
+        },
+        {
+          "id": "roof_parkour",
+          "name": {
+            "ru": "Ловкость: паркур на Крыше",
+            "en": "Agility: timed roof run",
+            "da": "Agilitet: tagløb på tid"
+          },
+          "objective": {
+            "ru": "Пройди паркур-маршрут на Крыше на время",
+            "en": "Clear the roof parkour route on time",
+            "da": "Gennemfør tag-parkour på tid"
+          },
+          "beacon": "obj_roof_parkour",
+          "complete_on": "event:auth_trial_roof",
+          "authority": 12,
+          "retry": true
+        },
+        {
+          "id": "duel_mohawk",
+          "name": {
+            "ru": "Сила: тренировочная дуэль",
+            "en": "Strength: training duel",
+            "da": "Styrke: træningsduel"
+          },
+          "objective": {
+            "ru": "Дуэль с Ирокезом — первый до 3 касаний",
+            "en": "Duel Mohawk — first to 3 hits",
+            "da": "Duel mod Mohawk — først til 3 træff"
+          },
+          "beacon": "npc_mohawk_street",
+          "complete_on": "event:auth_trial_duel",
+          "authority": 12,
+          "retry": true,
+          "duel": { "npc": "mohawk", "training": true, "firstTo": 3 }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "key": "initiation",
+      "authorityRange": [80, 100],
+      "title": {
+        "ru": "Этап 4: Посвящение",
+        "en": "Stage 4: Initiation",
+        "da": "Trin 4: Optagelse"
+      },
+      "objective": {
+        "ru": "Сбор у Рейзора — получи нашивку «Ржавые Цепи»",
+        "en": "Meet Razor — get the Rusty Chains patch",
+        "da": "Mød Razor — få Rusty Chains-mærket"
+      },
+      "beacon": "npc_razor",
+      "ceremony": {
+        "speaker": "razor",
+        "text": {
+          "ru": "Теперь ты свой. Нашивка — твоя. Тусовка открыта.",
+          "en": "You're one of us now. The patch is yours. Hangout's open.",
+          "da": "Du er en af os nu. Mærket er dit. Hænget er åbent."
+        }
+      },
+      "effects": [
+        { "type": "authority", "value": 100 },
+        { "type": "gang_rank", "value": "gang_member" },
+        { "type": "flag", "value": "joined_gang" }
+      ]
+    }
+  ],
+  "chapter2_antibullying": {
+    "chapter": 2,
+    "requires": ["gang_rank:gang_member"],
+    "intro": {
+      "speaker": "razor",
+      "text": {
+        "ru": "В городе новенький. Банда снова подкалывает. Твой выбор.",
+        "en": "There's a new kid in town. The gang's teasing again. Your call.",
+        "da": "Der er en ny i byen. Banden driller igen. Dit valg."
+      }
+    },
+    "choices": [
+      {
+        "id": "stand_up",
+        "text": {
+          "ru": "Заступиться за новичка",
+          "en": "Stand up for the new kid",
+          "da": "Tag parti for den nye"
+        },
+        "hint": {
+          "ru": "Авторитет +10 · лучший исход",
+          "en": "Authority +10 · best outcome",
+          "da": "Autoritet +10 · bedst"
+        },
+        "authority": 10,
+        "effects": [{ "type": "flag", "value": "ch2_stood_up" }]
+      },
+      {
+        "id": "join_in",
+        "text": {
+          "ru": "Присоединиться к насмешкам",
+          "en": "Join the teasing",
+          "da": "Deltag i drilleriet"
+        },
+        "hint": {
+          "ru": "Авторитет не растёт",
+          "en": "No Authority gain",
+          "da": "Ingen autoritet"
+        },
+        "authority": 0,
+        "effects": [{ "type": "flag", "value": "ch2_joined_tease" }]
+      }
+    ],
+    "npc_reactions": {
+      "razor_stand": {
+        "ru": "Вот теперь ты один из нас по-настоящему.",
+        "en": "Now you're really one of us.",
+        "da": "Nu er du virkelig en af os."
+      },
+      "cobalt_disappointed": {
+        "ru": "Слабовато. Я думала, ты другой.",
+        "en": "Weak move. I thought you were better.",
+        "da": "Svagt. Jeg troede du var bedre."
+      }
+    }
+  },
+  "npc_lines_by_rank": {
+    "razor": {
+      "newbie": {
+        "ru": ["Эй, новенький. Не торопись — сначала докажи."],
+        "en": ["Hey, rookie. Don't rush — prove yourself first."],
+        "da": ["Hey, ny. Ikke for hurtigt — bevis dig først."]
+      },
+      "watched": {
+        "ru": ["Смотрю за тобой. Один косяк — и мимо."],
+        "en": ["I'm watching you. One slip and you're out."],
+        "da": ["Jeg holder øje. Ét fejltrin — ude."]
+      },
+      "trial": {
+        "ru": ["Испытания впереди. Не ссы."],
+        "en": ["Trials ahead. Don't choke."],
+        "da": ["Prøver forude. Tab ikke modet."]
+      },
+      "one_of_us": {
+        "ru": ["Почти свой. Остался последний шаг."],
+        "en": ["Almost family. One last step."],
+        "da": ["Næsten familie. Ét skridt tilbage."]
+      },
+      "gang_member": {
+        "ru": ["Братва. Нашивка сидит отлично.", "Тусовка — твоя точка."],
+        "en": ["Family. Patch looks good.", "Hangout's your spot now."],
+        "da": ["Familie. Mærket sidder godt.", "Hænget er dit nu."]
+      }
+    },
+    "mohawk": {
+      "gang_member": {
+        "ru": ["Теперь ты в строю. На дуэли не подведи."],
+        "en": ["You're in the lineup. Don't flop in duels."],
+        "da": ["Du er på holdet. Fejl ikke i dueller."]
+      }
+    },
+    "cobalt": {
+      "gang_member": {
+        "ru": ["Свой! Крыша всегда открыта."],
+        "en": ["One of us! Roof's always open."],
+        "da": ["En af os! Taget er altid åbent."]
+      }
+    }
+  }
+}
