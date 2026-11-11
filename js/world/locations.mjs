@@ -30,8 +30,11 @@ import { addShowcaseProps } from "./location-showcase-props.mjs";
 import { buildHangoutVisual } from "./construction-hangout.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
-export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
+export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22, label = "") {
+  const id = label || `collider_${list.length}`;
   list.push({
+    id,
+    label: label || id,
     minX: cx - halfW - pad,
     maxX: cx + halfW + pad,
     minZ: cz - halfD - pad,
@@ -40,7 +43,11 @@ export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22) {
 }
 
 function unionAabb(a, b) {
+  const labels = [...new Set([...(a.labels || [a.label || a.id].filter(Boolean)), ...(b.labels || [b.label || b.id].filter(Boolean))])];
   return {
+    id: labels.length ? labels.join("+") : `merged_${a.minX}`,
+    label: labels.join("+") || a.label || b.label || "merged",
+    labels,
     minX: Math.min(a.minX, b.minX),
     maxX: Math.max(a.maxX, b.maxX),
     minZ: Math.min(a.minZ, b.minZ),
@@ -221,7 +228,7 @@ export const PORTALS = {
     { to: "kitchen", labelKey: "door_kitchen", x: -6.2, z: 0, r: 1.2 },
     { to: "toilet", labelKey: "door_toilet", x: 6.2, z: 0, r: 1.2 },
     { to: "elevator", labelKey: "door_elevator", x: 0, z: -5.5, r: 1.3 },
-    { to: "street", labelKey: "door_street", x: 0, z: 5.5, r: 1.3 }
+    { to: "street", labelKey: "door_street", x: 0, z: 5.5, r: 1.5 }
   ],
   street: [
     { to: "elevator", labelKey: "door_home", x: -10, z: 0, r: 1.5 },
@@ -440,16 +447,16 @@ export function buildLocationScene(locId, texLoader) {
     const bed = wall(2.8, 0.45, 1.6, new THREE.MeshStandardMaterial({ color: 0x4a2060 }));
     bed.position.set(-3, 0.22, 2.2);
     root.add(bed);
-    pushCollider(colliders, -3, 2.2, 1.4, 0.8);
+    pushCollider(colliders, -3, 2.2, 1.15, 0.72, 0.18, "room_bed");
     const desk = wall(1.6, 0.75, 0.8, new THREE.MeshStandardMaterial({ color: 0x1a1028 }));
     desk.position.set(3.2, 0.38, -1);
     root.add(desk);
-    pushCollider(colliders, 3.2, -1, 0.8, 0.4);
+    pushCollider(colliders, 3.2, -1, 0.8, 0.4, 0.22, "room_desk");
+    addSofa(root, -1, 3.2, colliders);
+    addBeanbag(root, -2.8, 4.2);
     const sign = neonSign("PUNK ME", 0xff00ff);
     sign.position.set(3.8, 2.6, -5.65);
     root.add(sign);
-    addSofa(root, -1, 3.2, colliders);
-    addBeanbag(root, -2.8, 4.2);
     addNeonTube(root, -4, 2.8, -5.5, 2.5, 0xff00ff);
     addNeonTube(root, 4, 2.5, -5.5, 2, 0x00ffff);
     addPumpkin(root, 4.5, 2.5, colliders);
@@ -674,9 +681,11 @@ export function buildLocationScene(locId, texLoader) {
 
   addV21Clutter(locId, root, texLoader, colliders, pushCollider);
   addShowcaseProps(locId, root);
-  const merged = mergeOverlappingColliders(colliders, 0.08, bounds);
-  colliders.length = 0;
-  colliders.push(...merged);
+  if (locId !== "room") {
+    const merged = mergeOverlappingColliders(colliders, 0.08, bounds);
+    colliders.length = 0;
+    colliders.push(...merged);
+  }
 
   const portals = new THREE.Group();
   (PORTALS[locId] || []).forEach(p => {
@@ -758,7 +767,9 @@ function circleCenterInsideAabb(px, pz, b, radius) {
 function deepestCirclePenetration(px, pz, radius, colliders) {
   let best = null;
   const r = radius - COLLIDER_SKIN;
-  for (const b of colliders || []) {
+  for (let i = 0; i < (colliders || []).length; i++) {
+    const b = colliders[i];
+    const meta = { index: i, id: b.id, label: b.label, bounds: { minX: b.minX, maxX: b.maxX, minZ: b.minZ, maxZ: b.maxZ } };
     const inside = circleCenterInsideAabb(px, pz, b, radius);
     if (inside) {
       const e = exitInteriorOfAabb(px, pz, b, r);
@@ -766,7 +777,7 @@ function deepestCirclePenetration(px, pz, radius, colliders) {
       const dz = e.z - pz;
       const depth = Math.hypot(dx, dz);
       if (depth > 1e-6 && (!best || depth > best.depth)) {
-        best = { nx: dx / depth, nz: dz / depth, depth };
+        best = { nx: dx / depth, nz: dz / depth, depth, ...meta, mode: "inside" };
       }
       continue;
     }
@@ -779,11 +790,35 @@ function deepestCirclePenetration(px, pz, radius, colliders) {
       const d = Math.sqrt(d2);
       const depth = r - d;
       if (!best || depth > best.depth) {
-        best = { nx: dx / d, nz: dz / d, depth };
+        best = { nx: dx / d, nz: dz / d, depth, ...meta, mode: "edge" };
       }
     }
   }
   return best;
+}
+
+/** QA: north/south/east/west micro-steps with blocking collider attribution. */
+export function diagnoseColliderMotion(fromX, fromZ, dirs, bounds, colliders, radius = 0.42) {
+  const out = [];
+  for (const d of dirs) {
+    const dx = d.dx ?? 0;
+    const dz = d.dz ?? 0;
+    const intendX = fromX + dx;
+    const intendZ = fromZ + dz;
+    const moved = moveWithCollision(fromX, fromZ, dx, dz, bounds, colliders, radius);
+    const penBefore = deepestCirclePenetration(fromX, fromZ, radius, colliders);
+    const penIntended = deepestCirclePenetration(intendX, intendZ, radius, colliders);
+    out.push({
+      dir: d.name || `${dx},${dz}`,
+      from: { x: fromX, z: fromZ },
+      intended: { x: intendX, z: intendZ },
+      result: moved,
+      blocked: Math.hypot(moved.x - intendX, moved.z - intendZ) > 0.02,
+      deepestAtFrom: penBefore,
+      deepestAtIntended: penIntended
+    });
+  }
+  return out;
 }
 
 function resolveCollidersAt(px, pz, colliders, radius = 0.42) {

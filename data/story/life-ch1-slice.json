@@ -1,0 +1,227 @@
+{
+  "questId": "q_life_ch1_settle",
+  "steps": [
+    {
+      "id": "move",
+      "objective": {
+        "ru": "Пройди по комнате (WASD или джойстик)",
+        "en": "Walk around your room (WASD or joystick)",
+        "da": "Gå rundt i dit værelse"
+      },
+      "beacon": { "loc": "room", "wx": 0, "wz": 0 }
+    },
+    {
+      "id": "outfit",
+      "objective": {
+        "ru": "Подойди к зеркалу и нажми E — выбери образ",
+        "en": "Go to the mirror and press E — pick a look",
+        "da": "Gå til spejlet og tryk E"
+      },
+      "beacon": { "loc": "room", "wx": -3.2, "wz": 2.5 },
+      "interact": { "loc": "room", "wx": -3.2, "wz": 2.5, "radius": 2.8 },
+      "dialogue": "dlg_life_ch1_outfit",
+      "rewardCoins": 25,
+      "rewardXp": 12
+    },
+    {
+      "id": "trust",
+      "objective": {
+        "ru": "Подойди к метке — реши, что делать с запиской",
+        "en": "Go to the marker — decide what to do with the note",
+        "da": "Gå til markøren — vælg hvad du gør med sedlen"
+      },
+      "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
+      "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
+      "dialogue": "dlg_life_ch1_trust",
+      "rewardCoins": 30,
+      "rewardXp": 15
+    },
+    {
+      "id": "reflect",
+      "objective": {
+        "ru": "Снова подойди к метке — вспомни, что ты решила",
+        "en": "Return to the marker — remember what you decided",
+        "da": "Gå tilbage til markøren — husk dit valg"
+      },
+      "beacon": { "loc": "room", "wx": 2.5, "wz": -1.8 },
+      "interact": { "loc": "room", "wx": 2.5, "wz": -1.8, "radius": 2.85 },
+      "dialogue": "dlg_life_ch1_reflect",
+      "rewardCoins": 45,
+      "rewardXp": 20
+    }
+  ],
+  "dialogues": {
+    "dlg_life_ch1_outfit": {
+      "nodes": {
+        "n0": {
+          "speaker": "player",
+          "text": {
+            "ru": "Стою у зеркала — какой образ на сегодня?",
+            "en": "What look do I want today? At the mirror — style only.",
+            "da": "Hvilket look vil jeg have i dag?"
+          },
+          "choices": [
+            {
+              "id": "calm",
+              "text": { "ru": "Спокойный стиль", "en": "Calm look", "da": "Roligt look" },
+              "flag": "outfit_calm"
+            },
+            {
+              "id": "bright",
+              "text": { "ru": "Яркий стиль", "en": "Bright look", "da": "Klar stil" },
+              "flag": "outfit_bright"
+            },
+            {
+              "id": "bold",
+              "text": { "ru": "Смелый стиль", "en": "Bold look", "da": "Modigt look" },
+              "flag": "outfit_bold"
+            }
+          ]
+        }
+      }
+    },
+    "dlg_life_ch1_trust": {
+      "nodes": {
+        "n0": {
+          "speaker": "player",
+          "text": {
+            "ru": "На тумбочке лежит записка. Что мне делать?",
+            "en": "There's a note on the nightstand. What should I do?",
+            "da": "Der ligger en seddel. Hvad gør jeg?"
+          },
+          "choices": [
+            {
+              "id": "secret",
+              "text": { "ru": "Спрятать и подумать", "en": "Hide it and think", "da": "Gem den" },
+              "flag": "mystery_secret"
+            },
+            {
+              "id": "open",
+              "text": { "ru": "Рассказать Мире позже", "en": "Tell Mira later", "da": "Fortæl Mira senere" },
+              "flag": "mystery_open"
+            },
+            {
+              "id": "trust_mira",
+              "text": { "ru": "Довериться Мире", "en": "Trust Mira", "da": "Stol på Mira" },
+              "flag": "mystery_trust_angelina"
+            }
+          ]
+        },
+        "n_after_calm": {
+          "speaker": "player",
+          "text": {
+            "ru": "Спокойный образ — хороший знак. На тумбочке записка. Что мне делать?",
+            "en": "Calm look suits me. There's a note on the nightstand. What should I do?",
+            "da": "Roligt look. Der ligger en seddel."
+          },
+          "choices": [
+            {
+              "id": "secret",
+              "text": { "ru": "Спрятать и подумать", "en": "Hide it and think", "da": "Gem den" },
+              "flag": "mystery_secret"
+            },
+            {
+              "id": "open",
+              "text": { "ru": "Рассказать Мире позже", "en": "Tell Mira later", "da": "Fortæl Mira senere" },
+              "flag": "mystery_open"
+            },
+            {
+              "id": "trust_mira",
+              "text": { "ru": "Довериться Мире", "en": "Trust Mira", "da": "Stol på Mira" },
+              "flag": "mystery_trust_angelina"
+            }
+          ]
+        },
+        "n_after_bright": {
+          "speaker": "player",
+          "text": {
+            "ru": "Ярко! Записка на тумбочке — не для всех глаз. Сначала решу сама, что с ней делать.",
+            "en": "Bold colors! The note on the nightstand isn't for everyone. My call.",
+            "da": "Klar stil! Der ligger en seddel."
+          },
+          "choices": [
+            {
+              "id": "secret",
+              "text": { "ru": "Спрятать и подумать", "en": "Hide it and think", "da": "Gem den" },
+              "flag": "mystery_secret"
+            },
+            {
+              "id": "open",
+              "text": { "ru": "Рассказать Мире позже", "en": "Tell Mira later", "da": "Fortæl Mira senere" },
+              "flag": "mystery_open"
+            },
+            {
+              "id": "trust_mira",
+              "text": { "ru": "Довериться Мире", "en": "Trust Mira", "da": "Stol på Mira" },
+              "flag": "mystery_trust_angelina"
+            }
+          ]
+        },
+        "n_after_bold": {
+          "speaker": "player",
+          "text": {
+            "ru": "Смело. Записка ждёт — если ошибусь, это скажется позже.",
+            "en": "Brave look. The note can wait — if I slip up, it will show later.",
+            "da": "Modigt look. Sedlen venter."
+          },
+          "choices": [
+            {
+              "id": "secret",
+              "text": { "ru": "Спрятать и подумать", "en": "Hide it and think", "da": "Gem den" },
+              "flag": "mystery_secret"
+            },
+            {
+              "id": "open",
+              "text": { "ru": "Рассказать Мире позже", "en": "Tell Mira later", "da": "Fortæl Mira senere" },
+              "flag": "mystery_open"
+            },
+            {
+              "id": "trust_mira",
+              "text": { "ru": "Довериться Мире", "en": "Trust Mira", "da": "Stol på Mira" },
+              "flag": "mystery_trust_angelina"
+            }
+          ]
+        }
+      }
+    },
+    "dlg_life_ch1_reflect": {
+      "nodes": {
+        "n_secret": {
+          "speaker": "player",
+          "text": {
+            "ru": "Хорошо. Никому, пока сама не решу иначе.",
+            "en": "Okay. No one else — until I decide otherwise.",
+            "da": "Okay. Ingen andre endnu."
+          },
+          "requiresFlag": "mystery_secret"
+        },
+        "n_open": {
+          "speaker": "player",
+          "text": {
+            "ru": "Напишу Мире, когда соберусь с мыслями — сама, своими словами.",
+            "en": "I'll text Mira when I'm ready — in my own words.",
+            "da": "Jeg skriver til Mira, når jeg er klar."
+          },
+          "requiresFlag": "mystery_open"
+        },
+        "n_trust": {
+          "speaker": "mira",
+          "text": {
+            "ru": "Спасибо, Ангелина. Я на связи. Без геройства — просто поддержу.",
+            "en": "Thanks, Angelina. I'm here for you. No heroics — just support.",
+            "da": "Tak, Angelina. Jeg er her."
+          },
+          "requiresFlag": "mystery_trust_angelina"
+        },
+        "n_fallback": {
+          "speaker": "player",
+          "text": {
+            "ru": "Я уже решила — держу это в голове.",
+            "en": "I already decided — keeping it in mind.",
+            "da": "Du har allerede valgt."
+          }
+        }
+      }
+    }
+  }
+}

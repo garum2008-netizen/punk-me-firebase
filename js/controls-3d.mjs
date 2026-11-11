@@ -19,9 +19,17 @@ export function getInputState() {
   const down = state.s || state.arrowdown;
   const left = state.a || state.arrowleft;
   const right = state.d || state.arrowright;
-  state.moveX = (right ? 1 : 0) - (left ? 1 : 0);
-  state.moveZ = (up ? 1 : 0) - (down ? 1 : 0);
-  state.run = state.shift;
+  const keyMoveX = (right ? 1 : 0) - (left ? 1 : 0);
+  const keyMoveZ = (up ? 1 : 0) - (down ? 1 : 0);
+  if (keyMoveX !== 0 || keyMoveZ !== 0) {
+    state.moveX = keyMoveX;
+    state.moveZ = keyMoveZ;
+    state.run = state.shift;
+  } else if (Math.hypot(state.moveX, state.moveZ) < 0.02) {
+    state.moveX = 0;
+    state.moveZ = 0;
+    state.run = false;
+  }
   return state;
 }
 
@@ -95,6 +103,16 @@ export function setTouchMove(x, z, run) {
   state.moveX = x;
   state.moveZ = z;
   state.run = !!run;
+}
+
+/** Read-only instrumentation for capture/QA (does not mutate game state). */
+export function readInputStateSnapshot() {
+  return {
+    moveX: state.moveX,
+    moveZ: state.moveZ,
+    run: state.run,
+    keys: { w: state.w, a: state.a, s: state.s, d: state.d, shift: state.shift }
+  };
 }
 
 export function touchJump() {

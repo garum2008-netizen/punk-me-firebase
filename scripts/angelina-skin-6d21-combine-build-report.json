@@ -1,0 +1,7 @@
+{
+  "shipDecision": "restore_ab6fa302",
+  "ablationBestRow": "R1",
+  "ablationSummary": "Lowest haloTotalBadPx=36; premult-only (R2) regressed A_world to 16+14 browser+lanczos",
+  "seeAblation": "assets/ui/angelina-skins/.candidate-review/ablation-results.json",
+  "npmTestLifeCh1ExitCode": 1
+}

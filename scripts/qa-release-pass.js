@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const base = process.env.PUNK_BASE || "http://127.0.0.1:8765";
 const HOWTO_KEY = "punkme_howto_seen";
@@ -38,7 +39,8 @@ async function boot(page, hero) {
   const browser = await chromium.launch();
 
   for (const hero of HEROES) {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    const page = const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(page);
     await prep(page);
     const errs = await boot(page, hero);
     const locOk = {};
@@ -78,7 +80,8 @@ async function boot(page, hero) {
   }
 
   for (const lang of LANGS) {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    const page = const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(page);
     await prep(page);
     await boot(page, "cobalt");
     await page.evaluate(l => setLanguage(l, true), lang);
@@ -88,7 +91,8 @@ async function boot(page, hero) {
     await page.close();
   }
 
-  const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const mob = const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(mob);
   await prep(mob);
   await boot(mob, "cobalt");
   report.mobile = {};

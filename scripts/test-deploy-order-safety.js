@@ -12,11 +12,19 @@ const https = require("https");
 
 const root = path.join(__dirname, "..");
 const { useSnapshot, restore } = require("./emulator-rules-swap");
+const {
+  assertFirebaseEmulatorTestEnv,
+  installProdFirebaseRouteBlock,
+  firebaseEmulatorQueryString
+} = require("./firebase-test-emulator-guard");
+const { applyFirebaseEmulatorEnv, dbPort, authPort, DB_HOST, AUTH_HOST } = require("./firebase-emulator-env");
+applyFirebaseEmulatorEnv();
+assertFirebaseEmulatorTestEnv();
+const emulatorQs = firebaseEmulatorQueryString();
 
 const PROJECT_ID = process.env.FIREBASE_EMULATOR_PROJECT || "punk-me-40605";
 const DB_NS = `${PROJECT_ID}-default-rtdb`;
-const AUTH_HOST = "127.0.0.1";
-const AUTH_PORT = 9099;
+const AUTH_PORT = authPort;
 
 function fetchJson(url, opts = {}) {
   return new Promise((resolve, reject) => {
@@ -73,11 +81,23 @@ async function waitForHttp(port, timeoutMs = 60000) {
   throw new Error(`static server not ready on :${port}`);
 }
 
+function killProcessGroup(child) {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch (_) {
+    try {
+      child.kill("SIGKILL");
+    } catch (_) {}
+  }
+}
+
 function startServe(dir, port) {
   return new Promise((resolve, reject) => {
     const child = spawn("npx", ["--yes", "serve", "-l", String(port), "."], {
       cwd: dir,
-      stdio: "pipe"
+      stdio: "pipe",
+      detached: true
     });
     child.on("error", reject);
     child.stderr.on("data", d => process.stderr.write(d));
@@ -101,7 +121,7 @@ function patchOldJsForEmulator(worktreeRoot) {
       `db = firebase.database();
     if (new URLSearchParams(location.search).has("firebaseEmulator")) {
       try {
-        firebase.database().useEmulator("127.0.0.1", 9000);
+        firebase.database().useEmulator("${DB_HOST}", ${dbPort});
         firebase.auth().useEmulator("http://${AUTH_HOST}:${AUTH_PORT}");
       } catch (e) { console.warn(e); }
     }`
@@ -156,6 +176,7 @@ async function authCustomToken(admin, uid) {
 async function testNewJsPublicProfilesNonFatal(base) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
+  await installProdFirebaseRouteBlock(page);
   try {
     await page.goto(`${base}/?solo=1&firebaseEmulator=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForSelector(".char-pick", { timeout: 90000 });
@@ -208,13 +229,13 @@ async function ensureEmulatorEmailUser(email, password) {
 }
 
 async function emulatorCustomTokenForUid(uid) {
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = `${AUTH_HOST}:${AUTH_PORT}`;
-  process.env.FIREBASE_DATABASE_EMULATOR_HOST = `127.0.0.1:9000`;
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = `${AUTH_HOST}:${authPort}`;
+  process.env.FIREBASE_DATABASE_EMULATOR_HOST = `${DB_HOST}:${dbPort}`;
   const admin = require("firebase-admin");
   if (!admin.apps.length) {
     admin.initializeApp({
       projectId: PROJECT_ID,
-      databaseURL: `http://127.0.0.1:9000/?ns=${DB_NS}`
+      databaseURL: `http://${DB_HOST}:${dbPort}/?ns=${DB_NS}`
     });
   }
   return admin.auth().createCustomToken(uid);
@@ -223,8 +244,9 @@ async function emulatorCustomTokenForUid(uid) {
 async function testOldJsGameplayAndOwner(worktreeBase) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
+  await installProdFirebaseRouteBlock(page);
   try {
-    await page.goto(`${worktreeBase}/?solo=1&firebaseEmulator=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await page.goto(`${worktreeBase}/?solo=1${emulatorQs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForSelector(".char-pick", { timeout: 90000 });
     await page.click('.char-pick[data-id="cobalt"]');
     await page.click("#charSelectConfirm");
@@ -251,12 +273,15 @@ async function testOldJsGameplayAndOwner(worktreeBase) {
 
   const ownerBrowser = await chromium.launch();
   const ownerPage = await ownerBrowser.newPage();
+  await installProdFirebaseRouteBlock(ownerPage);
   const ownerEmail = "garum2008@gmail.com";
   const ownerPass = "LegacyOwnerTest1!";
   try {
     const seeded = await ensureEmulatorEmailUser(ownerEmail, ownerPass);
     const customToken = await emulatorCustomTokenForUid(seeded.localId);
-    await ownerPage.goto(`${worktreeBase}/owner?firebaseEmulator=1`, { waitUntil: "domcontentloaded" });
+    await ownerPage.goto(`${worktreeBase}/owner.html${emulatorQs.replace(/^&/, "?")}`, {
+      waitUntil: "domcontentloaded"
+    });
     await ownerPage.waitForFunction(
       () => {
         const st = document.getElementById("ownerStatus")?.textContent || "";
@@ -302,22 +327,17 @@ async function stopEmulator(emu) {
   if (!emu) return;
   await new Promise(resolve => {
     emu.once("exit", () => resolve());
-    try {
-      emu.kill("SIGKILL");
-    } catch (_) {
-      resolve();
-    }
+    killProcessGroup(emu);
     setTimeout(resolve, 15000);
   });
-  await freeEmulatorPorts();
 }
 
 async function withEmulatorAndRules(snapshot, fn) {
-  await freeEmulatorPorts();
   useSnapshot(snapshot);
   const emu = spawn("npx", ["firebase", "emulators:start", "--only", "auth,database", "--project", PROJECT_ID], {
     cwd: root,
-    stdio: "pipe"
+    stdio: "pipe",
+    detached: true
   });
   let started = false;
   await new Promise((resolve, reject) => {
@@ -348,14 +368,7 @@ async function withEmulatorAndRules(snapshot, fn) {
 }
 
 async function freeEmulatorPorts() {
-  const { execSync } = require("child_process");
-  try {
-    execSync('pkill -9 -f database-emulator 2>/dev/null; pkill -9 -f "firebase emulators" 2>/dev/null; fuser -k 9000/tcp 9099/tcp 2>/dev/null', {
-      stdio: "ignore",
-      shell: "/bin/bash"
-    });
-  } catch (_) {}
-  await new Promise(r => setTimeout(r, 8000));
+  /* deprecated: do not pkill foreign emulator processes (other verifiers / PRs). */
 }
 
 async function ensureOldWorktree(worktree) {
@@ -370,8 +383,8 @@ async function ensureOldWorktree(worktree) {
 }
 
 async function runPhase(phase) {
-  const newJsPort = 9876;
-  const oldJsPort = 9880;
+  const newJsPort = Number(process.env.PUNK_PORT || 9876);
+  const oldJsPort = Number(process.env.PUNK_OLD_JS_PORT || 9880);
   const worktree = path.join(root, ".worktrees", "main-7ee242b");
 
   if (phase === "a1") {
@@ -382,7 +395,7 @@ async function runPhase(phase) {
         await testNewJsPublicProfilesNonFatal(`http://127.0.0.1:${newJsPort}`);
         await runNode("test-save-gameplay-emulator.js", { PUNK_BASE: `http://127.0.0.1:${newJsPort}` });
       } finally {
-        serve.kill("SIGKILL");
+        killProcessGroup(serve);
       }
     });
     return;
@@ -395,7 +408,7 @@ async function runPhase(phase) {
         await testNewJsPublicProfilesNonFatal(`http://127.0.0.1:${newJsPort}`);
         await runNode("test-save-gameplay-emulator.js", { PUNK_BASE: `http://127.0.0.1:${newJsPort}` });
       } finally {
-        serve.kill("SIGKILL");
+        killProcessGroup(serve);
       }
     });
     return;
@@ -408,7 +421,7 @@ async function runPhase(phase) {
       try {
         await testOldJsGameplayAndOwner(`http://127.0.0.1:${oldJsPort}`);
       } finally {
-        serve.kill("SIGKILL");
+        killProcessGroup(serve);
       }
     });
     return;

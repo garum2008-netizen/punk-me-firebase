@@ -3,13 +3,21 @@
  * Playwright: real saveMe path through game.js against Firebase emulators.
  */
 const { chromium } = require("playwright");
+const {
+  assertFirebaseEmulatorTestEnv,
+  firebaseEmulatorQueryString,
+  installProdFirebaseRouteBlock
+} = require("./firebase-test-emulator-guard");
+
+assertFirebaseEmulatorTestEnv();
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:9876";
-const qs = "?solo=1&firebaseEmulator=1&v=rules-save-test";
+const qs = `?solo=1${firebaseEmulatorQueryString()}&v=rules-save-test`;
 
 async function run() {
   const browser = await chromium.launch();
   const page = await browser.newPage();
+  await installProdFirebaseRouteBlock(page);
   try {
     await page.goto(`${base}/${qs}`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForFunction(() => typeof firebase !== "undefined", undefined, { timeout: 60000 });

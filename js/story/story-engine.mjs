@@ -194,7 +194,19 @@ function playSfx(id) {
 
 function setSubtitle(text, speaker) {
   const el = document.getElementById("voiceSubtitle");
-  if (el) el.textContent = speaker ? `${speaker}: ${text}` : text;
+  if (!el) return;
+  const format =
+    window.Voice?.formatSubtitleLine ||
+    ((t, sp) => {
+      const raw = (t || "").trim();
+      if (!raw) return "";
+      if (!sp) return raw;
+      const prefix = `${sp}:`;
+      return raw.startsWith(prefix) ? raw : `${prefix} ${raw}`;
+    });
+  const line = speaker ? format(text, speaker) : (text || "").trim();
+  el.textContent = line;
+  el.classList.toggle("visible", !!line.trim());
 }
 
 function showBubble(npcId, text) {
@@ -784,7 +796,7 @@ function triggerCalloutDialogue(d) {
   const text = L(node.text);
   playSfx(d.callout?.sound || "sfx_whistle");
   showBubble(speaker, text);
-  setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(speaker) : speaker);
+  setSubtitle(text, speaker);
   const ind = document.getElementById("storyDirection");
   if (ind) {
     ind.textContent = d.callout?.icon || "!";
@@ -869,7 +881,10 @@ export function dismissAllStoryUi() {
   document.getElementById("storyBubbles")?.replaceChildren?.();
   document.getElementById("storyDirection")?.classList.remove("visible");
   const sub = document.getElementById("voiceSubtitle");
-  if (sub) sub.textContent = "";
+  if (sub) {
+    sub.textContent = "";
+    sub.classList.remove("visible");
+  }
 }
 
 export function canOpenStoryModal() {
@@ -884,7 +899,7 @@ export function canOpenStoryModal() {
 export function showNpcProximityCallout(npcId, text) {
   if (!canOpenStoryModal()) return;
   showBubble(npcId, text);
-  setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(npcId) : npcId);
+  setSubtitle(text, npcId);
 }
 
 export function tryStoryNpc(npcId) {
@@ -893,7 +908,12 @@ export function tryStoryNpc(npcId) {
   const loc = me().location;
   const dlg = data.dialogues.find(d => {
     if (d.location !== loc) return false;
-    return d.nodes?.some(n => (n.speaker || "").includes(npcId));
+    if (!d.nodes?.some(n => (n.speaker || "").includes(npcId))) return false;
+    const tr = d.trigger || {};
+    if (tr.type === "enter" || tr.type === "proximity") return false;
+    const conditions = tr.conditions;
+    if (conditions?.length && !checkRequires(conditions)) return false;
+    return true;
   });
   if (dlg) {
     openDialogueTree(dlg);
@@ -972,7 +992,11 @@ export function initStoryEngine(h) {
     .then(() => {
       ensureStoryState(me());
       const bal = data.balance;
-      if (bal?.startingCoins && !window.devCoinsEnabled?.()) {
+      const previewOrSlice =
+        window.__PUNK_PREVIEW__ === true ||
+        window.__PUNK_LIFE_CH1_LOCAL__ === true ||
+        window.LifeCh1Slice?.isLifeCh1SliceEnabled?.();
+      if (bal?.startingCoins && !window.devCoinsEnabled?.() && !previewOrSlice) {
         const p = me();
         if (p.coins > bal.startingCoins + 50) p.coins = bal.startingCoins;
       }

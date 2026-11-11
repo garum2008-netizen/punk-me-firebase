@@ -1,9 +1,9 @@
 /** First-session onboarding chain (RU/EN/DA via i18n). */
 const ONBOARDING_STEPS = [
   { id: "move", key: "moved", goal: 1, reward: { coins: 20, xp: 15 },
-    target: () => ({ loc: "room", wx: -4.2, wz: 3.8 }) },
+    target: () => ({ loc: "room", wx: 1.2, wz: -0.35 }) },
   { id: "go_street", key: "visit_street", goal: 1, reward: { coins: 30, xp: 20 },
-    target: () => ({ loc: "room", wx: 0, wz: 5.2 }) },
+    target: () => ({ loc: "room", wx: 0, wz: 5.5 }) },
   { id: "talk_razor", key: "talk_razor", goal: 1, reward: { coins: 40, xp: 25 },
     target: () => ({ loc: "street", npcId: "razor" }) },
   { id: "visit_cemetery", key: "visit_cemetery", goal: 1, reward: { coins: 50, xp: 30 },
@@ -16,8 +16,8 @@ const ONBOARDING_STEPS = [
 
 /** Portal waypoints when the player is not yet in the step's target location. */
 const PORTAL_WAYPOINTS = {
-  street: { room: { wx: 0, wz: 5.2 } },
-  cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.2 } }
+  street: { room: { wx: 0, wz: 5.5 } },
+  cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.5 } }
 };
 
 function stepIndex() {
@@ -54,10 +54,13 @@ function completeStep() {
   toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + (r.coins || 0));
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
+  const nextSt = currentStep();
+  if (nextSt?.key === "visit_street") window.World3D?.setPortalGrace?.(1400);
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
     window.me.onboarding.done = true;
     toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");
     window.StoryEngine?.onOnboardingComplete?.();
+    window.LifeCh1Slice?.tryStartAfterOnboarding?.();
   }
   if (window.saveMe) saveMe();
   else saveMeQuiet();
@@ -106,13 +109,14 @@ function getGuideTarget() {
     if (window.me.location === "room") return { wx: tgt.wx, wz: tgt.wz };
     return waypointToReach("room") || null;
   }
-  if (tgt.loc && window.me.location !== tgt.loc) {
+  const here = window.me.location;
+  if (tgt.loc && here !== tgt.loc) {
     const wp = waypointToReach(tgt.loc);
-    if (wp) return { wx: wp.wx, wz: wp.wz };
+    if (wp) return { wx: wp.wx, wz: wp.wz, loc: here };
     return null;
   }
   if (tgt.npcId) return { npcId: tgt.npcId };
-  if (tgt.wx != null && tgt.wz != null) return { wx: tgt.wx, wz: tgt.wz };
+  if (tgt.wx != null && tgt.wz != null) return { wx: tgt.wx, wz: tgt.wz, loc: here };
   return null;
 }
 
@@ -121,9 +125,32 @@ function syncGuideTarget() {
   World3D.setGuideTarget(getGuideTarget());
 }
 
+const ONBOARD_WORLD_MOVE_DIST = 1.15;
+
+function onWorldMove(wx, wz) {
+  const st = currentStep();
+  if (!st || st.key !== "moved") return;
+  if (wx == null || wz == null) return;
+  const last = window.me._onboardLastW;
+  if (!last) {
+    window.me._onboardLastW = { wx, wz };
+    return;
+  }
+  const leg = Math.hypot(wx - last.wx, wz - last.wz);
+  if (leg < 0.02) return;
+  window.me._onboardLastW = { wx, wz };
+  window.me._onboardPathM = (window.me._onboardPathM || 0) + leg;
+  if (window.me._onboardPathM >= ONBOARD_WORLD_MOVE_DIST) bump("moved", 1);
+}
+
 function onMove(x, y) {
   const st = currentStep();
   if (!st || st.key !== "moved") return;
+  if (document.body?.classList?.contains("mode-world3d")) {
+    const w = window.World3D?.getPlayerWorldPosition?.();
+    if (w) onWorldMove(w.x, w.z);
+    return;
+  }
   if (!window.me._onboardOrigin) window.me._onboardOrigin = { x, y };
   const o = window.me._onboardOrigin;
   if (Math.hypot(x - o.x, y - o.y) > 8) bump("moved", 1);
@@ -167,6 +194,7 @@ window.Onboarding = {
   render: renderOnboardingQuest,
   syncGuideTarget,
   onMove,
+  onWorldMove,
   onEnterLocation,
   onTalkRazor,
   onVisitCemetery,

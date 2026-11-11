@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { buildFurnitureMesh, FURNITURE_CATALOG } from "./room-furniture-catalog.mjs";
+import { isCemeteryShiftSuccessful } from "./cemetery-job-logic.mjs";
+import { cemeteryGhostMesh } from "./cemetery-ghost-mesh.mjs";
 
 const DECOR_KEY = "punkme_room_decor_v21";
 let ctxGet = null;
@@ -36,6 +38,8 @@ function loadDecor() {
 function saveDecor(items) {
   localStorage.setItem(DECOR_KEY, JSON.stringify(items));
 }
+
+export { isCemeteryShiftSuccessful } from "./cemetery-job-logic.mjs";
 
 export function bindGameplayToWorld3D(api, getCtx) {
   ctxGet = getCtx;
@@ -177,10 +181,8 @@ function startCemeteryJob() {
   }
   const ghosts = [];
   for (let i = 0; i < 3; i++) {
-    const ghost = box(0.35, 0.5, 0.2, 0xaaddff, 0x88ccff);
+    const ghost = cemeteryGhostMesh();
     ghost.position.set(-3 + i * 3, 0.8, 3.5);
-    ghost.material.transparent = true;
-    ghost.material.opacity = 0.75;
     ghost.userData.ghostId = i;
     root.add(ghost);
     ghosts.push({ mesh: ghost, caught: false, t: i });
@@ -229,12 +231,17 @@ function tickCemetery(dt, ctx) {
     }
   });
   if (pl && window._lastInteract && consumeInteractNearGhosts(pl, job)) {
-    job.caught++;
+    /* caught count updated inside proximity + interact handlers */
   }
   const prog = ((job.lit / 6) + (job.caught / 3)) / 2;
   const bar = document.getElementById("gpCemeteryBar");
   if (bar) bar.style.width = `${prog * 100}%`;
-  if (now >= job.end || (job.lit >= 6 && job.caught >= 3)) endCemeteryJob(job.lit >= 6);
+  const complete = isCemeteryShiftSuccessful(job.lit, job.caught);
+  if (complete) {
+    endCemeteryJob(true);
+    return;
+  }
+  if (now >= job.end) endCemeteryJob(false);
 }
 
 function consumeInteractNearGhosts(pl, job) {
@@ -243,7 +250,12 @@ function consumeInteractNearGhosts(pl, job) {
   job.ghosts.forEach(g => {
     if (g.caught) return;
     const d = Math.hypot(pl.wx - g.mesh.position.x, pl.wz - g.mesh.position.z);
-    if (d < 1.8) { g.caught = true; g.mesh.visible = false; hit = true; }
+    if (d < 1.8) {
+      g.caught = true;
+      g.mesh.visible = false;
+      job.caught++;
+      hit = true;
+    }
   });
   window._lastInteract = false;
   return hit;
@@ -418,6 +430,7 @@ function startDuel3D(nid, opts = {}) {
     dodgeT: 0
   };
   document.getElementById("fightOverlay")?.classList.remove("active");
+  document.querySelectorAll(".modal.active").forEach(el => el.classList.remove("active"));
   document.getElementById("duel3dHud")?.classList.remove("hidden");
   document.getElementById("duel3dResult")?.classList.add("hidden");
   return true;

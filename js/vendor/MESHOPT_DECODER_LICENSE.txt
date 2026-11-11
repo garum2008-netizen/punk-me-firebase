@@ -1,0 +1,4 @@
+This file is part of meshoptimizer library and is distributed under the terms of MIT License.
+Copyright (C) 2016-2022, by Arseny Kapoulkine (arseny.kapoulkine@gmail.com)
+
+Vendored from three@0.160.0 examples/jsm/libs/meshopt_decoder.module.js (same version as CDN import map).

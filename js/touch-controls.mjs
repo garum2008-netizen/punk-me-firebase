@@ -25,26 +25,48 @@ export function initTouchControls(opts = {}) {
     setTouchMove(0, 0, false);
   };
 
-  joy.addEventListener("pointerdown", e => {
+  const joyDown = e => {
     active = true;
-    joyId = e.pointerId;
+    joyId = e.pointerId != null ? e.pointerId : 1;
     const r = joy.getBoundingClientRect();
     joyOrigin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    joy.setPointerCapture(e.pointerId);
+    if (joy.setPointerCapture && e.pointerId != null) joy.setPointerCapture(e.pointerId);
     moveKnob(e, knob, maxR);
+  };
+  joy.addEventListener("pointerdown", joyDown);
+  joy.addEventListener("mousedown", e => {
+    if (e.button !== 0) return;
+    joyDown({ ...e, pointerId: 1, clientX: e.clientX, clientY: e.clientY });
   });
-  joy.addEventListener("pointermove", e => {
-    if (e.pointerId !== joyId) return;
+  const joyMove = e => {
+    if (e.pointerId != null && e.pointerId !== joyId) return;
+    if (e.pointerId == null && joyId !== 1) return;
     moveKnob(e, knob, maxR);
+  };
+  joy.addEventListener("pointermove", joyMove);
+  joy.addEventListener("mousemove", e => {
+    if (joyId !== 1) return;
+    joyMove({ ...e, pointerId: 1 });
   });
-  joy.addEventListener("pointerup", e => {
-    if (e.pointerId !== joyId) return;
+  const joyUp = e => {
+    if (e.pointerId != null && e.pointerId !== joyId) return;
     joyId = null;
     resetKnob();
+  };
+  joy.addEventListener("pointerup", joyUp);
+  joy.addEventListener("mouseup", e => {
+    if (joyId !== 1) return;
+    joyUp({ ...e, pointerId: 1 });
   });
   joy.addEventListener("pointercancel", resetKnob);
 
   interact?.addEventListener("click", () => touchInteract());
+
+  const jumpBtn = document.getElementById("touchJump");
+  jumpBtn?.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    touchJump();
+  });
 
   const stage = document.getElementById("stage3d");
   stage?.addEventListener("pointerdown", e => {

@@ -3,17 +3,20 @@
  * RTDB security rules tests against local Database + Auth emulators.
  * Implements the acceptance matrix required for TASK 02 (equivalent to
  * @firebase/rules-unit-testing scenarios; HTTP harness avoids SDK double-init).
- *
- * Requires emulators on 127.0.0.1:9000 (database) and :9099 (auth).
  */
 const http = require("http");
 const https = require("https");
+const { assertFirebaseEmulatorTestEnv } = require("./firebase-test-emulator-guard");
+const { applyFirebaseEmulatorEnv, dbPort, authPort } = require("./firebase-emulator-env");
+
+applyFirebaseEmulatorEnv();
+assertFirebaseEmulatorTestEnv();
 
 const PROJECT_ID = process.env.FIREBASE_EMULATOR_PROJECT || "punk-me-40605";
 const DB_HOST = "127.0.0.1";
-const DB_PORT = 9000;
+const DB_PORT = dbPort;
 const AUTH_HOST = "127.0.0.1";
-const AUTH_PORT = 9099;
+const AUTH_PORT = authPort;
 const DB_NS = `${PROJECT_ID}-default-rtdb`;
 
 const samplePlayer = {

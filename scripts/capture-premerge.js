@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const out = "/opt/cursor/artifacts";
@@ -51,7 +52,8 @@ async function shot(page, pose, file) {
 
 (async () => {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const page = const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(page);
   const allErrors = [];
 
   allErrors.push(...await boot(page, "?dev=1&solo=1&v=pre", true));

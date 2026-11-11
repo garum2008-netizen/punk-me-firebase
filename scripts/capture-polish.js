@@ -1,3 +1,4 @@
+const { installProdFirebaseRouteBlock } = require("./playwright-script-guard");
 const { chromium } = require("playwright");
 const fs = require("fs");
 const out = "/opt/cursor/artifacts";
@@ -58,7 +59,8 @@ async function charSelectShot(page, heroId, file) {
   const allErrors = [];
   const files = [];
 
-  const desk = await browser.newPage({ viewport: { width: 1024, height: 576 } });
+  const desk = const page = await browser.newPage({ viewport: { width: 1024, height: 576 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(desk);
   const dErr = [];
   trackErrors(desk, dErr);
   await desk.goto(`${base}/?dev=1&solo=1&v=cap-desk`, { waitUntil: "networkidle", timeout: 120000 });
@@ -76,7 +78,8 @@ async function charSelectShot(page, heroId, file) {
   allErrors.push(...dErr);
   await desk.close();
 
-  const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const mob = const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(mob);
   const mErr = [];
   trackErrors(mob, mErr);
   await mob.goto(`${base}/?dev=1&solo=1&v=cap-mob`, { waitUntil: "networkidle", timeout: 120000 });
@@ -102,7 +105,8 @@ async function charSelectShot(page, heroId, file) {
   allErrors.push(...mErr);
   await mob.close();
 
-  const tab = await browser.newPage({ viewport: { width: 768, height: 1024 } });
+  const tab = const page = await browser.newPage({ viewport: { width: 768, height: 1024 } }); await installProdFirebaseRouteBlock(page);
+  await installProdFirebaseRouteBlock(tab);
   const tErr = [];
   trackErrors(tab, tErr);
   await tab.goto(`${base}/?dev=1&solo=1&v=cap-tab`, { waitUntil: "networkidle", timeout: 120000 });
