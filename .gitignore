@@ -5,3 +5,8 @@ qa-out/
 database-debug.log
 firebase-debug.log
 .worktrees/
+ice/state/
+ice/queue/
+ice/**/*.db
+**/__pycache__/
+*.pyc

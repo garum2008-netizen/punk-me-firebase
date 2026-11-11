@@ -1,0 +1,32 @@
+{
+  "controller": "cursor_commander",
+  "modules": {
+    "content_production": "Text and media candidates. Business and kids channels use different settings.",
+    "media_validation": "Presence, reachability, format and channel match before any Buffer transfer.",
+    "publishing_queue": "PENDING to SCHEDULED, retries, duplicate protection, and an action log. Live runs stop at DRAFT."
+  },
+  "legacy": [
+    {
+      "name": "grok_ice_bot",
+      "responsibility_now": "content_production + media_validation + publishing_queue",
+      "transferred": true,
+      "disable": false,
+      "reason": "Production stays on. This environment cannot switch off Grok bots, and it does not start a new one."
+    },
+    {
+      "name": "grok_ceo_bot",
+      "responsibility_now": "cursor_commander",
+      "transferred": true,
+      "disable": false,
+      "reason": "Development stays with Cursor Commander."
+    },
+    {
+      "name": "buffer_content_bot",
+      "responsibility_now": "publishing_queue",
+      "transferred": true,
+      "disable": false,
+      "reason": "Buffer keeps the posts already scheduled. Nothing in that queue is rewritten."
+    }
+  ],
+  "kept": ["cursor_commander", "buffer_native_queue"]
+}

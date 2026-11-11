@@ -1,0 +1,130 @@
+{
+  "contractbot_dk": {
+    "post": [
+      {
+        "id": "dk-inspection-en",
+        "language": "en",
+        "title": "Inspection before payment",
+        "topics": ["contracts", "dk", "eu"],
+        "text": "Pipeline check only. Not for publication.\n\nA Danish buyer signs a supply contract that says only \"payment on delivery\". When the goods arrive damaged, three lines are still missing: who inspects, how fast notice must go out, and whether the buyer may hold the price.\n\nWrite those lines before signature.\n\nInna Kragh · ContractBot\nlegal@contractbot.dk\n\n#ContractReview #DanishBusiness #EULaw"
+      },
+      {
+        "id": "dk-inspection-da",
+        "language": "da",
+        "title": "Kontrol før betaling",
+        "topics": ["contracts", "dk", "eu"],
+        "text": "En dansk virksomhed køber varer i et andet EU-land. Kontrakten siger kun \"betaling ved levering\". Hvis varen er beskadiget, mangler tre linjer: hvem der kontrollerer, hvor hurtigt der skal gives besked, og om køber må holde betalingen tilbage.\n\nSkriv det ind før underskrift.\n\nInna Kragh · ContractBot\nlegal@contractbot.dk\n\n#Kontrakt #DanskErhverv #EURet"
+      }
+    ],
+    "article": [
+      {
+        "id": "dk-article-currency",
+        "language": "en",
+        "title": "Currency and short payment",
+        "topics": ["contracts", "dk", "eu", "trade"],
+        "text": "Cross-border invoices often fail in the quiet lines, not in the headline price.\n\nA Danish company invoices in euro. The buyer pays the figure on the invoice, and the seller still receives less, because the contract never said who carries intermediary bank charges or whether a short payment counts as late.\n\nBefore the next export or import contract is signed, read three clauses together:\n• the currency and the amount that must arrive\n• when delivery and risk move\n• what a short or late payment allows the seller to do\n\nInna Kragh · ContractBot\nI review international B2B contracts before signature.\nlegal@contractbot.dk\n\n#InternationalTrade #ContractReview #DanishBusiness"
+      }
+    ],
+    "caption": [
+      {
+        "id": "dk-caption",
+        "language": "en",
+        "title": "Three lines",
+        "topics": ["contracts", "dk"],
+        "text": "Three lines decide a damaged delivery: who inspects, how fast you must say so, and whether the price can wait.\n\nInna Kragh · ContractBot\nlegal@contractbot.dk\n\n#ContractReview #DanishBusiness #EULaw"
+      }
+    ],
+    "script": [
+      {
+        "id": "dk-script",
+        "language": "en",
+        "title": "Thirty seconds on inspection",
+        "topics": ["contracts", "dk", "eu"],
+        "text": "A contract that says only \"payment on delivery\" is not finished.\n\nSay who inspects the goods, how many days notice of a defect must take, and whether the buyer may hold the price.\n\nI mark those three lines before you sign.\n\nInna Kragh · ContractBot\nlegal@contractbot.dk\n\n#ContractReview #DanishBusiness #EULaw"
+      }
+    ]
+  },
+  "contractbot_eu": {
+    "post": [
+      {
+        "id": "eu-law-venue",
+        "language": "en",
+        "title": "Law and venue",
+        "topics": ["contracts", "eu", "trade"],
+        "text": "Two EU companies sign, and the last page names no law and no court.\n\nWhen a delivery fails, the first dispute is not the goods. It is which country's rules apply, and where a claim has to be filed.\n\nPick the governing law and the venue before signature. Then read the liability cap next to them, so a claim is not won in the wrong place.\n\nInna Kragh · ContractBot\nlegal@contractbot.dk\n\n#EULaw #ContractReview #CrossBorder"
+      },
+      {
+        "id": "eu-liability-cap",
+        "language": "en",
+        "title": "Liability cap",
+        "topics": ["contracts", "eu"],
+        "text": "A liability cap that says \"the price of this order\" feels safe until the loss is the whole shipment, not the invoice line.\n\nIn an EU supply contract, write what the cap covers, what it never covers, and whether delay sits inside the cap or outside it.\n\nI read that clause against the delivery terms before you sign.\n\nInna Kragh · ContractBot\nlegal@contractbot.dk\n\n#ContractReview #EULaw #Liability"
+      }
+    ],
+    "article": [
+      {
+        "id": "eu-article-late",
+        "language": "en",
+        "title": "Late performance",
+        "topics": ["contracts", "eu", "trade"],
+        "text": "Late performance is a clause, not a surprise.\n\nAn EU supply contract should say when the clock starts, how the other side gives notice, and which remedies stay available if the delay is short. Interest, suspension and termination do not belong in three different documents that contradict each other.\n\nPut the notice address, the cure period and the remedy in the same section as the delivery date.\n\nInna Kragh · ContractBot\nlegal@contractbot.dk\n\n#EULaw #ContractReview #CrossBorder"
+      }
+    ],
+    "caption": [
+      {
+        "id": "eu-caption",
+        "language": "en",
+        "title": "Name the court",
+        "topics": ["contracts", "eu"],
+        "text": "If the contract never names a law or a court, the first fight is about the forum, not the goods.\n\nInna Kragh · ContractBot\nlegal@contractbot.dk\n\n#EULaw #ContractReview #CrossBorder"
+      }
+    ],
+    "script": [
+      {
+        "id": "eu-script",
+        "language": "en",
+        "title": "Thirty seconds on venue",
+        "topics": ["contracts", "eu"],
+        "text": "Before you sign a cross-border supply contract, read the last page out loud.\n\nWhich law applies? Which court hears a claim? Does the liability cap follow that same choice?\n\nIf any answer is missing, the draft is not ready.\n\nInna Kragh · ContractBot\nlegal@contractbot.dk\n\n#EULaw #ContractReview #CrossBorder"
+      }
+    ]
+  },
+  "who_owns_the_truth": {
+    "post": [
+      {
+        "id": "wott-hold",
+        "language": "en",
+        "title": "WHO OWNS THE TRUTH?",
+        "topics": ["book", "media"],
+        "text": "WHO OWNS THE TRUTH?\n\nHeld as a draft. A separate GO is required before this book campaign can enter a Buffer queue.\n\n#WhoOwnsTheTruth"
+      }
+    ],
+    "article": [
+      {
+        "id": "wott-article-hold",
+        "language": "en",
+        "title": "WHO OWNS THE TRUTH?",
+        "topics": ["book", "media"],
+        "text": "WHO OWNS THE TRUTH?\n\nArticle draft. It stays off the publishing queue until a separate GO.\n\n#WhoOwnsTheTruth"
+      }
+    ],
+    "caption": [
+      {
+        "id": "wott-caption-hold",
+        "language": "en",
+        "title": "WHO OWNS THE TRUTH?",
+        "topics": ["book", "media"],
+        "text": "WHO OWNS THE TRUTH? Draft only.\n\n#WhoOwnsTheTruth"
+      }
+    ],
+    "script": [
+      {
+        "id": "wott-script-hold",
+        "language": "en",
+        "title": "WHO OWNS THE TRUTH?",
+        "topics": ["book", "media"],
+        "text": "WHO OWNS THE TRUTH?\n\nScript draft. Do not schedule.\n\n#WhoOwnsTheTruth"
+      }
+    ]
+  }
+}

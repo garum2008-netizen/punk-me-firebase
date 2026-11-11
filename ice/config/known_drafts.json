@@ -1,0 +1,14 @@
+[
+  {
+    "bufferId": "6af0e14bd6bbae6fa10f1ce0",
+    "iceRef": "ICE-20261108-7c524bb9",
+    "channelId": "6a9d9398cd8b9c702c1981cd",
+    "channelKey": "facebook_legal",
+    "campaign": "contractbot_dk",
+    "templateId": "dk-inspection-en",
+    "status": "draft",
+    "dueAt": null,
+    "assetsConfirmed": 1,
+    "mimeType": "image/jpeg"
+  }
+]

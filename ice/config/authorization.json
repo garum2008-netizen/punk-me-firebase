@@ -1,0 +1,108 @@
+{
+  "timezone": "Europe/Copenhagen",
+  "publish_permission": false,
+  "share_now": false,
+  "paid_models": false,
+  "grok_delegation": false,
+  "daily_paid_cap_micros": 0,
+  "max_attempts": 3,
+  "channels": [
+    {
+      "key": "linkedin_inna",
+      "id": "6a9d9227cd8b9c702c197a40",
+      "service": "linkedin",
+      "name": "INNA KRAGH",
+      "audience": "business",
+      "publication": "schedule",
+      "connected": true,
+      "generate": true,
+      "visual_required": true,
+      "media_kind": "image",
+      "allow_text_only": false
+    },
+    {
+      "key": "facebook_legal",
+      "id": "6a9d9398cd8b9c702c1981cd",
+      "service": "facebook",
+      "name": "Legal Tech Counsellor",
+      "audience": "business",
+      "publication": "schedule",
+      "connected": true,
+      "generate": true,
+      "visual_required": true,
+      "media_kind": "image",
+      "allow_text_only": false
+    },
+    {
+      "key": "youtube_punk",
+      "id": "6ad64323778b240e2f5abcb6",
+      "service": "youtube",
+      "name": "PUNK ME ANGEL",
+      "audience": "kids",
+      "publication": "schedule",
+      "connected": true,
+      "generate": false,
+      "visual_required": true,
+      "media_kind": "video",
+      "allow_text_only": false,
+      "made_for_kids": false
+    },
+    {
+      "key": "youtube_angel",
+      "id": "6ad507a4778b240e2f4bb2d6",
+      "service": "youtube",
+      "name": "Angel&Chris Play",
+      "audience": "kids",
+      "publication": "schedule",
+      "connected": true,
+      "generate": false,
+      "visual_required": true,
+      "media_kind": "video",
+      "allow_text_only": false,
+      "made_for_kids": true
+    },
+    {
+      "key": "instagram_angelina",
+      "id": "6ad50e6f778b240e2f4c26d0",
+      "service": "instagram",
+      "name": "angelinalinakragh",
+      "audience": "kids",
+      "publication": "schedule",
+      "connected": true,
+      "generate": false,
+      "visual_required": true,
+      "media_kind": "video",
+      "allow_text_only": false,
+      "profile_type": "business"
+    }
+  ],
+  "campaigns": [
+    {
+      "key": "contractbot_dk",
+      "label": "ContractBot DK",
+      "publication": "schedule",
+      "approved": true,
+      "go_required": false,
+      "visual": "image",
+      "channels": ["linkedin_inna", "facebook_legal"]
+    },
+    {
+      "key": "contractbot_eu",
+      "label": "ContractBot EU",
+      "publication": "schedule",
+      "approved": true,
+      "go_required": false,
+      "visual": "image",
+      "channels": ["linkedin_inna", "facebook_legal"]
+    },
+    {
+      "key": "who_owns_the_truth",
+      "label": "WHO OWNS THE TRUTH?",
+      "publication": "draft_only",
+      "approved": false,
+      "go_required": true,
+      "visual": "image",
+      "channels": ["linkedin_inna", "facebook_legal"]
+    }
+  ]
+}
