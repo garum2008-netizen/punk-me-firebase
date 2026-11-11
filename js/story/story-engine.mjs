@@ -4,6 +4,7 @@
 
 import * as Authority from "./authority.mjs";
 import { findNpcDialogue } from "./npc-dialogue.mjs";
+import { PARTY_MATERIAL_IDS, unifyPartyMaterials, canAfford } from "./party-inventory.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -110,7 +111,20 @@ export function ensureStoryState(p) {
   if (p.story.chapter == null) p.story.chapter = 1;
   if (p.story.authority == null) p.story.authority = 0;
   if (!p.story.gang_rank) p.story.gang_rank = "newbie";
+  if (!p.story.duelClaims || typeof p.story.duelClaims !== "object") p.story.duelClaims = {};
+  syncPartyInventory(p);
   return p.story;
+}
+
+export function syncPartyInventory(p = me()) {
+  if (!p?.story) return;
+  const unified = unifyPartyMaterials(p.story.materials, p.inventory?.materials, {
+    merge: !p.story.materialsUnified
+  });
+  p.story.materials = unified.story;
+  p.story.materialsUnified = true;
+  if (!p.inventory) p.inventory = { materials: {}, spells: [] };
+  p.inventory.materials = unified.inventory;
 }
 
 function speakerToNpcId(speaker) {
@@ -297,6 +311,7 @@ function applyEffects(effects) {
       case "material": {
         const id = e.id || e.material;
         st.materials[id] = (st.materials[id] || 0) + (e.value || 1);
+        syncPartyInventory(p);
         break;
       }
       case "start_duel":
@@ -319,13 +334,21 @@ function applyEffects(effects) {
   syncBeacon();
 }
 
+function hangoutShouldStart(st) {
+  if (!st?.flags?.joined_gang) return false;
+  if (st.quest?.completed?.q_hangout_build) return false;
+  if (st.quest?.activeId) return false;
+  return (st.hangoutStage || 0) < 4;
+}
+
 function onJoinedGang() {
   const st = ensureStoryState(me());
-  st.chapter = Math.max(st.chapter, 2);
-  if (!st.quest.completed.q_hangout_build && !st.quest.activeId) {
-    startQuest("q_hangout_build");
+  st.chapter = Math.max(st.chapter || 1, 2);
+  if (!st.flags.join_announced) {
+    st.flags.join_announced = true;
+    hooks.toast?.(L({ ru: "Нашивка «Ржавые Цепи» получена!", en: "Rusty Chains patch earned!", da: "Rusty Chains-mærke!" }));
   }
-  hooks.toast?.(L({ ru: "Нашивка «Ржавые Цепи» получена!", en: "Rusty Chains patch earned!", da: "Rusty Chains-mærke!" }));
+  if (hangoutShouldStart(st)) startQuest("q_hangout_build");
 }
 
 export function startQuest(qid) {
@@ -362,6 +385,10 @@ function completeQuest(qid) {
 function pickNextObjective() {
   const p = me();
   const st = ensureStoryState(p);
+  if (hangoutShouldStart(st)) {
+    startQuest("q_hangout_build");
+    return;
+  }
   if (st.quest.activeId) return;
   if (!st.flags.joined_gang && p.onboarding?.done) {
     if (
@@ -732,6 +759,7 @@ export function buildHangoutStage() {
     }
   }
   for (const [k, n] of Object.entries(need)) st.materials[k] -= n;
+  syncPartyInventory(p);
   st.hangoutStage += 1;
   window.World3D?.refreshHangoutStage?.(st.hangoutStage);
   hooks.toast?.(L({ ru: "Этап построен!", en: "Stage built!", da: "Etape bygget!" }));
@@ -888,8 +916,55 @@ export function showNpcProximityCallout(npcId, text) {
   setSubtitle(text, typeof window.tNpcName === "function" ? window.tNpcName(npcId) : npcId);
 }
 
+export function buyStoryMaterial(id, qty = 1) {
+  if (!PARTY_MATERIAL_IDS.includes(id) || id === "scrap") return { ok: false, reason: "unknown" };
+  const price = data.balance?.materialPrices?.[id];
+  const p = me();
+  const gate = canAfford(p.coins, price, qty, window.isOwner);
+  if (!gate.ok) return gate;
+  if (!window.isOwner) p.coins -= gate.cost;
+  const st = ensureStoryState(p);
+  st.materials[id] = (st.materials[id] || 0) + qty;
+  syncPartyInventory(p);
+  hooks.save?.();
+  updateConstructionHud();
+  hooks.toast?.(L({ ru: "Куплено", en: "Bought", da: "Købt" }) + `: ${id} ×${qty}`);
+  return { ok: true, cost: gate.cost };
+}
+
+function openHardwareStall() {
+  const dlg = document.getElementById("storyDialog");
+  if (!dlg) return;
+  dlg.classList.add("active");
+  dlg.querySelector(".story-dialog-title").textContent = L({
+    ru: "Скобяная лавка",
+    en: "Hardware stall",
+    da: "Hardwarebod"
+  });
+  const body = dlg.querySelector(".story-dialog-body");
+  const prices = data.balance?.materialPrices || {};
+  const ids = PARTY_MATERIAL_IDS.filter(id => prices[id] > 0 && id !== "scrap");
+  body.innerHTML = ids.map(id => {
+    const have = ensureStoryState(me()).materials[id] || 0;
+    return `<button type="button" class="btn story-choice" data-mat="${id}">
+      <span class="choice-text">${id} · ${prices[id]}</span>
+      <small class="choice-hint">${have}</small>
+    </button>`;
+  }).join("");
+  body.querySelectorAll("[data-mat]").forEach(btn => {
+    btn.onclick = () => {
+      buyStoryMaterial(btn.dataset.mat, 1);
+      openHardwareStall();
+    };
+  });
+}
+
 export function tryStoryNpc(npcId) {
   if (Authority.tryAuthorityNpc(npcId)) return true;
+  if (npcId === "bolt") {
+    openHardwareStall();
+    return true;
+  }
   if (!STORY_NPC_IDS.has(npcId)) return false;
   const loc = me().location;
   const dlg = findNpcDialogue(data.dialogues, npcId, loc, checkRequires);
@@ -976,6 +1051,7 @@ export function initStoryEngine(h) {
       }
       renderObjectivePanel();
       window.StoryEngine = api;
+      window.dispatchEvent?.(new Event("punkme-story-ready"));
       window.StoryEngine.openNoRatChoice = () => Authority.openNoRatChoice?.();
       window.StoryEngine.openTrialsChooserDialog = () => Authority.openTrialsChooserDialog?.();
       return true;
@@ -1005,6 +1081,8 @@ const api = {
   beginEarnCoins,
   tryStoryPurchase,
   buildHangoutStage,
+  buyStoryMaterial,
+  syncPartyInventory,
   whereToGetMaterials,
   setBeacon,
   syncBeacon,

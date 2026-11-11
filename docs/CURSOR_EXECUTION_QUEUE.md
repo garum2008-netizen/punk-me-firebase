@@ -2,7 +2,7 @@
 
 Handover for direct Cursor work on **PUNK ME** (`garum2008-netizen/punk-me-firebase`).  
 Snapshot: `main` @ `450d6da` (2026-11-08). Production site: `https://halloween.punk.contractbot.dk`.  
-`GAME_VERSION` on this branch: `living3d-v22r6-task03`.
+`GAME_VERSION` on this branch: `living3d-v22r8-ch1`.
 
 This file is a work queue, not a second quota. Grok and Cursor share one weekly pool. Savings come from fewer bot calls, not from moving the same loops into Cursor.
 
@@ -16,9 +16,9 @@ Open this repository in Cursor Agent and take the first row whose status is **NE
 | --- | --- | --- | --- | --- | --- |
 | 01 | Audit repo and production ([#18](https://github.com/garum2008-netizen/punk-me-firebase/issues/18)) | this repo / `main` | DONE as baseline | Keep this queue current when a task lands | Read issues #18–#27 and `docs/game-design/` before coding |
 | 02 | Secure RTDB ([#20](https://github.com/garum2008-netizen/punk-me-firebase/issues/20)) | `main` includes PR #33 | CODE ON MAIN / PUBLISH BLOCKED | Owner backup, then publish rules. Do not publish from an agent | `npm run test:rules` only in an emulator. Checklist: `docs/release/RULES_PUBLISH_CHECKLIST.md` |
-| 03 | Onboarding and quests ([#22](https://github.com/garum2008-netizen/punk-me-firebase/issues/22)) | `cursor/task03-onboarding-interact-0f9d` | IN PROGRESS (code + tests) | Manual playthrough: new player reaches initiation without DEBUG | `npm run test:task03` then `npm test`. Headless Chrome: desktop quest panel stays visible; mobile starts hidden and the toggle reveals it |
-| 04 | Mobile controls and HUD ([#24](https://github.com/garum2008-netizen/punk-me-firebase/issues/24)) | same branch, partial | PARTIAL | Add a jump control in the safe area and confirm portal tap on a phone | Joystick `pointercancel` no longer keeps a stale pointer id |
-| 05 | Chapter 2 build and economy ([#26](https://github.com/garum2008-netizen/punk-me-firebase/issues/26)) | `main` | NEXT after 03 playthrough | One inventory for bricks/nails/boards; hangout stages 1–4 save; no double duel payout | Stay inside `js/story/` and `data/story/construction-hangout.json` |
+| 03 | Onboarding and quests ([#22](https://github.com/garum2008-netizen/punk-me-firebase/issues/22)) | `cursor/punk-me-chapter1-c6b6` | CODE + STATE PLAYTHROUGH | Do not deploy. A 3D walk on a phone is still untested | `npm run test:chapter1` and `npm run test:task03` |
+| 04 | Mobile controls and HUD ([#24](https://github.com/garum2008-netizen/punk-me-firebase/issues/24)) | same branch | CODE + HEADLESS LAYOUT | Real iPhone/Android not tested. Jump, E, and joystick stay above the dock in Chromium and WebKit | Keyboard and joystick use separate vectors |
+| 05 | Chapter 2 build and economy ([#26](https://github.com/garum2008-netizen/punk-me-firebase/issues/26)) | same branch | PARTY INVENTORY UNIFIED | Hangout stages 1–4 are purchasable from Bolt and survive reload. City build still not a full 3D playthrough | `js/story/party-inventory.mjs` |
 | 06 | 3D asset audit ([#19](https://github.com/garum2008-netizen/punk-me-firebase/issues/19)) | `main` | QUEUED | Manifest of GLB sources and licenses. Do not replace owner models | `assets/models/` |
 | 07 | Dual-platform doc ([#21](https://github.com/garum2008-netizen/punk-me-firebase/issues/21)) | `main` | QUEUED | `docs/architecture/DUAL_PLATFORM.md` only. No shared Roblox currency | Docs PR |
 | 08 | Roblox MVP ([#23](https://github.com/garum2008-netizen/punk-me-firebase/issues/23)) | none | BLOCKED | Needs owner OK. No Robux, no public place | Cloud agents cannot drive Roblox Studio |
@@ -35,13 +35,15 @@ Verified by `node scripts/test-task03-progress.mjs`:
 - `questBump` / `bumpQuest` creates `quests.progress` when Firebase omitted it, so a duel win does not throw.
 - After `joined_gang`, talking to Razor does not reopen `dlg_razor_initiation` («новенький»). Rank lines for `gang_member` are used instead.
 - The desktop quest panel is visible without a toggle. Narrow viewports still start collapsed, and the toggle remains.
-- Joystick `pointercancel` clears the active pointer (TASK 04 slice). A jump button is still missing.
+- Joystick `pointercancel` clears the active pointer (TASK 04 slice).
+
+Chapter 1 on `cursor/punk-me-chapter1-c6b6` adds a separate joystick vector, one party-material inventory, and a single Razor duel payout. `npm run test:chapter1` walks tutorial → materials → one reward → initiation and reload. `?localplay=1` boots that path without writing production RTDB.
 
 Not done, and not claimed:
 
-- A full new-player playthrough to gang initiation in the browser.
-- Publishing Firebase rules or the static site.
-- Chapter 2 hangout, chapters 3–4, Roblox, payments.
+- A finger-driven 3D walk on a real phone.
+- Publishing Firebase rules or the static site. `https://halloween.punk.contractbot.dk` is still the GitHub Pages build from main.
+- Chapters 3–4, Roblox, payments.
 
 ## Audit notes (repository)
 

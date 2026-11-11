@@ -7,6 +7,8 @@
     "lint": "node scripts/smoke-check.js",
     "test": "node scripts/smoke-check.js",
     "test:task03": "node scripts/test-task03-progress.mjs",
+    "test:chapter1": "node scripts/test-chapter1-playthrough.mjs",
+    "test:chapter1-browser": "node scripts/test-chapter1-browser.mjs",
     "test:loading": "node scripts/test-loading-recovery.js",
     "test:loading-early-save": "node scripts/test-loading-early-save.js",
     "test:accounts": "node scripts/test-accounts-auth.js",

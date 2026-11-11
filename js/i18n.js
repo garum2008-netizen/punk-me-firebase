@@ -1,7 +1,7 @@
 /* Локализация: ru / en / da */
 const I18N = {
   ru: {
-    coins: "Монеты", xp: "XP", level: "Уровень", rep: "Репутация", chain: "Цепь", online: "Здесь", onlineGlobal: "Всего в игре",
+    coins: "Монеты", energy_label: "Энергия", jump_btn: "Прыжок", xp: "XP", level: "Уровень", rep: "Репутация", chain: "Цепь", online: "Здесь", onlineGlobal: "Всего в игре",
     loading: "Вход в банду...", loading_retry: "Повторить", loading_fresh: "Начать заново (аккаунт сохранится)",
     loading_timeout: "Загрузка слишком долгая. Проверь сеть или нажми «Повторить».",
     loading_boot_error: "Не удалось загрузить сохранение.", chatPh: "Чат банды...", onlineSide: "В этой локации", alone: "Пока одни…",
@@ -122,7 +122,7 @@ const I18N = {
     job_cemetery_hud: "Ночная смена", job_candles: "свечи", job_ghosts: "призраки"
   },
   en: {
-    coins: "Coins", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
+    coins: "Coins", energy_label: "Energy", jump_btn: "Jump", xp: "XP", level: "Level", rep: "Rep", chain: "Chain", online: "Here", onlineGlobal: "Total online",
     loading: "Joining the gang...", loading_retry: "Retry", loading_fresh: "Start fresh (keep account)",
     loading_timeout: "Loading is taking too long. Check your network or tap Retry.",
     loading_boot_error: "Could not load your save.", chatPh: "Gang chat...", onlineSide: "In this location", alone: "Just you for now…",
@@ -243,7 +243,7 @@ const I18N = {
     job_cemetery_hud: "Night shift", job_candles: "candles", job_ghosts: "ghosts"
   },
   da: {
-    coins: "Mønter", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
+    coins: "Mønter", energy_label: "Energi", jump_btn: "Hop", xp: "XP", level: "Niveau", rep: "Respekt", chain: "Kæde", online: "Her", onlineGlobal: "Online i alt",
     loading: "Går ind i banden...", loading_retry: "Prøv igen", loading_fresh: "Start forfra (behold konto)",
     loading_timeout: "Indlæsning tager for lang tid. Tjek netværket eller tryk Prøv igen.",
     loading_boot_error: "Kunne ikke indlæse dit save.", chatPh: "Bandechat...", onlineSide: "På denne lokation", alone: "Kun dig lige nu…",

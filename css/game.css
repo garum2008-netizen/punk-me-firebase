@@ -440,10 +440,11 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   display: none; position: absolute; inset: 0; z-index: 18; pointer-events: none;
 }
 .touch-joystick {
-  position: absolute; left: 12px; bottom: calc(var(--dock-h, 150px) + 12px);
+  position: absolute; left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: calc(var(--dock-h, 150px) + 12px + env(safe-area-inset-bottom, 0px));
   width: 110px; height: 110px; border-radius: 50%;
   background: rgba(20,10,40,0.55); border: 2px solid rgba(0,255,255,0.35);
-  pointer-events: auto;
+  pointer-events: auto; touch-action: none;
 }
 .touch-joystick-knob {
   position: absolute; left: 50%; top: 50%; width: 44px; height: 44px;
@@ -451,11 +452,21 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   transform: translate(-50%, -50%);
 }
 .touch-interact {
-  position: absolute; right: 12px; bottom: calc(var(--dock-h, 150px) + 24px);
+  position: absolute; right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--dock-h, 150px) + 24px + env(safe-area-inset-bottom, 0px));
   min-width: 48px; min-height: 48px; border-radius: 50%;
   border: none; font-weight: 800; font-size: 16px;
   background: linear-gradient(135deg, #ff00ff, #7c3aed); color: #fff;
-  pointer-events: auto;
+  pointer-events: auto; touch-action: manipulation;
+}
+.touch-jump {
+  position: absolute; right: calc(max(12px, env(safe-area-inset-right, 0px)) + 64px);
+  bottom: calc(var(--dock-h, 150px) + 28px + env(safe-area-inset-bottom, 0px));
+  min-width: 56px; min-height: 48px; border-radius: 16px;
+  border: 1px solid rgba(0,255,255,0.45);
+  font-weight: 800; font-size: 13px;
+  background: rgba(12, 20, 40, 0.92); color: #0ff;
+  pointer-events: auto; touch-action: manipulation;
 }
 .hud-quests-wrap { display: flex; flex-direction: column; gap: 4px; }
 .hud-quests-toggle {
@@ -473,8 +484,8 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .hud-quests-wrap.collapsed .quest-box,
 .hud-quests-wrap.collapsed .daily-quest-hud { display: none; }
 @media (max-width: 900px) {
-  .hud-quests-wrap:not(.expanded) .quest-box,
-  .hud-quests-wrap:not(.expanded) .daily-quest-hud { display: none; }
+  .hud-quests-wrap .quest-box,
+  .hud-quests-wrap .daily-quest-hud { display: block; }
 }
 @media (min-width: 901px) {
   .hud-quests-wrap .quest-box { display: block; }
@@ -506,11 +517,13 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
     justify-content: flex-start;
   }
   .hud-column {
-    left: 6px; max-width: calc(100% - 112px);
+    top: 44px;
+    left: 6px; max-width: calc(100% - 12px);
     gap: 4px;
-    max-height: 20vh;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
   }
+  .hud .badge-stat:not(.badge-keep) { display: none; }
   .hud-desktop-only { display: none !important; }
   .hud-quests-toggle { display: inline-block; }
   .quest-box {
@@ -649,6 +662,8 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   }
   .badge-stat .stat-label { display: none; }
   .badge-stat .stat-label::after { content: ""; }
+  .badge-keep .stat-label { display: inline; }
+  .badge-keep .stat-label::after { content: ":"; margin-right: 2px; }
   .badge-stat .stat-icon { font-size: 11px; }
   .toast {
     top: auto;

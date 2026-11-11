@@ -75,6 +75,10 @@ function currentStep() {
   return i < 0 ? null : ONBOARDING_STEPS[i];
 }
 
+function currentStepId() {
+  return currentStep()?.id || null;
+}
+
 function progress() {
   return window.me?.onboarding?.progress || {};
 }
@@ -223,6 +227,7 @@ window.Onboarding = {
   onWinFight,
   onShopBuy,
   getGuideTarget,
+  currentStepId,
   normalizeFromSave,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

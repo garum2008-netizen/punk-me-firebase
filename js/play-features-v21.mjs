@@ -28,6 +28,7 @@ function applyJobShift(me, hooks, opts) {
     Object.entries(opts.materials).forEach(([k, v]) => {
       st.materials[k] = (st.materials[k] || 0) + v;
     });
+    window.StoryEngine.syncPartyInventory?.(me);
   }
   hooks.save();
   window.StoryEngine?.fireStoryEvent?.("job_shift_done");

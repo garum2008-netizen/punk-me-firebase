@@ -48,7 +48,15 @@ export function initTouchControls(opts = {}) {
   joy.addEventListener("pointerup", endJoy);
   joy.addEventListener("pointercancel", endJoy);
 
-  interact?.addEventListener("click", () => touchInteract());
+  interact?.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    touchInteract();
+  });
+  const jump = document.getElementById("touchJump");
+  jump?.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    touchJump();
+  });
 
   const stage = document.getElementById("stage3d");
   stage?.addEventListener("pointerdown", e => {

@@ -440,12 +440,11 @@ function stopDuel3D(win) {
   ctx?.actors?.forEach(act => {
     if (act.group) act.group.visible = true;
   });
-  const reward = win ? 70 + Math.floor(Math.random() * 40) : 0;
   const res = document.getElementById("duel3dResult");
   if (res) {
     res.classList.remove("hidden");
     res.innerHTML = win
-      ? `<b>${wasTraining ? t("duel_training_win") || "Training win!" : t("win_fight")}</b><div>${wasTraining ? "" : `+${reward} coins · +25 XP`}</div>`
+      ? `<b>${wasTraining ? t("duel_training_win") || "Training win!" : t("win_fight")}</b>`
       : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
     setTimeout(() => res.classList.add("hidden"), 3200);
   }
