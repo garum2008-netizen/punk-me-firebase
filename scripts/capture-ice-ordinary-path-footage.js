@@ -21,7 +21,10 @@ assertFirebaseEmulatorTestEnv();
 const ROOT = path.join(__dirname, "..");
 const OUT = process.env.PUNK_ICE_OUT || path.join("/opt/cursor/artifacts", "ice-ch1-footage");
 const PORT = Number(process.env.PUNK_PORT || "3463");
-const SHA = spawnSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).stdout.trim();
+const SHA = (
+  process.env.PUNK_EVIDENCE_SHA ||
+  spawnSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).stdout.trim()
+).trim();
 const ORDINARY_PASS_RAW = process.env.ORDINARY_PASS || "1";
 const ORDINARY_PASS = Number(ORDINARY_PASS_RAW);
 const INPUT_MODE = process.env.ORDINARY_INPUT || "keyboard";

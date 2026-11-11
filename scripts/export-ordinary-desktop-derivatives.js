@@ -5,7 +5,11 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const OUT = process.env.PUNK_ICE_OUT || path.join("/opt/cursor/artifacts", "ice-ch1-footage");
-const shaShort = (process.env.SHA_SHORT || spawnSync("git", ["rev-parse", "--short=12", "HEAD"], { encoding: "utf8" }).stdout.trim()).slice(0, 12);
+const shaShort = (
+  process.env.SHA_SHORT ||
+  process.env.PUNK_EVIDENCE_SHA?.slice(0, 12) ||
+  spawnSync("git", ["rev-parse", "--short=12", "HEAD"], { encoding: "utf8" }).stdout.trim()
+).slice(0, 12);
 const pass = process.env.ORDINARY_PASS || "03";
 
 function resolveDesktopUncutSource(dir, shortSha, passRaw) {
