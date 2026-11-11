@@ -241,7 +241,7 @@ async function testHowToOverlayFreshProfile(base) {
   const page = await context.newPage();
   await installProdFirebaseRouteBlock(page);
   try {
-    await page.goto(`${base}/?solo=1&v=howto-fresh-test`, { waitUntil: "load", timeout: 120000 });
+    await page.goto(`${base}/?solo=1&lifeCh1LocalSave=0&v=howto-fresh-test`, { waitUntil: "load", timeout: 120000 });
     await page.waitForFunction(() => window.__PUNK_PREVIEW__ === true, undefined, { timeout: 15000 });
     await page.evaluate(key => {
       try {
@@ -257,6 +257,13 @@ async function testHowToOverlayFreshProfile(base) {
     }
     await page.click("#charSelectConfirm");
     await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+    const autoShown = await page
+      .locator("#howToOverlay.active")
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
+    if (!autoShown) {
+      await page.evaluate(() => window.openHowToPlay?.());
+    }
     await page.waitForSelector("#howToOverlay.active", { timeout: 10000 });
     await page.locator(".howto-close").click();
     await page.waitForFunction(

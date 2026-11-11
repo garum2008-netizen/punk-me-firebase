@@ -11,6 +11,14 @@ const servePort = process.env.PUNK_PORT || "3456";
 const runCount = Math.max(1, parseInt(process.env.LIFE_CH1_E2E_RUNS || "10", 10));
 const firebaseBin = path.join(root, "node_modules", ".bin", "firebase");
 const rulesPath = path.join(root, "database.rules.json");
+const { applyFirebaseEmulatorEnv } = require("./firebase-emulator-env");
+
+applyFirebaseEmulatorEnv();
+const emulatorEnv = {
+  FIREBASE_EMULATOR: process.env.FIREBASE_EMULATOR,
+  FIREBASE_DATABASE_EMULATOR_HOST: process.env.FIREBASE_DATABASE_EMULATOR_HOST,
+  FIREBASE_AUTH_EMULATOR_HOST: process.env.FIREBASE_AUTH_EMULATOR_HOST
+};
 
 function validateRules() {
   const noop = path.join(root, "scripts", "validate-rtdb-rules.js");
@@ -114,6 +122,7 @@ function runE2e(runIndex) {
       stdio: "inherit",
       env: {
         ...process.env,
+        ...emulatorEnv,
         PUNK_BASE: `http://127.0.0.1:${servePort}`,
         LIFE_CH1_E2E_RUN: String(runIndex),
         FIREBASE_DEMO_PROJECT: project

@@ -62,6 +62,9 @@ function suppressAutoHowToForLifeCh1() {
     if (window.__PUNK_LIFE_CH1_LOCAL__ === true) return true;
     const q = new URLSearchParams(location.search);
     if (q.get("lifeCh1Slice") === "1" || q.get("lifeCh1Local") === "1") return true;
+    if (window.__PUNK_PREVIEW__ === true) {
+      if (q.get("lifeCh1Slice") !== "1" && q.get("lifeCh1Local") !== "1") return false;
+    }
     if (window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() && window.LifeCh1Slice?.isActive?.()) return true;
   } catch (_) {}
   return false;
@@ -93,4 +96,4 @@ function initHowToPlay() {
 
 window.openHowToPlay = openHowTo;
 window.initHowToPlay = initHowToPlay;
-export { initHowToPlay, openHowTo, dismissHowToOverlay };
+export { initHowToPlay, openHowTo };

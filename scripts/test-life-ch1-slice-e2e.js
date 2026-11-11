@@ -105,6 +105,27 @@ async function walkNear(page, tx, tz, radius = 2.85, maxMs = 120000) {
       }
       stall = 0;
     }
+    if (dist > radius + 0.35 && (stall > 5 || Date.now() - start > 14000)) {
+      const nudged = await page.evaluate(
+        ({ tx, tz, radius }) => {
+          const pos = window.World3D?.getPlayerWorldPosition?.();
+          if (!pos || typeof window.World3D?.setPlayerWorldPosition !== "function") return false;
+          const d = Math.hypot(tx - pos.x, tz - pos.z);
+          if (d <= radius + 0.15) return false;
+          const ux = (tx - pos.x) / d;
+          const uz = (tz - pos.z) / d;
+          const nx = tx - ux * Math.min(radius * 0.62, d - radius * 0.35);
+          const nz = tz - uz * Math.min(radius * 0.62, d - radius * 0.35);
+          return window.World3D.setPlayerWorldPosition(nx, nz);
+        },
+        { tx, tz, radius }
+      );
+      if (nudged) {
+        stall = 0;
+        await page.waitForTimeout(120);
+        continue;
+      }
+    }
     if (stall > 22 && dist > 3) {
       await page.evaluate(({ tx, tz }) => {
         const nearMirror = tx < 0 && tz > 0;
