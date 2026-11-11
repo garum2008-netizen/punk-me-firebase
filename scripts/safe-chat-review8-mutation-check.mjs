@@ -56,6 +56,11 @@ const patches = {
         file: "src/index.js",
         from: INDEX_CLUSTER_PRECHECK,
         to: `    /* M2 removed index cluster cap pre-check */`
+      },
+      {
+        file: "src/child-safety-abuse.js",
+        from: `    if (!bumpCluster.ok) return { ok: false, reason: "cluster_hide_cap" };`,
+        to: `    /* M2 removed cluster hide cap enforcement */`
       }
     ]
   },

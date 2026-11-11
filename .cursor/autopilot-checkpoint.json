@@ -2,29 +2,43 @@
   "project": "safe-chat PR #53",
   "repository": "garum2008-netizen/punk-me-firebase",
   "branch": "cursor/safe-chat-verifier-fixes-3dff",
-  "frozenCommit": "d31a624cdf407fac20c1560958dd426a6c174b39",
-  "objective": "3x consecutive npm run test:safe-chat EXIT 0 on frozen head",
+  "frozenSecuritySha": "d31a624cdf407fac20c1560958dd426a6c174b39",
+  "verificationHeadSha": "pending",
   "pr": 53,
   "prState": "draft",
-  "status": "verification_blocked_m2_flake",
-  "completed": [
-    "Frozen SHA verified",
-    "npm ci (root + workers/safe-chat)",
-    "Run 1 integration 125/125",
-    "Run 1 MUT-MIRROR-HIDDEN CAUGHT",
-    "Run 1 mutation-check all CAUGHT",
-    "CTRL0 PASS"
-  ],
-  "pending": ["Runs 2-3 (stopped after run 1 EXIT=1)", "Optional review8 M2 flake diagnosis"],
+  "updatedAt": "2026-11-11T19:55:36.150Z",
+  "objective": "3x consecutive npm run test:safe-chat EXIT 0 (authoritative npm ci environment)",
+  "status": "verification_in_progress",
+  "securityGate": "BLOCKED",
+  "consecutiveExit0": "0/3",
+  "diagnosis": {
+    "review8M2": {
+      "priorResult": "NOT CAUGHT",
+      "cause": "M2 removed only index.js INDEX_CLUSTER_PRECHECK; cluster_hide_cap still enforced via child-safety-abuse bumpCluster.ok",
+      "deterministic": true,
+      "fix": "Extend M2 harness patch list to remove bumpCluster enforcement (worker security code unchanged at frozenSecuritySha)"
+    }
+  },
   "verificationRuns": [
     {
       "run": 1,
+      "environment": "cloud-agent-pre-fix",
       "exit": 1,
       "integration": "125/125",
       "mutMirrorHidden": "CAUGHT",
-      "review8M2": "NOT CAUGHT",
-      "note": "review8-mutation-check failure; likely DO hot-reload flake during protection suite copy run"
+      "review8M2": "NOT CAUGHT"
     }
   ],
-  "nextAction": "Owner 3x in unshare env; or fix M2 harness on branch in new commit (not amending d31a624)"
+  "completed": [
+    "review8-only rerun: M2 CAUGHT (all review8 mutations)",
+    "GHA workflow safe-chat-pr53-autopilot.yml (authoritative streak runner)"
+  ],
+  "pending": [
+    "Full npm run test:safe-chat EXIT 0 x3 on verification head",
+    "PR #53 evidence report",
+    "Owner merge/deploy authorization"
+  ],
+  "nextAction": "Run scripts/run-3x-safe-chat-verify.sh after harness commit; attach artifacts to PR #53",
+  "currentRun": 1,
+  "lastEvent": "run_1_started"
 }

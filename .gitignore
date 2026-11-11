@@ -4,3 +4,8 @@ qa-out/
 database-debug.log
 firebase-debug.log
 workers/safe-chat/.prod-bundle-check/
+.cursor/3x-run*.log
+.cursor/3x-runner.log
+.cursor/review8-m2-retest.log
+.cursor/autopilot-3x-*.txt
+.cursor/ci-artifacts/
