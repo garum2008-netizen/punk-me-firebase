@@ -41,6 +41,15 @@ Playwright `#touchJoystick` drag + 2s headless rAF sample (`approxFps` logged in
 
 `database.rules.json` **unchanged** vs `origin/main` → merge should **not** trigger `.github/workflows/deploy-database-rules.yml`.
 
+## Desktop UNCUT video (E5, repaired)
+
+After `d947653` video finalize fix, desktop UNCUT files named with `PUNK_EVIDENCE_SHA=552740b782bf…`:
+
+- `ice-ch1-ORDINARY-UNCUT-desktop-552740b782bf-desktop1280x720-pass{01,02,03}.webm` (re-record tooling; gameplay acceptance SHA unchanged)
+- `DERIV-*-552740b782bf-pass03.webm` segments from `export-ordinary-desktop-derivatives.js`
+
+Earlier metadata rows may list `videoSaveError`; uncut files on disk supersede for release pack.
+
 ## Not green (blocks production merge)
 
 1. **Owner visual acceptance** (Roblox bar) — not automated.  
