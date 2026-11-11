@@ -1,69 +1,116 @@
 {
-  "updatedAt": "2026-11-11T10:40:00+01:00",
-  "stage": "approval-gate-tested",
+  "updatedAt": "2026-11-11T11:55:00+01:00",
+  "stage": "approval-batch-pending",
   "queueUntouched": true,
   "scheduledByThisRun": [],
   "signatureDraft": {
     "id": "6af442e5f41d6d2bbb6444d1",
-    "bufferStatus": "draft",
-    "approval": "pending_owner",
-    "version": "651e0f9337834ebbeec9a4b1f7d3060dfab9afa164d5d97926e99e2e5f866218"
+    "bufferStatus": "unchanged_draft",
+    "previousVersion": "651e0f9337834ebbeec9a4b1f7d3060dfab9afa164d5d97926e99e2e5f866218",
+    "revisedProposal": "eudi-20261120-li",
+    "revisedVersion": "96819aae9f7f122e02940cf635120a1d0c5beb8f176a992817667660ac8e1d01",
+    "scheduling": "held_until_the_existing_draft_is_separately_retired"
   },
+  "batch": "ice-editorial/approval-batch.json",
   "reviewPackages": [
     {
-      "id": "eudi-20261120",
-      "version": "651e0f9337834ebbeec9a4b1f7d3060dfab9afa164d5d97926e99e2e5f866218",
+      "id": "eudi-20261120-li",
+      "version": "96819aae9f7f122e02940cf635120a1d0c5beb8f176a992817667660ac8e1d01",
       "status": "pending_owner"
     },
     {
-      "id": "gdpr-20261204",
-      "version": "b441ff5296121945b876141bd4090f9a413336a4e23d27158dc1643fe0ca9694",
+      "id": "eudi-20261120-fb",
+      "version": "dc46d4ffe13fba5f89f60467e5f1f81ba8d7e9a811acd02e37b30966d67b5426",
       "status": "pending_owner"
     },
     {
-      "id": "nda-20261208",
-      "version": "e460b0e903befda05b3e5b000a6be4754ed0b5eaf9191ea3994a59f3105658a6",
+      "id": "gdpr-20261204-li",
+      "version": "ced26e6959c9feb6602125891c79f014988c221bf442e6c19849f4e363289c14",
       "status": "pending_owner"
     },
     {
-      "id": "ip-20261211",
-      "version": "0ba55766e8406c35095326602cb5204b9ca196735c5fae1a632c5764a2010b54",
+      "id": "gdpr-20261204-fb",
+      "version": "3ebd04419747a62b1d5464ecef1b599b53339c00d15fd98d82c0531c4af9c1b5",
       "status": "pending_owner"
     },
     {
-      "id": "cisg-20261214",
-      "version": "ebc5e5a5183a48590af2fa0a3a8a159627c5a3714bba8060ff081a407c6c88f7",
+      "id": "nda-20261208-li",
+      "version": "dc0798e713614ce8e943f2eb564a38689b7c03ef0122fc21593dd132b03b44c9",
       "status": "pending_owner"
     },
     {
-      "id": "indemnity-20261218",
-      "version": "8db9251a9830ef268a52edfeab9d0deabc697b521639a370791baaf38cb6a27c",
+      "id": "nda-20261208-fb",
+      "version": "1f79d45166af765ac89e8dfc6adb076eca495a860d538778ed945922110dbfbc",
       "status": "pending_owner"
     },
     {
-      "id": "language-20261222",
-      "version": "8eb421b10e9052633f1f1ed7af9f0a87469fe52b4da06a2d21e2fecc593f5a81",
+      "id": "ip-20261211-li",
+      "version": "f526d1065e7509172e471a547d921203b69dcbfa8e6bcceac47354507e1da4b1",
       "status": "pending_owner"
     },
     {
-      "id": "subcontract-20261223",
-      "version": "70fd6a937476c74c677d88c3f25b172d2dfb59643407a27d5dd2119895f92b32",
+      "id": "ip-20261211-fb",
+      "version": "4f0206c5e86929f443f5a50a739b1581dfc195198a16ad592cd195be93c0509c",
+      "status": "pending_owner"
+    },
+    {
+      "id": "cisg-20261214-li",
+      "version": "f3f459a3d30db4ce3b75552767d4cffae8f9feea2531e45ec8fd0625ae1cef87",
+      "status": "pending_owner"
+    },
+    {
+      "id": "cisg-20261214-fb",
+      "version": "426331ac6572eb215d3cd6f0722474e160cf5da5189519ef94ab41cf2c196985",
+      "status": "pending_owner"
+    },
+    {
+      "id": "indemnity-20261218-li",
+      "version": "932050877dcf1d89d3a8c685521d1931fa8c19408ffe3dc5373a10604fe72fa9",
+      "status": "pending_owner"
+    },
+    {
+      "id": "indemnity-20261218-fb",
+      "version": "14c09f1775cd4a95e4bdccadef79fa396d1cfc8e5f3926a09f37cad3863ae058",
+      "status": "pending_owner"
+    },
+    {
+      "id": "language-20261222-li",
+      "version": "eb78b8f2a6db326f238f2f378f3fdad72574a55c4abacf665dc4608bbc71435f",
+      "status": "pending_owner"
+    },
+    {
+      "id": "language-20261222-fb",
+      "version": "5c13d80dd02874125c97afc8159da8edfbf8426613208996d8a6de9b5fc66e4d",
+      "status": "pending_owner"
+    },
+    {
+      "id": "subcontract-20261223-li",
+      "version": "a41fd7d74055bf0d2ff418bfb5a12b5f3e9ea0ec8af58b8c952f733720ccd571",
+      "status": "pending_owner"
+    },
+    {
+      "id": "subcontract-20261223-fb",
+      "version": "c423c45d2c23f474aff9d759cdf12fc0935b59930c0b17335cf36f97c200512d",
       "status": "pending_owner"
     }
   ],
   "held": [
     {
+      "id": "verified-stills-withheld",
+      "reason": "The SaaS still says access is not acceptance, the NDA still says a consultancy fee is due after acceptance, and the AI Act still says control before release. None of those claims matches these eight lessons, so no image is attached."
+    },
+    {
       "id": "legal-comedy",
-      "reason": "No verified legal cartoon or short video is available. A visual post will not be marked ready without one."
+      "reason": "No verified legal cartoon or short video is available."
     },
     {
       "id": "contractbot-product-education",
-      "reason": "This repository does not contain a verified list of ContractBot product behaviour, so no product claim is drafted."
+      "reason": "This repository has no verified list of ContractBot product behaviour."
     },
     {
       "id": "books-and-children",
-      "reason": "PUNK ME ANGEL, Angel&Chris Play, angelinalinakragh, LAW OF CODE and the Emma stories stay outside this legal desk."
+      "reason": "Children's channels and the book projects stay outside this legal desk."
     }
   ],
-  "resume": "Do not edit the existing Buffer queue. Do not schedule a review package until its approval record has status approved, an approver, an approvedAt time, and the same version, channel, media and date."
+  "resume": "Do not edit Buffer. Do not schedule any item until its own approval record is approved for the hash in approval-batch.json. Approving the revised signature text does not edit draft 6af442e5f41d6d2bbb6444d1."
 }

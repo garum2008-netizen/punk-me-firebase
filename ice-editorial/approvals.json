@@ -2,13 +2,13 @@
   "status": "pending_owner",
   "items": [
     {
-      "id": "eudi-20261120",
-      "bufferDraftId": "6af442e5f41d6d2bbb6444d1",
+      "id": "eudi-20261120-li",
+      "bufferDraftId": null,
       "proposedDueAt": "2026-11-20T08:00:00+01:00",
       "channelId": "6a9d9227cd8b9c702c197a40",
       "approval": {
         "status": "pending_owner",
-        "version": "651e0f9337834ebbeec9a4b1f7d3060dfab9afa164d5d97926e99e2e5f866218",
+        "version": "96819aae9f7f122e02940cf635120a1d0c5beb8f176a992817667660ac8e1d01",
         "channelId": "6a9d9227cd8b9c702c197a40",
         "mediaUrl": "",
         "intendedDueAt": "2026-11-20T08:00:00+01:00",
@@ -17,13 +17,28 @@
       }
     },
     {
-      "id": "gdpr-20261204",
+      "id": "eudi-20261120-fb",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-11-20T12:00:00+01:00",
+      "channelId": "6a9d9398cd8b9c702c1981cd",
+      "approval": {
+        "status": "pending_owner",
+        "version": "dc46d4ffe13fba5f89f60467e5f1f81ba8d7e9a811acd02e37b30966d67b5426",
+        "channelId": "6a9d9398cd8b9c702c1981cd",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-11-20T12:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "gdpr-20261204-li",
       "bufferDraftId": null,
       "proposedDueAt": "2026-12-04T08:00:00+01:00",
       "channelId": "6a9d9227cd8b9c702c197a40",
       "approval": {
         "status": "pending_owner",
-        "version": "b441ff5296121945b876141bd4090f9a413336a4e23d27158dc1643fe0ca9694",
+        "version": "ced26e6959c9feb6602125891c79f014988c221bf442e6c19849f4e363289c14",
         "channelId": "6a9d9227cd8b9c702c197a40",
         "mediaUrl": "",
         "intendedDueAt": "2026-12-04T08:00:00+01:00",
@@ -32,13 +47,28 @@
       }
     },
     {
-      "id": "nda-20261208",
+      "id": "gdpr-20261204-fb",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-04T12:00:00+01:00",
+      "channelId": "6a9d9398cd8b9c702c1981cd",
+      "approval": {
+        "status": "pending_owner",
+        "version": "3ebd04419747a62b1d5464ecef1b599b53339c00d15fd98d82c0531c4af9c1b5",
+        "channelId": "6a9d9398cd8b9c702c1981cd",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-04T12:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "nda-20261208-li",
       "bufferDraftId": null,
       "proposedDueAt": "2026-12-08T08:00:00+01:00",
       "channelId": "6a9d9227cd8b9c702c197a40",
       "approval": {
         "status": "pending_owner",
-        "version": "e460b0e903befda05b3e5b000a6be4754ed0b5eaf9191ea3994a59f3105658a6",
+        "version": "dc0798e713614ce8e943f2eb564a38689b7c03ef0122fc21593dd132b03b44c9",
         "channelId": "6a9d9227cd8b9c702c197a40",
         "mediaUrl": "",
         "intendedDueAt": "2026-12-08T08:00:00+01:00",
@@ -47,13 +77,28 @@
       }
     },
     {
-      "id": "ip-20261211",
+      "id": "nda-20261208-fb",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-08T12:00:00+01:00",
+      "channelId": "6a9d9398cd8b9c702c1981cd",
+      "approval": {
+        "status": "pending_owner",
+        "version": "1f79d45166af765ac89e8dfc6adb076eca495a860d538778ed945922110dbfbc",
+        "channelId": "6a9d9398cd8b9c702c1981cd",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-08T12:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "ip-20261211-li",
       "bufferDraftId": null,
       "proposedDueAt": "2026-12-11T08:00:00+01:00",
       "channelId": "6a9d9227cd8b9c702c197a40",
       "approval": {
         "status": "pending_owner",
-        "version": "0ba55766e8406c35095326602cb5204b9ca196735c5fae1a632c5764a2010b54",
+        "version": "f526d1065e7509172e471a547d921203b69dcbfa8e6bcceac47354507e1da4b1",
         "channelId": "6a9d9227cd8b9c702c197a40",
         "mediaUrl": "",
         "intendedDueAt": "2026-12-11T08:00:00+01:00",
@@ -62,13 +107,28 @@
       }
     },
     {
-      "id": "cisg-20261214",
+      "id": "ip-20261211-fb",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-11T12:00:00+01:00",
+      "channelId": "6a9d9398cd8b9c702c1981cd",
+      "approval": {
+        "status": "pending_owner",
+        "version": "4f0206c5e86929f443f5a50a739b1581dfc195198a16ad592cd195be93c0509c",
+        "channelId": "6a9d9398cd8b9c702c1981cd",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-11T12:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "cisg-20261214-li",
       "bufferDraftId": null,
       "proposedDueAt": "2026-12-14T08:00:00+01:00",
       "channelId": "6a9d9227cd8b9c702c197a40",
       "approval": {
         "status": "pending_owner",
-        "version": "ebc5e5a5183a48590af2fa0a3a8a159627c5a3714bba8060ff081a407c6c88f7",
+        "version": "f3f459a3d30db4ce3b75552767d4cffae8f9feea2531e45ec8fd0625ae1cef87",
         "channelId": "6a9d9227cd8b9c702c197a40",
         "mediaUrl": "",
         "intendedDueAt": "2026-12-14T08:00:00+01:00",
@@ -77,13 +137,28 @@
       }
     },
     {
-      "id": "indemnity-20261218",
+      "id": "cisg-20261214-fb",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-14T12:00:00+01:00",
+      "channelId": "6a9d9398cd8b9c702c1981cd",
+      "approval": {
+        "status": "pending_owner",
+        "version": "426331ac6572eb215d3cd6f0722474e160cf5da5189519ef94ab41cf2c196985",
+        "channelId": "6a9d9398cd8b9c702c1981cd",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-14T12:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "indemnity-20261218-li",
       "bufferDraftId": null,
       "proposedDueAt": "2026-12-18T08:00:00+01:00",
       "channelId": "6a9d9227cd8b9c702c197a40",
       "approval": {
         "status": "pending_owner",
-        "version": "8db9251a9830ef268a52edfeab9d0deabc697b521639a370791baaf38cb6a27c",
+        "version": "932050877dcf1d89d3a8c685521d1931fa8c19408ffe3dc5373a10604fe72fa9",
         "channelId": "6a9d9227cd8b9c702c197a40",
         "mediaUrl": "",
         "intendedDueAt": "2026-12-18T08:00:00+01:00",
@@ -92,13 +167,28 @@
       }
     },
     {
-      "id": "language-20261222",
+      "id": "indemnity-20261218-fb",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-18T12:00:00+01:00",
+      "channelId": "6a9d9398cd8b9c702c1981cd",
+      "approval": {
+        "status": "pending_owner",
+        "version": "14c09f1775cd4a95e4bdccadef79fa396d1cfc8e5f3926a09f37cad3863ae058",
+        "channelId": "6a9d9398cd8b9c702c1981cd",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-18T12:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "language-20261222-li",
       "bufferDraftId": null,
       "proposedDueAt": "2026-12-22T08:00:00+01:00",
       "channelId": "6a9d9227cd8b9c702c197a40",
       "approval": {
         "status": "pending_owner",
-        "version": "8eb421b10e9052633f1f1ed7af9f0a87469fe52b4da06a2d21e2fecc593f5a81",
+        "version": "eb78b8f2a6db326f238f2f378f3fdad72574a55c4abacf665dc4608bbc71435f",
         "channelId": "6a9d9227cd8b9c702c197a40",
         "mediaUrl": "",
         "intendedDueAt": "2026-12-22T08:00:00+01:00",
@@ -107,16 +197,46 @@
       }
     },
     {
-      "id": "subcontract-20261223",
+      "id": "language-20261222-fb",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-22T12:00:00+01:00",
+      "channelId": "6a9d9398cd8b9c702c1981cd",
+      "approval": {
+        "status": "pending_owner",
+        "version": "5c13d80dd02874125c97afc8159da8edfbf8426613208996d8a6de9b5fc66e4d",
+        "channelId": "6a9d9398cd8b9c702c1981cd",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-22T12:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "subcontract-20261223-li",
       "bufferDraftId": null,
       "proposedDueAt": "2026-12-23T08:00:00+01:00",
       "channelId": "6a9d9227cd8b9c702c197a40",
       "approval": {
         "status": "pending_owner",
-        "version": "70fd6a937476c74c677d88c3f25b172d2dfb59643407a27d5dd2119895f92b32",
+        "version": "a41fd7d74055bf0d2ff418bfb5a12b5f3e9ea0ec8af58b8c952f733720ccd571",
         "channelId": "6a9d9227cd8b9c702c197a40",
         "mediaUrl": "",
         "intendedDueAt": "2026-12-23T08:00:00+01:00",
+        "approver": null,
+        "approvedAt": null
+      }
+    },
+    {
+      "id": "subcontract-20261223-fb",
+      "bufferDraftId": null,
+      "proposedDueAt": "2026-12-23T12:00:00+01:00",
+      "channelId": "6a9d9398cd8b9c702c1981cd",
+      "approval": {
+        "status": "pending_owner",
+        "version": "c423c45d2c23f474aff9d759cdf12fc0935b59930c0b17335cf36f97c200512d",
+        "channelId": "6a9d9398cd8b9c702c1981cd",
+        "mediaUrl": "",
+        "intendedDueAt": "2026-12-23T12:00:00+01:00",
         "approver": null,
         "approvedAt": null
       }

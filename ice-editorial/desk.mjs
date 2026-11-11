@@ -82,6 +82,58 @@ export function scheduleApproved(pkg, record) {
   };
 }
 
+export function buildApprovalBatch(packages, meta) {
+  return {
+    id: meta.id,
+    status: "pending_owner",
+    createdAt: meta.createdAt,
+    approver: null,
+    approvedAt: null,
+    publish: false,
+    items: packages.map((pkg) => ({
+      id: pkg.id,
+      topic: pkg.topic,
+      channelId: pkg.channelId,
+      channel: pkg.service,
+      brand: pkg.brand,
+      mediaUrl: pkg.visual === true ? String(pkg.imageUrl || "") : "",
+      media: pkg.visual === true ? "attached" : "text_only",
+      proposedDueAt: pkg.intendedDueAt,
+      hash: contentVersion(pkg),
+      status: "pending_owner",
+      scheduleBlock: pkg.collisions && pkg.collisions.length ? "existing_buffer_item" : null,
+      review: pkg.review || "",
+      text: pkg.text
+    }))
+  };
+}
+
+export function applyBatchDecision(batch, packages, decision) {
+  const untouched = (batch.items || []).map((item) => item.id);
+  if (!decision || decision.approved !== true || !String(decision.approver || "").trim() || !decision.approvedAt) {
+    return { ok: false, error: "SILENCE", records: [], skipped: untouched, publish: false };
+  }
+  if (decision.scope !== "all" && !Array.isArray(decision.ids)) {
+    return { ok: false, error: "SILENCE", records: [], skipped: untouched, publish: false };
+  }
+  const selected = new Set(decision.scope === "all" ? untouched : decision.ids);
+  const records = [];
+  const skipped = [];
+  for (const item of batch.items) {
+    if (!selected.has(item.id)) {
+      skipped.push({ id: item.id, status: "pending_owner" });
+      continue;
+    }
+    const pkg = packages.find((entry) => entry.id === item.id);
+    if (!pkg || contentVersion(pkg) !== item.hash) {
+      skipped.push({ id: item.id, error: "VERSION_MISMATCH" });
+      continue;
+    }
+    records.push({ id: item.id, approval: recordApproval(pkg, decision) });
+  }
+  return { ok: records.length > 0, error: records.length ? null : "NONE_SELECTED", records, skipped, publish: false };
+}
+
 export function planDesk(items) {
   return items.map((item) => {
     const result = scheduleApproved(item.package, item.approval);

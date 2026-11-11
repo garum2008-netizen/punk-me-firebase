@@ -121,6 +121,6 @@
       "Payment and delivery disagree is queued more than once."
     ]
   },
-  "reviewSlate": "ice-editorial/review-packages.mjs",
+  "reviewSlate": "ice-editorial/approval-batch.json",
   "checkpoint": "ice-editorial/CHECKPOINT.json"
 }
