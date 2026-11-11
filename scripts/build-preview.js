@@ -98,7 +98,7 @@ function transformIndex(html) {
     ""
   );
   const previewGameScripts = `<script type="module" src="js/city-builds-sanitize-boot.mjs?v=preview"></script>
-<script>window.__PUNK_PREVIEW__=true;</script>
+<script>window.__PUNK_PREVIEW__=true;window.__PUNK_LIFE_CH1_LOCAL__=false;</script>
 <script src="js/preview-save.js?v=preview"></script>
 <script defer src="js/game.js?v=preview"></script>`;
   html = html.replace(/<script defer src="js\/game\.js[^"]*"><\/script>/, previewGameScripts);

@@ -1405,8 +1405,12 @@ function positionCameraBehindPlayer(instant = false, dt = lastCameraDt) {
       camera.fov = fixed.fov;
       camera.updateProjectionMatrix();
     }
-    camera.position.set(fixed.pos[0], fixed.pos[1], fixed.pos[2]);
-    camera.lookAt(fixed.look[0], fixed.look[1], fixed.look[2]);
+    if (mobileQuality && fixed.mobile?.portraitFromPlayer) {
+      applyMobilePortraitShowcaseFromPlayer(fixed);
+    } else {
+      camera.position.set(fixed.pos[0], fixed.pos[1], fixed.pos[2]);
+      camera.lookAt(fixed.look[0], fixed.look[1], fixed.look[2]);
+    }
     updateCameraOccluders();
     return;
   }
@@ -3026,6 +3030,7 @@ const api = {
     const dog = actors.get("dog");
     const canvas = document.getElementById("stage3d");
     if (!pl || !canvas || !camera) return { ok: false };
+    positionCameraBehindPlayer(true);
     const footY = 0.06;
     const headY = 1.78;
     const hero = projectWorldToScreen(pl.wx, footY, pl.wz);

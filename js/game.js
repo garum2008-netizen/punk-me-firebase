@@ -1412,6 +1412,15 @@ function hideLoading() {
 }
 
 function saveMe() {
+  if (isPreviewBuild()) {
+    if (!window.__playerLoaded) return;
+    const prevLvl = me.level || 1;
+    me.level = levelFromXp(me.xp || 0);
+    if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
+    me.lastSeen = Date.now();
+    window.PunkPreviewSave?.save?.(sanitizePlayer(me));
+    return;
+  }
   if (isLifeCh1LocalSaveBuild()) {
     if (!window.__playerLoaded) return;
     const prevLvl = me.level || 1;
@@ -1420,15 +1429,6 @@ function saveMe() {
     me.lastSeen = Date.now();
     lifeCh1LocalSavePlayer(sanitizePlayer(me));
     window.LifeCh1Slice?.persistLocalOverlay?.();
-    return;
-  }
-  if (isPreviewBuild()) {
-    if (!window.__playerLoaded) return;
-    const prevLvl = me.level || 1;
-    me.level = levelFromXp(me.xp || 0);
-    if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
-    me.lastSeen = Date.now();
-    window.PunkPreviewSave?.save?.(sanitizePlayer(me));
     return;
   }
   if (!uid) return;
