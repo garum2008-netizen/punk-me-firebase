@@ -1,0 +1,30 @@
+{
+  "project": "safe-chat PR #53",
+  "repository": "garum2008-netizen/punk-me-firebase",
+  "branch": "cursor/safe-chat-verifier-fixes-3dff",
+  "frozenCommit": "d31a624cdf407fac20c1560958dd426a6c174b39",
+  "objective": "3x consecutive npm run test:safe-chat EXIT 0 on frozen head",
+  "pr": 53,
+  "prState": "draft",
+  "status": "verification_blocked_m2_flake",
+  "completed": [
+    "Frozen SHA verified",
+    "npm ci (root + workers/safe-chat)",
+    "Run 1 integration 125/125",
+    "Run 1 MUT-MIRROR-HIDDEN CAUGHT",
+    "Run 1 mutation-check all CAUGHT",
+    "CTRL0 PASS"
+  ],
+  "pending": ["Runs 2-3 (stopped after run 1 EXIT=1)", "Optional review8 M2 flake diagnosis"],
+  "verificationRuns": [
+    {
+      "run": 1,
+      "exit": 1,
+      "integration": "125/125",
+      "mutMirrorHidden": "CAUGHT",
+      "review8M2": "NOT CAUGHT",
+      "note": "review8-mutation-check failure; likely DO hot-reload flake during protection suite copy run"
+    }
+  ],
+  "nextAction": "Owner 3x in unshare env; or fix M2 harness on branch in new commit (not amending d31a624)"
+}
