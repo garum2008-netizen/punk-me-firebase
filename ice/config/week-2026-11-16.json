@@ -45,10 +45,33 @@
         "width": 1080,
         "height": 1350,
         "bytes": 38936,
+        "sha256": "19d707fd6a8ac41d1d0e565ec87a1f358e364278409e73c4e0d90086ddcb4dc0",
         "alt": "Who bears the risk if goods are damaged after handover to the carrier?",
-        "buffer_confirmed": false,
+        "buffer_confirmed": true,
         "source": "local typographic card, no paid image model"
       },
+      "buffer_drafts": [
+        {
+          "id": "6af4551c2c0a5da53405fb38",
+          "job_id": "wk16-fca-incoterms-linkedin",
+          "channel": "linkedin_inna",
+          "status": "draft",
+          "dueAt": null,
+          "sentAt": null,
+          "sharedNow": false,
+          "confirmed_via": "get_post"
+        },
+        {
+          "id": "6af4554d9494b43fade78f00",
+          "job_id": "wk16-fca-incoterms-facebook",
+          "channel": "facebook_legal",
+          "status": "draft",
+          "dueAt": null,
+          "sentAt": null,
+          "sharedNow": false,
+          "confirmed_via": "get_post"
+        }
+      ],
       "native_review": {
         "da": "required"
       },
@@ -106,10 +129,23 @@
         "width": 1080,
         "height": 1350,
         "bytes": 33709,
+        "sha256": "6a0972bde286a2096701c32c2cc5c27ed46907f78be02f4e5eee07c79ef9c100",
         "alt": "What if the vendor never delivered the promised integration?",
-        "buffer_confirmed": false,
+        "buffer_confirmed": true,
         "source": "local typographic card, no paid image model"
       },
+      "buffer_drafts": [
+        {
+          "id": "6af45551a197a2c4d57a6384",
+          "job_id": "wk16-saas-integration-linkedin",
+          "channel": "linkedin_inna",
+          "status": "draft",
+          "dueAt": null,
+          "sentAt": null,
+          "sharedNow": false,
+          "confirmed_via": "get_post"
+        }
+      ],
       "native_review": {},
       "texts": {
         "en": "Educational scenario, not a named vendor and not a client dispute.\n\nA company buys a CRM subscription because the order says the tool will connect to the accounting system. Months pass. The connection is still a slide in the sales deck.\n\nThe useful clauses are written before the argument. Name the integration, the date, and the test that shows it works. Say whether go-live depends on that test. Say what happens to the fees if the test fails, and how the customer leaves with its data.\n\nA limitation of liability does not repair a missing acceptance test. Neither does a promise that the vendor will use reasonable efforts, unless the contract also says what those efforts must achieve.\n\nInna Kragh\nM.Sc. in International Law · International Legal & EU Compliance Expert\n\nIf the integration is the reason you are buying, put the test in the order before you sign.\n\n#SaaS #ContractReview #Procurement"
