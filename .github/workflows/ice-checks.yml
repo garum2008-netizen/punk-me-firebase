@@ -14,5 +14,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: python3 -m unittest ice.tests.test_library ice.tests.test_factory -q
+      - run: python3 -m unittest ice.tests.test_library ice.tests.test_factory ice.tests.test_draft_cycle -q
       - run: node --test ice-buffer/visual-media-gate.test.mjs

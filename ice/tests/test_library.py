@@ -33,6 +33,7 @@ class LibraryTests(unittest.TestCase):
     def test_visual_package_without_media_cannot_become_a_draft(self):
         package = dict(week_packages()[0])
         package["approval_state"] = "approved_by_owner"
+        package["media"] = {"url": None, "buffer_confirmed": False}
         decision = assess_package(package)
         self.assertIn("media_unverified", decision["blockers"])
         self.assertFalse(decision["may_create_buffer_draft"])
@@ -86,9 +87,10 @@ class LibraryTests(unittest.TestCase):
             "texts": {"en": "Educational scenario.\n\nInna Kragh\nM.Sc. in International Law · International Legal & EU Compliance Expert\n"},
         }
         decision = prepare_buffer_draft(package)
+        self.assertTrue(decision["may_create_buffer_draft"])
         self.assertFalse(decision["buffer_called"])
+        self.assertFalse(decision["may_schedule"])
         self.assertFalse(decision["may_publish"])
-        self.assertEqual(decision["hold"], "buffer_write_disabled_until_a_separate_scheduling_go")
 
 
 if __name__ == "__main__":

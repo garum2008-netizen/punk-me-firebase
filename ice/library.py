@@ -1,8 +1,8 @@
 """One content library for ICE. Nothing here schedules or publishes.
 
-A package stays in the library until the owner approves that exact text,
-the channel is a connected business channel, and a visual post has a
-Buffer-confirmed image. Children's channels are never a destination.
+An English package on a connected business channel may be prepared as a
+Buffer draft once its image URL is public https. A date still requires
+owner approval of that exact text. Children's channels are never a destination.
 """
 
 from __future__ import annotations
@@ -58,9 +58,13 @@ def reconciliation() -> dict:
     return _load("buffer_reconciliation.json")
 
 
-def _business_ids() -> dict[str, dict]:
+def business_channels() -> dict[str, dict]:
     mapped = channel_map()["business"]
     return {item["key"]: item for item in mapped}
+
+
+def _business_ids() -> dict[str, dict]:
+    return business_channels()
 
 
 def _kids_ids() -> set[str]:
@@ -74,43 +78,45 @@ def package_text(package: dict, language: str) -> str:
 
 def assess_package(package: dict, language: str = "en") -> dict:
     """Return the gate for one package. Publication is off in every result."""
-    blockers: list[str] = []
+    draft_blockers: list[str] = []
+    scheduling_blockers: list[str] = []
     kind = package.get("scenario_kind")
     if kind not in {"educational", "fictional"}:
-        blockers.append("scenario_not_labeled")
+        draft_blockers.append("scenario_not_labeled")
     if package.get("approval_state") != "approved_by_owner":
-        blockers.append("pending_owner_approval")
+        scheduling_blockers.append("pending_owner_approval")
     text = package_text(package, language)
     if not text.strip():
-        blockers.append("missing_text")
+        draft_blockers.append("missing_text")
     lowered = text.lower()
     for phrase in BANNED:
         if phrase in lowered:
-            blockers.append("banned:" + phrase)
+            draft_blockers.append("banned:" + phrase)
     if "€" in text or "EUR" in text or "DKK" in text:
-        blockers.append("price_or_currency")
+        draft_blockers.append("price_or_currency")
     if language != "en" and package.get("native_review", {}).get(language) != "accepted":
-        blockers.append("native_review_required")
+        draft_blockers.append("native_review_required")
     channel_keys = list(package.get("channels") or [])
     business = _business_ids()
     if not channel_keys:
-        blockers.append("channel_not_connected")
+        draft_blockers.append("channel_not_connected")
     for key in channel_keys:
         channel = business.get(key)
         if channel is None:
-            blockers.append("channel_not_connected")
+            draft_blockers.append("channel_not_connected")
             continue
         if channel["id"] in _kids_ids() or channel.get("audience") != "business":
-            blockers.append("children_channel_blocked")
+            draft_blockers.append("children_channel_blocked")
     media = package.get("media") or {}
     visual = package.get("visual", True)
-    if visual and not (media.get("buffer_confirmed") and str(media.get("url") or "").startswith("https://")):
-        blockers.append("media_unverified")
+    if visual and not str(media.get("url") or "").startswith("https://"):
+        draft_blockers.append("media_unverified")
+    blockers = draft_blockers + scheduling_blockers
     return {
         "package_id": package["id"],
         "language": language,
         "library_status": "draft",
-        "may_create_buffer_draft": not blockers,
+        "may_create_buffer_draft": not draft_blockers,
         "may_schedule": False,
         "may_publish": False,
         "blockers": blockers,
@@ -118,12 +124,11 @@ def assess_package(package: dict, language: str = "en") -> dict:
 
 
 def prepare_buffer_draft(package: dict, language: str = "en") -> dict:
-    """Decide whether a Buffer draft is allowed. This build never calls Buffer."""
+    """Decide whether a Buffer draft is allowed. Scheduling and publication stay off."""
     decision = assess_package(package, language)
     decision["buffer_called"] = False
-    if decision["may_create_buffer_draft"]:
-        decision["may_create_buffer_draft"] = False
-        decision["hold"] = "buffer_write_disabled_until_a_separate_scheduling_go"
+    decision["may_schedule"] = False
+    decision["may_publish"] = False
     return decision
 
 

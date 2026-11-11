@@ -24,4 +24,4 @@ python3 -m ice prepare-draft --db ice/state/ice.db \
 
 `prepare-draft` только собирает черновик. Команда не планирует и не публикует.
 
-Библиотека недели 16–20 ноября 2026 лежит в `ice/config/week-2026-11-16.json`. Это предложенные пакеты, не даты Buffer. `python3 -m unittest ice.tests.test_library` проверяет, что ни один из них не уходит в Buffer и не получает `dueAt`. Датский текст ждёт носителя языка. Reels и Shorts не назначаются: среди подключённых каналов нет делового YouTube или Instagram.
+Библиотека недели 16–20 ноября 2026 лежит в `ice/config/week-2026-11-16.json`. Это предложенные пакеты, не даты Buffer. `python3 -m ice.draft_cycle` собирает пять английских черновиков для LinkedIn и Facebook и не вызывает Buffer. Датский текст ждёт носителя языка. Reels и Shorts не назначаются: среди подключённых каналов нет делового YouTube или Instagram.
