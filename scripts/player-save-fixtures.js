@@ -102,7 +102,7 @@ function buildPlayerSaveFixtures() {
     xp: 400,
     level: 2
   });
-  push("fx-owner-flag", { owner: true, coins: 9999 });
+  push("fx-owner-flag", { owner: false, coins: 9999 });
   push("fx-heavy", {
     pet: "pet_dog",
     owned: ["pet_dog", "jacket_neon", "chain_neon", "mat_brick"],

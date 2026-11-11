@@ -1,0 +1,15 @@
+node_modules/
+.DS_Store
+qa-out/
+database-debug.log
+firebase-debug.log
+.worktrees/
+dist-preview/
+.dev.vars
+.dev.vars.*
+.wrangler/
+.wrangler-preview-functions-out/
+__pycache__/
+.tmp-main-glb-render-diff/
+assets/ui/angelina-skins/.owner-preview-only/
+assets/ui/angelina-skins/.owner-review-serve/

@@ -1,4 +1,5 @@
 /** v21 playable systems: interactables, jobs, daily quests, room decor, dog fetch. */
+import { allowLocationProp } from "./interact-priority.mjs";
 
 const DECOR_KEY = "punkme_room_decor_v21";
 const DAILY_KEY = "punkme_daily_v21";
@@ -36,6 +37,10 @@ export function initPlayV21(ctx) {
     tryInteract(me, hooks) {
       const loc = me.location;
       const prop = window.World3D?.getNearestPropInteract?.();
+      const nearestNpcId = window.World3D?.getNearestNpc?.() || null;
+      if ((prop === "arcade" || prop === "jukebox") && !allowLocationProp(loc, { nearestNpcId, onboarding: me.onboarding })) {
+        return false;
+      }
       if (prop === "arcade") {
         hooks.toast(t("interact_arcade"));
         if (!window.isOwner) me.coins += 12;

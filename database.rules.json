@@ -63,7 +63,7 @@
           ".validate": "newData.isNumber()"
         },
         "owner": {
-          ".validate": "newData.isBoolean()"
+          ".validate": "newData.isBoolean() && (newData.val() == false || auth.token.admin === true)"
         },
         "pet": {
           ".validate": "!newData.exists() || newData.val() == null || (newData.isString() && newData.val().length <= 32)"

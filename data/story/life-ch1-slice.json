@@ -8,7 +8,7 @@
         "en": "Walk around your room (WASD or joystick)",
         "da": "Gå rundt i dit værelse"
       },
-      "beacon": { "loc": "room", "wx": 0, "wz": 0 }
+      "beacon": { "loc": "room", "wx": 2.4, "wz": -2.2 }
     },
     {
       "id": "outfit",

@@ -1,0 +1,3444 @@
+import * as THREE from "three";
+import {
+  buildLocationScene,
+  gameToWorldLoc,
+  worldToGameLoc,
+  NPC_WORLD,
+  NPC_PATROL,
+  NPC_QUEST_GREET,
+  PORTALS,
+  LOCATION_THEME,
+  resolveWorldPosition,
+  moveWithCollision,
+  findClearSpawn,
+  pointInsideCollider,
+  diagnoseColliderMotion
+} from "./world/locations.mjs";
+import { updateProcedural, markActorVisibleWhenReady, setPlayerRootVisibilityGuard } from "./character-rig.mjs";
+import {
+  loadAllCc0Templates,
+  loadMeshyTemplateForCharacter,
+  getTemplateForCharacter,
+  onMeshyTemplateLoaded,
+  isDedicatedShippedHero,
+  createCc0Actor,
+  updateLocomotionTimeScale,
+  WAVE_EMOTE_ENABLED,
+} from "./world/meshy-punk.mjs";
+import { createAtmospherePipeline, renderAtmosphere } from "./world/atmosphere.mjs";
+import { loadPunkDogTemplate, createMeshyDog, updateMeshyDogAnim } from "./world/meshy-dog.mjs";
+import { pulseScene } from "./world/location-enrich.mjs";
+import {
+  bindGameplayToWorld3D,
+  onGameplayLocationBuilt,
+  onGameplayLocationChanged,
+  tickGameplayV21,
+  isDuelActive
+} from "./world/gameplay-v21.mjs";
+import {
+  ensureMarkerRoot,
+  setQuestMarkerTarget,
+  setQuestMarkersVisible,
+  clearQuestMarkers
+} from "./world/quest-markers.mjs";
+import { initTouchControls } from "./touch-controls.mjs";
+import { buildHangoutVisual } from "./world/construction-hangout.mjs";
+import { tickStory } from "./story/story-engine.mjs";
+import {
+  getInputState,
+  readInputStateSnapshot,
+  consumeJump,
+  consumeInteract,
+  initControls3D
+} from "./controls-3d.mjs";
+
+function resolveAnimName(name) {
+  if (name === "wave" && !WAVE_EMOTE_ENABLED) return "idle";
+  return name;
+}
+
+const DOG_FOLLOW_DIST = 1.2;
+const DOG_FOLLOW_SIDE = 0.45;
+let punkDogTemplate = null;
+let renderer, scene, camera, clock, raycaster, pointer;
+let hooks = {};
+let actors = new Map();
+let car = null;
+let locationRoot = null;
+let bounds = null;
+let furnitureColliders = [];
+let floorMesh = null;
+let currentLoc = "";
+let locationProps = { showCar: false };
+let particles = null;
+let cameraYaw = 0;
+let sceneTime = 0;
+let meLastDx = 0;
+let meLastDy = 0;
+let playerAnimState = "idle";
+let modelsReady = false;
+let pendingSyncData = null;
+let captureFrameLock = false;
+let dialogueLiveMinHead = 0;
+let portalGraceUntil = 0;
+let captureSavedRotY = 0;
+let captureHideActors = null;
+let elevatorCutawaySaved = null;
+const talkingIds = new Set();
+const texLoader = new THREE.TextureLoader();
+let guideTarget = null;
+/** Deprecated billboard — slice uses player cutout; kept for clear API. */
+let lifeAngelinaBillboard = { sprite: null, url: "", wx: 0, wz: 0, loc: "room", visible: false };
+/** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
+let lifeCh1PlayerSkin = {
+  sprite: null,
+  shadow: null,
+  holder: null,
+  url: "",
+  rootVisible: true,
+  pending: null
+};
+let lifeCh1ContactShadowTex = null;
+
+function getLifeCh1ContactShadowTexture() {
+  if (lifeCh1ContactShadowTex) return lifeCh1ContactShadowTex;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, "rgba(0,0,0,0.42)");
+  g.addColorStop(0.55, "rgba(0,0,0,0.1)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  lifeCh1ContactShadowTex = new THREE.CanvasTexture(canvas);
+  lifeCh1ContactShadowTex.colorSpace = THREE.SRGBColorSpace;
+  return lifeCh1ContactShadowTex;
+}
+
+function disposeLifeCh1PlayerSprite() {
+  const sp = lifeCh1PlayerSkin.sprite;
+  const sh = lifeCh1PlayerSkin.shadow;
+  const holder = lifeCh1PlayerSkin.holder;
+  if (holder?.parent) holder.parent.remove(holder);
+  else {
+    sp?.parent?.remove(sp);
+    sh?.parent?.remove(sh);
+  }
+  sp?.material?.map?.dispose?.();
+  sp?.material?.dispose?.();
+  sh?.material?.dispose?.();
+  lifeCh1PlayerSkin.sprite = null;
+  lifeCh1PlayerSkin.shadow = null;
+  lifeCh1PlayerSkin.holder = null;
+}
+
+function isLifeCh1SpriteAttachedToPlayer(sp, pl) {
+  if (!sp || !pl?.group || !scene) return false;
+  let o = sp;
+  while (o) {
+    if (o === pl.group) return true;
+    o = o.parent;
+  }
+  return false;
+}
+
+function lifeCh1CutoutLocScale() {
+  if (currentLoc === "room" || currentLoc === "kitchen") return 1;
+  if (currentLoc === "elevator") return 0.92;
+  return 0.62;
+}
+
+function layoutLifeCh1PlayerSprite(sp, tex) {
+  if (!sp) return;
+  const img = tex?.image;
+  let h = 1.78 * lifeCh1CutoutLocScale();
+  let w = 1.05 * lifeCh1CutoutLocScale();
+  if (img?.width && img?.height) w = h * (img.width / img.height);
+  sp.scale.set(w, h, 1);
+  sp.position.set(0, h * 0.5, 0);
+  const shadow = lifeCh1PlayerSkin.shadow;
+  if (shadow) {
+    shadow.position.set(0, 0.04, 0);
+    shadow.scale.set(Math.min(0.82, w * 0.62), 0.2, 1);
+  }
+}
+
+function tickLifeCh1PlayerSpritePlacement(pl) {
+  const holder = lifeCh1PlayerSkin.holder;
+  if (!holder || !pl?.isPlayer) return;
+  const sp = lifeCh1PlayerSkin.sprite;
+  if (sp?.material?.map) {
+    layoutLifeCh1PlayerSprite(sp, sp.material.map);
+  }
+  if (currentLoc === "kitchen") {
+    if (mobileQuality) {
+      holder.position.set(0, 0.08, -0.42);
+    } else {
+      holder.position.set(0.08, 0, 0.35);
+    }
+  } else {
+    holder.position.set(0, 0, 0);
+  }
+}
+
+function enforceLifeCh1PlayerMeshVisibility(actor) {
+  const pending = lifeCh1PlayerSkin.pending;
+  if (!actor?.isPlayer || !pending?.visible || !pending?.url) return;
+  if (actor.root?.visible !== false) {
+    actor.root.visible = false;
+    lifeCh1PlayerSkin.rootVisible = false;
+  }
+  const sp = lifeCh1PlayerSkin.sprite;
+  if (sp && pending.url === lifeCh1PlayerSkin.url) {
+    sp.visible = true;
+  }
+}
+
+function applyPlayerLifeCh1SkinOpts(opts = {}) {
+  const pl = actors.get("player");
+  if (!pl?.group) {
+    lifeCh1PlayerSkin.pending = { ...opts };
+    return false;
+  }
+  const sp = ensureLifeCh1PlayerSprite(pl);
+  if (!sp) return false;
+  if (!opts.visible || !opts.url) {
+    sp.visible = false;
+    sp.material.opacity = 0;
+    if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = false;
+    lifeCh1PlayerSkin.url = "";
+    if (pl.root && !lifeCh1PlayerSkin.rootVisible) {
+      pl.root.visible = true;
+      lifeCh1PlayerSkin.rootVisible = true;
+    }
+    return true;
+  }
+  const url = opts.url;
+  lifeCh1PlayerSkin.url = url;
+  const tail = url.split("/").pop() || url;
+  const loaded = sp.material.map?.image?.currentSrc || sp.material.map?.image?.src || "";
+  if (loaded && loaded.includes(tail) && sp.material.opacity >= 1) {
+    if (pl.root?.visible !== false) {
+      pl.root.visible = false;
+      lifeCh1PlayerSkin.rootVisible = false;
+    }
+    sp.visible = true;
+    if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = true;
+    layoutLifeCh1PlayerSprite(sp, sp.material.map);
+    return true;
+  }
+  sp.visible = false;
+  sp.material.opacity = 0;
+  if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = false;
+  texLoader.load(
+    url,
+    tex => {
+      if (lifeCh1PlayerSkin.url !== url) return;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      sp.material.map = tex;
+      sp.material.needsUpdate = true;
+      layoutLifeCh1PlayerSprite(sp, tex);
+      sp.material.opacity = 1;
+      if (pl.root) {
+        pl.root.visible = false;
+        lifeCh1PlayerSkin.rootVisible = false;
+      }
+      sp.visible = true;
+      if (lifeCh1PlayerSkin.shadow) lifeCh1PlayerSkin.shadow.visible = true;
+      window.dispatchEvent(new CustomEvent("life-ch1-skin-texture-ready", { detail: { url } }));
+    },
+    undefined,
+    () => {
+      if (lifeCh1PlayerSkin.url === url) sp.visible = false;
+    }
+  );
+  return true;
+}
+
+function setPlayerLifeCh1Skin(opts = {}) {
+  lifeCh1PlayerSkin.pending = { ...opts };
+  applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
+}
+
+function getPlayerLifeCh1SkinRenderState() {
+  const pl = actors.get("player");
+  const sp = lifeCh1PlayerSkin.sprite;
+  const mapSrc = sp?.material?.map?.image?.currentSrc || sp?.material?.map?.image?.src || "";
+  const attached = isLifeCh1SpriteAttachedToPlayer(sp, pl);
+  const opacity = sp?.material?.opacity ?? 0;
+  const inScene =
+    attached &&
+    !!(sp?.visible && opacity > 0.5) &&
+    !!(sp.parent && (sp.parent === pl?.group || sp.parent.parent === pl?.group));
+  return {
+    url: lifeCh1PlayerSkin.url || "",
+    spriteVisible: inScene,
+    sceneAttached: attached,
+    rootHidden: !!(pl?.root && pl.root.visible === false),
+    textureReady: !!(sp?.material?.map && opacity >= 1),
+    mapSrc
+  };
+}
+
+function isLifeCh1E2eTeleportEnabled() {
+  return isLifeCh1E2eNavAid();
+}
+
+function isLifeCh1E2eNavAid() {
+  try {
+    if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) {
+      return new URLSearchParams(location.search).get("lifeCh1E2e") === "1";
+    }
+    const h = location.hostname.toLowerCase();
+    if (h !== "localhost" && h !== "127.0.0.1" && !h.endsWith(".localhost")) {
+      if (h.includes("punk.contractbot.dk") || h.endsWith(".web.app")) return false;
+    }
+    return new URLSearchParams(location.search).get("lifeCh1E2e") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function faceWorldTargetForE2e(wx, wz) {
+  if (!isLifeCh1E2eNavAid()) return false;
+  const pl = actors.get("player");
+  if (!pl) return false;
+  cameraYaw = Math.atan2(wx - pl.wx, wz - pl.wz);
+  return true;
+}
+
+function ensureLifeCh1PlayerSprite(pl) {
+  if (!pl?.group) return null;
+  const existing = lifeCh1PlayerSkin.sprite;
+  if (existing && isLifeCh1SpriteAttachedToPlayer(existing, pl)) return existing;
+  if (existing) disposeLifeCh1PlayerSprite();
+
+  const holder = new THREE.Group();
+  holder.name = "lifeCh1Cutout";
+  pl.group.add(holder);
+
+  const shadowMat = new THREE.SpriteMaterial({
+    map: getLifeCh1ContactShadowTexture(),
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.88
+  });
+  const shadow = new THREE.Sprite(shadowMat);
+  shadow.renderOrder = 7;
+  holder.add(shadow);
+
+  const mat = new THREE.SpriteMaterial({
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    alphaTest: 0.12,
+    opacity: 0
+  });
+  const sp = new THREE.Sprite(mat);
+  sp.renderOrder = 8;
+  holder.add(sp);
+
+  lifeCh1PlayerSkin.holder = holder;
+  lifeCh1PlayerSkin.shadow = shadow;
+  lifeCh1PlayerSkin.sprite = sp;
+  layoutLifeCh1PlayerSprite(sp, sp.material.map);
+  return sp;
+}
+
+function ensureLifeAngelinaBillboardSprite() {
+  if (lifeAngelinaBillboard.sprite || !scene) return lifeAngelinaBillboard.sprite;
+  const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(1.1, 1.65, 1);
+  sp.renderOrder = 12;
+  scene.add(sp);
+  lifeAngelinaBillboard.sprite = sp;
+  return sp;
+}
+
+function setAngelinaLifeBillboard(opts = {}) {
+  lifeAngelinaBillboard.visible = !!opts.visible;
+  lifeAngelinaBillboard.wx = opts.wx ?? lifeAngelinaBillboard.wx;
+  lifeAngelinaBillboard.wz = opts.wz ?? lifeAngelinaBillboard.wz;
+  lifeAngelinaBillboard.loc = opts.loc ?? lifeAngelinaBillboard.loc;
+  if (opts.url) lifeAngelinaBillboard.url = opts.url;
+  const sp = ensureLifeAngelinaBillboardSprite();
+  if (!sp) return;
+  if (!lifeAngelinaBillboard.visible || currentLoc !== lifeAngelinaBillboard.loc) {
+    sp.visible = false;
+    return;
+  }
+  if (lifeAngelinaBillboard.url && sp.material.map?.image?.src !== lifeAngelinaBillboard.url) {
+    new THREE.TextureLoader().load(lifeAngelinaBillboard.url, tex => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      sp.material.map = tex;
+      sp.material.needsUpdate = true;
+    });
+  }
+  sp.visible = true;
+  sp.position.set(lifeAngelinaBillboard.wx, 1.55, lifeAngelinaBillboard.wz);
+}
+
+function tickLifeAngelinaBillboard() {
+  if (!lifeAngelinaBillboard.visible || !lifeAngelinaBillboard.sprite) return;
+  if (currentLoc !== lifeAngelinaBillboard.loc) {
+    lifeAngelinaBillboard.sprite.visible = false;
+    return;
+  }
+  lifeAngelinaBillboard.sprite.visible = true;
+  lifeAngelinaBillboard.sprite.position.set(lifeAngelinaBillboard.wx, 1.55, lifeAngelinaBillboard.wz);
+}
+let mobileQuality = false;
+let locFillLight = null;
+let atmospherePipe = null;
+let motionProbe = null;
+let dialogueCaptureBoost = null;
+let dialogueKeyLight = null;
+let dialogueRimLight = null;
+let dialogueNpcFill = null;
+let dialogueBackdrop = null;
+const heroCosmeticGroup = new THREE.Group();
+
+function notePlayerMotion(actor) {
+  if (!motionProbe || !actor?.isPlayer) return;
+  if (motionProbe.frames.length >= motionProbe.need) return;
+  const now = performance.now();
+  const x = actor.wx;
+  const z = actor.wz;
+  const last = motionProbe.last;
+  const d = last ? Math.hypot(x - last.x, z - last.z) : 0;
+  const cam = camera;
+  motionProbe.frames.push({
+    t: now - motionProbe.start,
+    x,
+    z,
+    d,
+    cx: cam?.position.x ?? 0,
+    cy: cam?.position.y ?? 0,
+    cz: cam?.position.z ?? 0,
+    spd: actor._locoSpeed ?? 0,
+    anim: actor.current
+  });
+  motionProbe.last = { x, z };
+  if (motionProbe.frames.length >= motionProbe.need && motionProbe.done) {
+    const frames = motionProbe.frames.slice();
+    const done = motionProbe.done;
+    motionProbe = null;
+    done({ frames, count: frames.length });
+  }
+}
+
+function charDef(id) {
+  return (typeof getCharacterDef === "function" ? getCharacterDef(id) : null) || { look: {}, anim: {} };
+}
+
+function setTalking(characterId, on) {
+  if (on) talkingIds.add(characterId);
+  else talkingIds.delete(characterId);
+}
+
+function makeShadow() {
+  const s = new THREE.Mesh(
+    new THREE.CircleGeometry(0.38, 20),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })
+  );
+  s.rotation.x = -Math.PI / 2;
+  s.position.y = 0.02;
+  return s;
+}
+
+function spawnOffsetForId(id, index) {
+  const i = Math.max(0, index);
+  const angle = i * 2.05 + (id.length % 7) * 0.55 + (id.charCodeAt(0) % 5) * 0.3;
+  const r = 1.15 + (i % 5) * 0.52;
+  return { x: Math.cos(angle) * r, z: Math.sin(angle) * r };
+}
+
+function countMeshVertices(root) {
+  if (!root) return 0;
+  let n = 0;
+  root.traverse(o => {
+    if (!o.isMesh || !o.geometry?.attributes?.position) return;
+    if (o.geometry.type === "CircleGeometry") return;
+    n += o.geometry.attributes.position.count;
+  });
+  return n;
+}
+
+function expectedMeshUrlForCharacter(characterId) {
+  const id = characterId || "vienna";
+  const allowFallback = !isDedicatedShippedHero(id) || id === "vienna";
+  const tpl = getTemplateForCharacter(id, { allowFallback });
+  return tpl?.def?.url || "";
+}
+
+function actorNeedsTemplateRebuild(actor, characterId, isNpc) {
+  if (!actor) return false;
+  const cid = characterId || "vienna";
+  if ((actor.characterId || "vienna") !== cid) return true;
+  if (isNpc && isDedicatedShippedHero(cid) && cid !== "vienna") {
+    const dedicated = getTemplateForCharacter(cid, { allowFallback: false });
+    if (dedicated?.def?.url) return (actor._meshUrl || "") !== dedicated.def.url;
+    return !!(actor._meshUrl && !actor._meshUrl.includes("punk_pink.glb"));
+  }
+  const tpl = getTemplateForCharacter(cid, { allowFallback: !isNpc || !isDedicatedShippedHero(cid) });
+  if (!tpl?.def?.url) return false;
+  return (actor._meshUrl || "") !== tpl.def.url;
+}
+
+function destroyActor(id) {
+  const a = actors.get(id);
+  if (!a) return;
+  scene.remove(a.group);
+  a.mixer?.stopAllAction();
+  actors.delete(id);
+}
+
+function rebuildActorsForCharacter(charId) {
+  const ids = [];
+  actors.forEach((a, actorId) => {
+    if ((a.characterId || "") === charId) ids.push(actorId);
+  });
+  ids.forEach(destroyActor);
+  if (pendingSyncData) sync(pendingSyncData);
+}
+
+function createActorFromCatalog(id, characterId, isNpc) {
+  const cid = characterId || "vienna";
+  const allowFallback = !isNpc || !isDedicatedShippedHero(cid);
+  const tpl = getTemplateForCharacter(cid, { allowFallback });
+  if (!tpl?.gltf) return null;
+  const def = charDef(cid);
+  const built = createCc0Actor(tpl, cid, def.look || {}, {
+    isPlayer: id === "player",
+    actorId: id
+  });
+  const { root, mixer, actions } = built;
+  root.add(makeShadow());
+  const group = new THREE.Group();
+  group.userData.isActor = true;
+  group.add(root);
+  scene.add(group);
+  const actor = {
+    id, characterId: cid, group, root, mixer, actions,
+    current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
+    _meshUrl: tpl.def.url, _meshy: built._meshy, _proc: built._proc,
+    _visPushX: 0, _visPushZ: 0
+  };
+  for (let i = 0; i < 4; i++) updateProcedural(actor, 1 / 60, null, false);
+  actors.set(id, actor);
+  return actor;
+}
+
+function ensureActor(id, characterId, isNpc) {
+  const cid = characterId || "vienna";
+  let a = actors.get(id);
+  if (actorNeedsTemplateRebuild(a, cid, isNpc)) {
+    destroyActor(id);
+    a = null;
+  }
+  if (!a) a = createActorFromCatalog(id, cid, isNpc);
+  if (a) a.isNpc = isNpc;
+  return a;
+}
+
+function fadeTo(actor, name) {
+  name = resolveAnimName(name);
+  const locomotion = name === "walk" || name === "run";
+  if (actor._meshy) {
+    const key = locomotion && actor.actions?.[name] ? name : "idle";
+    if (actor.current === key) {
+      if (locomotion) updateLocomotionTimeScale(actor);
+      return;
+    }
+    if (locomotion && actor.actions?.[name]) {
+      const next = actor.actions[name];
+      const prevLoco = actor.current === "walk" || actor.current === "run" ? actor.current : null;
+      actor.actions?.idle?.fadeOut(0.18);
+      if (prevLoco && actor.actions[prevLoco] && prevLoco !== name) {
+        const prev = actor.actions[prevLoco];
+        next.setEffectiveWeight(0).play();
+        prev.crossFadeTo(next, 0.2, false);
+      } else {
+        ["walk", "run"].forEach(k => {
+          if (k === name) return;
+          const act = actor.actions?.[k];
+          act?.fadeOut(0.12);
+          act?.setEffectiveWeight(0);
+        });
+        next.reset().setEffectiveWeight(1).fadeIn(0.2).play();
+      }
+      actor.current = name;
+      updateLocomotionTimeScale(actor);
+      return;
+    }
+    ["walk", "run"].forEach(k => {
+      const act = actor.actions?.[k];
+      if (!act) return;
+      act.fadeOut(0.15);
+      act.stop();
+      act.setEffectiveWeight(0);
+    });
+    actor.actions?.idle?.reset().fadeIn(0.2).play();
+    actor.current = "idle";
+    return;
+  }
+  const key = actor.actions?.[name] ? name : "idle";
+  if (!actor.actions?.[key] || actor.current === key) return;
+  const prev = actor.actions[actor.current];
+  const next = actor.actions[key];
+  next.reset().fadeIn(0.2).play();
+  prev?.fadeOut(0.2);
+  actor.current = key;
+}
+
+function pickLocomotionAnim(actor, speed, talking) {
+  if (actor._holdAnim && actor._holdUntil > performance.now()) {
+    if (actor._holdAnim === "walk" || actor._holdAnim === "run") return actor._holdAnim;
+    return resolveAnimName(actor._holdAnim);
+  }
+  if (talking && speed < 0.08) return "idle";
+  if (actor.isPlayer && actor._intentRun && speed > 0.05) return "run";
+  const walkGate = actor._meshy ? 0.14 : 0.08;
+  const prev = actor.current === "walk" || actor.current === "run" ? actor.current : "idle";
+  if (prev === "run") {
+    if (speed > 0.92) return "run";
+    if (speed > walkGate * 0.75) return "walk";
+    return "idle";
+  }
+  if (prev === "walk") {
+    if (speed > 1.42) return "run";
+    if (speed > walkGate * 0.65) return "walk";
+    return "idle";
+  }
+  if (speed > 1.42) return "run";
+  if (speed > walkGate) return "walk";
+  return "idle";
+}
+
+function playOneShot(actor, name, ms = 1400) {
+  name = resolveAnimName(name);
+  if (name === "idle") return;
+  if (!actor.actions?.[name]) return;
+  actor._holdAnim = name;
+  actor._holdUntil = performance.now() + ms;
+  fadeTo(actor, name);
+  setTimeout(() => {
+    if (actor._holdAnim === name) {
+      actor._holdAnim = null;
+      fadeTo(actor, "idle");
+    }
+  }, ms);
+}
+
+function createDog() {
+  if (!punkDogTemplate) return null;
+  const d = createMeshyDog(scene, punkDogTemplate);
+  d.group.add(makeShadow());
+  return d;
+}
+
+function syncDogBesidePlayer(pl) {
+  const dog = actors.get("dog");
+  if (!dog || !pl) return;
+  const yaw = pl.group.rotation.y;
+  dog.wx = pl.wx - Math.sin(yaw) * DOG_FOLLOW_DIST + Math.cos(yaw) * DOG_FOLLOW_SIDE;
+  dog.wz = pl.wz - Math.cos(yaw) * DOG_FOLLOW_DIST - Math.sin(yaw) * DOG_FOLLOW_SIDE;
+  const c = clampWorld(dog.wx, dog.wz);
+  dog.wx = c.x;
+  dog.wz = c.z;
+  dog.group.position.set(c.x, dog.group.position.y || 0, c.z);
+  dog.group.visible = true;
+  if (dog.root) dog.root.visible = true;
+}
+
+function updateDogFollow(dt, pl) {
+  const dog = actors.get("dog");
+  if (!dog || !pl || !bounds) return;
+  const yaw = pl.group.rotation.y;
+  let tx = pl.wx - Math.sin(yaw) * DOG_FOLLOW_DIST + Math.cos(yaw) * DOG_FOLLOW_SIDE;
+  let tz = pl.wz - Math.cos(yaw) * DOG_FOLLOW_DIST - Math.sin(yaw) * DOG_FOLLOW_SIDE;
+  let dx = tx - pl.wx;
+  let dz = tz - pl.wz;
+  let d = Math.hypot(dx, dz);
+  if (d < 1.05) {
+    tx = pl.wx + (dx / (d || 1)) * 1.05;
+    tz = pl.wz + (dz / (d || 1)) * 1.05;
+  }
+  const tgt = clampWorld(tx, tz);
+  const lerp = Math.min(1, dt * 7.5);
+  dog.wx += (tgt.x - dog.wx) * lerp;
+  dog.wz += (tgt.z - dog.wz) * lerp;
+  const move = Math.hypot(tgt.x - dog.wx, tgt.z - dog.wz);
+  const playerSpd = pl._spd || 0;
+  dog.group.position.set(dog.wx, 0, dog.wz);
+  const moveSpd = move / Math.max(dt, 0.001);
+  const following = moveSpd > 0.12 || playerSpd > 0.15;
+  if (following) {
+    const ty = Math.atan2(pl.wx - dog.wx, pl.wz - dog.wz);
+    let diff = ty - dog.group.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    dog.group.rotation.y += diff * Math.min(1, dt * 8);
+  }
+  const spd = following ? Math.max(moveSpd, playerSpd * 0.85) : 0;
+  dog._spd = spd;
+  dog._anim = following ? "hop" : "idle";
+  if (dog._meshyDog) updateMeshyDogAnim(dog, dt, following ? "hop" : "idle", spd);
+}
+
+function ensureCar(show) {
+  if (!show) {
+    if (car) { scene.remove(car.group); car = null; }
+    return;
+  }
+  if (car) return;
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.7, 1.1), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.6 }));
+  body.position.y = 0.55;
+  group.add(body);
+  const wheels = [];
+  [[-0.85, 0.22, 0.5], [-0.85, 0.22, -0.5], [0.85, 0.22, 0.5], [0.85, 0.22, -0.5]].forEach(p => {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.18, 12), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+    w.rotation.z = Math.PI / 2;
+    w.position.set(...p);
+    group.add(w);
+    wheels.push(w);
+  });
+  group.position.set(-4, 0, 4);
+  scene.add(group);
+  car = { group, wheels, dir: 1, x: -4, flash: 0 };
+}
+
+function getNpcVisibilitySnapshot() {
+  const out = [];
+  actors.forEach((a, actorId) => {
+    if (!actorId.startsWith("npc_")) return;
+    const cid = a.characterId || actorId.replace(/^npc_/, "");
+    out.push({
+      id: cid,
+      visible: !!(a.group?.visible && a.root?.visible !== false)
+    });
+  });
+  return out;
+}
+
+function npcActorOnScreen(actorId) {
+  const a = actors.get(`npc_${actorId}`);
+  if (!a?.group?.visible || a.root?.visible === false) return false;
+  const canvas = document.getElementById("stage3d");
+  if (!canvas || !camera) return false;
+  a.group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(a.group);
+  if (box.isEmpty()) return false;
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const margin = 6;
+  const corners = [
+    [box.min.x, box.min.y, box.min.z],
+    [box.min.x, box.min.y, box.max.z],
+    [box.min.x, box.max.y, box.min.z],
+    [box.min.x, box.max.y, box.max.z],
+    [box.max.x, box.min.y, box.min.z],
+    [box.max.x, box.min.y, box.max.z],
+    [box.max.x, box.max.y, box.min.z],
+    [box.max.x, box.max.y, box.max.z]
+  ];
+  let anyInside = false;
+  for (const [wx, wy, wz] of corners) {
+    const p = projectWorldToScreen(wx, wy, wz);
+    if (!p) continue;
+    if (p.x >= margin && p.x <= cw - margin && p.y >= margin && p.y <= ch - margin) {
+      anyInside = true;
+      break;
+    }
+  }
+  if (!anyInside) return false;
+  const hm = actorHeadMetrics(a);
+  if (!hm) return anyInside;
+  const head = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
+  return !!(head && head.x >= margin && head.x <= cw - margin && head.y >= margin && head.y <= ch - margin);
+}
+
+async function loadModels() {
+  const rawPlayer =
+    window.me?.characterId ||
+    (typeof window.LIFE_CH1_PLAYER_MESH_ID === "string" ? window.LIFE_CH1_PLAYER_MESH_ID : null);
+  const playerHero =
+    rawPlayer === "life_ch1_proxy" ? "vienna" : rawPlayer || null;
+  const roomHeroes = ["vienna", "mohawk", "cobalt"];
+  if (playerHero) {
+    await loadMeshyTemplateForCharacter(playerHero);
+  }
+  const npcParallel = [...new Set(roomHeroes.filter(id => id !== playerHero))];
+  await Promise.all(npcParallel.map(id => loadMeshyTemplateForCharacter(id)));
+  modelsReady = true;
+  if (pendingSyncData) sync(pendingSyncData);
+  void loadMeshyTemplateForCharacter("razor");
+  void loadAllCc0Templates();
+  void loadPunkDogTemplate().then(t => {
+    punkDogTemplate = t;
+  });
+}
+
+function clearLocation() {
+  if (locationRoot) {
+    scene.remove(locationRoot);
+    locationRoot = null;
+  }
+  floorMesh = null;
+}
+
+function rebuildLocation(locId) {
+  if (locId !== currentLoc) onGameplayLocationChanged(locId, currentLoc);
+  clearLocation();
+  disposeLifeCh1PlayerSprite();
+  actors.forEach((a, id) => {
+    scene.remove(a.group);
+    a.mixer?.stopAllAction();
+  });
+  actors.clear();
+  if (car) { scene.remove(car.group); car = null; }
+  guideTarget = null;
+  currentLoc = locId;
+  const built = buildLocationScene(locId, texLoader);
+  locationRoot = built.root;
+  bounds = built.bounds;
+  floorMesh = built.floor;
+  scene.add(locationRoot);
+  const theme = built.theme || LOCATION_THEME.room;
+  scene.fog = new THREE.FogExp2(theme.fog, theme.fogD);
+  scene.background = new THREE.Color(theme.bg);
+  if (locFillLight) scene.remove(locFillLight);
+  locFillLight = new THREE.PointLight(theme.hemi || 0xffccff, 3.2, 28);
+  locFillLight.position.set(0, 4.2, 1);
+  scene.add(locFillLight);
+  locationProps = built.props || { showCar: false };
+  furnitureColliders = built.colliders || [];
+  (locationProps.cats || []).forEach(c => locationRoot.add(c));
+  spawnParticles(locId);
+  ensureMarkerRoot(scene);
+  onGameplayLocationBuilt(locId, locationRoot, bounds);
+}
+
+function spawnParticles(locId) {
+  if (particles) { scene.remove(particles); particles = null; }
+  if (!locId || locId === "kitchen" || locId === "toilet") return;
+  const n = locId === "cemetery" ? 80 : 100;
+  const pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 24;
+    pos[i * 3 + 1] = 0.35 + Math.random() * 5.5;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * 20;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const color = locId === "cemetery" ? 0x88ffbb : locId === "street" ? 0xff7744 : 0xff66ff;
+  particles = new THREE.Points(geo, new THREE.PointsMaterial({
+    color, size: 0.055, transparent: true, opacity: 0.62
+  }));
+  particles.userData.drift = true;
+  scene.add(particles);
+}
+
+function clampWorld(x, z, radius = 0.42) {
+  const cols = furnitureColliders;
+  return resolveWorldPosition(x, z, bounds, cols, radius);
+}
+
+function separateActors() {
+  const list = [...actors.values()].filter(a => !a.isDog);
+  const dog = actors.get("dog");
+  const pl = actors.get("player");
+  if (dog && pl) {
+    const dx = pl.wx - dog.wx;
+    const dz = pl.wz - dog.wz;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.95 && d > 0.001) {
+      const push = (0.95 - d) * 0.9;
+      dog.wx -= (dx / d) * push;
+      dog.wz -= (dz / d) * push;
+    }
+  }
+  const minDist = 1.22;
+  list.forEach(a => {
+    a._visPushX = (a._visPushX || 0) * 0.9;
+    a._visPushZ = (a._visPushZ || 0) * 0.9;
+  });
+  for (let pass = 0; pass < 6; pass++) {
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i];
+        const b = list[j];
+        const ax = a.group.position.x;
+        const az = a.group.position.z;
+        const bx = b.group.position.x;
+        const bz = b.group.position.z;
+        const dx = bx - ax;
+        const dz = bz - az;
+        const d = Math.hypot(dx, dz);
+        if (d < minDist && d > 0.001) {
+          const push = (minDist - d) * 0.55;
+          const ux = dx / d;
+          const uz = dz / d;
+          const wa = a.isPlayer ? 0 : 1;
+          const wb = b.isPlayer ? 0 : 1;
+          a._visPushX -= ux * push * wa;
+          a._visPushZ -= uz * push * wa;
+          b._visPushX += ux * push * wb;
+          b._visPushZ += uz * push * wb;
+        }
+      }
+    }
+  }
+  list.forEach(a => {
+    if (a.isPlayer) {
+      a.group.position.x = a.wx;
+      a.group.position.z = a.wz;
+      return;
+    }
+    const baseX = a.wx + (a._visPushX || 0);
+    const baseZ = a.wz + (a._visPushZ || 0);
+    const p = clampWorld(baseX, baseZ);
+    a.group.position.x = p.x;
+    a.group.position.z = p.z;
+  });
+}
+
+function placeActorWorld(actor, wx, wz, isPlayer, isNpc) {
+  if (!actor?.group) return;
+  const offX = isPlayer ? 0 : (actor._visPushX || 0);
+  const offZ = isPlayer ? 0 : (actor._visPushZ || 0);
+  const c =
+    isPlayer && actor._fromLocomotion
+      ? { x: wx, z: wz }
+      : clampWorld(wx + offX, wz + offZ);
+  if (isPlayer) {
+    actor.group.position.x = c.x;
+    actor.group.position.z = c.z;
+  } else {
+    const lerp = 0.22;
+    actor.group.position.x += (c.x - actor.group.position.x) * lerp;
+    actor.group.position.z += (c.z - actor.group.position.z) * lerp;
+    const snapped = clampWorld(actor.group.position.x, actor.group.position.z);
+    actor.group.position.x = snapped.x;
+    actor.group.position.z = snapped.z;
+  }
+  actor.group.position.y = 0;
+  const dx = c.x - (actor.wx ?? c.x);
+  const dz = c.z - (actor.wz ?? c.z);
+  const dist = Math.hypot(dx, dz);
+  const now = performance.now();
+  const lastT = actor._moveT || now;
+  const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
+  actor._moveT = now;
+  let speed = dist / dt;
+  if (actor.id.startsWith("demo_")) speed = 0;
+  if (!isPlayer && isNpc && dist < 0.025) speed = 0;
+  if (!isPlayer && actor._netAnim === "idle") speed = 0;
+  const smooth = actor._locoSpeed ?? speed;
+  actor._locoSpeed = smooth * 0.72 + speed * 0.28;
+  actor._spd = actor._locoSpeed;
+  if (isPlayer) { meLastDx = dx; meLastDy = dz; }
+  actor.wx = actor.group.position.x;
+  actor.wz = actor.group.position.z;
+  actor.isNpc = isNpc;
+  actor.isPlayer = isPlayer;
+  if (Math.hypot(dx, dz) > 0.01) {
+    actor.group.rotation.y = Math.atan2(dx, dz);
+  }
+  if (actor.isDog && !actor._proceduralDog) {
+    fadeToDog(actor, speed > 0.8 ? "run" : speed > 0.08 ? "walk" : "idle");
+  } else if (actor.actions || actor._meshy) {
+    const talking = talkingIds.has(actor.characterId) || talkingIds.has(actor.id.replace("npc_", ""));
+    fadeTo(actor, pickLocomotionAnim(actor, speed, talking));
+    updateLocomotionTimeScale(actor);
+  }
+  if (isPlayer) {
+    const st = talkingIds.has("player") ? "talk" : (speed > 1.2 ? "run" : speed > 0.08 ? "walk" : "idle");
+    if (st !== playerAnimState) {
+      playerAnimState = st;
+      hooks.onAnimState?.(st);
+    }
+  }
+}
+
+function fadeToDog(dog, name) {
+  if (dog._proceduralDog || !dog.actions?.[name] || dog.current === name) return;
+  dog.actions[dog.current]?.fadeOut(0.15);
+  dog.actions[name].reset().fadeIn(0.15).play();
+  dog.current = name;
+}
+
+function resetOccluderOpacity() {
+  if (!locationRoot) return;
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.userData.cameraOccluder || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m) return;
+      m.transparent = true;
+      m.opacity = 1;
+      m.depthWrite = true;
+    });
+  });
+}
+
+function setDialogueCaptureScale(actor, mul = 1) {
+  if (!actor?.group) return;
+  if (!actor._capScaleSaved) actor._capScaleSaved = actor.group.scale.clone();
+  if (mul === 1) {
+    actor.group.scale.copy(actor._capScaleSaved);
+    return;
+  }
+  actor.group.scale.copy(actor._capScaleSaved).multiplyScalar(mul);
+}
+
+function boostActorCaptureLight(actor, on, strength = 0.55) {
+  if (!actor?.group) return;
+  actor.group.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m || m.isShaderMaterial) return;
+      if (on) {
+        if (m.userData._capBaseEmi === undefined) {
+          m.userData._capBaseEmi = m.emissive?.getHex?.() ?? 0;
+          m.userData._capBaseEmiI = m.emissiveIntensity ?? 0;
+        }
+        if (m.emissive) {
+          m.emissive.set(0x554466);
+          m.emissiveIntensity = Math.max(m.emissiveIntensity ?? 0, strength);
+        }
+      } else if (m.userData._capBaseEmi !== undefined) {
+        m.emissive?.setHex?.(m.userData._capBaseEmi);
+        m.emissiveIntensity = m.userData._capBaseEmiI ?? 0.2;
+        delete m.userData._capBaseEmi;
+        delete m.userData._capBaseEmiI;
+      }
+    });
+  });
+}
+
+function applyLiveDialogueLights(npc, pl, npcId, camX, camY, camZ, lookX, lookY, lookZ, mobile) {
+  const nx = npc.wx ?? npc.group.position.x;
+  const nz = npc.wz ?? npc.group.position.z;
+  const headY = 1.52;
+  if (!dialogueKeyLight) {
+    dialogueKeyLight = new THREE.DirectionalLight(0xfff8ff, 4.2);
+    dialogueKeyLight.castShadow = false;
+    scene.add(dialogueKeyLight);
+    scene.add(dialogueKeyLight.target);
+  }
+  dialogueKeyLight.intensity = mobile ? 5.8 : 4.6;
+  dialogueKeyLight.position.set(nx + 0.6, headY + 2.2, nz + 1.1);
+  dialogueKeyLight.target.position.set(nx, headY, nz);
+  dialogueKeyLight.target.updateMatrixWorld();
+  dialogueKeyLight.visible = true;
+  if (!dialogueRimLight) {
+    dialogueRimLight = new THREE.DirectionalLight(0xff66cc, 2.4);
+    dialogueRimLight.castShadow = false;
+    scene.add(dialogueRimLight);
+    scene.add(dialogueRimLight.target);
+  }
+  dialogueRimLight.intensity = mobile ? 3.6 : 2.8;
+  dialogueRimLight.position.set(camX - 0.8, camY + 1.6, camZ - 0.5);
+  dialogueRimLight.target.position.set(nx, headY, nz);
+  dialogueRimLight.target.updateMatrixWorld();
+  dialogueRimLight.visible = true;
+  if (!dialogueNpcFill) {
+    dialogueNpcFill = new THREE.PointLight(0xccb8ff, 2.8, 6);
+    scene.add(dialogueNpcFill);
+  }
+  dialogueNpcFill.intensity = mobile ? 4.2 : 3.2;
+  dialogueNpcFill.position.set(nx, 1.35, nz + 0.35);
+  dialogueNpcFill.visible = true;
+  boostActorCaptureLight(npc, true, mobile ? 1.05 : 0.72);
+  boostActorCaptureLight(pl, true, 0.38);
+}
+
+function resetPropDimOpacity() {
+  if (!locationRoot) return;
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m?.userData?._baseOpacitySaved) return;
+      m.opacity = m.userData._baseOpacity ?? 1;
+      m.transparent = m.userData._baseTransparent ?? false;
+      m.depthWrite = true;
+    });
+  });
+}
+
+function logElevatorScreenshotRay() {
+  const pl = actors.get("player");
+  if (!locationRoot || !camera || !raycaster || currentLoc !== "elevator" || !pl) return [];
+  const target = new THREE.Vector3(pl.wx, 0.95, pl.wz);
+  const dir = target.clone().sub(camera.position).normalize();
+  raycaster.set(camera.position, dir);
+  const meshes = [];
+  locationRoot.traverse(o => {
+    if (o.isMesh && o.visible) meshes.push(o);
+  });
+  return raycaster.intersectObjects(meshes, false).slice(0, 16).map(h => ({
+    dist: +h.distance.toFixed(3),
+    cut: !!h.object.userData.elevatorCutaway,
+    pos: h.object.position.toArray().map(v => +v.toFixed(2)),
+    geo: h.object.geometry?.parameters
+      ? `${h.object.geometry.parameters.width ?? "?"}x${h.object.geometry.parameters.height ?? "?"}x${h.object.geometry.parameters.depth ?? "?"}`
+      : h.object.type
+  }));
+}
+
+function setElevatorCutaway(active) {
+  if (!locationRoot || currentLoc !== "elevator") return;
+  if (!active) {
+    if (!elevatorCutawaySaved) return;
+    elevatorCutawaySaved.forEach(({ mesh, visible, mats }) => {
+      mesh.visible = visible;
+      mats.forEach(({ m, transparent, opacity, depthWrite }) => {
+        m.transparent = transparent;
+        m.opacity = opacity;
+        m.depthWrite = depthWrite;
+      });
+    });
+    elevatorCutawaySaved = null;
+    return;
+  }
+  if (elevatorCutawaySaved) return;
+  elevatorCutawaySaved = [];
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.userData.elevatorCutaway) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    elevatorCutawaySaved.push({
+      mesh: o,
+      visible: o.visible,
+      mats: mats.map(m => ({
+        m,
+        transparent: m.transparent,
+        opacity: m.opacity,
+        depthWrite: m.depthWrite
+      }))
+    });
+    o.visible = false;
+  });
+}
+
+function dimPropsBetweenCameraAnd(tx, ty, tz, opacity = 0.15) {
+  if (!locationRoot || !camera || !raycaster) return;
+  const eye = camera.position.clone();
+  const aim = new THREE.Vector3(tx, ty, tz);
+  const dir = aim.clone().sub(eye);
+  const maxD = dir.length();
+  if (maxD < 0.2) return;
+  dir.normalize();
+  raycaster.set(eye, dir);
+  const meshes = [];
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const tag = o.userData?.propTag || o.parent?.userData?.propTag;
+    if (!tag) return;
+    meshes.push(o);
+  });
+  const hits = raycaster.intersectObjects(meshes, false);
+  const hitSet = new Set(hits.filter(h => h.distance < maxD - 0.15).map(h => h.object));
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const tag = o.userData?.propTag || o.parent?.userData?.propTag;
+    if (!tag) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m) return;
+      if (!m.userData._baseOpacitySaved) {
+        m.userData._baseOpacitySaved = true;
+        m.userData._baseOpacity = m.opacity ?? 1;
+        m.userData._baseTransparent = m.transparent;
+      }
+      const fade = hitSet.has(o);
+      m.transparent = true;
+      m.opacity = fade ? opacity : m.userData._baseOpacity ?? 1;
+      m.depthWrite = !fade;
+    });
+  });
+}
+
+function updateCameraOccluders() {
+  if (LOCATION_CAMERA[currentLoc]?.fixed) {
+    resetOccluderOpacity();
+    return;
+  }
+  const player = actors.get("player");
+  if (!player || !locationRoot || !raycaster) return;
+  const eye = camera.position.clone();
+  const aim = player.group.position.clone().add(new THREE.Vector3(0, 1.15, 0));
+  const dir = aim.clone().sub(eye).normalize();
+  const maxD = eye.distanceTo(aim);
+  raycaster.set(eye, dir);
+  const occluders = [];
+  locationRoot.traverse(o => {
+    if (o.isMesh && o.userData.cameraOccluder) occluders.push(o);
+  });
+  const hitSet = new Set(raycaster.intersectObjects(occluders, false).map(h => h.object));
+  locationRoot.traverse(o => {
+    if (!o.isMesh || !o.userData.cameraOccluder || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => {
+      if (!m) return;
+      m.transparent = true;
+      m.opacity = hitSet.has(o) ? 0.22 : 1;
+      m.depthWrite = !hitSet.has(o);
+    });
+  });
+}
+
+const LOCATION_CAMERA = {
+  elevator: {
+    fixed: true,
+    fov: 34,
+    pos: [0.35, 1.78, 4.25],
+    look: [0, 0.94, 0.04],
+    player: { x: 0, z: 0, yaw: 0 },
+    dog: { dx: 0.76, dz: -0.06 },
+    mobile: {
+      portraitFromPlayer: true,
+      fov: 48,
+      camOffset: [0.12, 2.38, 6.93],
+      lookAtPlayerY: 0.92,
+      player: { x: 0, z: 0, yaw: 0 },
+      dog: { dx: 0.7, dz: -0.04 }
+    }
+  },
+  street: { dist: 6.85, height: 2.55, lookY: 1.32, yaw: 0.38 },
+  city: { dist: 7.2, height: 2.62, lookY: 1.34, yaw: 0.28 },
+  cemetery: { dist: 7.0, height: 2.5, lookY: 1.3, yaw: 0.32 },
+  roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
+  toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
+  kitchen: {
+    fixed: true,
+    fov: 56,
+    pos: [0.34, 2.48, 5.85],
+    look: [0.08, 1.26, -2.55],
+    player: { x: 0, z: 0.28, yaw: Math.PI },
+    dog: { dx: 0.82, dz: 0.22 },
+    mobile: {
+      portraitFromPlayer: true,
+      fov: 46,
+      camOffset: [0.04, 2.68, 7.55],
+      lookAtPlayerY: 1.12,
+      player: { x: 0.02, z: -2.55, yaw: 0.05 },
+      dog: { dx: 0.7, dz: -0.04 }
+    }
+  },
+  room: {
+    dist: 7.35,
+    height: 2.62,
+    lookY: 1.1,
+    yaw: 0.48,
+    mobile: { dist: 11.6, height: 3.22, lookY: 0.88, fov: 58, yaw: 0.82 }
+  }
+};
+
+function getFixedLocationShot() {
+  const spec = LOCATION_CAMERA[currentLoc];
+  if (!spec?.fixed) return spec;
+  if (!mobileQuality || !spec.mobile) return spec;
+  const m = spec.mobile;
+  return {
+    ...spec,
+    mobile: m,
+    fov: m.fov ?? spec.fov,
+    pos: m.pos ?? spec.pos,
+    look: m.look ?? spec.look,
+    player: { ...spec.player, ...m.player },
+    dog: { ...spec.dog, ...m.dog }
+  };
+}
+
+function projectWorldToScreen(wx, wy, wz) {
+  const canvas = document.getElementById("stage3d");
+  if (!canvas || !camera) return null;
+  const v = new THREE.Vector3(wx, wy, wz);
+  v.project(camera);
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  return { x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h };
+}
+
+function actorHeadMetrics(actor) {
+  if (!actor?.group) return null;
+  actor.group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(actor.group);
+  if (box.isEmpty()) {
+    const wx = actor.wx ?? actor.group.position.x;
+    const wz = actor.wz ?? actor.group.position.z;
+    return { cx: wx, cz: wz, topY: 1.72, chinY: 1.58, boxH: 0.14 };
+  }
+  const cx = (box.min.x + box.max.x) * 0.5;
+  const cz = (box.min.z + box.max.z) * 0.5;
+  const h = box.max.y - box.min.y;
+  return {
+    cx,
+    cz,
+    topY: box.max.y,
+    chinY: box.min.y + h * 0.78,
+    boxH: h
+  };
+}
+
+function resetActorStanding(actor) {
+  if (!actor?.group) return;
+  actor._vy = 0;
+  actor._onGround = true;
+  actor._holdAnim = null;
+  actor._holdUntil = 0;
+  actor.group.position.y = 0;
+  actor.group.rotation.x = 0;
+  actor.group.rotation.z = 0;
+}
+
+function freezeActorIdleForCapture(actor) {
+  if (!actor) return;
+  resetActorStanding(actor);
+  if (!actor.isDog) {
+    fadeTo(actor, "idle");
+    actor._spd = 0;
+  } else {
+    fadeToDog(actor, "idle");
+  }
+  for (let i = 0; i < 36; i++) {
+    actor.mixer?.update(1 / 30);
+    updateProcedural(actor, 1 / 30, null, false);
+  }
+}
+
+function applyMobilePortraitShowcaseFromPlayer(shot) {
+  const pl = actors.get("player");
+  if (!pl || !camera || !mobileQuality) return;
+  const mob = shot?.mobile || LOCATION_CAMERA[currentLoc]?.mobile;
+  const off = mob?.camOffset ?? [0.12, 2.38, 6.93];
+  const lookY = mob?.lookAtPlayerY ?? 0.92;
+  const px = pl.wx;
+  const pz = pl.wz;
+  camera.position.set(px + off[0], off[1], pz + off[2]);
+  camera.lookAt(px, lookY, pz);
+  camera.fov = shot.fov ?? mob?.fov ?? 48;
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+}
+
+function cameraFollowProfile() {
+  const loc = LOCATION_CAMERA[currentLoc] || {};
+  const mob = mobileQuality && loc.mobile ? loc.mobile : null;
+  const baseDist = mob?.dist ?? loc.dist ?? 6.4;
+  const dist = mobileQuality ? baseDist * 0.96 : baseDist;
+  return {
+    dist,
+    height: mob?.height ?? loc.height ?? (mobileQuality ? 2.48 : 2.4),
+    lookY: mob?.lookY ?? loc.lookY ?? 1.28,
+    yaw: mob?.yaw ?? loc.yaw
+  };
+}
+
+function collectCameraOccluders() {
+  const list = [];
+  if (!locationRoot) return list;
+  locationRoot.traverse(o => {
+    if (o.isMesh && o.userData.cameraOccluder) list.push(o);
+  });
+  return list;
+}
+
+function resolveCameraWallCollision(eye, desired) {
+  const occluders = collectCameraOccluders();
+  if (!occluders.length || !raycaster) return desired;
+  const dir = desired.clone().sub(eye);
+  const dist = dir.length();
+  if (dist < 0.05) return desired;
+  dir.normalize();
+  raycaster.set(eye, dir);
+  const hits = raycaster.intersectObjects(occluders, false);
+  if (hits.length && hits[0].distance < dist - 0.08) {
+    return eye.clone().add(dir.multiplyScalar(Math.max(0.45, hits[0].distance - 0.42)));
+  }
+  return desired;
+}
+
+function applyFixedLocationActors() {
+  const spec = getFixedLocationShot();
+  if (!spec?.player) return;
+  const pl = actors.get("player");
+  if (pl && spec.player) {
+    pl.wx = spec.player.x;
+    pl.wz = spec.player.z;
+    pl.group.position.set(spec.player.x, 0, spec.player.z);
+    if (spec.player.yaw != null) pl.group.rotation.y = spec.player.yaw;
+  }
+  const dog = actors.get("dog");
+  if (dog && pl) {
+    if (spec.dog) {
+      dog.wx = pl.wx + spec.dog.dx;
+      dog.wz = pl.wz + spec.dog.dz;
+      const c = clampWorld(dog.wx, dog.wz);
+      dog.wx = c.x;
+      dog.wz = c.z;
+    } else {
+      syncDogBesidePlayer(pl);
+    }
+    dog.group.position.set(dog.wx, 0, dog.wz);
+    dog.group.visible = true;
+    if (dog.root) dog.root.visible = true;
+  }
+}
+
+let lastCameraDt = 1 / 60;
+
+function positionCameraBehindPlayer(instant = false, dt = lastCameraDt) {
+  const player = actors.get("player");
+  if (!player || !camera) return;
+  const fixed = getFixedLocationShot();
+  if (fixed?.fixed) {
+    if (fixed.fov && camera.fov !== fixed.fov) {
+      camera.fov = fixed.fov;
+      camera.updateProjectionMatrix();
+    }
+    camera.position.set(fixed.pos[0], fixed.pos[1], fixed.pos[2]);
+    camera.lookAt(fixed.look[0], fixed.look[1], fixed.look[2]);
+    updateCameraOccluders();
+    return;
+  }
+  const p = player.group.position;
+  const { dist, height, lookY, yaw } = cameraFollowProfile();
+  if (yaw != null && Number.isFinite(yaw)) cameraYaw = yaw;
+  const ox = Math.sin(cameraYaw) * dist;
+  const oz = Math.cos(cameraYaw) * dist;
+  const eye = p.clone().add(new THREE.Vector3(0, lookY - 0.15, 0));
+  let target = new THREE.Vector3(p.x + ox, height, p.z + oz);
+  target = resolveCameraWallCollision(eye, target);
+  const t = instant ? 1 : 1 - Math.exp(-14 * Math.max(dt, 0.001));
+  if (instant) camera.position.copy(target);
+  else camera.position.lerp(target, t);
+  const lookAhead = LOCATION_CAMERA[currentLoc]?.lookAhead ?? 0;
+  const look = new THREE.Vector3(p.x, lookY, p.z + lookAhead);
+  if (!instant && camera._lookTarget) {
+    camera._lookTarget.lerp(look, t);
+    camera.lookAt(camera._lookTarget);
+  } else {
+    camera._lookTarget = look.clone();
+    camera.lookAt(look);
+  }
+  updateCameraOccluders();
+}
+
+function resetCameraForLocation() {
+  applyViewportCameraProfile();
+  const fixedShot = getFixedLocationShot();
+  const fixedFov = fixedShot?.fov;
+  if (fixedFov && camera) {
+    camera.fov = fixedFov;
+    camera.updateProjectionMatrix();
+  }
+  cameraYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
+  positionCameraBehindPlayer(true);
+}
+
+function updateThirdPersonCamera(dt = lastCameraDt) {
+  positionCameraBehindPlayer(false, dt);
+  const pl = actors.get("player");
+  if (pl && !captureFrameLock) dimPropsBetweenCameraAnd(pl.wx, 1.05, pl.wz, 0.22);
+}
+
+function patrolWaypointBlocked(x, z) {
+  if (guideTarget?.wx != null && guideTarget?.wz != null) {
+    if (Math.hypot(x - guideTarget.wx, z - guideTarget.wz) < 2.45) return true;
+  }
+  return false;
+}
+
+function tickNpcPatrols(dt) {
+  const pl = actors.get("player");
+  actors.forEach((a, id) => {
+    if (!id.startsWith("npc_")) return;
+    const stepId = window.Onboarding?.currentStepId?.();
+    const pinRazor = (stepId === "talk_razor" || stepId === "win_fight") && a.characterId === "razor" && currentLoc === "street";
+    const greet = NPC_QUEST_GREET[currentLoc]?.[a.characterId];
+    if (pinRazor && greet?.anchor) {
+      a.wx = greet.anchor.x;
+      a.wz = greet.anchor.z;
+      a.group.position.x = a.wx;
+      a.group.position.z = a.wz;
+      if (pl) {
+        const dx = pl.wx - a.wx;
+        const dz = pl.wz - a.wz;
+        a.group.rotation.y = Math.atan2(dx, dz);
+      }
+      a._spd = 0;
+      fadeTo(a, "idle");
+      updateLocomotionTimeScale(a);
+      return;
+    }
+    if (greet && pl) {
+      const d = Math.hypot(pl.wx - a.wx, pl.wz - a.wz);
+      if (d < greet.range) {
+        a.wx = greet.anchor.x;
+        a.wz = greet.anchor.z;
+        a.group.position.x = a.wx;
+        a.group.position.z = a.wz;
+        const dx = pl.wx - a.wx;
+        const dz = pl.wz - a.wz;
+        const targetY = Math.atan2(dx, dz);
+        let diff = targetY - a.group.rotation.y;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        a.group.rotation.y += diff * Math.min(1, dt * 3.2);
+        a._spd = 0;
+        fadeTo(a, "idle");
+        updateLocomotionTimeScale(a);
+        return;
+      }
+    }
+    if (!a._patrol?.length) return;
+    const path = a._patrol;
+    let idx = a._patrolIdx || 0;
+    let guard = 0;
+    while (guard < path.length && patrolWaypointBlocked(path[idx].x, path[idx].z)) {
+      idx = (idx + 1) % path.length;
+      guard++;
+    }
+    a._patrolIdx = idx;
+    const tgt = path[idx];
+    const dx = tgt.x - a.wx;
+    const dz = tgt.z - a.wz;
+    const dist = Math.hypot(dx, dz);
+    const step = 1.55 * dt;
+    if (dist < 0.4) {
+      a._patrolIdx = (idx + 1) % path.length;
+      if (dist < 0.08) return;
+    }
+    const ux = dx / (dist || 1);
+    const uz = dz / (dist || 1);
+    const move = Math.min(step, dist);
+    const c = clampWorld(a.wx + ux * move, a.wz + uz * move);
+    a.wx = c.x;
+    a.wz = c.z;
+    a.group.rotation.y = Math.atan2(ux, uz);
+    const spd = move / Math.max(dt, 0.001);
+    a._spd = spd;
+    fadeTo(a, spd > 1.15 ? "run" : "walk");
+    updateLocomotionTimeScale(a);
+    a.group.position.x = a.wx;
+    a.group.position.z = a.wz;
+  });
+}
+
+function onboardingPortalForStep(step, locId) {
+  if (step === 1 && locId === "room") return (PORTALS.room || []).find(p => p.to === "street") || null;
+  if (step === 3 && locId === "street") return (PORTALS.street || []).find(p => p.to === "cemetery") || null;
+  return null;
+}
+
+function portalGuideStopDist(pl, guide) {
+  const base = window.Onboarding?.isActive?.() ? 0.12 : 0.45;
+  if (!pl || guide?.wx == null || !window.Onboarding?.isActive?.()) return base;
+  const step = window.me?.onboarding?.step ?? -1;
+  const portal = onboardingPortalForStep(step, currentLoc);
+  if (!portal) return base;
+  const dPortal = Math.hypot(pl.wx - portal.x, pl.wz - portal.z);
+  if (dPortal > portal.r * 0.92) return 0.03;
+  return base;
+}
+
+function portalCameraSteerCutoff(pl, guide) {
+  const base = 0.4;
+  if (!pl || guide?.wx == null || !window.Onboarding?.isActive?.()) return base;
+  const step = window.me?.onboarding?.step ?? -1;
+  const portal = onboardingPortalForStep(step, currentLoc);
+  if (!portal) return base;
+  const dPortal = Math.hypot(pl.wx - portal.x, pl.wz - portal.z);
+  if (dPortal > portal.r * 0.95) return portal.r * 0.25;
+  return base;
+}
+
+function onboardingAllowsPortal(to) {
+  if (!window.Onboarding?.isActive?.()) return true;
+  const id = window.Onboarding.currentStepId?.();
+  if (id === "go_street") return to === "street";
+  if (id === "talk_razor" || id === "win_fight") return to === "street";
+  if (id === "visit_cemetery") return to === "street" || to === "cemetery";
+  return true;
+}
+
+function checkPortals() {
+  if (motionProbe || captureFrameLock) return;
+  if (performance.now() < portalGraceUntil) return;
+  try {
+    if (window.LifeCh1Slice?.isActive?.() && currentLoc === "room" && !window.Onboarding?.isActive?.())
+      return;
+  } catch (_) {}
+  const player = actors.get("player");
+  if (!player || !bounds) return;
+  const portals = PORTALS[currentLoc] || [];
+  const px = player.wx ?? player.group.position.x;
+  const pz = player.wz ?? player.group.position.z;
+  for (const portal of portals) {
+    if (Math.hypot(px - portal.x, pz - portal.z) <= portal.r) {
+      if (!onboardingAllowsPortal(portal.to)) continue;
+      hooks.onPortal?.(portal.to);
+      break;
+    }
+  }
+}
+
+const LOCO_DT = 1 / 60;
+
+/** Life Ch1: steer camera toward quest guide while moving (keyboard/touch — not E2E-only). */
+function questGuideLocomotionActive() {
+  try {
+    return !!(window.LifeCh1Slice?.isActive?.() || window.Onboarding?.isActive?.());
+  } catch (_) {
+    return false;
+  }
+}
+
+/** Life Ch1 / onboarding: world-space walk toward guide beacon (WASD still required). */
+function lifeCh1GuideLocomotionDelta(input, step) {
+  try {
+    if (!questGuideLocomotionActive()) return null;
+    const mag = Math.hypot(input.moveX, input.moveZ);
+    if (mag < 0.05) return null;
+    const t = guideTarget;
+    if (!t || t.wx == null || t.wz == null) return null;
+    if (t.loc != null && t.loc !== currentLoc) return null;
+    const pl = actors.get("player");
+    if (!pl) return null;
+    const dx = t.wx - pl.wx;
+    const dz = t.wz - pl.wz;
+    const dist = Math.hypot(dx, dz);
+    const stopDist = portalGuideStopDist(pl, t);
+    if (dist < stopDist) return null;
+    const runScale = input.run ? 1.15 : 0.95;
+    const sliceBoost = 1.35;
+    return {
+      mx: (dx / dist) * step * runScale * sliceBoost,
+      mz: (dz / dist) * step * runScale * sliceBoost
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function lifeCh1SteerCameraWhileMoving(input) {
+  try {
+    if (!questGuideLocomotionActive()) return;
+    const mag = Math.hypot(input.moveX, input.moveZ);
+    if (mag < 0.05) return;
+    const t = guideTarget;
+    if (!t || t.wx == null || t.wz == null) return;
+    if (t.loc && t.loc !== currentLoc) return;
+    const pl = actors.get("player");
+    if (!pl) return;
+    const dx = t.wx - pl.wx;
+    const dz = t.wz - pl.wz;
+    const cutoff = portalCameraSteerCutoff(pl, t);
+    if (Math.hypot(dx, dz) < cutoff) return;
+    cameraYaw = Math.atan2(dx, dz);
+  } catch (_) {}
+}
+
+function spawnPrefForLoc(locId) {
+  if (locId === "kitchen") return { x: -0.12, z: 0.36 };
+  if (locId === "elevator") return { x: 0, z: 0.02 };
+  return { x: 0, z: -1.2 };
+}
+
+function snapPlayerToLocationSpawn(prep = null) {
+  const player = actors.get("player");
+  if (!player || !bounds) return false;
+  const spawnPref = prep && prep.x != null && prep.z != null ? prep : spawnPrefForLoc(currentLoc);
+  const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
+  player.wx = clear.x;
+  player.wz = clear.z;
+  placeActorWorld(player, clear.x, clear.z, true);
+  const g = worldToGameLoc(clear.x, clear.z, bounds);
+  hooks.onMove?.(g.x, g.y, { sync3d: false, skipLifeCh1Move: true });
+  return true;
+}
+
+function processInput(dt) {
+  const player = actors.get("player");
+  if (!player || !bounds) return;
+  const input = getInputState();
+  lifeCh1SteerCameraWhileMoving(input);
+  const step = (motionProbe || input.run ? 7.2 : 4.5) * LOCO_DT;
+  let mx = 0;
+  let mz = 0;
+  const lifeGuide = lifeCh1GuideLocomotionDelta(input, step);
+  if (motionProbe) {
+    const dirZ = motionProbe.moveZ ?? 1;
+    const dirX = motionProbe.moveX ?? 0;
+    const mag = Math.hypot(dirX, dirZ) || 1;
+    mx = (dirX / mag) * step;
+    mz = (dirZ / mag) * step;
+  } else if (lifeGuide) {
+    mx = lifeGuide.mx;
+    mz = lifeGuide.mz;
+  } else {
+    const fwd = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+    const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
+    const mag = Math.hypot(input.moveX, input.moveZ);
+    if (mag > 0.05) {
+      const nx = input.moveX / mag;
+      const nz = input.moveZ / mag;
+      mx = (fwd.x * nz + right.x * nx) * step;
+      mz = (fwd.z * nz + right.z * nx) * step;
+    }
+  }
+  if (mx !== 0 || mz !== 0) {
+    const cols = furnitureColliders;
+    const moved = moveWithCollision(player.wx, player.wz, mx, mz, bounds, cols, 0.42);
+    const px = moved.x;
+    const pz = moved.z;
+    player._intentRun = motionProbe ? true : input.run;
+    player._fromLocomotion = true;
+    placeActorWorld(player, px, pz, true);
+    player.wx = px;
+    player.wz = pz;
+    player._fromLocomotion = false;
+    player._gameSyncT = (player._gameSyncT || 0) - dt;
+    if (window.Onboarding?.onWorldMove) window.Onboarding.onWorldMove(px, pz);
+    if (!motionProbe && player._gameSyncT <= 0) {
+      player._gameSyncT = 0.1;
+      const g = worldToGameLoc(px, pz, bounds);
+      hooks.onMove?.(g.x, g.y, { sync3d: false });
+      window.StoryEngine?.onPlayerMove?.();
+    }
+  } else {
+    player._locoSpeed = (player._locoSpeed || 0) * 0.55;
+    player._spd = player._locoSpeed;
+    fadeTo(player, pickLocomotionAnim(player, player._locoSpeed, false));
+    updateLocomotionTimeScale(player);
+  }
+  if (consumeJump() && (player._onGround ?? true)) {
+    player._vy = 5.2;
+    player._onGround = false;
+  }
+  if (consumeInteract()) {
+    window._lastInteract = true;
+    hooks.onInteract?.();
+  }
+}
+
+function getNearestDogId() {
+  const pl = actors.get("player");
+  const dog = actors.get("dog");
+  if (!pl || !dog) return false;
+  const d = Math.hypot(pl.wx - dog.wx, pl.wz - dog.wz);
+  return d < 2.15;
+}
+
+function getNearestNpcId() {
+  const pl = actors.get("player");
+  if (!pl) return null;
+  const stepId = window.Onboarding?.currentStepId?.();
+  if ((stepId === "talk_razor" || stepId === "win_fight") && currentLoc === "street") {
+    const razor = actors.get("npc_razor");
+    if (razor && Math.hypot(pl.wx - razor.wx, pl.wz - razor.wz) < 3.1) return "razor";
+  }
+  let best = null;
+  let bestD = 2.4;
+  actors.forEach((a, id) => {
+    if (!id.startsWith("npc_")) return;
+    const d = Math.hypot(pl.wx - a.wx, pl.wz - a.wz);
+    if (d < bestD) {
+      bestD = d;
+      best = id.replace("npc_", "");
+    }
+  });
+  return best;
+}
+
+/** Nearest prop with `userData.interact` (arcade, jukebox) within range. */
+function getNearestPropInteract(maxDist = 2.35) {
+  const pl = actors.get("player");
+  if (!pl?.group || !locationRoot) return null;
+  const pos = new THREE.Vector3();
+  let bestKind = null;
+  let bestD = maxDist;
+  locationRoot.traverse(o => {
+    const kind = o.userData?.interact;
+    if (!kind) return;
+    o.getWorldPosition(pos);
+    const d = Math.hypot(pl.wx - pos.x, pl.wz - pos.z);
+    if (d < bestD) {
+      bestD = d;
+      bestKind = kind;
+    }
+  });
+  return bestKind;
+}
+
+function getNearPortal() {
+  const pl = actors.get("player");
+  if (!pl) return null;
+  const portals = PORTALS[currentLoc] || [];
+  let best = null;
+  let bestD = Infinity;
+  for (const portal of portals) {
+    const d = Math.hypot(pl.wx - portal.x, pl.wz - portal.z);
+    if (d < portal.r + 0.35 && d < bestD) {
+      bestD = d;
+      best = portal;
+    }
+  }
+  return best;
+}
+
+function sync(data) {
+  pendingSyncData = data;
+  if (!modelsReady) return;
+  const { player, others, npcs, location, hasDog, carVisible } = data;
+  const justChangedLoc = location !== currentLoc;
+  if (justChangedLoc) {
+    rebuildLocation(location);
+    captureFrameLock = false;
+    setElevatorCutaway(false);
+    const dogActor = actors.get("dog");
+    if (dogActor) dogActor._placed = false;
+  }
+  if (justChangedLoc && player && bounds) {
+    portalGraceUntil = performance.now() + 1600;
+    if (location === "elevator") {
+      const g = worldToGameLoc(0, 0, bounds);
+      player.x = g.x;
+      player.y = g.y;
+      hooks.onMove?.(g.x, g.y, { sync3d: false });
+    }
+  }
+  if (justChangedLoc && location === "kitchen" && player && bounds) {
+    const shot = getFixedLocationShot();
+    const wx = shot?.player?.x ?? -0.12;
+    const wz = shot?.player?.z ?? 0.36;
+    const g = worldToGameLoc(wx, wz, bounds);
+    hooks.onMove?.(g.x, g.y);
+  }
+
+  const keep = new Set(["player"]);
+  if (player) {
+    const a = ensureActor("player", player.characterId || "vienna", false);
+    if (!motionProbe) {
+      const w = gameToWorldLoc(player.x, player.y, bounds);
+      placeActorWorld(a, w.x, w.z, true);
+    }
+    if (player.anim && player.anim !== a._netAnim) {
+      applyNetworkAnim(a, player.anim);
+      a._netAnim = player.anim;
+    }
+    if (lifeCh1PlayerSkin.pending) {
+      applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
+    }
+    window.dispatchEvent(new CustomEvent("punk-player-actor-ready", { detail: { characterId: player.characterId } }));
+  }
+
+  const hideCrowd = isDuelActive() || captureFrameLock;
+  const otherEntries = hideCrowd ? [] : Object.entries(others || {}).slice(0, 5);
+  otherEntries.forEach(([id, p], idx) => {
+    keep.add(id);
+    const a = ensureActor(id, p.characterId || "cobalt", false);
+    const w = gameToWorldLoc(p.x, p.y, bounds);
+    const off = spawnOffsetForId(id, idx + 1);
+    placeActorWorld(a, w.x + off.x, w.z + off.z, false);
+    if (p.anim && p.anim !== a._netAnim) {
+      applyNetworkAnim(a, p.anim);
+      a._netAnim = p.anim;
+    }
+  });
+
+  const meshHeroId = player?.characterId || "vienna";
+  const proxyId =
+    (typeof window !== "undefined" && window.LIFE_CH1_PLAYER_MESH_ID) || "life_ch1_proxy";
+  const sliceCutout =
+    typeof window !== "undefined" &&
+    window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() &&
+    window.me?.lifeCh1?.playerCutout !== false;
+  const heroId =
+    sliceCutout && meshHeroId === proxyId
+      ? null
+      : meshHeroId;
+  (npcs || []).forEach(n => {
+    if (heroId != null && n.id === heroId) return;
+    const id = "npc_" + n.id;
+    keep.add(id);
+    const a = ensureActor(id, n.characterId || n.id, true);
+    if (!a) return;
+    const wp = NPC_WORLD[location]?.[n.id] || gameToWorldLoc(n.x, n.y, bounds);
+    const path = NPC_PATROL[location]?.[n.id];
+    if (path?.length) {
+      if (!a._patrol || a._patrolLoc !== location) {
+        a._patrol = path;
+        a._patrolLoc = location;
+        a._patrolIdx = 0;
+        a.wx = path[0].x;
+        a.wz = path[0].z;
+      }
+    } else {
+      a._patrol = null;
+      a.wx = wp.x;
+      a.wz = wp.z;
+    }
+    placeActorWorld(a, a.wx, a.wz, false, true);
+  });
+
+  actors.forEach((a, id) => {
+    if (!keep.has(id)) {
+      scene.remove(a.group);
+      a.mixer?.stopAllAction();
+      actors.delete(id);
+    }
+  });
+
+  if (hasDog) {
+    if (!actors.get("dog")) {
+      const d = createDog();
+      if (d) actors.set("dog", { ...d, id: "dog", isDog: true, wx: 0, wz: 0 });
+    }
+    const dog = actors.get("dog");
+    const pl = actors.get("player");
+    if (dog && pl) {
+      syncDogBesidePlayer(pl);
+      dog._placed = true;
+    }
+    keep.add("dog");
+  } else if (actors.get("dog")) {
+    scene.remove(actors.get("dog").group);
+    actors.delete("dog");
+  }
+
+  ensureCar(location === "street" && !isDuelActive() && (!!carVisible || locationProps.showCar));
+
+  const playerActor = actors.get("player");
+  const spawnPref = spawnPrefForLoc(currentLoc);
+  if (playerActor && pointInsideCollider(playerActor.wx, playerActor.wz, furnitureColliders, 0.38)) {
+    const clear = findClearSpawn(bounds, furnitureColliders, spawnPref);
+    playerActor.group.position.x = clear.x;
+    playerActor.group.position.z = clear.z;
+    playerActor.wx = clear.x;
+    playerActor.wz = clear.z;
+    if (bounds) {
+      const g = worldToGameLoc(clear.x, clear.z, bounds);
+      hooks.onMove?.(g.x, g.y);
+    }
+  }
+  if (justChangedLoc) {
+    applyFixedLocationActors();
+    resetCameraForLocation();
+    const dogPl = actors.get("player");
+    if (actors.get("dog") && dogPl) syncDogBesidePlayer(dogPl);
+  }
+}
+
+function applyNetworkAnim(actor, anim) {
+  const map = { talk: "talk", wave: "wave", sit: "sit", interact: "interact", run: "run", walk: "walk", idle: "idle", emote: "emote" };
+  const key = resolveAnimName(map[anim] || "idle");
+  if (key === "interact") playOneShot(actor, key, 1600);
+  else if (key === "sit") fadeTo(actor, "sit");
+  else fadeTo(actor, key);
+}
+
+function onPointer(e) {
+  const canvas = document.getElementById("stage3d");
+  if (!canvas || e.target !== canvas || !floorMesh || e.button !== 0) return;
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObject(floorMesh, true);
+  const hit = hits.find(h => h.object.isMesh);
+  if (hit && bounds) {
+    if (window.me?._decorMode) {
+      if (api.decorPointerDown?.(hit.point.x, hit.point.z)) return;
+      window.decorPlaceAtWorld?.(hit.point.x, hit.point.z);
+      return;
+    }
+    const g = worldToGameLoc(hit.point.x, hit.point.z, bounds);
+    hooks.onMove?.(g.x, g.y);
+  }
+  let best = null;
+  let bestD = 1.8;
+  actors.forEach((a, id) => {
+    if (!id.startsWith("npc_")) return;
+    const d = Math.hypot(a.group.position.x - hit?.point.x, a.group.position.z - hit?.point.z);
+    if (d < bestD) { bestD = d; best = id.replace("npc_", ""); }
+  });
+  if (best) hooks.onNpcClick?.(best);
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  if (!renderer || !modelsReady) return;
+  const dt = Math.min(clock.getDelta(), 0.05);
+  sceneTime += dt;
+  processInput(dt);
+  tickNpcPatrols(dt);
+  const pl = actors.get("player");
+  if (pl && actors.get("dog")) updateDogFollow(dt, pl);
+  if (pl) {
+    pl._vy = (pl._vy || 0) - 14 * dt;
+    let y = (pl.group.position.y || 0) + pl._vy * dt;
+    if (y <= 0) { y = 0; pl._vy = 0; pl._onGround = true; }
+    else pl._onGround = false;
+    pl.group.position.y = y;
+  }
+  separateActors();
+  if (locationRoot) pulseScene(locationRoot, sceneTime);
+  if (particles?.geometry?.attributes?.position) {
+    const attr = particles.geometry.attributes.position;
+    for (let i = 0; i < attr.count; i++) {
+      let y = attr.getY(i) + Math.sin(sceneTime * 1.4 + i) * 0.0012;
+      if (y > 5.5) y = 0.35;
+      attr.setY(i, y);
+    }
+    attr.needsUpdate = true;
+  }
+  if (captureFrameLock) setQuestMarkersVisible(false);
+  else {
+    setQuestMarkersVisible(true);
+    setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    tickLifeAngelinaBillboard();
+  }
+  const nearNpc = getNearestNpcId();
+  const nearPortal = getNearPortal();
+  const nearDog = getNearestDogId();
+  hooks.onHints?.({ nearNpc, nearPortal, nearDog, location: currentLoc });
+  const playerPos = pl ? pl.group.position : null;
+  actors.forEach(a => {
+    a.mixer?.update(dt);
+    if (a._meshy && a.current !== "walk" && a.current !== "run") {
+      ["walk", "run"].forEach(k => {
+        const act = a.actions?.[k];
+        if (!act || act.getEffectiveWeight() < 0.02) return;
+        act.stop();
+        act.setEffectiveWeight(0);
+      });
+    }
+    markActorVisibleWhenReady(a);
+    if (a.isPlayer) {
+      enforceLifeCh1PlayerMeshVisibility(a);
+      tickLifeCh1PlayerSpritePlacement(a);
+    }
+    if (a._meshyDog) updateMeshyDogAnim(a, dt, a._anim === "hop" ? "hop" : "idle", a._spd || 0);
+    if (a.root && !a.isDog) {
+      const talk = talkingIds.has(a.characterId) || talkingIds.has(a.id.replace("npc_", ""));
+      updateProcedural(a, dt, a.isNpc ? playerPos : null, talk);
+    }
+  });
+  if (car) {
+    if (isDuelActive()) {
+      car.group.visible = false;
+    } else {
+      car.group.visible = true;
+      car.x += car.dir * dt * 2.5;
+      if (car.x > 6 || car.x < -8) car.dir *= -1;
+      car.group.position.x = car.x;
+      car.wheels.forEach(w => { w.rotation.x += dt * 5 * car.dir; });
+    }
+  }
+  if (particles) particles.rotation.y += dt * 0.02;
+  if (motionProbe && pl?.isPlayer) notePlayerMotion(pl);
+  tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
+  tickStory(dt);
+  lastCameraDt = dt;
+  if (!captureFrameLock) updateThirdPersonCamera(dt);
+  else if (captureHideActors?.length && !motionProbe) {
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    checkPortals();
+    return;
+  }
+  checkPortals();
+  renderAtmosphere(atmospherePipe, renderer, scene, camera);
+}
+
+function init(h) {
+  hooks = h;
+  setPlayerRootVisibilityGuard(enforceLifeCh1PlayerMeshVisibility);
+  const canvas = document.getElementById("stage3d");
+  if (!canvas) return Promise.resolve(false);
+  mobileQuality =
+    window.matchMedia("(max-width: 900px)").matches || (canvas?.clientWidth ?? 999) < 520;
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: !mobileQuality,
+    powerPreference: "high-performance",
+    preserveDrawingBuffer: true
+  });
+  renderer.setPixelRatio(mobileQuality ? 1 : Math.min(window.devicePixelRatio, 1.5));
+  renderer.shadowMap.enabled = !mobileQuality;
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
+  clock = new THREE.Clock();
+  raycaster = new THREE.Raycaster();
+  pointer = new THREE.Vector2();
+
+  scene.add(new THREE.HemisphereLight(0xfff0ff, 0x3a2848, 1.95));
+  const fill = new THREE.DirectionalLight(0xb8e8ff, 1.15);
+  fill.position.set(-4, 8, -3);
+  scene.add(fill);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.95);
+  sun.position.set(5, 12, 5);
+  if (!mobileQuality) {
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+  }
+  scene.add(sun);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  atmospherePipe = createAtmospherePipeline(renderer, scene, camera, !mobileQuality);
+
+  canvas.addEventListener("pointerdown", onPointer);
+  canvas.addEventListener("pointermove", e => {
+    if (e.target !== canvas) return;
+    api.updateDecorGhostFromEvent?.(e);
+  });
+  initControls3D(canvas, delta => { cameraYaw += delta; });
+  initTouchControls({ onCameraOrbit: delta => { cameraYaw += delta; } });
+  window.addEventListener("resize", resize);
+  document.body.classList.add("mode-world3d");
+
+  onMeshyTemplateLoaded(rebuildActorsForCharacter);
+
+  return loadModels().then(() => {
+    resize();
+    loop();
+    hooks.onReady?.();
+    return true;
+  }).catch(err => {
+    console.error("World3D load failed", err);
+    return false;
+  });
+}
+
+function applyViewportCameraProfile() {
+  const canvas = document.getElementById("stage3d");
+  const cw = canvas?.clientWidth ?? window.innerWidth;
+  mobileQuality = window.matchMedia("(max-width: 900px)").matches || cw < 520;
+  if (!camera) return;
+  const locCam = LOCATION_CAMERA[currentLoc];
+  const mob = mobileQuality && locCam?.mobile ? locCam.mobile : null;
+  camera.fov = mob?.fov ?? (mobileQuality ? 48 : 42);
+  camera.updateProjectionMatrix();
+}
+
+function resize() {
+  const canvas = document.getElementById("stage3d");
+  if (!canvas || !renderer) return;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  applyViewportCameraProfile();
+  if (camera) {
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  atmospherePipe?.resize(w, h);
+}
+
+const api = {
+  init, sync, resize, setLocation: rebuildLocation, setTalking,
+  playEmote: (id, name) => {
+    const a = actors.get(id || "player");
+    if (!a) return;
+    const resolved = resolveAnimName(name === "wave" ? "wave" : name);
+    if (resolved === "idle") {
+      fadeTo(a, "idle");
+      return;
+    }
+    playOneShot(a, name === "sit" ? "sit" : "interact", 1500);
+  },
+  isReady: () => modelsReady,
+  getDebugCamera: () => {
+    const pl = actors.get("player");
+    const dog = actors.get("dog");
+    return {
+      loc: currentLoc,
+      pos: camera ? camera.position.toArray() : null,
+      fov: camera?.fov,
+      player: pl ? [pl.wx, pl.wz, pl.group.rotation.y] : null,
+      dog: dog ? [dog.wx, dog.wz] : null,
+      rootName: locationRoot?.name
+    };
+  },
+  isDogActive: () => {
+    const d = actors.get("dog");
+    if (!d?.group) return false;
+    return d.group.visible && d.group.parent === scene;
+  },
+  getLocation: () => currentLoc,
+  getNearestNpc: getNearestNpcId,
+  getNearestPropInteract,
+  getNearestDog: getNearestDogId,
+  getNearPortal,
+  getPlayerWorldPosition: () => {
+    const pl = actors.get("player");
+    if (!pl) return { x: 0, z: 0, loc: currentLoc };
+    return { x: pl.wx ?? 0, z: pl.wz ?? 0, loc: currentLoc };
+  },
+  getCameraYaw: () => cameraYaw,
+  getRoomColliderDiag: () => {
+    const probes = [
+      { name: "north@0,0.76", x: 0, z: 0.76 },
+      { name: "north@0,-1.05", x: 0, z: -1.05 },
+      { name: "north@0,spawn", x: 0, z: -1.2 },
+      { name: "north@3,0.76", x: 3, z: 0.76 },
+      { name: "north@-3,0.76", x: -3, z: 0.76 },
+      { name: "east@0,0.76", x: 0, z: 0.76 },
+      { name: "south@0,2.2", x: 0, z: 2.2 }
+    ];
+    const dirs = [
+      { name: "north", dx: 0, dz: 0.2 },
+      { name: "south", dx: 0, dz: -0.2 },
+      { name: "east", dx: 0.2, dz: 0 },
+      { name: "west", dx: -0.2, dz: 0 }
+    ];
+    const northSweep = [];
+    let x = 0;
+    let z = -1.05;
+    for (let i = 0; i < 60; i++) {
+      const m = moveWithCollision(x, z, 0, 0.12, bounds, furnitureColliders, 0.42);
+      northSweep.push({ step: i, x, z, next: m });
+      if (m.z <= z + 0.001) break;
+      x = m.x;
+      z = m.z;
+    }
+    return {
+      loc: currentLoc,
+      bounds,
+      colliderCount: furnitureColliders.length,
+      colliders: furnitureColliders.map((b, i) => ({
+        index: i,
+        id: b.id,
+        label: b.label,
+        minX: b.minX,
+        maxX: b.maxX,
+        minZ: b.minZ,
+        maxZ: b.maxZ
+      })),
+      probes: probes.map(p => ({
+        ...p,
+        inside: pointInsideCollider(p.x, p.z, furnitureColliders, 0.42),
+        motions: diagnoseColliderMotion(p.x, p.z, dirs, bounds, furnitureColliders, 0.42)
+      })),
+      northSweepFromClearSpawn: northSweep,
+      northSweepMaxZ: northSweep.length ? northSweep[northSweep.length - 1].z : null
+    };
+  },
+  getPortalReadOnlyDiag: () => {
+    const pl = actors.get("player");
+    const px = pl?.wx ?? pl?.group?.position?.x ?? 0;
+    const pz = pl?.wz ?? pl?.group?.position?.z ?? 0;
+    const step = window.me?.onboarding?.step ?? -1;
+    const portal = onboardingPortalForStep(step, currentLoc);
+    const dist = portal ? Math.hypot(px - portal.x, pz - portal.z) : null;
+    const input = readInputStateSnapshot();
+    const guide = guideTarget;
+    const gdist =
+      guide?.wx != null && pl ? Math.hypot(guide.wx - pl.wx, guide.wz - pl.wz) : null;
+    return {
+      loc: currentLoc,
+      step,
+      wx: px,
+      wz: pz,
+      gx: pl?.group?.position?.x,
+      gz: pl?.group?.position?.z,
+      portal,
+      distToPortal: dist,
+      insidePortal: portal && dist != null ? dist <= portal.r : false,
+      guideTarget: guide,
+      guideDist: gdist,
+      guideStopDist: pl && guide ? portalGuideStopDist(pl, guide) : null,
+      cameraSteerCutoff: pl && guide ? portalCameraSteerCutoff(pl, guide) : null,
+      cameraYaw,
+      moveX: input?.moveX,
+      moveZ: input?.moveZ,
+      portalGraceMs: Math.max(0, portalGraceUntil - performance.now()),
+      lifeCh1Active: !!window.LifeCh1Slice?.isActive?.(),
+      onboardingActive: !!window.Onboarding?.isActive?.(),
+      lifeGuideProbe: (() => {
+        try {
+          const inp = { moveX: 0, moveZ: 1, run: true };
+          const step = 7.2 * LOCO_DT;
+          return lifeCh1GuideLocomotionDelta(inp, step);
+        } catch (_) {
+          return null;
+        }
+      })(),
+      northClearProbe: (() => {
+        try {
+          let x = px;
+          let z = pz;
+          for (let i = 0; i < 48; i++) {
+            const m = moveWithCollision(x, z, 0, 0.12, bounds, furnitureColliders, 0.42);
+            if (m.z <= z + 0.002) break;
+            x = m.x;
+            z = m.z;
+          }
+          return { maxX: x, maxZ: z, distToPortalAfter: portal ? Math.hypot(x - portal.x, z - portal.z) : null };
+        } catch (_) {
+          return null;
+        }
+      })(),
+    };
+  },
+  readInputState: () => readInputStateSnapshot(),
+  setPlayerWorldPosition: (wx, wz) => {
+    if (!isLifeCh1E2eTeleportEnabled()) return false;
+    const pl = actors.get("player");
+    if (!pl?.group) return false;
+    pl.wx = wx;
+    pl.wz = wz;
+    pl.group.position.set(wx, pl.group.position.y, wz);
+    return true;
+  },
+  setGuideTarget: t => { guideTarget = t; },
+  getNpcAnchor: npcId => {
+    const greet = NPC_QUEST_GREET[currentLoc]?.[npcId];
+    if (greet?.anchor && Number.isFinite(greet.anchor.x) && Number.isFinite(greet.anchor.z)) {
+      return { x: greet.anchor.x, z: greet.anchor.z, loc: currentLoc };
+    }
+    const anchored = NPC_WORLD[currentLoc]?.[npcId];
+    if (anchored) return { x: anchored.x, z: anchored.z, loc: currentLoc };
+    const actor = actors.get("npc_" + npcId);
+    if (actor && Number.isFinite(actor.wx) && Number.isFinite(actor.wz)) {
+      return { x: actor.wx, z: actor.wz, loc: currentLoc };
+    }
+    return null;
+  },
+  snapPlayerToLocationSpawn,
+  setAngelinaLifeBillboard: setAngelinaLifeBillboard,
+  clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
+  setPlayerLifeCh1Skin,
+  getPlayerLifeCh1SkinRenderState,
+  getNpcVisibilitySnapshot,
+  getRoomNpcsOnScreenSnapshot: (ids = ["vienna", "mohawk", "cobalt"]) => {
+    const onScreen = {};
+    ids.forEach(id => {
+      onScreen[id] = npcActorOnScreen(id);
+    });
+    return { location: currentLoc, onScreen, viewport: mobileQuality ? "mobile" : "desktop" };
+  },
+  getNpcMeshVertexSnapshot: () => {
+    const out = {};
+    actors.forEach((a, actorId) => {
+      if (!actorId.startsWith("npc_")) return;
+      const cid = a.characterId || actorId.replace(/^npc_/, "");
+      out[cid] = {
+        verts: countMeshVertices(a.root),
+        meshUrl: a._meshUrl || "",
+        visible: !!(a.group?.visible && a.root?.visible !== false)
+      };
+    });
+    return { location: currentLoc, npcs: out };
+  },
+  clearPlayerLifeCh1Skin: () => setPlayerLifeCh1Skin({ visible: false }),
+  /** E2E only: rotate camera toward a world point (movement still uses real WASD). */
+  faceWorldTargetForE2e,
+  refreshHangoutStage: stage => {
+    if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
+  },
+  setPortalGrace: (ms = 1500) => {
+    portalGraceUntil = performance.now() + ms;
+  },
+  releaseCaptureFrame: () => {
+    const a = actors.get("player");
+    if (a) a.group.rotation.y = captureSavedRotY;
+    if (captureHideActors) {
+      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
+      captureHideActors = null;
+    }
+    actors.forEach(a => setDialogueCaptureScale(a, 1));
+    dialogueLiveMinHead = 0;
+    setElevatorCutaway(false);
+    resetPropDimOpacity();
+    resetOccluderOpacity();
+    if (dialogueCaptureBoost) {
+      if (scene.fog && dialogueCaptureBoost.fogD != null) scene.fog.density = dialogueCaptureBoost.fogD;
+      if (dialogueCaptureBoost.exp != null) renderer.toneMappingExposure = dialogueCaptureBoost.exp;
+      if (scene.background?.setHex && dialogueCaptureBoost.bg != null) scene.background.setHex(dialogueCaptureBoost.bg);
+      if (dialogueCaptureBoost.hemi != null) {
+        scene.traverse(c => {
+          if (c.isHemisphereLight) c.intensity = dialogueCaptureBoost.hemi;
+        });
+      }
+      dialogueCaptureBoost = null;
+    }
+    if (locFillLight) locFillLight.intensity = 3.2;
+    if (dialogueKeyLight) dialogueKeyLight.visible = false;
+    if (dialogueRimLight) dialogueRimLight.visible = false;
+    if (dialogueNpcFill) dialogueNpcFill.visible = false;
+    if (dialogueBackdrop) dialogueBackdrop.visible = false;
+    const pl = actors.get("player");
+    actors.forEach(a => {
+      if (a.isPlayer || a.id?.startsWith("npc_")) {
+        boostActorCaptureLight(a, false);
+        setDialogueCaptureScale(a, 1);
+      }
+    });
+    captureFrameLock = false;
+  },
+  captureDogCloseup: () => {
+    const dog = actors.get("dog");
+    const pl = actors.get("player");
+    if (!dog?.group || !pl || !renderer || !camera || !bounds) return false;
+    captureFrameLock = true;
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cz = (bounds.minZ + bounds.maxZ) / 2;
+    captureHideActors = [];
+    pl.group.visible = false;
+    captureHideActors.push(pl);
+    actors.forEach(a => {
+      if (a.id.startsWith("npc_")) {
+        a.group.visible = false;
+        captureHideActors.push(a);
+      }
+    });
+    dog.wx = cx;
+    dog.wz = cz;
+    dog.group.position.set(cx, 0, cz);
+    dog.group.rotation.y = 0;
+    dog._anim = "idle";
+    updateMeshyDogAnim(dog, 0.4, "idle", 0);
+    const p = dog.group.position;
+    camera.position.set(p.x + 1.45, p.y + 0.5, p.z + 0.02);
+    camera.lookAt(p.x, p.y + 0.4, p.z);
+    if (locationRoot) pulseScene(locationRoot, sceneTime);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
+  captureDogThreeQuarter: () => {
+    const dog = actors.get("dog");
+    const pl = actors.get("player");
+    if (!dog?.group || !pl || !renderer || !camera || !bounds) return false;
+    captureFrameLock = true;
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cz = (bounds.minZ + bounds.maxZ) / 2;
+    captureHideActors = [];
+    pl.group.visible = false;
+    captureHideActors.push(pl);
+    actors.forEach(a => {
+      if (a.id.startsWith("npc_")) {
+        a.group.visible = false;
+        captureHideActors.push(a);
+      }
+    });
+    dog.wx = cx;
+    dog.wz = cz;
+    dog.group.position.set(cx, 0, cz);
+    dog.group.rotation.y = 0.55;
+    dog._anim = "idle";
+    updateMeshyDogAnim(dog, 0.35, "idle", 0);
+    const p = dog.group.position;
+    camera.position.set(p.x + 1.05, p.y + 0.62, p.z + 1.35);
+    camera.lookAt(p.x, p.y + 0.44, p.z);
+    if (locationRoot) pulseScene(locationRoot, sceneTime);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
+  captureCloseup: (pose = "idle") => {
+    const a = actors.get("player");
+    if (!a?.root) return false;
+    captureFrameLock = true;
+    const key = pose === "run" ? "run" : pose === "walk" ? "walk" : "idle";
+    fadeTo(a, key);
+    if (key === "walk" || key === "run") {
+      a._spd = key === "run" ? 2.4 : 1.1;
+      updateLocomotionTimeScale(a);
+    }
+    captureSavedRotY = a.group.rotation.y;
+    if (pose === "front") a.group.rotation.y = Math.PI;
+    for (let i = 0; i < 48; i++) {
+      a.mixer?.update(1 / 30);
+      updateProcedural(a, 1 / 30, null, false);
+    }
+    markActorVisibleWhenReady(a);
+    enforceLifeCh1PlayerMeshVisibility(a);
+    a.root.visible = true;
+    enforceLifeCh1PlayerMeshVisibility(a);
+    const p = a.group.position;
+    if (pose === "front") {
+      camera.position.set(p.x, p.y + 0.98, p.z - 2.85);
+      camera.lookAt(p.x, p.y + 0.88, p.z);
+    } else {
+      camera.position.set(p.x + 1.35, p.y + 1.42, p.z + 2.15);
+      camera.lookAt(p.x, p.y + 1.22, p.z);
+    }
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
+  projectWorldPoint: (wx, wy, wz) => projectWorldToScreen(wx, wy, wz),
+  measureDialogueFraming: (npcId = "mohawk") => {
+    const canvas = document.getElementById("stage3d");
+    const cw = canvas?.clientWidth || 1;
+    const ch = canvas?.clientHeight || 1;
+    if (camera) camera.updateMatrixWorld(true);
+    const plA = actors.get("player");
+    const npcA = actors.get(`npc_${npcId}`);
+    plA?.group?.updateMatrixWorld(true);
+    npcA?.group?.updateMatrixWorld(true);
+    const norm = actor => {
+      const hm = actorHeadMetrics(actor);
+      if (!hm) return null;
+      const p = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
+      if (!p) return null;
+      return { x: p.x / cw, y: p.y / ch, px: p.x, py: p.y };
+    };
+    const headSpanPx = actor => {
+      const hm = actorHeadMetrics(actor);
+      if (!hm) return 0;
+      const pTop = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
+      const pChin = projectWorldToScreen(hm.cx, hm.chinY, hm.cz);
+      if (!pTop || !pChin) return 0;
+      return Math.abs(pChin.y - pTop.y);
+    };
+    const plRef = actors.get("player");
+    const npcRef = actors.get(`npc_${npcId}`);
+    const headSpanP = headSpanPx(plRef);
+    const headSpanN = headSpanPx(npcRef);
+    const player = norm(plRef);
+    const npc = norm(npcRef);
+    const reasons = [];
+    const yMax = mobileQuality ? 0.5 : 0.55;
+    const check = (tag, pt) => {
+      if (!pt) {
+        reasons.push(`${tag}_missing`);
+        return false;
+      }
+      let ok = true;
+      if (pt.y >= yMax) {
+        reasons.push(`${tag}_y_high`);
+        ok = false;
+      }
+      const minFx = mobileQuality ? 0.138 : 0.15;
+      const maxFx = mobileQuality ? 0.855 : 0.85;
+      if (pt.x < minFx || pt.x > maxFx) {
+        reasons.push(`${tag}_x_oob`);
+        ok = false;
+      }
+      return ok;
+    };
+    const minHead = dialogueLiveMinHead > 0 ? dialogueLiveMinHead : ch * 0.06;
+    if (headSpanP < minHead) reasons.push("player_head_small");
+    if (headSpanN < minHead) reasons.push("npc_head_small");
+    const pass =
+      check("player", player) &&
+      check("npc", npc) &&
+      !reasons.includes("player_head_small") &&
+      !reasons.includes("npc_head_small");
+    if (camera) camera.updateMatrixWorld(true);
+    return { pass, player, npc, reasons, headSpanP, headSpanN };
+  },
+  renderCaptureFrame: () => {
+    if (!renderer || !camera) return false;
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
+  engageDialogueFraming(npcId = "mohawk", opts = {}) {
+    const live = opts.live === true;
+    const gateCanvas = document.getElementById("stage3d");
+    const layoutMobile = mobileQuality || opts.forceMobile === true || (gateCanvas?.clientWidth ?? window.innerWidth) < 520;
+    const pl = actors.get("player");
+    if (!pl || !camera || !renderer) return false;
+    resetPropDimOpacity();
+    resetOccluderOpacity();
+    if (captureHideActors) {
+      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
+      captureHideActors = null;
+    }
+    captureHideActors = [];
+    actors.forEach((act, id) => {
+      if (id === "player" || id === "dog" || id === `npc_${npcId}`) return;
+      act.group.visible = false;
+      captureHideActors.push(act);
+    });
+    if (car?.group) {
+      car.group.visible = false;
+      captureHideActors.push({ group: car.group, _carHide: true });
+    }
+    locationRoot?.traverse?.(o => {
+      if (o.userData?.propTag === "street_car" || o.userData?.propTag === "low_poly_car") {
+        o.visible = false;
+        captureHideActors.push({ group: o, _propHide: true });
+      }
+    });
+    const npcKey = `npc_${npcId}`;
+    const npc = ensureActor(npcKey, npcId, true);
+    actors.forEach((a, id) => {
+      if (!id.startsWith("npc_")) return;
+      a.group.visible = id === npcKey;
+    });
+    npc._patrol = null;
+    npc._patrolLoc = null;
+    const midZ = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 - 0.65 : -0.4;
+    let sep;
+    let shiftX;
+    if (live) {
+      if (layoutMobile) {
+        sep = npcId === "razor" ? 1.42 : npcId === "mohawk" ? 1.36 : npcId === "gravedigger" ? 1.2 : 1.15;
+        shiftX = 0.48;
+      } else {
+        sep = npcId === "razor" ? 2.38 : npcId === "mohawk" ? 2.18 : npcId === "gravedigger" ? 2.12 : 2.05;
+        shiftX = npcId === "razor" ? 0.66 : 0.7;
+      }
+    } else {
+      sep = npcId === "razor"
+        ? (layoutMobile ? 1.48 : 2.55)
+        : (layoutMobile ? 1.68 : 2.75);
+      shiftX = npcId === "razor"
+        ? (layoutMobile ? 0.78 : 0.94)
+        : (layoutMobile ? 0.62 : 0.68);
+    }
+    const px = shiftX - sep * 0.5;
+    const ax = shiftX + sep * 0.5;
+    const pz = midZ;
+    const az = midZ;
+    const plYaw = Math.atan2(ax - px, az - pz);
+    const npcYaw = Math.atan2(px - ax, pz - az) + 0.38;
+    pl.wx = px;
+    pl.wz = pz;
+    npc.wx = ax;
+    npc.wz = az;
+    pl._vy = 0;
+    pl._onGround = true;
+    npc._vy = 0;
+    npc._onGround = true;
+    placeActorWorld(pl, px, pz, true);
+    placeActorWorld(npc, ax, az, false, true);
+    pl.group.position.y = 0;
+    npc.group.position.y = 0;
+    pl.group.rotation.set(0, plYaw, 0);
+    npc.group.rotation.set(0, npcYaw, 0);
+    if (layoutMobile && !live) {
+      const capMul =
+        npcId === "gravedigger" ? 7.4 : npcId === "razor" ? 5.8 : 5.35;
+      setDialogueCaptureScale(pl, capMul);
+      setDialogueCaptureScale(npc, capMul);
+      pl.group.updateMatrixWorld(true);
+      npc.group.updateMatrixWorld(true);
+    } else if (live) {
+      setDialogueCaptureScale(pl, 1);
+      setDialogueCaptureScale(npc, 1);
+    }
+    let camX = shiftX;
+    let camY = live ? (layoutMobile ? 1.54 : 1.52) : (layoutMobile ? 1.44 : 1.66);
+    let camZ = midZ;
+    if (live) {
+      if (layoutMobile) {
+        camZ += npcId === "razor" ? 1.48 : npcId === "mohawk" ? 1.72 : 1.82;
+      } else {
+        camZ += npcId === "razor" ? 1.95 : npcId === "mohawk" ? 2.45 : 2.65;
+      }
+    } else {
+      camZ += layoutMobile ? 2.15 : 6.15;
+    }
+    let lookX = shiftX;
+    let lookY = live && !layoutMobile ? 1.34 : (layoutMobile ? 1.28 : 1.36);
+    let lookZ = midZ;
+    camera.fov = live ? (layoutMobile ? 30 : 35) : (layoutMobile ? 34 : 38);
+    const liveMinHeadPx = live ? (layoutMobile ? 60 : 52) : 0;
+    dialogueLiveMinHead = liveMinHeadPx;
+    const canvas = document.getElementById("stage3d");
+    const cw = canvas?.clientWidth || 1;
+    const ch = canvas?.clientHeight || 1;
+    const headSpanPx = actor => {
+      const hm = actorHeadMetrics(actor);
+      if (!hm) return 0;
+      const pTop = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
+      const pChin = projectWorldToScreen(hm.cx, hm.chinY, hm.cz);
+      if (!pTop || !pChin) return 0;
+      return Math.abs(pChin.y - pTop.y);
+    };
+    const normHead = actor => {
+      const hm = actorHeadMetrics(actor);
+      if (!hm) return null;
+      const p = projectWorldToScreen(hm.cx, hm.topY, hm.cz);
+      if (!p) return null;
+      return { x: p.x / cw, y: p.y / ch };
+    };
+    if (layoutMobile) {
+      const minHeadPx = liveMinHeadPx || ch * 0.06;
+      const minCamZ = midZ + (live ? 0.18 : 0.42);
+      for (let pass = 0; pass < (live ? 48 : 36); pass++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const sp = headSpanPx(pl);
+        const sn = headSpanPx(npc);
+        if (sp >= minHeadPx && sn >= minHeadPx) break;
+        if (camZ > minCamZ) {
+          camZ -= 0.085;
+          if (camera.fov > 26) camera.fov -= 0.12;
+        }
+      }
+      for (let pass = 0; pass < 22; pass++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const fp = normHead(pl);
+        const fn = normHead(npc);
+        if (!fp || !fn) break;
+        const minX = Math.min(fp.x, fn.x);
+        const maxX = Math.max(fp.x, fn.x);
+        const maxY = Math.max(fp.y, fn.y);
+        const xOk = minX >= 0.16 && maxX <= 0.84;
+        const yOk = maxY < 0.49 && maxY > 0.18;
+        if (xOk && yOk) break;
+        const midHead = (fp.x + fn.x) * 0.5;
+        if (midHead < 0.44) {
+          camX += (0.46 - midHead) * 2.6;
+          lookX += (0.46 - midHead) * 1.5;
+        } else if (midHead > 0.56) {
+          camX -= (midHead - 0.54) * 2.6;
+          lookX -= (midHead - 0.54) * 1.5;
+        }
+        if (maxY >= 0.47) {
+          camZ += 0.12;
+          lookY -= 0.02;
+        } else if (minX < 0.16) {
+          camX += (0.16 - minX) * 2.2;
+          lookX += (0.16 - minX) * 1.3;
+        } else if (maxX > 0.84) {
+          camX -= (maxX - 0.84) * 2.2;
+          lookX -= (maxX - 0.84) * 1.3;
+        }
+      }
+    } else {
+      const panScale = 4.6;
+      for (let pass = 0; pass < 18; pass++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const playerPt = normHead(pl);
+        const npcPt = normHead(npc);
+        if (!playerPt || !npcPt) break;
+        const minX = Math.min(playerPt.x, npcPt.x);
+        const maxX = Math.max(playerPt.x, npcPt.x);
+        const maxY = Math.max(playerPt.y, npcPt.y);
+        const okX = minX >= 0.17 && maxX <= 0.83;
+        const okY = maxY < 0.52 && maxY > 0.22;
+        if (okX && okY) break;
+        if (minX < 0.17) {
+          const err = 0.17 - minX;
+          camX += err * panScale;
+          lookX += err * (panScale * 0.55);
+        }
+        if (maxX > 0.83) {
+          const err = maxX - 0.83;
+          camX -= err * panScale;
+          lookX -= err * (panScale * 0.55);
+        }
+        if (maxY >= 0.5) {
+          camZ += 0.35;
+          camY += 0.05;
+        } else if (maxY < 0.26) {
+          camZ -= 0.35;
+        }
+      }
+    }
+    if (live) {
+      const minHeadPx = liveMinHeadPx || ch * 0.06;
+      let liveScale = 1;
+      for (let pass = 0; pass < 36; pass++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const sp = headSpanPx(pl);
+        const sn = headSpanPx(npc);
+        if (sp >= minHeadPx && sn >= minHeadPx) break;
+        camZ -= 0.1;
+        if (camera.fov > 26) camera.fov -= 0.28;
+        if (layoutMobile && pass > 8 && liveScale < (npcId === "razor" ? 3.2 : 2.6)) {
+          liveScale += 0.18;
+          setDialogueCaptureScale(pl, liveScale);
+          setDialogueCaptureScale(npc, liveScale);
+        }
+      }
+    }
+    if (live && !layoutMobile) {
+      const minHeadPx = liveMinHeadPx || 52;
+      for (let pass = 0; pass < 42; pass++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const sp = headSpanPx(pl);
+        const sn = headSpanPx(npc);
+        const fp = normHead(pl);
+        const fn = normHead(npc);
+        const maxY = Math.max(fp?.y ?? 0, fn?.y ?? 0);
+        const targetY = npcId === "razor" ? 0.44 : 0.42;
+        const headsOk = sp >= minHeadPx && sn >= minHeadPx;
+        const yOk = maxY >= targetY - 0.06 && maxY <= targetY + 0.06;
+        if (headsOk && yOk) break;
+        if (!headsOk) {
+          camZ -= 0.18;
+          if (camera.fov > 26) camera.fov -= 0.32;
+        } else if (maxY < targetY - 0.06) {
+          camZ += 0.16;
+          camY += 0.045;
+          lookY += 0.028;
+        } else if (maxY > targetY + 0.06) {
+          camZ -= 0.12;
+        }
+      }
+      for (let sc = 1; sc <= 2.35; sc += 0.12) {
+        setDialogueCaptureScale(pl, sc);
+        setDialogueCaptureScale(npc, sc);
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        if (headSpanPx(pl) >= minHeadPx && headSpanPx(npc) >= minHeadPx) break;
+      }
+      for (let n = 0; n < 16; n++) {
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        const fp = normHead(pl);
+        const fn = normHead(npc);
+        const maxY = Math.max(fp?.y ?? 0, fn?.y ?? 0);
+        const minX = Math.min(fp?.x ?? 0, fn?.x ?? 0);
+        const maxX = Math.max(fp?.x ?? 0, fn?.x ?? 0);
+        if (maxY >= 0.4 && maxY <= 0.51 && minX >= 0.16 && maxX <= 0.84) break;
+        if (maxY < 0.4) {
+          camZ += 0.18;
+          lookY += 0.065;
+        } else if (maxY > 0.52) {
+          camZ -= 0.08;
+        }
+        if (maxX > 0.84) {
+          const err = maxX - 0.84;
+          camX -= err * 6.5;
+          lookX -= err * 3.8;
+        } else if (minX < 0.16) {
+          const err = 0.16 - minX;
+          camX += err * 6.5;
+          lookX += err * 3.8;
+        }
+      }
+    }
+    camera.position.set(camX, camY, camZ);
+    camera.lookAt(lookX, lookY, lookZ);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+    pl.group.updateMatrixWorld(true);
+    npc.group.updateMatrixWorld(true);
+    for (let fin = 0; fin < 14; fin++) {
+      const fp = normHead(pl);
+      const fn = normHead(npc);
+      if (!fp || !fn) break;
+      const minX = Math.min(fp.x, fn.x);
+      const maxX = Math.max(fp.x, fn.x);
+      let nudged = false;
+      if (minX < 0.15) {
+        const err = 0.16 - minX;
+        camX += err * 9.5;
+        lookX += err * 5.8;
+        nudged = true;
+      }
+      if (fp && fp.x < (layoutMobile ? 0.138 : 0.15)) {
+        const target = layoutMobile ? 0.155 : 0.16;
+        const err = target - fp.x;
+        camX += err * (layoutMobile ? 14 : 4.2);
+        lookX += err * (layoutMobile ? 8 : 2.6);
+        nudged = true;
+      }
+      if (maxX > 0.85) {
+        const err = maxX - 0.84;
+        camX -= err * (layoutMobile ? 8.5 : 6.5);
+        lookX -= err * (layoutMobile ? 5.2 : 4.2);
+        nudged = true;
+      }
+      if (fp && fp.x > (layoutMobile ? 0.83 : 0.85)) {
+        const target = layoutMobile ? 0.8 : 0.84;
+        const err = fp.x - target;
+        camX -= err * (layoutMobile ? 12 : 7);
+        lookX -= err * (layoutMobile ? 7 : 4.5);
+        nudged = true;
+      }
+      if (fn && fn.x > 0.85) {
+        const err = fn.x - 0.84;
+        camX -= err * 7;
+        lookX -= err * 4.2;
+        nudged = true;
+      }
+      if (fn && fn.x < (layoutMobile ? 0.146 : 0.15)) {
+        const target = layoutMobile ? 0.155 : 0.16;
+        const err = target - fn.x;
+        camX += err * (layoutMobile ? 16 : 9);
+        lookX += err * (layoutMobile ? 9 : 5.5);
+        nudged = true;
+      }
+      if (!nudged) break;
+      camera.position.set(camX, camY, camZ);
+      camera.lookAt(lookX, lookY, lookZ);
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld(true);
+    }
+    pl.group.updateMatrixWorld(true);
+    npc.group.updateMatrixWorld(true);
+    if (npcId === "razor" && !layoutMobile) {
+      for (let rz = 0; rz < 6; rz++) {
+        const fp = normHead(pl);
+        if (!fp || fp.x >= 0.16) break;
+        const err = 0.17 - fp.x;
+        camX += err * 14;
+        lookX += err * 8.5;
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+      }
+    }
+    if (live && layoutMobile) {
+      const minHeadPx = liveMinHeadPx || ch * 0.06;
+      const scaleMax =
+        npcId === "gravedigger" ? 4.5 : npcId === "mohawk" ? 5.1 : npcId === "razor" ? 12.5 : 3.85;
+      for (let sc = 3.2; sc <= scaleMax; sc += 0.1) {
+        setDialogueCaptureScale(pl, sc);
+        setDialogueCaptureScale(npc, sc);
+        camZ = midZ + (npcId === "razor" ? 1.12 : 1.28);
+        camera.fov = npcId === "razor" ? 27 : 29;
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(lookX, lookY, lookZ);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld(true);
+        pl.group.updateMatrixWorld(true);
+        npc.group.updateMatrixWorld(true);
+        if (headSpanPx(pl) >= minHeadPx && headSpanPx(npc) >= minHeadPx) break;
+      }
+    }
+    pl.group.visible = true;
+    npc.group.visible = true;
+    if (locFillLight) {
+      locFillLight.intensity = live ? 4.6 : 11;
+      locFillLight.position.set(lookX, lookY + 2.4, lookZ + 0.5);
+    }
+    dialogueCaptureBoost = { fogD: scene.fog?.density, exp: renderer.toneMappingExposure, bg: scene.background?.getHex?.(), hemi: null };
+    scene.traverse(c => {
+      if (c.isHemisphereLight) {
+        dialogueCaptureBoost.hemi = c.intensity;
+        c.intensity = live ? c.intensity * 1.1 : 4.8;
+      }
+    });
+    if (!live) {
+      if (scene.fog?.density != null) scene.fog.density = 0.0018;
+      if (scene.background?.setHex) scene.background.setHex(0x2a2438);
+      renderer.toneMappingExposure = 2.15;
+    } else {
+      if (scene.fog?.density != null) scene.fog.density *= 0.92;
+      renderer.toneMappingExposure = Math.min(1.15, renderer.toneMappingExposure * 1.04);
+    }
+    if (live) {
+      applyLiveDialogueLights(npc, pl, npcId, camX, camY, camZ, lookX, lookY, lookZ, layoutMobile);
+    } else {
+      if (!dialogueKeyLight) {
+        dialogueKeyLight = new THREE.DirectionalLight(0xfff4ff, 4.2);
+        dialogueKeyLight.castShadow = false;
+        scene.add(dialogueKeyLight);
+        scene.add(dialogueKeyLight.target);
+      }
+      dialogueKeyLight.position.set(camX + 0.4, camY + 3.2, camZ + 0.8);
+      dialogueKeyLight.target.position.set(lookX, 1.48, lookZ);
+      dialogueKeyLight.target.updateMatrixWorld();
+      dialogueKeyLight.visible = true;
+    }
+    if (locationRoot && !dialogueBackdrop) {
+      dialogueBackdrop = new THREE.Mesh(
+        new THREE.PlaneGeometry(5.5, 2.8),
+        new THREE.MeshStandardMaterial({
+          color: 0x3a3348,
+          emissive: 0x443355,
+          emissiveIntensity: 0.12,
+          roughness: 0.9
+        })
+      );
+      dialogueBackdrop.userData.propTag = "dialogue_capture_backdrop";
+      locationRoot.add(dialogueBackdrop);
+    }
+    if (dialogueBackdrop) dialogueBackdrop.visible = false;
+    if (!live) {
+      boostActorCaptureLight(pl, true);
+      boostActorCaptureLight(npc, true);
+    }
+    document.getElementById("storyDialog")?.classList.add("story-dialog-cinematic");
+    guideTarget = null;
+    setQuestMarkersVisible(false);
+    setTalking(npcId, true);
+    freezeActorIdleForCapture(pl);
+    freezeActorIdleForCapture(npc);
+    const dogActor = actors.get("dog");
+    if (dogActor) {
+      dogActor.group.visible = false;
+      captureHideActors.push(dogActor);
+    }
+    captureFrameLock = true;
+    captureSavedRotY = pl.group.rotation.y;
+    if (locationRoot) pulseScene(locationRoot, sceneTime);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
+  snapScreenshotView: () => {
+    const a = actors.get("player");
+    if (!a || !bounds || !renderer || !camera) return false;
+    if (captureHideActors) {
+      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
+      captureHideActors = null;
+    }
+    captureHideActors = [];
+    actors.forEach((act, id) => {
+      if (id === "player" || id === "dog") return;
+      act.group.visible = false;
+      captureHideActors.push(act);
+    });
+    if (car?.group) {
+      car.group.visible = false;
+      captureHideActors.push({ group: car.group, _carHide: true });
+    }
+    applyViewportCameraProfile();
+    const shot = getFixedLocationShot();
+    if (shot?.player) applyFixedLocationActors();
+    else {
+      a.group.rotation.y = 0.12;
+      syncDogBesidePlayer(a);
+    }
+    freezeActorIdleForCapture(a);
+    const dogActor = actors.get("dog");
+    if (dogActor) freezeActorIdleForCapture(dogActor);
+    resetCameraForLocation();
+    if (shot?.fixed) {
+      if (currentLoc === "elevator") setElevatorCutaway(true);
+      else setElevatorCutaway(false);
+      if (mobileQuality && shot.mobile?.portraitFromPlayer) {
+        applyMobilePortraitShowcaseFromPlayer(shot);
+      } else {
+        camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2]);
+        camera.lookAt(shot.look[0], shot.look[1], shot.look[2]);
+        if (shot.fov) {
+          camera.fov = shot.fov;
+          camera.updateProjectionMatrix();
+        }
+      }
+      resetOccluderOpacity();
+      if (currentLoc === "elevator" && typeof console !== "undefined") {
+        console.info("[elevator-shot] ray hits " + JSON.stringify(logElevatorScreenshotRay()));
+      }
+    }
+    document.getElementById("howToOverlay")?.classList.remove("active");
+    captureFrameLock = true;
+    guideTarget = null;
+    if (locationRoot) pulseScene(locationRoot, sceneTime);
+    setQuestMarkerTarget(null, actors, sceneTime);
+    actors.forEach(act => act.mixer?.update(1 / 60));
+    const capPl = actors.get("player");
+    if (capPl) dimPropsBetweenCameraAnd(capPl.wx, 1.05, capPl.wz, 0.2);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
+  getShowcaseScreenProjection: () => {
+    const pl = actors.get("player");
+    const dog = actors.get("dog");
+    const canvas = document.getElementById("stage3d");
+    if (!pl || !canvas || !camera) return { ok: false };
+    const footY = 0.06;
+    const headY = 1.78;
+    const hero = projectWorldToScreen(pl.wx, footY, pl.wz);
+    const heroHead = projectWorldToScreen(pl.wx, headY, pl.wz);
+    const floorPts = [
+      [pl.wx, 0, pl.wz + 1.2],
+      [pl.wx - 1.4, 0, pl.wz + 2.4],
+      [pl.wx + 1.4, 0, pl.wz + 2.4],
+      [pl.wx, 0, pl.wz + 3.6]
+    ];
+    const floor = floorPts.map(([x, y, z]) => projectWorldToScreen(x, y, z)).filter(Boolean);
+    const heroScreenH = hero && heroHead ? hero.y - heroHead.y : null;
+    const floorMaxY = floor.length ? Math.max(...floor.map(p => p.y)) : null;
+    return {
+      ok: true,
+      location: currentLoc,
+      mobile: mobileQuality,
+      viewport: { w: canvas.clientWidth, h: canvas.clientHeight },
+      hero,
+      heroHead,
+      heroScreenH,
+      heroChest: projectWorldToScreen(pl.wx, 1.02, pl.wz),
+      dog: dog ? projectWorldToScreen(dog.wx, footY, dog.wz) : null,
+      floorMaxY,
+      floor
+    };
+  },
+  nudgePlayer: (dx, dz, steps = 8) => {
+    const a = actors.get("player");
+    if (!a || !bounds) return;
+    for (let i = 0; i < steps; i++) {
+      const np = clampWorld(a.wx + dx, a.wz + dz);
+      placeActorWorld(a, np.x, np.z, true);
+      a.mixer?.update(1 / 30);
+      updateProcedural(a, 1 / 30, null, false);
+    }
+  },
+  isMotionProbeActive: () => !!motionProbe,
+  startMotionProbe: (need = 120, scenario = "free") => {
+    captureFrameLock = false;
+    if (captureHideActors) {
+      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
+      captureHideActors = null;
+    }
+    resetPropDimOpacity();
+    resetOccluderOpacity();
+    const pl = actors.get("player");
+    const cols = furnitureColliders;
+    const cx = bounds ? (bounds.minX + bounds.maxX) * 0.5 : 0;
+    const cz = bounds ? (bounds.minZ + bounds.maxZ) * 0.5 : -1.2;
+    const pickFreeSpawn = () => {
+      if (!bounds) return { x: 0, z: -1.4 };
+      const xs = [];
+      for (let x = bounds.minX + 1.4; x <= bounds.maxX - 1.4; x += 0.85) xs.push(x);
+      for (const sx of xs) {
+        for (let z = bounds.minZ + 1.1; z < bounds.minZ + 3.2; z += 0.3) {
+          let clear = true;
+          for (let s = 0; s < 90; s++) {
+            const pz = z + s * 0.12;
+            if (pz > bounds.maxZ - 1.05) break;
+            if (pointInsideCollider(sx, pz, cols, 0.38)) {
+              clear = false;
+              break;
+            }
+          }
+          if (clear) return resolveWorldPosition(sx, z, bounds, cols, 0.42);
+        }
+      }
+      return findClearSpawn(bounds, cols, { x: cx, z: bounds.minZ + 1.2 });
+    };
+    let spawn = bounds ? pickFreeSpawn() : { x: 0, z: -1.4 };
+    let moveX = 0;
+    let moveZ = 1;
+    const baseYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
+    if (bounds && scenario === "free") {
+      if (currentLoc === "room") {
+        spawn = resolveWorldPosition(bounds.maxX - 1.75, bounds.minZ + 1.15, bounds, cols, 0.42);
+      } else {
+        spawn = pickFreeSpawn();
+      }
+      moveZ = 1;
+    } else if (bounds && scenario === "wall") {
+      const wallPref = {
+        x: cx,
+        z: bounds.minZ + (currentLoc === "street" ? 2.15 : 1.85)
+      };
+      spawn = findClearSpawn(bounds, cols, wallPref);
+      moveX = 1;
+      moveZ = 0;
+    } else if (bounds && scenario === "slide") {
+      spawn = pickFreeSpawn();
+      moveX = 0;
+      moveZ = 1;
+    }
+    if (pl) {
+      pl._visPushX = 0;
+      pl._visPushZ = 0;
+      placeActorWorld(pl, spawn.x, spawn.z, true);
+      fadeTo(pl, "run");
+      pl._intentRun = true;
+      updateLocomotionTimeScale(pl);
+    }
+    cameraYaw = baseYaw;
+    positionCameraBehindPlayer(true);
+    motionProbe = {
+      active: true,
+      start: performance.now(),
+      frames: [],
+      last: null,
+      need,
+      scenario,
+      moveX,
+      moveZ
+    };
+    return true;
+  },
+  stopMotionProbe: () => {
+    if (!motionProbe) return { frames: [] };
+    motionProbe.active = false;
+    const frames = motionProbe.frames.slice();
+    const deltas = frames.map(f => f.d).filter(d => d > 0 && d < 1.2);
+    const maxD = deltas.length ? Math.max(...deltas) : 0;
+    const med = deltas.length ? deltas.slice().sort((a, b) => a - b)[Math.floor(deltas.length / 2)] : 0;
+    const spikes = deltas.filter(d => Math.abs(d - med) > 0.032).length;
+    motionProbe = null;
+    return { frames, maxD, spikes, count: frames.length };
+  },
+  runMotionProbe: (need = 120) =>
+    new Promise(resolve => {
+      const pl = actors.get("player");
+      const pref = bounds
+        ? { x: (bounds.minX + bounds.maxX) * 0.5, z: (bounds.minZ + bounds.maxZ) * 0.5 }
+        : { x: 0, z: -1.4 };
+      const spawn = bounds ? findClearSpawn(bounds, [], pref) : pref;
+      if (pl) {
+        pl._visPushX = 0;
+        pl._visPushZ = 0;
+        placeActorWorld(pl, spawn.x, spawn.z, true);
+        fadeTo(pl, "run");
+        pl._intentRun = true;
+        updateLocomotionTimeScale(pl);
+      }
+      cameraYaw = LOCATION_CAMERA[currentLoc]?.yaw ?? 0.38;
+      positionCameraBehindPlayer(true);
+      motionProbe = {
+        active: true,
+        start: performance.now(),
+        frames: [],
+        last: null,
+        need,
+        done: resolve
+      };
+    }),
+  applyHeroCosmetics: (owned = [], equipped = {}) => {
+    const pl = actors.get("player");
+    if (!pl?.group) return;
+    while (heroCosmeticGroup.children.length) heroCosmeticGroup.remove(heroCosmeticGroup.children[0]);
+    if (!pl.group.children.includes(heroCosmeticGroup)) pl.group.add(heroCosmeticGroup);
+    const hat = equipped.hat || (owned.includes("hat_spike") ? "hat_spike" : null);
+    const collar = equipped.collar || (owned.includes("chain_neon") ? "chain_neon" : null);
+    if (hat) {
+      const h = new THREE.Mesh(
+        new THREE.ConeGeometry(0.22, 0.35, 8),
+        new THREE.MeshStandardMaterial({ color: 0xff00aa, emissive: 0xff0066, emissiveIntensity: 0.5 })
+      );
+      h.position.set(0, 1.72, 0);
+      heroCosmeticGroup.add(h);
+    }
+    if (collar) {
+      const c = new THREE.Mesh(
+        new THREE.TorusGeometry(0.18, 0.03, 8, 16),
+        new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.8 })
+      );
+      c.rotation.x = Math.PI / 2;
+      c.position.set(0, 1.38, 0.02);
+      heroCosmeticGroup.add(c);
+    }
+    if (owned.includes("jacket_neon") && pl.root && !pl._jacketTinted) {
+      pl.root.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach((m, i) => {
+          if (!m || m.isShaderMaterial) return;
+          const mat = m.clone();
+          if (mat.emissive) {
+            mat.emissive.set(0x330044);
+            mat.emissiveIntensity = 0.35;
+          }
+          if (Array.isArray(o.material)) o.material[i] = mat;
+          else o.material = mat;
+        });
+      });
+      pl._jacketTinted = true;
+    }
+  },
+  setPlayerSit: (on) => {
+    const pl = actors.get("player");
+    if (!pl) return;
+    pl._sitting = on;
+    fadeTo(pl, on ? "sit" : "idle");
+  },
+  getMotionProbeCount: () => motionProbe?.frames?.length || 0,
+  pumpMotionProbe: () => {
+    if (!motionProbe?.active) return motionProbe?.frames?.length || 0;
+    const dt = 1 / 60;
+    processInput(dt);
+    const pl = actors.get("player");
+    if (pl) {
+      pl.mixer?.update(dt);
+      updateProcedural(pl, dt, null, false);
+      notePlayerMotion(pl);
+    }
+    if (!captureFrameLock) updateThirdPersonCamera(dt);
+    renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return motionProbe.frames.length;
+  },
+  countVisibleProps: (opts = {}) => countVisiblePropsInScene(opts),
+  countVisiblePropsInScene: (opts = {}) => countVisiblePropsInScene(opts),
+  getSceneLocation: () => currentLoc || null,
+  auditLargeMeshes: (minSize = 1.5) => {
+    const rows = [];
+    if (!locationRoot) return rows;
+    locationRoot.updateMatrixWorld(true);
+    const box3 = new THREE.Box3();
+    const size = new THREE.Vector3();
+    const world = new THREE.Vector3();
+    const sourceOf = o => {
+      const parts = [];
+      let n = o;
+      while (n && n !== locationRoot) {
+        if (n.userData?.propTag) parts.push(`tag:${n.userData.propTag}`);
+        else if (n.name) parts.push(n.name);
+        n = n.parent;
+      }
+      return parts.reverse().join(" / ") || locationRoot.name || currentLoc;
+    };
+    locationRoot.traverse(o => {
+      if (!o.isMesh || !o.geometry) return;
+      if (o.userData?.decorOnly || o.userData?.cameraOccluder) return;
+      box3.setFromObject(o);
+      if (box3.isEmpty()) return;
+      box3.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      if (maxDim < minSize) return;
+      box3.getCenter(world);
+      const mats = Array.isArray(o.material) ? o.material[0] : o.material;
+      const color = mats?.color?.getHex?.() ?? 0;
+      const emissive = mats?.emissive?.getHex?.() ?? 0;
+      rows.push({
+        name: o.name || "(unnamed)",
+        tag: o.userData?.propTag || o.parent?.userData?.propTag || null,
+        source: sourceOf(o),
+        parent: o.parent?.name || o.parent?.type || null,
+        maxDim: +maxDim.toFixed(3),
+        size: { x: +size.x.toFixed(2), y: +size.y.toFixed(2), z: +size.z.toFixed(2) },
+        world: { x: +world.x.toFixed(2), y: +world.y.toFixed(2), z: +world.z.toFixed(2) },
+        color,
+        emissive
+      });
+    });
+    const sorted = rows.sort((a, b) => b.maxDim - a.maxDim);
+    if (typeof console !== "undefined" && new URLSearchParams(location.search).has("dev")) {
+      console.info(
+        `[auditLargeMeshes] ${currentLoc} >=${minSize}m (${sorted.length})`,
+        sorted.map(r => `${r.maxDim}m ${r.tag || r.name} @ ${r.source} pos(${r.world.x},${r.world.z})`)
+      );
+    }
+    return sorted;
+  },
+  ensureThirdPersonRunCamera: () => {
+    captureFrameLock = false;
+    setElevatorCutaway(false);
+    const pl = actors.get("player");
+    if (pl) {
+      fadeTo(pl, "run");
+      pl._spd = 2.4;
+      updateLocomotionTimeScale(pl);
+    }
+    cameraYaw = LOCATION_CAMERA.street?.yaw ?? 0.38;
+    positionCameraBehindPlayer(true);
+    if (camera) {
+      camera.fov = 42;
+      camera.updateProjectionMatrix();
+    }
+    return true;
+  }
+};
+
+const _propFrustum = new THREE.Frustum();
+const _propProj = new THREE.Matrix4();
+const _propCenter = new THREE.Vector3();
+const _propCam = new THREE.Vector3();
+
+function isPropRootVisible(root, frustumOnly = false) {
+  if (!root?.userData?.propTag || !locationRoot || !camera) return false;
+  const box3 = new THREE.Box3().setFromObject(root);
+  if (box3.isEmpty()) return false;
+  if (!_propFrustum.intersectsBox(box3)) return false;
+  if (frustumOnly) return true;
+  box3.getCenter(_propCenter);
+  camera.getWorldPosition(_propCam);
+  const toProp = _propCenter.clone().sub(_propCam);
+  if (toProp.dot(camera.getWorldDirection(new THREE.Vector3())) < 0.05) return false;
+  const dist = toProp.length();
+  const dir = toProp.normalize();
+  raycaster.set(_propCam, dir);
+  raycaster.far = dist + 0.55;
+  const hits = raycaster.intersectObject(locationRoot, true);
+  for (const h of hits) {
+    if (h.distance > dist + 0.35) break;
+    let o = h.object;
+    while (o) {
+      if (o === root) return true;
+      o = o.parent;
+    }
+    if (h.object.userData?.cameraOccluder) return false;
+    const ny = h.face?.normal?.y ?? 0;
+    if (Math.abs(ny) > 0.92) continue;
+    if (h.object.userData?.propTag) continue;
+    if (h.distance < dist - 0.2) return false;
+  }
+  return _propFrustum.containsPoint(_propCenter);
+}
+
+function sceneLocationForAudit() {
+  return currentLoc || null;
+}
+
+function countVisiblePropsInScene(opts = {}) {
+  const locTag = sceneLocationForAudit();
+  const frustumOnly = !!opts.frustumOnly;
+  if (!locationRoot || !camera) return { unique: 0, tags: [], instances: 0, location: locTag, frustumOnly };
+  camera.updateMatrixWorld();
+  _propProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  _propFrustum.setFromProjectionMatrix(_propProj);
+  const roots = [];
+  locationRoot.traverse(obj => {
+    if (!obj.userData?.propTag) return;
+    if (obj.parent?.userData?.propTag) return;
+    roots.push(obj);
+  });
+  const tags = new Set();
+  let instances = 0;
+  roots.forEach(root => {
+    if (!isPropRootVisible(root, frustumOnly)) return;
+    tags.add(root.userData.propTag);
+    instances++;
+  });
+  const out = { unique: tags.size, tags: [...tags].sort(), instances, location: locTag, frustumOnly };
+  if (!frustumOnly) {
+    const fr = countVisiblePropsInScene({ frustumOnly: true });
+    out.frustumUnique = fr.unique;
+    out.frustumTags = fr.tags;
+  }
+  return out;
+}
+bindGameplayToWorld3D(api, () => ({
+  actors,
+  scene,
+  locationRoot,
+  bounds,
+  currentLoc,
+  hooks,
+  camera,
+  car
+}));
+api.snapDialogueNpcShot = (npcId = "mohawk") => api.engageDialogueFraming(npcId, { live: false });
+window.World3D = api;
+window.Scene3D = api;
+window.PORTALS_LIST = PORTALS;
+window.dispatchEvent(new Event("scene3d-ready"));

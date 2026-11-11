@@ -8,8 +8,7 @@ const FIREBASE_CONFIG = {
   appId: "1:761070335468:web:4bffd5120ef98e79f47cc9",
   storageBucket: "punk-me-40605.firebasestorage.app"
 };
-const OWNER_EMAIL = "garum2008@gmail.com";
-const GAME_VERSION = "living3d-v22r6-ch1-angelina-rc1";
+const GAME_VERSION = "living3d-v22r6-ch1-playable";
 window.GAME_VERSION = GAME_VERSION;
 /** localStorage full player blob — life-ch1 local release candidate (no cloud RTDB). */
 const LIFE_CH1_LOCAL_PLAYER_KEY = "punkme_lifech1_local_player_v1";
@@ -21,21 +20,29 @@ window.__punkFirebaseReady =
   });
 const PRESENCE_STALE_MS = 120000;
 
+function isLoopbackEmulatorHost(host) {
+  const h = String(host || "").trim().toLowerCase();
+  return h === "127.0.0.1" || h === "localhost" || h === "::1";
+}
+
 function connectFirebaseEmulatorsIfRequested() {
   try {
+    const pageHost = String(location.hostname || "").toLowerCase();
+    const localPage = pageHost === "localhost" || pageHost === "127.0.0.1" || pageHost === "::1" || pageHost.endsWith(".localhost");
+    if (!localPage) return;
     const q = new URLSearchParams(location.search);
     if (!q.has("firebaseEmulator")) return;
-    const host = q.get("firebaseEmulatorHost") || "127.0.0.1";
-    const dbPortRaw = q.get("firebaseEmulatorDbPort");
-    const authPortRaw = q.get("firebaseEmulatorAuthPort");
-    if (!dbPortRaw || !authPortRaw) {
-      console.warn("firebaseEmulator=1 requires firebaseEmulatorDbPort and firebaseEmulatorAuthPort");
+    const requested = q.get("firebaseEmulatorHost") || "127.0.0.1";
+    if (!isLoopbackEmulatorHost(requested)) {
+      console.warn("firebase emulator host rejected");
       return;
     }
-    const dbPort = parseInt(dbPortRaw, 10);
-    const authPort = parseInt(authPortRaw, 10);
-    firebase.database().useEmulator(host, dbPort);
-    firebase.auth().useEmulator(`http://${host}:${authPort}`);
+    const dbPort = parseInt(q.get("firebaseEmulatorDbPort") || "", 10);
+    const authPort = parseInt(q.get("firebaseEmulatorAuthPort") || "", 10);
+    if (!Number.isInteger(dbPort) || dbPort < 1 || dbPort > 65535) return;
+    if (!Number.isInteger(authPort) || authPort < 1 || authPort > 65535) return;
+    firebase.database().useEmulator(requested, dbPort);
+    firebase.auth().useEmulator(`http://${requested}:${authPort}`);
   } catch (e) {
     console.warn("Firebase emulator connect failed", e);
   }
@@ -964,11 +971,9 @@ function initResponsiveHud() {
     qt.setAttribute("aria-expanded", collapsed ? "false" : "true");
     qt.textContent = collapsed ? "▸" : "▾";
   });
-  if (window.matchMedia("(max-width: 900px)").matches) {
-    qw?.classList.add("collapsed");
-    qt?.setAttribute("aria-expanded", "false");
-    if (qt) qt.textContent = "▸";
-  }
+  qw?.classList.remove("collapsed");
+  qt?.setAttribute("aria-expanded", "true");
+  if (qt) qt.textContent = "▾";
 }
 
 function syncStage3D() {
@@ -1057,10 +1062,13 @@ function init() {
       uid = u.uid;
       window.uid = uid;
       isOwner = false;
+      window.isOwner = false;
       try {
-        const token = await u.getIdTokenResult();
+        const token = await u.getIdTokenResult(true);
         isOwner = token.claims.admin === true;
-      } catch (_) {}
+      } catch (_) {
+        isOwner = false;
+      }
       window.isOwner = isOwner;
       window.__punkUpdateAccountUi?.(u);
       syncHudDebugVisibility();
@@ -1108,13 +1116,21 @@ function bindGameShell() {
       onInteract: () => {
         const playCtx = { toast, save: saveMe, hasDog };
         if (window.LifeCh1Slice?.tryInteract?.()) return;
+        const nearest = window.World3D?.getNearestNpc?.() || null;
+        const route = window.InteractPriority?.resolvePrimaryInteract?.({
+          location: me.location,
+          nearestNpcId: nearest
+        }) || (me.location === "street" && nearest ? { type: "npc", npcId: nearest } : { type: "continue" });
+        if (route.type === "npc" && route.npcId) {
+          openNpcDialog(route.npcId);
+          return;
+        }
         if (window.PlayV21?.tryInteract(me, playCtx)) return;
         if (window.World3D?.getNearestDog?.()) {
           petDog(true);
           return;
         }
-        const nid = window.World3D?.getNearestNpc?.();
-        if (nid) openNpcDialog(nid);
+        if (nearest) openNpcDialog(nearest);
       },
       onHints: h => window.updateContextHints?.(h),
       onPortal: (to) => {
@@ -1486,7 +1502,6 @@ function sanitizePlayer(p) {
     energy: p.energy,
     mood: p.mood,
     onboarding: p.onboarding || { step: 0, progress: {}, done: false },
-    owner: isOwner,
     lastSeen: p.lastSeen,
     linkedAuth: p.linkedAuth || null
   };
@@ -1993,8 +2008,11 @@ function renderQuest() {
 }
 
 function questBump(key, amt = 1) {
-  const qid = me.quests.active;
+  const qid = me.quests?.active;
   if (!qid || !QUESTS[qid]) return;
+  if (!me.quests.progress || typeof me.quests.progress !== "object" || Array.isArray(me.quests.progress)) {
+    me.quests.progress = {};
+  }
   const need = QUESTS[qid].need;
   if (!(key in need)) return;
   me.quests.progress[key] = (me.quests.progress[key] || 0) + amt;
@@ -2043,6 +2061,10 @@ function renderGangList() {
 }
 
 function openNpcDialog(nid) {
+  if (nid === "razor") {
+    questBump("talk_razor");
+    window.Onboarding?.onTalkRazor?.();
+  }
   if (window.StoryEngine?.tryStoryNpc?.(nid)) {
     closeModal("gangModal");
     return;
@@ -2058,10 +2080,6 @@ function openNpcDialog(nid) {
   openModal("gangModal");
   if (window.Voice) Voice.speakCharacter(nid, line);
   if (window.World3D?.setTalking) World3D.setTalking(nid, true);
-  if (nid === "razor") {
-    questBump("talk_razor");
-    window.Onboarding?.onTalkRazor?.();
-  }
 }
 
 window.changeCharacter = function () {
@@ -2362,7 +2380,9 @@ window.startTrainingDuelMohawk = function () {
 
 function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
-  if (window.World3D?.startDuel3D?.(nid || npc.id)) {
+  const tutorialDuel = window.Onboarding?.currentStepId?.() === "win_fight";
+  const duelOpts = tutorialDuel ? { training: true, firstTo: 3, npcCd: 2.4 } : undefined;
+  if (window.World3D?.startDuel3D?.(nid || npc.id, duelOpts)) {
     const atk = document.querySelector('[data-testid="duel3d-attack"]');
     const r = atk?.getBoundingClientRect?.();
     if (r && r.width > 2 && r.height > 2) {
@@ -2463,23 +2483,28 @@ function npcTurn() {
 }
 
 function endFight(win) {
-  document.getElementById("fightOverlay").classList.remove("active");
-  const shieldLeft = fight ? fight.shield : 0;
+  if (!fight) return;
+  const finished = fight;
+  fight = null;
+  document.getElementById("fightOverlay")?.classList.remove("active");
+  const shieldLeft = finished.shield || 0;
+  const training = !!(finished._duel3d && window.Onboarding?.currentStepId?.() === "win_fight");
   if (win) {
-    const reward = 70 + Math.floor(Math.random() * 40);
-    if (!isOwner) me.coins += reward;
-    me.xp += 25;
-    me.rep += 8;
-    toast(t("win_fight") + " +" + reward);
+    if (!training) {
+      const reward = 70 + Math.floor(Math.random() * 40);
+      if (!isOwner) me.coins += reward;
+      me.xp += 25;
+      me.rep += 8;
+      toast(t("win_fight") + " +" + reward);
+      window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
+    }
     questBump("win_fight");
-    window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
     window.Onboarding?.onWinFight?.();
     window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
   } else {
     toast(t("lose_fight"));
     me.stats.hp = me.stats.maxHp;
   }
-  fight = null;
   if (shieldLeft) me.stats._shield = shieldLeft;
   saveMe();
   renderAll();

@@ -1,0 +1,1057 @@
+/**
+ * Chapter 1 life vertical slice — isolated save namespace `me.lifeCh1`.
+ * Starts after onboarding.done (D3-C). Does not mutate legacy story quest ids.
+ * Angelina skin switcher (t569u): `lifeCh1.angelinaSkin` A|B|C + manifest paths.
+ */
+
+import {
+  loadAngelinaSkinManifest,
+  portraitUrl,
+  worldUrl,
+  readSelectedSkin,
+  writeSelectedSkin,
+  getSkinEntry,
+  normalizeSkinId
+} from "./angelina-skin-manifest.mjs";
+
+const DATA_URL = "data/story/life-ch1-slice.json";
+const LOCAL_KEY_PREFIX = "punkme_lifeCh1_v1_";
+
+let spec = null;
+let skinManifest = null;
+let hooks = {};
+let activeDlg = null;
+let wardrobePending = { skin: "A", outfitFlag: null };
+
+function lang() {
+  return typeof window.getLanguage === "function" ? window.getLanguage() : "ru";
+}
+
+function L(obj) {
+  if (!obj) return "";
+  if (typeof obj === "string") return obj;
+  return obj[lang()] || obj.ru || obj.en || "";
+}
+
+function me() {
+  return window.me;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function normalizeClaimedSteps(raw) {
+  if (raw == null) return {};
+  if (Array.isArray(raw)) {
+    const out = {};
+    raw.forEach((v, i) => {
+      if (v) out[`s${i}`] = true;
+    });
+    return out;
+  }
+  if (typeof raw !== "object") return {};
+  const out = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (!v) continue;
+    if (/^\d+$/.test(k)) out[`s${k}`] = true;
+    else out[k] = true;
+  }
+  return out;
+}
+
+export function rewardClaimKey(stepIndex, suffix) {
+  const base = typeof stepIndex === "number" ? `s${stepIndex}` : String(stepIndex);
+  return suffix ? `${base}_${suffix}` : base;
+}
+
+export function maxStepIndex() {
+  const last = (spec?.steps?.length || 4) - 1;
+  return Math.max(0, Math.min(12, last));
+}
+
+export function clampStepIndex(st) {
+  if (!st) return;
+  st.stepIndex = Math.max(0, Math.min(maxStepIndex(), Math.floor(st.stepIndex || 0)));
+  if (st.completed) {
+    st.active = false;
+    st.stepIndex = Math.min(st.stepIndex, maxStepIndex());
+  }
+}
+
+/** Resume in-progress slice after local/Firebase restore (prevents legacy StoryEngine HUD takeover). */
+export function resumeLifeCh1Progress(st) {
+  if (!st || st.completed || st.active) return;
+  const hasProgress =
+    (st.stepIndex || 0) > 0 ||
+    (st.startedAt || 0) > 0 ||
+    Object.keys(st.flags || {}).length > 0 ||
+    Object.keys(st.claimedSteps || {}).length > 0;
+  if (!hasProgress) return;
+  st.active = true;
+  try {
+    document.body.classList.add("life-ch1-active");
+  } catch (_) {}
+}
+
+export function defaultLifeCh1State() {
+  return {
+    v: 1,
+    active: false,
+    stepIndex: 0,
+    flags: {},
+    claimedSteps: {},
+    angelinaSkin: "A",
+    playerCutout: true,
+    completed: false,
+    startedAt: 0
+  };
+}
+
+/** Production static host — slice/E2E query flags inert until owner enables. */
+export function isProductionGameHost() {
+  try {
+    if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return false;
+    if (typeof window !== "undefined" && window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ === true) return true;
+    const h = location.hostname.toLowerCase();
+    if (h === "localhost" || h === "127.0.0.1" || h.endsWith(".localhost")) return false;
+    return h.includes("punk.contractbot.dk") || h.endsWith(".web.app");
+  } catch (_) {
+    return false;
+  }
+}
+
+/** Internal QA only — slice OFF by default on main (never auto-start for live players). */
+export function isLifeCh1SliceEnabled() {
+  try {
+    if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
+    if (typeof window !== "undefined" && window.__PUNK_LIFE_CH1_LOCAL__ === true) return true;
+    const q = new URLSearchParams(location.search);
+    const playwrightProdSim =
+      typeof window !== "undefined" && window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ === true;
+    if (isProductionGameHost() && !playwrightProdSim) return false;
+    if (playwrightProdSim && q.get("lifeCh1E2e") === "1") return true;
+    if (q.get("lifeCh1Slice") === "1") return true;
+    if (q.get("lifeCh1E2e") === "1") return true;
+  } catch (_) {}
+  return false;
+}
+
+export function isLifeCh1TestMode() {
+  try {
+    const q = new URLSearchParams(location.search);
+    const playwrightProdSim =
+      typeof window !== "undefined" && window.__PUNK_PLAYWRIGHT_PROD_HOST_SIM__ === true;
+    if (isProductionGameHost() && !playwrightProdSim) return false;
+    if (playwrightProdSim && q.get("lifeCh1E2e") === "1") return true;
+    if (q.get("lifeCh1E2e") === "1") return true;
+    if (q.get("firebaseEmulator") === "1") return true;
+  } catch (_) {}
+  return false;
+}
+
+/** Additive only — never deletes or rewrites `me.story`. */
+export function ensureLifeCh1(player) {
+  const p = player || me();
+  if (!p) return null;
+  if (p.lifeCh1 == null) {
+    if (!isLifeCh1SliceEnabled()) return null;
+    p.lifeCh1 = { ...defaultLifeCh1State() };
+  }
+  if (typeof p.lifeCh1 !== "object") {
+    if (!isLifeCh1SliceEnabled()) {
+      p.lifeCh1 = null;
+      return null;
+    }
+    p.lifeCh1 = { ...defaultLifeCh1State() };
+  }
+  if (p.lifeCh1.v !== 1) {
+    const d = defaultLifeCh1State();
+    p.lifeCh1 = {
+      ...p.lifeCh1,
+      v: 1,
+      flags: p.lifeCh1.flags && typeof p.lifeCh1.flags === "object" ? p.lifeCh1.flags : {},
+      claimedSteps: normalizeClaimedSteps(p.lifeCh1.claimedSteps),
+      angelinaSkin: normalizeSkinId(p.lifeCh1.angelinaSkin)
+    };
+  }
+  const st = p.lifeCh1;
+  if (typeof st.active !== "boolean") st.active = !!st.active;
+  if (typeof st.completed !== "boolean") st.completed = !!st.completed;
+  if (typeof st.stepIndex !== "number" || !Number.isFinite(st.stepIndex)) st.stepIndex = 0;
+  if (typeof st.startedAt !== "number") st.startedAt = st.startedAt ? Number(st.startedAt) || 0 : 0;
+  if (st.flags == null || typeof st.flags !== "object" || Array.isArray(st.flags)) st.flags = {};
+  st.claimedSteps = normalizeClaimedSteps(st.claimedSteps);
+  st.angelinaSkin = normalizeSkinId(st.angelinaSkin || "A");
+  if (typeof st.playerCutout !== "boolean") st.playerCutout = st.playerCutout !== false;
+  clampStepIndex(st);
+  return st;
+}
+
+export function getAngelinaSkin() {
+  return readSelectedSkin(ensureLifeCh1());
+}
+
+export function setAngelinaSkin(skinId) {
+  const st = ensureLifeCh1();
+  if (st) st.playerCutout = true;
+  const id = writeSelectedSkin(st, skinId);
+  persistLocalOverlay();
+  hooks.save?.();
+  syncPlayerLifeCh1Skin();
+  return id;
+}
+
+export function setDefaultPlayerLook() {
+  const st = ensureLifeCh1();
+  if (!st) return;
+  st.playerCutout = false;
+  persistLocalOverlay();
+  hooks.save?.();
+  syncPlayerLifeCh1Skin();
+}
+
+function dialogPortraitHtml(skinId) {
+  const url = portraitUrl(skinId, skinManifest);
+  const entry = getSkinEntry(skinId, skinManifest);
+  const label = L(entry?.title || { en: `Skin ${skinId}` });
+  return `<img id="lifeCh1DialogPortrait" class="life-ch1-dialog-portrait" src="${escapeHtml(url)}" alt="${escapeHtml(label)}" width="96" height="144" data-skin="${escapeHtml(skinId)}">`;
+}
+
+export function syncPlayerLifeCh1Skin() {
+  previewPlayerLifeCh1Skin(readSelectedSkin(ensureLifeCh1()));
+}
+
+function previewPlayerLifeCh1Skin(skinId) {
+  const st = ensureLifeCh1();
+  if (!st) {
+    window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
+    return;
+  }
+  if (st.playerCutout === false) {
+    window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
+    return;
+  }
+  const skin = normalizeSkinId(skinId);
+  const url = worldUrl(skin, skinManifest);
+  window.World3D?.clearAngelinaLifeBillboard?.();
+  if (isLifeCh1SliceEnabled()) {
+    window.World3D?.setPlayerLifeCh1Skin?.({ visible: true, url });
+    return;
+  }
+  const show =
+    (isActive() && !st.completed) ||
+    st.completed ||
+    (st.stepIndex || 0) >= 2 ||
+    Object.keys(st.flags || {}).some(k => k.startsWith("outfit_"));
+  if (!show) {
+    window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
+    return;
+  }
+  window.World3D?.setPlayerLifeCh1Skin?.({ visible: true, url });
+}
+
+/** Slice: player is Angelina cutout — hide 3D hero swap UI. */
+export function applySliceAngelinaPlayerChrome() {
+  if (!isLifeCh1SliceEnabled()) {
+    document.body.classList.remove("life-ch1-angelina-player");
+    return;
+  }
+  document.body.classList.add("life-ch1-angelina-player");
+  const st = ensureLifeCh1();
+  if (st) {
+    st.playerCutout = true;
+    st.angelinaSkin = normalizeSkinId(st.angelinaSkin || "A");
+  }
+}
+
+function useLocalOverlay() {
+  if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
+  if (typeof window !== "undefined" && window.__PUNK_LIFE_CH1_LOCAL__ === true) return true;
+  if (!isLifeCh1TestMode()) return false;
+  try {
+    return new URLSearchParams(location.search).get("lifeCh1Local") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function localKey() {
+  if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) {
+    const id = window.PunkPreviewSave?.getDeviceId?.() || "preview";
+    return "punkme_preview_lifeCh1_v1_" + id;
+  }
+  const uid = window.uid || window.firebase?.auth?.()?.currentUser?.uid || "anon";
+  return LOCAL_KEY_PREFIX + uid;
+}
+
+export function persistLocalOverlay() {
+  if (!useLocalOverlay()) return;
+  const st = ensureLifeCh1();
+  if (!st) return;
+  try {
+    localStorage.setItem(localKey(), JSON.stringify(st));
+  } catch (_) {}
+}
+
+export function restoreLocalOverlay() {
+  if (!useLocalOverlay()) return;
+  try {
+    const raw = localStorage.getItem(localKey());
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.v === 1) {
+      parsed.claimedSteps = normalizeClaimedSteps(parsed.claimedSteps);
+      me().lifeCh1 = parsed;
+      clampStepIndex(me().lifeCh1);
+      resumeLifeCh1Progress(me().lifeCh1);
+    }
+  } catch (_) {}
+}
+
+async function loadSpec() {
+  if (spec) return spec;
+  const r = await fetch(DATA_URL, { cache: "no-store" });
+  spec = await r.json();
+  return spec;
+}
+
+function currentStep() {
+  const st = ensureLifeCh1();
+  if (!st?.active || st.completed) return null;
+  const steps = spec?.steps || [];
+  return steps[st.stepIndex] || null;
+}
+
+function playerWorldPos() {
+  const w3 = window.World3D;
+  if (w3?.getPlayerWorldPosition) return w3.getPlayerWorldPosition();
+  const p = me();
+  return { x: (p.x - 50) * 0.12, z: (p.y - 50) * 0.12, loc: p.location };
+}
+
+function distWorld(ax, az, bx, bz) {
+  const dx = ax - bx;
+  const dz = az - bz;
+  return Math.sqrt(dx * dx + dz * dz);
+}
+
+function syncBeacon() {
+  const step = currentStep();
+  if (!step?.beacon) return;
+  const b = step.beacon;
+  window.World3D?.setGuideTarget?.({
+    loc: b.loc,
+    wx: b.wx,
+    wz: b.wz,
+    npcId: b.npcId
+  });
+}
+
+/** Room-only: if wedged at bounds far from current step beacon, respawn at door (not a quest skip). */
+function resyncLifeCh1RoomSpawnIfNeeded() {
+  const st = ensureLifeCh1();
+  if (!st || me()?.location !== "room") return;
+  if (st.completed) {
+    const pos = playerWorldPos();
+    if (pos.z > 4.85 || pos.x > 6.1 || pos.x < -6.1) {
+      try {
+        window.World3D?.snapPlayerToLocationSpawn?.();
+        window.World3D?.setPortalGrace?.(1800);
+      } catch (_) {}
+    }
+    return;
+  }
+  if (!isActive()) return;
+  const step = currentStep();
+  if (!step?.beacon || step.beacon.loc !== "room") return;
+  const pos = playerWorldPos();
+  const dist = distWorld(pos.x, pos.z, step.beacon.wx, step.beacon.wz);
+  const northBound = pos.z > 4.9 || pos.x > 6.2 || pos.x < -6.2;
+  const southStuck = step.id === "outfit" && dist > 3.2 && pos.z < 2.8 && Math.abs(pos.x) < 1.4;
+  const trustStuck =
+    (step.id === "trust" || step.id === "reflect") &&
+    (dist > 4.5 || northBound || Math.abs(pos.x) > 4.8);
+  if (dist > 5.5 || northBound || southStuck || trustStuck) {
+    try {
+      let pref = null;
+      if (step.id === "outfit") pref = { x: -2.05, z: 1.55 };
+      else if (step.id === "trust" || step.id === "reflect") pref = { x: 2.05, z: -1.45 };
+      window.World3D?.snapPlayerToLocationSpawn?.(pref);
+      window.World3D?.setPortalGrace?.(2200);
+    } catch (_) {}
+  }
+}
+
+function setSubtitle(text, ms = 4500) {
+  const el = document.getElementById("voiceSubtitle");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("visible", !!text);
+  if (ms > 0 && text) {
+    clearTimeout(setSubtitle._t);
+    setSubtitle._t = setTimeout(() => {
+      el.classList.remove("visible");
+    }, ms);
+  }
+}
+
+function playUiBlip() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.value = 520;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.08, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.14);
+  } catch (_) {}
+}
+
+function grantCoins(n) {
+  if (!n || window.isOwner) return;
+  me().coins += n;
+  if (typeof document !== "undefined") {
+    const el = document.getElementById("coins");
+    if (el && window.formatCoinsDisplay) el.textContent = window.formatCoinsDisplay();
+  }
+  hooks.toast?.(`+${n} ${L({ ru: "монет", en: "coins", da: "mønter" })}`);
+}
+
+function grantXp(n) {
+  if (!n || window.isOwner) return;
+  const p = me();
+  p.xp = (p.xp || 0) + n;
+  if (typeof document !== "undefined") {
+    const el = document.getElementById("xp");
+    if (el) el.textContent = String(p.xp);
+    if (typeof levelFromXp === "function") {
+      p.level = levelFromXp(p.xp);
+      const lv = document.getElementById("level");
+      if (lv) lv.textContent = String(p.level);
+    }
+  }
+}
+
+export function claimStepReward(st, stepIndex, amount, xpAmount = 0) {
+  if (!st) return 0;
+  let gained = 0;
+  if (amount) {
+    const key =
+      typeof stepIndex === "number" ? rewardClaimKey(stepIndex) : String(stepIndex);
+    if (!st.claimedSteps[key]) {
+      st.claimedSteps[key] = true;
+      grantCoins(amount);
+      gained += amount;
+    }
+  }
+  if (xpAmount) {
+    const xpKey =
+      (typeof stepIndex === "number" ? rewardClaimKey(stepIndex) : String(stepIndex)) + "_xp";
+    if (!st.claimedSteps[xpKey]) {
+      st.claimedSteps[xpKey] = true;
+      grantXp(xpAmount);
+    }
+  }
+  return gained;
+}
+
+function trustChoiceReflectBonus(st) {
+  if (st.flags.mystery_trust_angelina) return 20;
+  if (st.flags.mystery_secret) return 15;
+  if (st.flags.mystery_open) return 8;
+  return 0;
+}
+
+function advanceStep(extraReward = 0) {
+  const st = ensureLifeCh1();
+  if (!st || st.completed) return;
+  const step = currentStep();
+  if (!step) return;
+  const idx = st.stepIndex;
+  if (step?.rewardCoins || step?.rewardXp) claimStepReward(st, idx, step.rewardCoins || 0, step.rewardXp || 0);
+  if (step?.id === "reflect") {
+    claimStepReward(st, rewardClaimKey(idx, "trust_bonus"), trustChoiceReflectBonus(st));
+  }
+  if (extraReward) claimStepReward(st, rewardClaimKey(idx, "extra"), extraReward);
+  const steps = spec?.steps || [];
+  const next = st.stepIndex + 1;
+  if (next >= steps.length) {
+    st.stepIndex = maxStepIndex();
+    st.completed = true;
+    st.active = false;
+    document.body.classList.remove("life-ch1-active");
+    hooks.toast?.(
+      L({
+        ru: "Глава жизни 1 — фрагмент завершён!",
+        en: "Life chapter 1 slice complete!",
+        da: "Liv kapitel 1 færdig!"
+      })
+    );
+  } else {
+    st.stepIndex = next;
+    const upcoming = steps[next];
+    if (upcoming?.id === "outfit" && me()?.location === "room") {
+      try {
+        window.World3D?.snapPlayerToLocationSpawn?.();
+        window.World3D?.setPortalGrace?.(2200);
+      } catch (_) {}
+    }
+  }
+  clampStepIndex(st);
+  persistLocalOverlay();
+  hooks.save?.();
+  renderObjectivePanel();
+  syncBeacon();
+  updateChatPresetMode();
+  applyMusicSceneClass();
+  syncPlayerLifeCh1Skin();
+}
+
+export function lifeCh1PayloadForSave(player) {
+  const p = player || me();
+  if (!p?.lifeCh1 || typeof p.lifeCh1 !== "object") return undefined;
+  if (!isLifeCh1SliceEnabled()) {
+    const st = p.lifeCh1;
+    const hasProgress =
+      st.completed ||
+      st.active ||
+      (st.stepIndex || 0) > 0 ||
+      (st.flags && Object.keys(st.flags).length > 0) ||
+      (st.claimedSteps && Object.keys(st.claimedSteps).length > 0);
+    if (!hasProgress) return undefined;
+  }
+  return ensureLifeCh1(p);
+}
+
+export function isActive() {
+  if (!isLifeCh1SliceEnabled()) return false;
+  const st = ensureLifeCh1(me());
+  return !!(st?.active && !st.completed);
+}
+
+export function isCompleted() {
+  if (!isLifeCh1SliceEnabled()) return false;
+  return !!ensureLifeCh1(me())?.completed;
+}
+
+export async function tryStartAfterOnboarding() {
+  if (!isLifeCh1SliceEnabled()) return false;
+  await loadSpec();
+  const p = me();
+  if (!p?.onboarding?.done) return false;
+  const st = ensureLifeCh1(p);
+  if (st.completed) return false;
+  if (st.active) return true;
+  st.active = true;
+  st.startedAt = Date.now();
+  st.stepIndex = 0;
+  delete st._moveStepBaseline;
+  delete st._moveStepWalked;
+  st.playerCutout = true;
+  document.body.classList.add("life-ch1-active");
+  try {
+    const { dismissHowToOverlay } = await import("../how-to-play.mjs");
+    dismissHowToOverlay(true);
+  } catch (_) {
+    document.getElementById("howToOverlay")?.classList.remove("active");
+  }
+  applySliceAngelinaPlayerChrome();
+  if (me()?.location && me().location !== "room" && typeof window.goLocation === "function") {
+    try { window.goLocation("room"); } catch (_) {}
+  }
+  persistLocalOverlay();
+  hooks.save?.();
+  setSubtitle(
+    L({
+      ru: "Новенькая история: начни с движения по комнате.",
+      en: "New life story: start by walking in your room.",
+      da: "Nyt liv: gå rundt i værelset."
+    })
+  );
+  renderObjectivePanel();
+  syncBeacon();
+  updateChatPresetMode();
+  applyMusicSceneClass();
+  syncPlayerLifeCh1Skin();
+  if (me()?.location === "room") {
+    try {
+      window.World3D?.snapPlayerToLocationSpawn?.();
+      window.World3D?.setPortalGrace?.(2500);
+    } catch (_) {}
+  }
+  return true;
+}
+
+export function onBoot() {
+  restoreLocalOverlay();
+  applySliceAngelinaPlayerChrome();
+  loadSpec().then(() => {
+    if (!isLifeCh1SliceEnabled()) return;
+    applySliceAngelinaPlayerChrome();
+    if (me()?.onboarding?.done && ensureLifeCh1()?.active) {
+      syncBeacon();
+      resyncLifeCh1RoomSpawnIfNeeded();
+      renderObjectivePanel();
+      updateChatPresetMode();
+      applyMusicSceneClass();
+      syncPlayerLifeCh1Skin();
+    } else if (me()?.onboarding?.done && isCompleted()) {
+      renderObjectivePanel();
+      syncPlayerLifeCh1Skin();
+    } else if (me()?.onboarding?.done && !isCompleted()) {
+      tryStartAfterOnboarding();
+    } else if (me()?.onboarding?.done) {
+      syncPlayerLifeCh1Skin();
+    }
+  });
+  if (typeof window !== "undefined") {
+    window.addEventListener("scene3d-ready", () => {
+      syncPlayerLifeCh1Skin();
+      const step = currentStep();
+      if (step?.id === "outfit" && me()?.location === "room" && isActive()) {
+        try {
+          window.World3D?.snapPlayerToLocationSpawn?.();
+          window.World3D?.setPortalGrace?.(2000);
+        } catch (_) {}
+      }
+    }, { passive: true });
+    window.addEventListener("punk-player-actor-ready", () => syncPlayerLifeCh1Skin(), { passive: true });
+    window.addEventListener("life-ch1-skin-texture-ready", () => syncPlayerLifeCh1Skin(), { passive: true });
+  }
+}
+
+let lastRoomWedgeResyncMs = 0;
+
+export function onMove() {
+  if (!isActive() && !ensureLifeCh1()?.completed) return;
+  if (Date.now() - lastRoomWedgeResyncMs > 500) {
+    lastRoomWedgeResyncMs = Date.now();
+    resyncLifeCh1RoomSpawnIfNeeded();
+  }
+  if (!isActive()) return;
+  const step = currentStep();
+  if (!step || step.id !== "move") return;
+  const p = me();
+  if (p.location !== "room") return;
+  const st = ensureLifeCh1();
+  const pos = playerWorldPos();
+  if (st._moveStepBaseline == null) {
+    st._moveStepBaseline = { x: pos.x, z: pos.z };
+    st._moveStepWalked = 0;
+    return;
+  }
+  const leg = distWorld(pos.x, pos.z, st._moveStepBaseline.x, st._moveStepBaseline.z);
+  if (leg > 0.04 && leg < 1.4) {
+    st._moveStepWalked = (st._moveStepWalked || 0) + leg;
+    st._moveStepBaseline = { x: pos.x, z: pos.z };
+  }
+  if ((st._moveStepWalked || 0) < 1.25) return;
+  delete st._moveStepBaseline;
+  delete st._moveStepWalked;
+  advanceStep();
+  setSubtitle(
+    L({
+      ru: "Отлично. Теперь зеркало — выбери образ.",
+      en: "Great. Now the mirror — pick your look.",
+      da: "Godt. Nu spejlet."
+    })
+  );
+}
+
+function nearInteract(target) {
+  if (!target) return false;
+  const p = me();
+  if (p.location !== target.loc) return false;
+  const pos = playerWorldPos();
+  return distWorld(pos.x, pos.z, target.wx, target.wz) <= (target.radius || 2);
+}
+
+export function pickReflectNode(dlg, flags) {
+  const stFlags = flags || ensureLifeCh1()?.flags || {};
+  const nodes = dlg.nodes;
+  if (stFlags.mystery_secret && nodes.n_secret) return nodes.n_secret;
+  if (stFlags.mystery_open && nodes.n_open) return nodes.n_open;
+  if (stFlags.mystery_trust_angelina && nodes.n_trust) return nodes.n_trust;
+  return nodes.n_fallback;
+}
+
+function pickTrustNode(dlg) {
+  const st = ensureLifeCh1();
+  const nodes = dlg.nodes;
+  if (st.flags.outfit_bold && nodes.n_after_bold) return nodes.n_after_bold;
+  if (st.flags.outfit_bright && nodes.n_after_bright) return nodes.n_after_bright;
+  if (st.flags.outfit_calm && nodes.n_after_calm) return nodes.n_after_calm;
+  return nodes.n0;
+}
+
+function openWardrobePanel() {
+  const panel = document.getElementById("lifeCh1Wardrobe");
+  if (!panel) return false;
+  if (!skinManifest || !spec) {
+    void Promise.all([
+      skinManifest ? Promise.resolve(skinManifest) : loadAngelinaSkinManifest(),
+      spec ? Promise.resolve(spec) : loadSpec()
+    ]).then(([m, s]) => {
+      skinManifest = m;
+      spec = s;
+      openWardrobePanel();
+    });
+    return false;
+  }
+  const st = ensureLifeCh1();
+  wardrobePending.skin = readSelectedSkin(st);
+  wardrobePending.outfitFlag = null;
+  panel.hidden = false;
+  document.getElementById("lifeCh1WardrobeTitle").textContent = L({
+    ru: "Гардероб",
+    en: "Wardrobe",
+    da: "Garderobe"
+  });
+  document.getElementById("lifeCh1WardrobeHint").textContent = L({
+    ru: "Выберу, в чём сегодня выйду.",
+    en: "I'll choose what to wear today.",
+    da: "Jeg vælger, hvad jeg tager på i dag."
+  });
+  document.getElementById("lifeCh1OutfitLabel").textContent = L({
+    ru: "Стиль на сегодня:",
+    en: "Today's style:",
+    da: "Stil:"
+  });
+  const grid = document.getElementById("lifeCh1SkinGrid");
+  grid.innerHTML = ["A", "B", "C"]
+    .map(id => {
+      const e = getSkinEntry(id, skinManifest);
+      const url = portraitUrl(id, skinManifest);
+      const sel = wardrobePending.skin === id ? " selected" : "";
+      return `<button type="button" class="life-ch1-skin-tile${sel}" data-skin="${id}" data-testid="life-ch1-skin-${id}">
+        <img src="${escapeHtml(url)}" alt="${escapeHtml(L(e.title))}" width="72" height="108" loading="eager" decoding="async">
+        <span>${escapeHtml(id)}</span></button>`;
+    })
+    .join("");
+  grid.querySelectorAll(".life-ch1-skin-tile").forEach(btn => {
+    btn.onclick = () => {
+      wardrobePending.skin = btn.dataset.skin;
+      grid.querySelectorAll(".life-ch1-skin-tile").forEach(b => b.classList.toggle("selected", b === btn));
+      previewPlayerLifeCh1Skin(wardrobePending.skin);
+      updateWardrobeConfirmState();
+    };
+  });
+  const outfitRow = document.getElementById("lifeCh1OutfitRow");
+  const dlg = spec?.dialogues?.dlg_life_ch1_outfit?.nodes?.n0;
+  outfitRow.innerHTML = (dlg?.choices || [])
+    .map(
+      (c, i) =>
+        `<button type="button" class="btn secondary life-ch1-outfit-pick" data-flag="${escapeHtml(c.flag)}" data-i="${i}">${escapeHtml(L(c.text))}</button>`
+    )
+    .join("");
+  outfitRow.querySelectorAll(".life-ch1-outfit-pick").forEach(btn => {
+    btn.onclick = () => {
+      wardrobePending.outfitFlag = btn.dataset.flag;
+      outfitRow.querySelectorAll(".life-ch1-outfit-pick").forEach(b => b.classList.toggle("selected", b === btn));
+      updateWardrobeConfirmState();
+    };
+  });
+  const confirm = document.getElementById("lifeCh1WardrobeConfirm");
+  confirm.textContent = L({ ru: "Сохранить и продолжить", en: "Save and continue", da: "Gem" });
+  confirm.onclick = () => {
+    if (!wardrobePending.outfitFlag) return;
+    setAngelinaSkin(wardrobePending.skin);
+    ensureLifeCh1().flags[wardrobePending.outfitFlag] = true;
+    closeWardrobePanel();
+    const step = currentStep();
+    if (isActive() && step?.id === "outfit") {
+      advanceStep();
+    } else {
+      persistLocalOverlay();
+      hooks.save?.();
+      syncPlayerLifeCh1Skin();
+    }
+  };
+  document.getElementById("lifeCh1WardrobeClose").textContent = L({ ru: "Закрыть", en: "Close", da: "Luk" });
+  document.getElementById("lifeCh1WardrobeClose").onclick = () => closeWardrobePanel();
+  const defBtn = document.getElementById("lifeCh1WardrobeDefault");
+  if (defBtn && !isLifeCh1SliceEnabled()) {
+    defBtn.hidden = false;
+    defBtn.textContent = L({
+      ru: "Вернуть стандартного героя (3D)",
+      en: "Back to default hero (3D)",
+      da: "Standard helt (3D)"
+    });
+    defBtn.onclick = () => {
+      setDefaultPlayerLook();
+      wardrobePending.skin = readSelectedSkin(ensureLifeCh1());
+      grid.querySelectorAll(".life-ch1-skin-tile").forEach(b => b.classList.remove("selected"));
+      closeWardrobePanel();
+      hooks.toast?.(L({ ru: "Стандартный герой", en: "Default hero", da: "Standard" }));
+    };
+  } else if (defBtn) {
+    defBtn.hidden = true;
+  }
+  updateWardrobeConfirmState();
+  return true;
+}
+
+function updateWardrobeConfirmState() {
+  const confirm = document.getElementById("lifeCh1WardrobeConfirm");
+  if (confirm) confirm.disabled = !wardrobePending.outfitFlag;
+}
+
+export function closeWardrobePanel() {
+  const panel = document.getElementById("lifeCh1Wardrobe");
+  if (panel) panel.hidden = true;
+}
+
+function showDialogue(dlgId) {
+  const dlgRoot = spec?.dialogues?.[dlgId];
+  if (!dlgRoot) return;
+  let node;
+  if (dlgId === "dlg_life_ch1_reflect") node = pickReflectNode(dlgRoot, ensureLifeCh1().flags);
+  else if (dlgId === "dlg_life_ch1_trust") node = pickTrustNode(dlgRoot);
+  else node = dlgRoot.nodes?.n0;
+  if (!node) return;
+
+  activeDlg = { dlgId, node };
+  const panel = document.getElementById("storyDialog");
+  const title = panel?.querySelector(".story-dialog-title");
+  const body = panel?.querySelector(".story-dialog-body");
+  if (!panel || !body) return;
+  window.StoryEngine?.dismissAllStoryUi?.();
+  panel.classList.add("active", "life-ch1-dialog", "story-dialog-cinematic");
+  if (title) {
+    if (node.speaker === "mira") {
+      title.textContent = L({
+        ru: "Мира (сообщение)",
+        en: "Mira (message)",
+        da: "Mira (besked)"
+      });
+    } else if (node.speaker === "player") {
+      title.textContent = L({ ru: "Ангелина", en: "Angelina", da: "Angelina" });
+    } else {
+      title.textContent = L({ ru: "Ангелина", en: "Angelina", da: "Angelina" });
+    }
+  }
+  const speakerLine = L(node.text);
+  setSubtitle("", 0);
+  playUiBlip();
+  const skin = readSelectedSkin(ensureLifeCh1());
+  const portrait =
+    node.speaker === "player" || node.speaker === "angelina" ? dialogPortraitHtml(skin) : "";
+
+  if (node.choices?.length) {
+    body.innerHTML =
+      `<div class="life-ch1-dialog-row">${portrait}<div class="life-ch1-dialog-text"><p>${escapeHtml(speakerLine)}</p></div></div>` +
+      node.choices
+        .map(
+          (c, i) =>
+            `<button type="button" class="btn life-ch1-choice" data-idx="${i}" style="display:block;margin:8px 0;width:100%">${escapeHtml(L(c.text))}</button>`
+        )
+        .join("");
+    body.querySelectorAll(".life-ch1-choice").forEach(btn => {
+      btn.onclick = () => {
+        const ch = node.choices[+btn.dataset.idx];
+        if (ch?.flag) ensureLifeCh1().flags[ch.flag] = true;
+        closeDialogue();
+        advanceStep();
+      };
+    });
+  } else {
+    body.innerHTML = `<div class="life-ch1-dialog-row">${portrait}<div class="life-ch1-dialog-text"><p>${escapeHtml(speakerLine)}</p></div></div><button type="button" class="btn" id="lifeCh1DlgOk">OK</button>`;
+    body.querySelector("#lifeCh1DlgOk").onclick = () => {
+      closeDialogue();
+      advanceStep();
+    };
+  }
+}
+
+export function closeDialogue() {
+  activeDlg = null;
+  const panel = document.getElementById("storyDialog");
+  panel?.classList.remove("active", "life-ch1-dialog", "story-dialog-cinematic");
+}
+
+function outfitInteractTarget() {
+  const steps = spec?.steps || [];
+  const outfit = steps.find(s => s.id === "outfit");
+  return outfit?.interact || { loc: "room", wx: -3.2, wz: 2.5, radius: 2.8 };
+}
+
+export function canReopenWardrobe() {
+  if (!isLifeCh1SliceEnabled()) return false;
+  const st = me()?.lifeCh1;
+  if (!st || typeof st !== "object") return false;
+  if (st.completed || (st.stepIndex || 0) >= 1) return true;
+  return Object.keys(st.flags || {}).length > 0;
+}
+
+export function tryInteract() {
+  if (activeDlg) return false;
+  if (isActive()) {
+    const step = currentStep();
+    if (step?.interact && nearInteract(step.interact)) {
+      if (step.id === "outfit") {
+        return openWardrobePanel();
+      }
+      if (step.dialogue) {
+        showDialogue(step.dialogue);
+        return true;
+      }
+    }
+  }
+  if (canReopenWardrobe() && me()?.location === "room" && nearInteract(outfitInteractTarget())) {
+    openWardrobePanel();
+    return true;
+  }
+  return false;
+}
+
+export function renderObjectivePanel() {
+  if (!isLifeCh1SliceEnabled()) return false;
+  const st = ensureLifeCh1(me());
+  if (!st) return false;
+  resumeLifeCh1Progress(st);
+  const box = document.getElementById("questBox");
+  if (!box) return false;
+  const title = L({
+    ru: "Новенькая в городе",
+    en: "New in Town",
+    da: "Ny i byen"
+  });
+  const series = L({
+    ru: "Глава 1 — Моя жизнь, моя история",
+    en: "Chapter 1 — My Life, My Story",
+    da: "Kapitel 1 — Mit liv, min historie"
+  });
+  const qw = document.getElementById("hudQuestsWrap");
+  const qt = document.getElementById("hudQuestsToggle");
+  if (qw?.classList.contains("collapsed")) {
+    qw.classList.remove("collapsed");
+    qt?.setAttribute("aria-expanded", "true");
+    if (qt) qt.textContent = "▾";
+  }
+  if (st.completed) {
+    const next = window.StoryEngine?.Authority?.getAuthorityObjective?.();
+    const nextLine = next?.objective
+      ? `${next.title ? next.title + " — " : ""}${next.objective}`
+      : L({ ru: "Можно исследовать город и лавку", en: "Explore the city and shop", da: "Udforsk byen og butikken" });
+    box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker life-ch1-done" data-testid="life-ch1-quest-panel">
+      <b>${escapeHtml(title)}</b> <span class="quest-step-num">✓</span>
+      <div class="quest-step-title">${escapeHtml(L({ ru: "Глава 1 пройдена", en: "Chapter 1 complete", da: "Kapitel 1 fuldført" }))}</div>
+      <div class="quest-step-text life-ch1-sub">${escapeHtml(series)}</div>
+      <div class="quest-step-text" data-testid="life-ch1-next">${escapeHtml(L({ ru: "Дальше", en: "Next", da: "Næste" }))}: ${escapeHtml(nextLine)}</div>
+    </div>`;
+    syncBeacon();
+    return true;
+  }
+  if (!isActive()) return false;
+  const step = currentStep();
+  const objective = step ? L(step.objective) : L({ ru: "Готово", en: "Done", da: "Færdig" });
+  const i = (st.stepIndex || 0) + 1;
+  const n = spec?.steps?.length || 4;
+  box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker" data-testid="life-ch1-quest-panel">
+    <b>${escapeHtml(title)}</b> <span class="quest-step-num">${i}/${n}</span>
+    <div class="quest-step-title">${escapeHtml(objective)}</div>
+    <div class="quest-step-text life-ch1-sub">${escapeHtml(series)}</div>
+  </div>`;
+  syncBeacon();
+  resyncLifeCh1RoomSpawnIfNeeded();
+  return true;
+}
+
+const PRESET_PHRASES = [
+  { ru: "Привет!", en: "Hi!", da: "Hej!" },
+  { ru: "Спасибо!", en: "Thanks!", da: "Tak!" },
+  { ru: "Пока!", en: "Bye!", da: "Hej hej!" }
+];
+
+function updateChatPresetMode() {
+  const input = document.getElementById("chatInput");
+  let bar = document.getElementById("lifeCh1PhraseBar");
+  if (!isActive()) {
+    input?.removeAttribute("readonly");
+    bar?.remove();
+    return;
+  }
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "lifeCh1PhraseBar";
+    bar.className = "life-ch1-phrases";
+    input?.parentElement?.insertBefore(bar, input);
+  }
+  if (input) {
+    input.placeholder = L({
+      ru: "Только готовые фразы",
+      en: "Preset phrases only",
+      da: "Kun faste sætninger"
+    });
+  }
+  bar.innerHTML = PRESET_PHRASES.map((p, i) =>
+    `<button type="button" class="btn secondary life-ch1-phrase" data-i="${i}">${escapeHtml(L(p))}</button>`
+  ).join(" ");
+  bar.querySelectorAll(".life-ch1-phrase").forEach(btn => {
+    btn.onclick = () => {
+      const phrase = L(PRESET_PHRASES[+btn.dataset.i]);
+      hooks.toast?.(phrase);
+      playUiBlip();
+    };
+  });
+}
+
+/** D11-B: softer ambient when life quest UI active (CSS + life canvas gain). */
+function applyMusicSceneClass() {
+  document.body.classList.toggle("life-ch1-music-soft", isActive());
+}
+
+export function getMusicVolumeFactor() {
+  return isActive() ? 0.55 : 1;
+}
+
+export async function initLifeCh1Slice(h) {
+  hooks = h || {};
+  skinManifest = await loadAngelinaSkinManifest();
+  await loadSpec();
+  applySliceAngelinaPlayerChrome();
+  window.LifeCh1Slice = {
+    tryStartAfterOnboarding,
+    onBoot,
+    onMove,
+    tryInteract,
+    renderObjectivePanel,
+    isActive,
+    isCompleted,
+    closeDialogue,
+    closeWardrobePanel,
+    openWardrobePanel,
+    ensureLifeCh1,
+    lifeCh1PayloadForSave,
+    persistLocalOverlay,
+    getMusicVolumeFactor,
+    getAngelinaSkin,
+    setAngelinaSkin,
+    setDefaultPlayerLook,
+    syncPlayerLifeCh1Skin,
+    applySliceAngelinaPlayerChrome,
+    isLifeCh1SliceEnabled,
+    isProductionGameHost,
+    isLifeCh1TestMode,
+    pickReflectNode,
+    portraitUrl: id => portraitUrl(id, skinManifest),
+    normalizeClaimedSteps,
+    rewardClaimKey,
+    maxStepIndex,
+    clampStepIndex
+  };
+}
+
+export function runUnitScenario(state, action) {
+  return { state, action, ok: true };
+}

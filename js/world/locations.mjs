@@ -239,7 +239,8 @@ export const PORTALS = {
     { to: "street", labelKey: "door_street", x: -8, z: 7, r: 1.5 },
     { to: "construction", labelKey: "door_construction", x: 8, z: -6, r: 1.5 }
   ],
-  construction: [{ to: "city", labelKey: "door_city", x: 0, z: 8.5, r: 1.5 }]
+  construction: [{ to: "city", labelKey: "door_city", x: 0, z: 8.5, r: 1.5 }],
+  cemetery: [{ to: "street", labelKey: "door_street", x: 0, z: -8.2, r: 1.45 }]
 };
 
 export const LOCATION_THEME = {

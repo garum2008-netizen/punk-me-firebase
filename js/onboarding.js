@@ -16,7 +16,7 @@ const ONBOARDING_STEPS = [
 
 /** Portal waypoints when the player is not yet in the step's target location. */
 const PORTAL_WAYPOINTS = {
-  street: { room: { wx: 0, wz: 5.5 } },
+  street: { room: { wx: 0, wz: 5.5 }, cemetery: { wx: 0, wz: -8.2 } },
   cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.5 } }
 };
 
@@ -45,13 +45,30 @@ function bump(key, amt = 1) {
   renderOnboardingQuest();
 }
 
+function ensureOnboardingPaid() {
+  const ob = window.me?.onboarding;
+  if (!ob) return;
+  if (!ob.paid || typeof ob.paid !== "object" || Array.isArray(ob.paid)) ob.paid = {};
+  const doneThrough = ob.done ? ONBOARDING_STEPS.length : Math.min(ob.step || 0, ONBOARDING_STEPS.length);
+  for (let i = 0; i < doneThrough; i++) ob.paid[ONBOARDING_STEPS[i].id] = true;
+}
+
 function completeStep() {
   const st = currentStep();
   if (!st) return;
+  ensureOnboardingPaid();
+  const paid = window.me.onboarding.paid;
   const r = st.reward || {};
-  if (!window.isOwner && r.coins) window.me.coins += r.coins;
-  if (r.xp) window.me.xp += r.xp;
-  toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + (r.coins || 0));
+  let granted = 0;
+  if (!paid[st.id]) {
+    if (!window.isOwner && r.coins) {
+      window.me.coins += r.coins;
+      granted = r.coins;
+    }
+    if (r.xp) window.me.xp += r.xp;
+    paid[st.id] = true;
+  }
+  toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + (granted ? " +" + granted : ""));
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
   const nextSt = currentStep();
@@ -92,6 +109,13 @@ function renderOnboardingQuest() {
     <div class="quest-step-text">${escapeHtml(stepText)}</div>
     <div class="quest-progress">${prog}/${st.goal}</div>
   </div>`;
+  const qw = document.getElementById("hudQuestsWrap");
+  const qt = document.getElementById("hudQuestsToggle");
+  if (qw?.classList.contains("collapsed")) {
+    qw.classList.remove("collapsed");
+    qt?.setAttribute("aria-expanded", "true");
+    if (qt) qt.textContent = "▾";
+  }
 }
 
 function waypointToReach(destLoc) {
@@ -115,7 +139,13 @@ function getGuideTarget() {
     if (wp) return { wx: wp.wx, wz: wp.wz, loc: here };
     return null;
   }
-  if (tgt.npcId) return { npcId: tgt.npcId };
+  if (tgt.npcId) {
+    const anchor = window.World3D?.getNpcAnchor?.(tgt.npcId);
+    if (anchor && here === (tgt.loc || here)) {
+      return { wx: anchor.x, wz: anchor.z, loc: here, npcId: tgt.npcId };
+    }
+    return { npcId: tgt.npcId, loc: here };
+  }
   if (tgt.wx != null && tgt.wz != null) return { wx: tgt.wx, wz: tgt.wz, loc: here };
   return null;
 }
@@ -182,8 +212,9 @@ function adaptSpawnLocation() {
 function initOnboarding() {
   if (!window.me) return;
   if (!window.me.onboarding) {
-    window.me.onboarding = { step: 0, progress: {}, done: false };
+    window.me.onboarding = { step: 0, progress: {}, done: false, paid: {} };
   }
+  ensureOnboardingPaid();
   renderOnboardingQuest();
   syncGuideTarget();
 }
@@ -201,5 +232,6 @@ window.Onboarding = {
   onWinFight,
   onShopBuy,
   getGuideTarget,
+  currentStepId: () => currentStep()?.id || null,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

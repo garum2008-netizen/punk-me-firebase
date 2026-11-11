@@ -12,7 +12,7 @@ const {
 assertFirebaseEmulatorTestEnv();
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:9876";
-const qs = `?solo=1${firebaseEmulatorQueryString()}&v=rules-save-test`;
+const qs = `?solo=1&lifeCh1LocalSave=0${firebaseEmulatorQueryString()}&v=rules-save-test`;
 
 async function run() {
   const browser = await chromium.launch();

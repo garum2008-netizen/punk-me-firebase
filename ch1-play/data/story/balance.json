@@ -1,0 +1,29 @@
+{
+  "startingCoins": 100,
+  "energyMax": 100,
+  "moodMax": 100,
+  "energyJobCost": 10,
+  "energyDuelCost": 5,
+  "moodDecayPer10Min": 2,
+  "moodLowThreshold": 20,
+  "moodLowPayPenalty": 0.1,
+  "arcadeDailyCap": 100,
+  "initiationFee": 150,
+  "repTitles": [
+    { "min": 0, "key": "rep_nobody" },
+    { "min": 50, "key": "rep_own" },
+    { "min": 150, "key": "rep_punk" },
+    { "min": 300, "key": "rep_legend" }
+  ],
+  "materialPrices": {
+    "board": 10,
+    "nails": 5,
+    "brick": 8,
+    "chain": 15,
+    "spray": 12,
+    "neon_tube": 25,
+    "stone": 20,
+    "candle": 3,
+    "scrapSell": 3
+  }
+}

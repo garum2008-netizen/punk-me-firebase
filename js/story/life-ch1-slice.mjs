@@ -556,6 +556,7 @@ export async function tryStartAfterOnboarding() {
   st.startedAt = Date.now();
   st.stepIndex = 0;
   delete st._moveStepBaseline;
+  delete st._moveStepWalked;
   st.playerCutout = true;
   document.body.classList.add("life-ch1-active");
   try {
@@ -565,6 +566,9 @@ export async function tryStartAfterOnboarding() {
     document.getElementById("howToOverlay")?.classList.remove("active");
   }
   applySliceAngelinaPlayerChrome();
+  if (me()?.location && me().location !== "room" && typeof window.goLocation === "function") {
+    try { window.goLocation("room"); } catch (_) {}
+  }
   persistLocalOverlay();
   hooks.save?.();
   setSubtitle(
@@ -643,11 +647,17 @@ export function onMove() {
   const pos = playerWorldPos();
   if (st._moveStepBaseline == null) {
     st._moveStepBaseline = { x: pos.x, z: pos.z };
+    st._moveStepWalked = 0;
     return;
   }
-  const dist = distWorld(pos.x, pos.z, st._moveStepBaseline.x, st._moveStepBaseline.z);
-  if (dist < 1.25) return;
+  const leg = distWorld(pos.x, pos.z, st._moveStepBaseline.x, st._moveStepBaseline.z);
+  if (leg > 0.04 && leg < 1.4) {
+    st._moveStepWalked = (st._moveStepWalked || 0) + leg;
+    st._moveStepBaseline = { x: pos.x, z: pos.z };
+  }
+  if ((st._moveStepWalked || 0) < 1.25) return;
   delete st._moveStepBaseline;
+  delete st._moveStepWalked;
   advanceStep();
   setSubtitle(
     L({
@@ -879,7 +889,8 @@ export function canReopenWardrobe() {
   if (!isLifeCh1SliceEnabled()) return false;
   const st = me()?.lifeCh1;
   if (!st || typeof st !== "object") return false;
-  return st.completed || st.active || (st.stepIndex || 0) >= 1 || Object.keys(st.flags || {}).length > 0;
+  if (st.completed || (st.stepIndex || 0) >= 1) return true;
+  return Object.keys(st.flags || {}).length > 0;
 }
 
 export function tryInteract() {
@@ -915,11 +926,28 @@ export function renderObjectivePanel() {
     en: "New in Town",
     da: "Ny i byen"
   });
+  const series = L({
+    ru: "Глава 1 — Моя жизнь, моя история",
+    en: "Chapter 1 — My Life, My Story",
+    da: "Kapitel 1 — Mit liv, min historie"
+  });
+  const qw = document.getElementById("hudQuestsWrap");
+  const qt = document.getElementById("hudQuestsToggle");
+  if (qw?.classList.contains("collapsed")) {
+    qw.classList.remove("collapsed");
+    qt?.setAttribute("aria-expanded", "true");
+    if (qt) qt.textContent = "▾";
+  }
   if (st.completed) {
+    const next = window.StoryEngine?.Authority?.getAuthorityObjective?.();
+    const nextLine = next?.objective
+      ? `${next.title ? next.title + " — " : ""}${next.objective}`
+      : L({ ru: "Можно исследовать город и лавку", en: "Explore the city and shop", da: "Udforsk byen og butikken" });
     box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker life-ch1-done" data-testid="life-ch1-quest-panel">
       <b>${escapeHtml(title)}</b> <span class="quest-step-num">✓</span>
-      <div class="quest-step-title">${escapeHtml(L({ ru: "Глава пройдена", en: "Chapter complete", da: "Kapitel fuldført" }))}</div>
-      <div class="quest-step-text life-ch1-sub">${escapeHtml(L({ ru: "Можно исследовать город и лавку", en: "Explore the city and shop", da: "Udforsk byen og butikken" }))}</div>
+      <div class="quest-step-title">${escapeHtml(L({ ru: "Глава 1 пройдена", en: "Chapter 1 complete", da: "Kapitel 1 fuldført" }))}</div>
+      <div class="quest-step-text life-ch1-sub">${escapeHtml(series)}</div>
+      <div class="quest-step-text" data-testid="life-ch1-next">${escapeHtml(L({ ru: "Дальше", en: "Next", da: "Næste" }))}: ${escapeHtml(nextLine)}</div>
     </div>`;
     syncBeacon();
     return true;
@@ -932,17 +960,10 @@ export function renderObjectivePanel() {
   box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker" data-testid="life-ch1-quest-panel">
     <b>${escapeHtml(title)}</b> <span class="quest-step-num">${i}/${n}</span>
     <div class="quest-step-title">${escapeHtml(objective)}</div>
-    <div class="quest-step-text life-ch1-sub">${escapeHtml(L({ ru: "Жизненная глава · история первых дней", en: "Life chapter · first days story", da: "Liv kapitel · de første dage" }))}</div>
+    <div class="quest-step-text life-ch1-sub">${escapeHtml(series)}</div>
   </div>`;
   syncBeacon();
   resyncLifeCh1RoomSpawnIfNeeded();
-  const qw = document.getElementById("hudQuestsWrap");
-  const qt = document.getElementById("hudQuestsToggle");
-  if (qw?.classList.contains("collapsed")) {
-    qw.classList.remove("collapsed");
-    qt?.setAttribute("aria-expanded", "true");
-    if (qt) qt.textContent = "▾";
-  }
   return true;
 }
 

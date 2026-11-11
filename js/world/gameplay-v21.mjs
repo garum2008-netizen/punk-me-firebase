@@ -420,7 +420,7 @@ function startDuel3D(nid, opts = {}) {
     plMax: training ? 999 : 100,
     npcMax: training ? 999 : 100,
     cd: 0,
-    npcCd: 0,
+    npcCd: Number.isFinite(opts.npcCd) ? opts.npcCd : 0,
     plBlock: 0,
     trail: null,
     flashPl: 0,
@@ -462,7 +462,9 @@ function stopDuel3D(win) {
       : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
     setTimeout(() => res.classList.add("hidden"), 3200);
   }
-  window._duel3dEnd?.(win);
+  const end = window._duel3dEnd;
+  window._duel3dEnd = null;
+  end?.(win);
 }
 
 function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
