@@ -801,28 +801,45 @@ async function runOrdinarySession(browser, viewport, label) {
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
   let videoSaveError = null;
-  try {
-    if (page && !page.isClosed()) await page.close();
-  } catch (_) {}
+  function findWebmUnder(dir) {
+    if (!fs.existsSync(dir)) return null;
+    const stack = [dir];
+    let latest = null;
+    let latestMtime = 0;
+    while (stack.length) {
+      const cur = stack.pop();
+      for (const ent of fs.readdirSync(cur, { withFileTypes: true })) {
+        const p = path.join(cur, ent.name);
+        if (ent.isDirectory()) stack.push(p);
+        else if (ent.name.endsWith(".webm")) {
+          const mt = fs.statSync(p).mtimeMs;
+          if (mt >= latestMtime) {
+            latestMtime = mt;
+            latest = p;
+          }
+        }
+      }
+    }
+    return latest;
+  }
   await ctx.close();
   if (video) {
-    await new Promise(r => setTimeout(r, 350));
+    await new Promise(r => setTimeout(r, 800));
     try {
-      await video.saveAs(dest);
+      const tmp = await video.path();
+      if (tmp && fs.existsSync(tmp)) {
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.copyFileSync(tmp, dest);
+      } else {
+        await video.saveAs(dest);
+      }
     } catch (e) {
       videoSaveError = String(e.message || e);
-      try {
-        const webms = fs.existsSync(videoDir)
-          ? fs.readdirSync(videoDir).filter(f => f.endsWith(".webm"))
-          : [];
-        const fallback = webms.length ? path.join(videoDir, webms[webms.length - 1]) : null;
-        if (fallback && fs.existsSync(fallback)) {
-          fs.mkdirSync(path.dirname(dest), { recursive: true });
-          fs.copyFileSync(fallback, dest);
-          videoSaveError = null;
-        }
-      } catch (e2) {
-        videoSaveError = `${videoSaveError}; fallback: ${e2.message || e2}`;
+      const fallback = findWebmUnder(videoDir);
+      if (fallback && fs.existsSync(fallback)) {
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.copyFileSync(fallback, dest);
+        videoSaveError = null;
       }
     }
   }
