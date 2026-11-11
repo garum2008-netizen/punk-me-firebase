@@ -27,6 +27,9 @@ const ORDINARY_PASS = Number(ORDINARY_PASS_RAW);
 const INPUT_MODE = process.env.ORDINARY_INPUT || "keyboard";
 const PORTAL_GATE_ONLY = process.env.PORTAL_GATE_ONLY === "1";
 const PORTAL_STRICT = process.env.PORTAL_STRICT === "1" || PORTAL_GATE_ONLY;
+const ORDINARY_DESKTOP_ONLY = process.env.ORDINARY_DESKTOP_ONLY === "1";
+const ORDINARY_PORTRAIT_ONLY =
+  process.env.ORDINARY_PORTRAIT_ONLY === "1" && !ORDINARY_DESKTOP_ONLY;
 
 function ordinaryPassTag() {
   if (Number.isFinite(ORDINARY_PASS)) return `pass${String(ORDINARY_PASS).padStart(2, "0")}`;
@@ -795,17 +798,28 @@ async function runOrdinarySession(browser, viewport, label) {
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
   let videoSaveError = null;
+  try {
+    if (page && !page.isClosed()) await page.close();
+  } catch (_) {}
   await ctx.close();
   if (video) {
+    await new Promise(r => setTimeout(r, 350));
     try {
       await video.saveAs(dest);
     } catch (e) {
       videoSaveError = String(e.message || e);
       try {
-        const vidTmp = await video.path();
-        if (vidTmp && fs.existsSync(vidTmp)) fs.copyFileSync(vidTmp, dest);
+        const webms = fs.existsSync(videoDir)
+          ? fs.readdirSync(videoDir).filter(f => f.endsWith(".webm"))
+          : [];
+        const fallback = webms.length ? path.join(videoDir, webms[webms.length - 1]) : null;
+        if (fallback && fs.existsSync(fallback)) {
+          fs.mkdirSync(path.dirname(dest), { recursive: true });
+          fs.copyFileSync(fallback, dest);
+          videoSaveError = null;
+        }
       } catch (e2) {
-        videoSaveError = `${videoSaveError}; ${e2.message || e2}`;
+        videoSaveError = `${videoSaveError}; fallback: ${e2.message || e2}`;
       }
     }
   }
@@ -841,7 +855,9 @@ async function runOrdinarySession(browser, viewport, label) {
   try {
     if (PORTAL_GATE_ONLY) {
       results.push(await runOrdinarySession(browser, { width: 1280, height: 720 }, "portal-gate"));
-    } else if (INPUT_MODE === "touch" || process.env.ORDINARY_PORTRAIT_ONLY === "1") {
+    } else if (ORDINARY_DESKTOP_ONLY) {
+      results.push(await runOrdinarySession(browser, { width: 1280, height: 720 }, "desktop"));
+    } else if (INPUT_MODE === "touch" || ORDINARY_PORTRAIT_ONLY) {
       results.push(await runOrdinarySession(browser, { width: 390, height: 844 }, "portrait"));
     } else {
       results.push(await runOrdinarySession(browser, { width: 390, height: 844 }, "portrait"));

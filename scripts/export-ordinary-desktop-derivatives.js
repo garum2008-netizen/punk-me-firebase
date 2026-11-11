@@ -8,7 +8,28 @@ const OUT = process.env.PUNK_ICE_OUT || path.join("/opt/cursor/artifacts", "ice-
 const shaShort = (process.env.SHA_SHORT || spawnSync("git", ["rev-parse", "--short=12", "HEAD"], { encoding: "utf8" }).stdout.trim()).slice(0, 12);
 const pass = process.env.ORDINARY_PASS || "03";
 
-const src = path.join(OUT, `ice-ch1-ORDINARY-UNCUT-desktop-${shaShort}-desktop1280x720-pass${pass}.webm`);
+function resolveDesktopUncutSource(dir, shortSha, passRaw) {
+  const passNum = Number(passRaw);
+  const passTag = Number.isFinite(passNum) ? `pass${String(passNum).padStart(2, "0")}` : `pass${passRaw}`;
+  const exact = path.join(
+    dir,
+    `ice-ch1-ORDINARY-UNCUT-desktop-${shortSha}-desktop1280x720-${passTag}.webm`
+  );
+  if (fs.existsSync(exact)) return exact;
+  if (!fs.existsSync(dir)) return exact;
+  const matches = fs
+    .readdirSync(dir)
+    .filter(
+      f =>
+        f.startsWith(`ice-ch1-ORDINARY-UNCUT-desktop-${shortSha}-`) &&
+        f.includes("desktop1280x720") &&
+        f.endsWith(`-${passTag}.webm`)
+    )
+    .sort();
+  return matches.length ? path.join(dir, matches[matches.length - 1]) : exact;
+}
+
+const src = resolveDesktopUncutSource(OUT, shaShort, pass);
 if (!fs.existsSync(src)) {
   console.error("missing source:", src);
   process.exit(1);
