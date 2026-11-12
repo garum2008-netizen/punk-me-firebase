@@ -8,8 +8,10 @@ SHA: `552740b782bf415cd788f996fd5e7005d9874bfe`
 
 | Item | Path |
 |------|------|
-| **dist-preview tarball** | `/opt/cursor/artifacts/punk-me-preview-552740b.tar.gz` |
-| **SHA-256 manifest** | `/opt/cursor/artifacts/punk-me-preview-552740b.manifest.json` |
+| **Game Bot bundle (site + `functions/`)** | `/cursor/stores/self/preview-552740b/punk-me-preview-552740b.tar.gz` |
+| **SHA-256** | `/cursor/stores/self/preview-552740b/MANIFEST.json` (`cf9239e66f4fc2b84d24986af51f447d808da9964c62a8f0ebfe3054ab803045`) |
+| **Deploy doc** | `/cursor/stores/self/preview-552740b/PREVIEW_DEPLOY_FOR_GAME_BOT.md` |
+| **Functions source (duplicate)** | `/cursor/stores/self/preview-552740b/functions/_middleware.js` |
 | **Build recipe** | `git worktree` at `552740b` → `npm ci` → `npm run build:preview` → tar `dist-preview/` |
 
 ## Required Cloudflare setup (owner / Game Bot)
