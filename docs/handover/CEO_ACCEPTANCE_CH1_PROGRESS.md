@@ -27,9 +27,10 @@
 
 | Gate | Status |
 |------|--------|
-| Onboarding step 7 (city build) | Capture fixes landed; desktop full run **in progress** |
-| Angelina guide (onboarding + Life Ch1) | Banner + i18n for all onboarding steps + Ch1 step ids |
-| Full Ch1 playthrough recording | **Pending** successful ordinary capture |
+| Onboarding step 7 (city build) | **PASS** (`ceo-desktop-full-v2` session @ `52a91c9`) |
+| Angelina guide (onboarding + Life Ch1) | Banner + RU/EN/DA for all onboarding + Life Ch1 step ids |
+| Full Ch1 playthrough (logic) | **PASS** (`ch1_complete`, onboarding → Life Ch1 end) |
+| Desktop UNCUT video (`ceo-desktop-full-v2`) | **Re-run** after Playwright video save fix (metadata JSON already on disk) |
 | Production / main merge | **HOLD** |
 
 ## Definition of Done (remaining)

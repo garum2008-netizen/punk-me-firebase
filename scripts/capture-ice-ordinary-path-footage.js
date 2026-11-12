@@ -878,17 +878,25 @@ async function runOrdinarySession(browser, viewport, label) {
     }
     return latest;
   }
+  await page.close().catch(() => {});
   await ctx.close();
+  await new Promise(r => setTimeout(r, 1500));
+  const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
   if (video) {
     let tmp = null;
-  for (let attempt = 0; attempt < 30; attempt++) {
-      await new Promise(r => setTimeout(r, 400));
+    for (let attempt = 0; attempt < 60; attempt++) {
+      await new Promise(r => setTimeout(r, 500));
       try {
         tmp = await video.path();
       } catch (_) {
         tmp = null;
       }
-      if (tmp && fs.existsSync(tmp) && fs.statSync(tmp).size > 2_000_000) break;
+      if (tmp && fs.existsSync(tmp) && fs.statSync(tmp).size >= minVideoBytes) break;
+      const fallback = findWebmUnder(videoDir);
+      if (fallback && fs.existsSync(fallback) && fs.statSync(fallback).size >= minVideoBytes) {
+        tmp = fallback;
+        break;
+      }
     }
     try {
       if (tmp && fs.existsSync(tmp)) {
@@ -900,7 +908,7 @@ async function runOrdinarySession(browser, viewport, label) {
     } catch (e) {
       videoSaveError = String(e.message || e);
       const fallback = findWebmUnder(videoDir);
-      if (fallback && fs.existsSync(fallback) && fs.statSync(fallback).size > 2_000_000) {
+      if (fallback && fs.existsSync(fallback) && fs.statSync(fallback).size >= minVideoBytes) {
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         fs.copyFileSync(fallback, dest);
         videoSaveError = null;
