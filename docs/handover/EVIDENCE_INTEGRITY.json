@@ -1,5 +1,5 @@
 {
-  "gameplayAcceptanceSha": "c90548fa5da92e13a72e45ab83896a6c16eef04b",
+  "gameplayAcceptanceSha": "7aee086d727baca54e2450ef7e9b275390193b85",
   "ownerAcceptanceCandidate": "a37c200+ (t203u) — NOT production release",
   "updatedAt": "2026-11-12T18:45:00+01:00",
   "ownerDirective": "t201u-2026-11-12-production-HOLD",
@@ -18,10 +18,10 @@
     "cursorStagingProjectUnused": "punk-me-ch1-preview (empty; owner: delete nothing)",
     "nextPreviewPolicy": "When branch tip (city build + Angelina) is ready, agent publishes new verified tarball to Agent Store; Game Bot redeploys same project.",
     "branchTipBundle": {
-      "agentStore": "/cursor/stores/self/preview-c90548fa5da9/",
-      "tarball": "punk-me-preview-c90548fa5da9.tar.gz",
-      "sha256": "0ba9513807004c655fd091250580177d28951af7e486fc6dc692bd51b2bff180",
-      "gitSha": "c90548fa5da92e13a72e45ab83896a6c16eef04b",
+      "agentStore": "/cursor/stores/self/preview-7aee086d727b/",
+      "tarball": "punk-me-preview-7aee086d727b.tar.gz",
+      "sha256": "66be7f04d6c00c22dfe4276a299c4155b619903e9469ca2ce7a660691a2bb80e",
+      "gitSha": "7aee086d727baca54e2450ef7e9b275390193b85",
       "gameBotAction": "Snapshot current deployment, then update punk-me-preview-552740b"
     }
   },
@@ -33,11 +33,15 @@
       "note": "Desktop UNCUT at pinned gameplay SHA (no step-7 city build in recording era)."
     },
     "branchTipCeoP0": {
-      "status": "in_progress",
+      "status": "complete",
       "targetPass": "t203-owner-desktop",
-      "gitSha": "720423a134cad626994657d8baccf28a9d375ea9",
-      "requiresOnboardingStep7AndCh1Complete": true,
-      "note": "New continuous UNCUT at acceptance commit; pass03 remains pinned-552740b era only."
+      "gitSha": "7aee086d727baca54e2450ef7e9b275390193b85",
+      "path": "/opt/cursor/artifacts/ice-ch1-footage/ice-ch1-ORDINARY-UNCUT-desktop-7aee086d727b-desktop1280x720-pass-t203-owner-desktop.webm",
+      "sha256": "214262b37f7823f817c2ead1fbf73e6bd2eb00b9bb4607f64a84a45d66ba36cf",
+      "sizeBytes": 94371840,
+      "durationSecNote": "ffmpeg -t 900 cap; playthrough ~11 min; trim tail in review",
+      "captureMethod": "ffmpeg x11grab continuous (Playwright backup)",
+      "requiresOnboardingStep7AndCh1Complete": true
     },
     "retractedAliases": {
       "formerPass01Pass02": "Previously duplicated pass03 bytes — removed from evidence set 2026-11-12 per t201u."
