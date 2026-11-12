@@ -38,10 +38,15 @@ let lastPresenceAnimPush = 0;
 
 function soloMode() {
   try {
+    if (window.__PUNK_PREVIEW__ === true) return true;
     return new URLSearchParams(location.search).has("solo");
   } catch (e) {
     return false;
   }
+}
+
+function isPreviewBuild() {
+  return window.__PUNK_PREVIEW__ === true;
 }
 
 function demoPartyMode() {
@@ -506,6 +511,8 @@ function applyFirebasePlayerSnapshot(snap) {
         ? savedOnboarding
         : { step: 0, progress: {}, done: false, paid: {} });
     me.story = v.story || me.story;
+    if (v.chapter1 && typeof v.chapter1 === "object") me.chapter1 = v.chapter1;
+    if (Array.isArray(v.cityStones)) me.cityStones = v.cityStones;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
     me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
@@ -729,6 +736,39 @@ function syncStage3D() {
   });
 }
 
+function installPreviewBanner() {
+  if (document.getElementById("previewBanner")) return;
+  const el = document.createElement("div");
+  el.id = "previewBanner";
+  el.textContent = "PREVIEW — progress stays on this device. SHA " + (document.querySelector('meta[name="punk-preview-sha"]')?.content || GAME_VERSION);
+  el.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:210;background:#140018;color:#ffe81f;text-align:center;font-size:12px;padding:4px 8px;";
+  document.body.appendChild(el);
+}
+
+function bootPreviewSession() {
+  installPreviewBanner();
+  presenceOk = false;
+  uid = window.PunkPreviewSave?.getDeviceId?.() || "preview_local";
+  window.uid = uid;
+  isOwner = false;
+  window.isOwner = false;
+  window.__punkFirebaseReady = Promise.resolve();
+  window.dispatchEvent(new Event("punkme-firebase-ready"));
+  const saved = window.PunkPreviewSave?.load?.();
+  if (saved) {
+    applyFirebasePlayerSnapshot({ exists: () => true, val: () => saved });
+    finishLoadMeFlow();
+    return;
+  }
+  window.__playerLoaded = false;
+  hideLoading();
+  const openSelect = () => {
+    if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
+    else setTimeout(openSelect, 120);
+  };
+  openSelect();
+}
+
 function init() {
   me = defaultPlayer();
   window.me = me;
@@ -740,7 +780,11 @@ function init() {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);
     btn.classList.toggle("active", btn.dataset.lang === getLanguage());
   });
-  try {
+  if (isPreviewBuild()) {
+    bootPreviewSession();
+    const ver = document.getElementById("gameVersion");
+    if (ver) ver.textContent = GAME_VERSION + "-preview";
+  } else try {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
     db = firebase.database();
@@ -752,7 +796,7 @@ function init() {
     showLoadingFailure(t("loading_boot_error"), bootErr.message || String(bootErr));
     return;
   }
-  auth.onAuthStateChanged(async u => {
+  if (!isPreviewBuild()) auth.onAuthStateChanged(async u => {
     if (u) {
       uid = u.uid;
       window.uid = uid;
@@ -899,6 +943,7 @@ function pickCharacterAndContinue(id) {
   const def = getCharacterDef(id);
   me.avatar = def.poster;
   me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
+  window.__playerLoaded = true;
   saveMe();
   continueGameBoot();
 }
@@ -926,6 +971,7 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    window.Chapter1?.onWorldReady?.();
   } catch (err) {
     console.error("continueGameBoot", err);
     showLoadingFailure(t("loading_boot_error"), err.message || String(err));
@@ -999,6 +1045,10 @@ function saveMe() {
   if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
   me.lastSeen = Date.now();
   const payload = sanitizePlayer(me);
+  if (isPreviewBuild()) {
+    window.PunkPreviewSave?.save?.(payload);
+    return;
+  }
   // players/{uid} must succeed even when publicProfiles is denied (pre-rules-publish).
   db.ref("players/" + uid).update(payload);
   db.ref("publicProfiles/" + uid)
@@ -1050,12 +1100,16 @@ function sanitizePlayer(p) {
           done: !!p.onboarding.done,
           paid: p.onboarding.paid && typeof p.onboarding.paid === "object" ? p.onboarding.paid : {}
         }
-      : { step: 0, progress: {}, done: false, paid: {} }
+      : { step: 0, progress: {}, done: false, paid: {} },
+    chapter1: p.chapter1 && typeof p.chapter1 === "object"
+      ? { crawlSeen: !!p.chapter1.crawlSeen, ended: !!p.chapter1.ended }
+      : { crawlSeen: false, ended: false },
+    cityStones: Array.isArray(p.cityStones) ? p.cityStones.slice(0, 24) : []
   };
 }
 
 function initMultiplayer() {
-  if (!uid) return;
+  if (!uid || !db) return;
   const probe = db.ref("presence/" + me.location + "/" + uid);
   const probePayload = {
     name: me.name || "Player",
@@ -1116,7 +1170,7 @@ function playerPresenceFresh(p) {
 }
 
 function listenPresence() {
-  if (!presenceOk) {
+  if (!db || !presenceOk) {
     listenPlayersInLocation();
     return;
   }
@@ -1154,6 +1208,13 @@ function listenPresence() {
 }
 
 function listenPlayersInLocation() {
+  if (!db) {
+    others = {};
+    renderPlayers();
+    renderPlayersList();
+    updateOnlineCount();
+    return;
+  }
   if (playersListenRef) playersListenRef.off();
   if (isPrivateRoomLoc(me.location)) {
     others = {};
@@ -1210,6 +1271,7 @@ function localizeChatText(text) {
 }
 
 function listenChat() {
+  if (!db) return;
   db.ref("chat").limitToLast(25).on("child_added", s => {
     const m = s.val();
     if (!m) return;
@@ -1223,6 +1285,10 @@ function listenChat() {
 
 function listenBuildings() {
   const zone = LOCATIONS[me.location]?.buildZone;
+  if (!db) {
+    if (!zone || zone === "room_private") loadPrivateDecor();
+    return;
+  }
   if (!zone || zone === "room_private") {
     loadPrivateDecor();
     return;
@@ -1494,6 +1560,8 @@ function questBump(key, amt = 1) {
   if (bumped && !bumped.changed) return;
   const qid = me.quests.active;
   if (!qid || !QUESTS[qid]) return;
+  if (!me.quests.completed) me.quests.completed = {};
+  if (me.quests.completed[qid]) return;
   const need = QUESTS[qid].need;
   if (!bumped) {
     if (!(key in need)) return;
@@ -1502,6 +1570,7 @@ function questBump(key, amt = 1) {
   const prog = me.quests.progress;
   const done = bumped ? bumped.completed : Object.entries(need).every(([k, v]) => (prog[k] || 0) >= v);
   if (done) {
+    me.quests.completed[qid] = true;
     const r = QUESTS[qid].reward;
     if (!isOwner && r.coins) me.coins += r.coins;
     if (r.xp) me.xp += r.xp;
@@ -1585,6 +1654,11 @@ window.toggleVoiceMute = function () {
 };
 
 function acceptQuest(qid) {
+  if (!me.quests.completed) me.quests.completed = {};
+  if (me.quests.completed[qid]) {
+    toast(t("quest_already"));
+    return;
+  }
   me.quests.active = qid;
   me.quests.progress = {};
   saveMe();
@@ -1624,7 +1698,7 @@ function buyItem(id) {
   if (it.cat === "materials") {
     me.inventory.materials[it.build] = (me.inventory.materials[it.build] || 0) + 1;
   } else if (it.cat === "magic") {
-    me.inventory.spells.push(it.spell);
+    if (!me.inventory.spells.includes(it.spell)) me.inventory.spells.push(it.spell);
     if (!me.owned.includes(id)) me.owned.push(id);
   } else if (it.cat === "pets") {
     me.pet = it.id;
@@ -1774,19 +1848,31 @@ function travelJob(action, loc) {
 
 function toggleBuildMode() {
   buildMode = !buildMode;
+  window.__buildMode = buildMode;
   toast(buildMode ? t("build_mode_on") : t("build_mode_off"));
 }
 
-function tryPlaceBuild(x, y) {
+function tryPlaceBuild(x, y, worldPoint) {
   const type = selectedBuild;
   const count = me.inventory.materials[type] || 0;
   if (count < 1) { toast(t("buy_materials")); return; }
+  if (window.Onboarding?.stepId?.() === "city_build" && me.location !== "city") {
+    toast(t("onboard_city_build_text"));
+    return;
+  }
   me.inventory.materials[type]--;
   const piece = { type, x, y, owner: uid, ts: Date.now() };
-  db.ref("buildings/city").push(piece);
+  buildings = buildings.concat(piece);
+  renderBuildings();
+  try { db.ref("buildings/city").push(piece); } catch (_) {}
+  if (me.location === "city") {
+    const spot = worldPoint || { x: 0, z: 1.2 };
+    window.World3D?.placeCityStone?.(spot.x, spot.z);
+  }
   me.built = (me.built || 0) + 1;
   saveMe();
   questBump("built", 1);
+  window.Onboarding?.onCityBuild?.();
   toast(t("built"));
 }
 
@@ -1974,6 +2060,11 @@ function sendChat() {
   const inp = document.getElementById("chatInput");
   const text = inp.value.trim();
   if (!text) return;
+  if (!db) {
+    toast(t("chatDown"));
+    inp.value = "";
+    return;
+  }
   db.ref("chat").push({ uid, name: me.name, text, time: Date.now(), loc: me.location }).catch(() => {
     toast(t("chatDown"));
   });
@@ -2012,6 +2103,7 @@ window.startNpcFight = startNpcFight;
 window.acceptQuest = acceptQuest;
 window.tryDecorPlace = tryDecorPlace;
 window.setBuildType = function (bt) { selectedBuild = bt; toast(t("building") + " " + bt); };
+window.tryPlaceBuild = tryPlaceBuild;
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
 

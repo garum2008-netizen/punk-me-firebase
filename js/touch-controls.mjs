@@ -12,6 +12,10 @@ export function initTouchControls(opts = {}) {
   onCamera = opts.onCameraOrbit;
   const wrap = document.getElementById("touchControls");
   if (!wrap) return;
+  const touchQuery = window.matchMedia("(max-width: 900px)");
+  const syncTouchA11y = () => wrap.setAttribute("aria-hidden", touchQuery.matches ? "false" : "true");
+  syncTouchA11y();
+  touchQuery.addEventListener?.("change", syncTouchA11y);
   const joy = document.getElementById("touchJoystick");
   const knob = document.getElementById("touchJoystickKnob");
   const interact = document.getElementById("touchInteract");

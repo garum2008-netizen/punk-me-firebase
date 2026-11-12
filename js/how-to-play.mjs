@@ -63,11 +63,22 @@ function initHowToPlay() {
   let seen = false;
   try { seen = localStorage.getItem(STORAGE_KEY) === "1"; } catch (e) {}
   if (!seen && location.hash !== "#account") {
-    setTimeout(() => {
-      if (!window.__punkIsAccountModalOpen?.() && !document.getElementById("accountModal")?.classList.contains("active")) {
-        openHowTo();
+    const openWhenPlayable = () => {
+      if (window.__punkIsAccountModalOpen?.() || document.getElementById("accountModal")?.classList.contains("active")) return;
+      const crawl = document.getElementById("chapterCrawl");
+      if (crawl?.classList.contains("active")) {
+        const obs = new MutationObserver(() => {
+          if (!crawl.classList.contains("active")) {
+            obs.disconnect();
+            openHowTo();
+          }
+        });
+        obs.observe(crawl, { attributes: true });
+        return;
       }
-    }, 800);
+      openHowTo();
+    };
+    setTimeout(openWhenPlayable, 800);
   }
 }
 

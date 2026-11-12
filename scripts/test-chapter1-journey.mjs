@@ -46,6 +46,8 @@ async function boot(page) {
     await page.click("#charSelectConfirm");
   }
   await page.waitForFunction(() => window.__playerLoaded === true && window.me?.characterId === "cobalt");
+  const skip = page.locator("#chapterCrawlSkip");
+  if (await skip.isVisible().catch(() => false)) await skip.click();
   await dismissHowTo(page);
   return errors;
 }
@@ -89,8 +91,12 @@ async function attackUntil(page, pred, timeoutMs) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const browser = await chromium.launch({ headless: true, args: ["--use-gl=angle", "--use-angle=swiftshader"] });
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    recordVideo: { dir: outDir, size: { width: 1280, height: 800 } }
+  });
+  const page = await context.newPage();
   activePage = page;
   page.setDefaultTimeout(120000);
   page.setDefaultNavigationTimeout(120000);
@@ -163,9 +169,25 @@ async function main() {
   }));
   log(
     "shop-inventory",
-    afterBuy.shack === beforeBuy.shack + 1 && afterBuy.coins === beforeBuy.coins - 45 + 25 && afterBuy.done === true,
+    afterBuy.shack === beforeBuy.shack + 1 && afterBuy.coins === beforeBuy.coins - 45 + 25 && afterBuy.step === 6 && afterBuy.done === false,
     JSON.stringify({ beforeBuy, afterBuy })
   );
+  await page.locator("#shopModal .close").click().catch(() => {});
+
+  await go(page, "city");
+  await page.waitForFunction(() => window.World3D?.isReady?.() === true, { timeout: 40000 });
+  const crypt = await page.evaluate(() => window.me.inventory?.materials?.crypt || 0);
+  if (crypt < 1) await page.evaluate(() => window.Chapter1.ensureCityKit(window.me));
+  await page.click("#btnBuild");
+  const cityCanvas = await page.locator("#stage3d").boundingBox();
+  await page.mouse.click(cityCanvas.x + cityCanvas.width * 0.5, cityCanvas.y + cityCanvas.height * 0.55);
+  await page.waitForFunction(() => window.me?.onboarding?.done === true && (window.me.cityStones || []).length >= 1, { timeout: 10000 });
+  const city = await page.evaluate(() => ({
+    stones: (window.me.cityStones || []).length,
+    built: window.me.built,
+    done: window.me.onboarding.done
+  }));
+  log("city-build", city.stones >= 1 && city.built >= 1 && city.done === true, JSON.stringify(city));
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__playerLoaded === true);
@@ -174,11 +196,12 @@ async function main() {
     done: window.me.onboarding?.done,
     shack: window.me.inventory?.materials?.shack || 0,
     coins: window.me.coins,
-    characterId: window.me.characterId
+    characterId: window.me.characterId,
+    stones: (window.me.cityStones || []).length
   }));
   log(
     "save-reload-progress",
-    persisted.done === true && persisted.shack >= 1 && persisted.characterId === "cobalt" && persisted.coins === afterBuy.coins,
+    persisted.done === true && persisted.shack >= 1 && persisted.characterId === "cobalt" && persisted.coins === afterBuy.coins + 55 && persisted.stones >= 1,
     JSON.stringify(persisted)
   );
 
@@ -211,6 +234,11 @@ async function main() {
     priorDuel: !!window.me?.story?.events?.duel_razor_win
   }));
   log("initiation", initiated && joinState.joined === true && joinState.authority >= 100 && joinState.rank === "gang_member", JSON.stringify(joinState));
+  const ending = await page.evaluate(() => ({
+    ended: window.me?.chapter1?.ended === true,
+    overlay: document.getElementById("chapterEnding")?.classList.contains("active") === true
+  }));
+  log("chapter-ending", ending.ended && ending.overlay, JSON.stringify(ending));
   await shot(page, "ch1-initiation.png");
 
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -219,9 +247,11 @@ async function main() {
   const joinPersist = await page.evaluate(() => ({
     joined: !!window.me?.story?.flags?.joined_gang,
     chapter: window.me?.story?.chapter,
-    characterId: window.me.characterId
+    characterId: window.me.characterId,
+    ended: window.me?.chapter1?.ended === true,
+    stones: (window.me?.cityStones || []).length
   }));
-  log("initiation-persists", joinPersist.joined === true && joinPersist.characterId === "cobalt", JSON.stringify(joinPersist));
+  log("initiation-persists", joinPersist.joined === true && joinPersist.characterId === "cobalt" && joinPersist.ended === true && joinPersist.stones >= 1, JSON.stringify(joinPersist));
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -249,7 +279,15 @@ async function main() {
   const serious = errors.filter(e => !/WebGL|GL Driver/i.test(e));
   log("no-pageerror", serious.length === 0, serious.join(" | ") || "none");
 
+  const video = page.video();
+  await context.close();
   await browser.close();
+  if (video) {
+    const src = await video.path();
+    const dest = path.join(outDir, "09-desktop-playthrough.webm");
+    fs.copyFileSync(src, dest);
+    log("playthrough-video", fs.statSync(dest).size > 1000, dest);
+  }
   const summary = { pass: results.every(r => r.pass), results };
   fs.writeFileSync(path.join(outDir, "ch1-results.json"), JSON.stringify(summary, null, 2));
   console.log(summary.pass ? "CHAPTER 1 JOURNEY PASS" : "CHAPTER 1 JOURNEY FAIL");

@@ -11,13 +11,16 @@ const ONBOARDING_STEPS = [
   { id: "win_fight", key: "win_fight", goal: 1, reward: { coins: 80, xp: 45 },
     target: () => ({ loc: "street", npcId: "razor" }) },
   { id: "shop_buy", key: "shop_buy", goal: 1, reward: { coins: 25, xp: 35 },
-    target: () => ({ loc: "room", wx: -1, wz: 0, ui: "shop" }) }
+    target: () => ({ loc: "room", wx: -1, wz: 0, ui: "shop" }) },
+  { id: "city_build", key: "city_build", goal: 1, reward: { coins: 55, xp: 40 },
+    target: () => ({ loc: "city", wx: 0, wz: 0, ui: "build" }) }
 ];
 
 /** Portal waypoints when the player is not yet in the step's target location. */
 const PORTAL_WAYPOINTS = {
   street: { room: { wx: 0, wz: 5.2 } },
-  cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.2 } }
+  cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.2 } },
+  city: { street: { wx: 0, wz: 8 }, room: { wx: 0, wz: 5.2 } }
 };
 
 function ensureOnboardingShape(ob) {
@@ -106,6 +109,8 @@ function completeStep() {
   toast((typeof t === "function" ? t("onboard_step_done") : "Step complete!") + " +" + shown);
   window.me.onboarding.step = (window.me.onboarding.step || 0) + 1;
   window.me.onboarding.progress = {};
+  const next = currentStep();
+  if (next?.id === "city_build") window.Chapter1?.ensureCityKit?.(window.me);
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
     window.me.onboarding.done = true;
     toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");
@@ -115,6 +120,7 @@ function completeStep() {
   else saveMeQuiet();
   renderOnboardingQuest();
   syncGuideTarget();
+  window.Chapter1?.refreshGuide?.();
 }
 
 function saveMeQuiet() {
@@ -154,9 +160,9 @@ function getGuideTarget() {
   const st = currentStep();
   if (!st || !window.me) return null;
   const tgt = st.target();
-  if (tgt.ui === "shop") {
-    if (window.me.location === "room") return { wx: tgt.wx, wz: tgt.wz };
-    return waypointToReach("room") || null;
+  if (tgt.ui === "shop" || tgt.ui === "build") {
+    if (window.me.location === tgt.loc) return { wx: tgt.wx, wz: tgt.wz };
+    return waypointToReach(tgt.loc) || null;
   }
   if (tgt.loc && window.me.location !== tgt.loc) {
     const wp = waypointToReach(tgt.loc);
@@ -186,12 +192,17 @@ function onEnterLocation(loc) {
   if (!st) return;
   if (st.key === "visit_street" && loc === "street") bump("visit_street", 1);
   if (st.key === "visit_cemetery" && loc === "cemetery") bump("visit_cemetery", 1);
+  window.Chapter1?.refreshGuide?.();
 }
 
 function onTalkRazor() { bump("talk_razor", 1); }
 function onVisitCemetery() { if (window.me?.location === "cemetery") bump("visit_cemetery", 1); }
 function onWinFight() { bump("win_fight", 1); }
 function onShopBuy() { bump("shop_buy", 1); }
+function onCityBuild() { bump("city_build", 1); }
+function stepId() {
+  return currentStep()?.id || "";
+}
 
 function adaptSpawnLocation() {
   if (!window.me?.onboarding || window.me.onboarding.done) return;
@@ -209,6 +220,7 @@ function initOnboarding() {
   ensurePlayerOnboarding();
   renderOnboardingQuest();
   syncGuideTarget();
+  window.Chapter1?.refreshGuide?.();
 }
 
 window.Onboarding = {
@@ -222,6 +234,8 @@ window.Onboarding = {
   onVisitCemetery,
   onWinFight,
   onShopBuy,
+  onCityBuild,
+  stepId,
   getGuideTarget,
   normalizeFromSave,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)

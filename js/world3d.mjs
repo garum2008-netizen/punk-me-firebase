@@ -360,6 +360,28 @@ async function loadModels() {
   modelsReady = true;
 }
 
+function placeCityStone(x, z, remember) {
+  if (!locationRoot || currentLoc !== "city" || typeof THREE === "undefined") return false;
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.55, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0xc9a0ff, emissive: 0x441166, roughness: 0.45 })
+  );
+  mesh.position.set(x, 0.28, z);
+  mesh.name = "city-stone";
+  locationRoot.add(mesh);
+  if (remember && window.me) {
+    window.me.cityStones = Array.isArray(window.me.cityStones) ? window.me.cityStones : [];
+    window.me.cityStones.push({ x, z });
+  }
+  return true;
+}
+
+function replayCityStones() {
+  const list = window.me?.cityStones;
+  if (!Array.isArray(list)) return;
+  list.forEach(s => placeCityStone(s.x, s.z, false));
+}
+
 function clearLocation() {
   if (locationRoot) {
     scene.remove(locationRoot);
@@ -397,6 +419,7 @@ function rebuildLocation(locId) {
   spawnParticles(locId);
   ensureMarkerRoot(scene);
   onGameplayLocationBuilt(locId, locationRoot, bounds);
+  if (locId === "city") replayCityStones();
 }
 
 function spawnParticles(locId) {
@@ -1330,6 +1353,10 @@ function onPointer(e) {
       window.decorPlaceAtWorld?.(hit.point.x, hit.point.z);
       return;
     }
+    if (window.__buildMode && currentLoc === "city") {
+      window.tryPlaceBuild?.(50, 50, { x: hit.point.x, z: hit.point.z });
+      return;
+    }
     const g = worldToGameLoc(hit.point.x, hit.point.z, bounds);
     hooks.onMove?.(g.x, g.y);
   }
@@ -1541,6 +1568,7 @@ const api = {
   refreshHangoutStage: stage => {
     if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
   },
+  placeCityStone: (x, z) => placeCityStone(x, z, true),
   setPortalGrace: (ms = 1500) => {
     portalGraceUntil = performance.now() + ms;
   },

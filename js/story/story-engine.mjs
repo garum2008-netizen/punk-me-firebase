@@ -4,6 +4,7 @@
 
 import * as Authority from "./authority.mjs";
 import { findNpcDialogue } from "./npc-dialogue.mjs";
+import { claimOnce } from "./reward-guard.mjs";
 
 const DATA_BASE = "data/story/";
 const CALLOUT_COOLDOWN_MS = 90000;
@@ -339,6 +340,7 @@ function onJoinedGang() {
     startQuest("q_hangout_build");
   }
   hooks.toast?.(L({ ru: "Нашивка «Ржавые Цепи» получена!", en: "Rusty Chains patch earned!", da: "Rusty Chains-mærke!" }));
+  window.Chapter1?.showEnding?.();
 }
 
 export function startQuest(qid) {
@@ -362,9 +364,8 @@ function completeQuest(qid) {
   const p = me();
   const st = ensureStoryState(p);
   const q = data.quests.find(x => x.id === qid);
-  if (!q) return;
+  if (!q || !claimOnce(st.quest.completed, qid)) return;
   applyEffects(q.rewards);
-  st.quest.completed[qid] = true;
   if (st.quest.activeId === qid) {
     st.quest.activeId = null;
     st.quest.step = 0;
@@ -500,11 +501,12 @@ function openQuestChoices(q) {
   body.querySelectorAll(".story-choice").forEach(btn => {
     btn.onclick = () => {
       const c = q.choices.find(x => x.id === btn.dataset.choice);
-      if (c && !story().choices[q.id + ":" + c.id]) {
-        story().choices[q.id + ":" + c.id] = true;
-        story().choices[q.id] = c.id;
-        applyEffects(c.effects);
+      if (!c || !claimOnce(story().choices, q.id, c.id)) {
+        dlg.classList.remove("active");
+        return;
       }
+      story().choices[q.id + ":" + c.id] = true;
+      applyEffects(c.effects);
       dlg.classList.remove("active");
       completeQuest(q.id);
     };
@@ -983,11 +985,6 @@ export function initStoryEngine(h) {
   return loadStoryData()
     .then(() => {
       ensureStoryState(me());
-      const bal = data.balance;
-      if (bal?.startingCoins && !window.devCoinsEnabled?.()) {
-        const p = me();
-        if (p.coins > bal.startingCoins + 50) p.coins = bal.startingCoins;
-      }
       renderObjectivePanel();
       window.StoryEngine = api;
       window.StoryEngine.openNoRatChoice = () => Authority.openNoRatChoice?.();
