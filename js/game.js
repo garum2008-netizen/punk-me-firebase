@@ -1170,7 +1170,7 @@ function playerPresenceFresh(p) {
 }
 
 function listenPresence() {
-  if (!presenceOk) {
+  if (!db || !presenceOk) {
     listenPlayersInLocation();
     return;
   }
@@ -1208,6 +1208,13 @@ function listenPresence() {
 }
 
 function listenPlayersInLocation() {
+  if (!db) {
+    others = {};
+    renderPlayers();
+    renderPlayersList();
+    updateOnlineCount();
+    return;
+  }
   if (playersListenRef) playersListenRef.off();
   if (isPrivateRoomLoc(me.location)) {
     others = {};
