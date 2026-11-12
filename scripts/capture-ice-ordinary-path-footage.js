@@ -942,6 +942,7 @@ async function runOrdinarySession(browser, viewport, label) {
     videoSaveError: videoSaveError || (video ? "pending_ctx_close" : null),
     videoDir,
     ctx,
+    _video: video,
     minVideoBytes,
     _recordStartMs: recordStartMs,
     file: dest,
@@ -977,20 +978,32 @@ async function runOrdinarySession(browser, viewport, label) {
     } catch (_) {}
   } finally {
     for (const r of results) {
+      const minB = r?.minVideoBytes ?? (ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
       try {
-        if (r?.ctx) {
-          await r.ctx.close();
-          for (let i = 0; i < 40; i++) {
-            const minB = r?.minVideoBytes ?? (ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
-            rescueOrdinaryRecording(r, minB);
-            if (r.file && fs.existsSync(r.file) && fs.statSync(r.file).size >= minB) break;
-            await new Promise(resolve => setTimeout(resolve, 400));
+        if (r?.ctx) await r.ctx.close();
+        if (r?._video && r.file) {
+          fs.mkdirSync(path.dirname(r.file), { recursive: true });
+          try {
+            await r._video.saveAs(r.file);
+            r.videoSaveError = null;
+          } catch (e) {
+            r.videoSaveError = String(e.message || e);
+            try {
+              const vp = await r._video.path();
+              if (vp && fs.existsSync(vp) && fs.statSync(vp).size >= minB) {
+                fs.copyFileSync(vp, r.file);
+                r.videoSaveError = null;
+              }
+            } catch (_) {}
           }
         }
+        if (!r?.videoSaveError) Object.assign(r, ffprobeMeta(r.file));
+        else rescueOrdinaryRecording(r, minB);
       } catch (_) {}
-      const minB = r?.minVideoBytes ?? (ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
-      rescueOrdinaryRecording(r, minB);
-      if (r) delete r.ctx;
+      if (r) {
+        delete r.ctx;
+        delete r._video;
+      }
     }
     await browser.close();
     try {
