@@ -896,75 +896,7 @@ async function runOrdinarySession(browser, viewport, label) {
   );
   let videoSaveError = null;
   const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
-  async function waitStableWebmFile() {
-    let lastPath = null;
-    let lastSize = 0;
-    let stable = 0;
-    for (let i = 0; i < 90; i++) {
-      await new Promise(r => setTimeout(r, 400));
-      let candidate = findWebmUnder(videoDir);
-      if (!candidate && video) {
-        try {
-          const p = await video.path();
-          if (p && fs.existsSync(p)) candidate = p;
-        } catch (_) {}
-      }
-      if (!candidate || !fs.existsSync(candidate)) {
-        stable = 0;
-        continue;
-      }
-      const sz = fs.statSync(candidate).size;
-      if (sz < minVideoBytes) {
-        stable = 0;
-        lastPath = candidate;
-        lastSize = sz;
-        continue;
-      }
-      if (candidate === lastPath && sz === lastSize) stable += 1;
-      else stable = 0;
-      lastPath = candidate;
-      lastSize = sz;
-      if (stable >= 2) return candidate;
-    }
-    return lastPath && fs.existsSync(lastPath) && fs.statSync(lastPath).size >= minVideoBytes
-      ? lastPath
-      : null;
-  }
   await page.close().catch(() => {});
-  let ctxClosed = false;
-  if (video) {
-    let stable = await waitStableWebmFile();
-    try {
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      if (stable && fs.existsSync(stable)) {
-        fs.copyFileSync(stable, dest);
-      }
-    } catch (e) {
-      videoSaveError = String(e.message || e);
-    }
-    if (!fs.existsSync(dest) || fs.statSync(dest).size < minVideoBytes) {
-      await ctx.close();
-      ctxClosed = true;
-      stable = await waitStableWebmFile();
-      try {
-        if (stable && fs.existsSync(stable)) {
-          fs.copyFileSync(stable, dest);
-          videoSaveError = null;
-        } else {
-          await video.saveAs(dest);
-          videoSaveError = null;
-        }
-      } catch (e) {
-        videoSaveError = String(e.message || e);
-        const fallback = findWebmUnder(videoDir);
-        if (fallback && fs.existsSync(fallback) && fs.statSync(fallback).size >= minVideoBytes) {
-          fs.copyFileSync(fallback, dest);
-          videoSaveError = null;
-        }
-      }
-    }
-  }
-  if (!ctxClosed) await ctx.close();
 
   return {
     label,
@@ -980,8 +912,10 @@ async function runOrdinarySession(browser, viewport, label) {
     prodFirebaseDeniedUrls: prodHits.urls.slice(),
     prodNetworkCoverageNote:
       "Blocked URLs listed when prod host matched; zero blocks means no prod host appeared, not full egress inventory.",
-    videoSaveError,
+    videoSaveError: videoSaveError || (video ? "pending_ctx_close" : null),
     videoDir,
+    ctx,
+    minVideoBytes,
     file: dest,
     inputLog: inputLog.slice(),
     scenes: scenes.slice(),
@@ -1015,7 +949,15 @@ async function runOrdinarySession(browser, viewport, label) {
     } catch (_) {}
   } finally {
     for (const r of results) {
-      rescueOrdinaryRecording(r, ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
+      try {
+        if (r?.ctx) {
+          await r.ctx.close();
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      } catch (_) {}
+      const minB = r?.minVideoBytes ?? (ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
+      rescueOrdinaryRecording(r, minB);
+      if (r) delete r.ctx;
     }
     await browser.close();
     try {
