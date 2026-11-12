@@ -1,7 +1,7 @@
 # READY FOR OWNER ACCEPTANCE — Chapter 1 + Avatar Creator (t204u)
 
 **Branch:** [`cursor/vertical-slice-ch1-d81d`](https://github.com/garum2008-netizen/punk-me-firebase/tree/cursor/vertical-slice-ch1-d81d)  
-**Candidate commit:** `2b4ed404af2961911509f36cd01e5a5473da13fa`  
+**Candidate commit:** `a95efee6edd5c136035ed5fa5911c9ca214643ea`  
 **Status:** `READY_FOR_OWNER_ACCEPTANCE` (t204u P0 Character Studio foundation + t203 Ch1 path).  
 **Merge / production / App Store / payments:** **HOLD**
 
@@ -31,6 +31,7 @@
 | Story bible t204u | ✅ | `STORY_BIBLE.md`, `CHAPTER_01_STORY_ARC.md` |
 | Design docs | ✅ | `docs/game-design/AVATAR_*`, `COSMETIC_CATALOG.md` |
 | Six sample configs | ✅ | `docs/game-design/sample-avatars-t204.json` |
+| **t206u CYBER PUNK BLUE** | ✅ | `test-avatar-qa-t206.js` + QA screenshots in `/opt/cursor/artifacts/avatar-qa-t206/` |
 | Desktop UNCUT (t203 baseline) | ✅ | `EVIDENCE_INTEGRITY.json` — **new UNCUT through Character Studio pending** |
 
 ## Missing assets (honest)
