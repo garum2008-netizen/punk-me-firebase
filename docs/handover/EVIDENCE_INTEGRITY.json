@@ -1,13 +1,34 @@
 {
   "gameplayAcceptanceSha": "552740b782bf415cd788f996fd5e7005d9874bfe",
-  "updatedAt": "2026-11-12T17:30:00Z",
+  "updatedAt": "2026-11-12T18:15:00+01:00",
   "ownerDirective": "t201u-2026-11-12-production-HOLD",
+  "protectedPreview552740b": {
+    "policy": "Isolated Ch1 preview only — not production.",
+    "live": true,
+    "url": "https://punk-me-preview-552740b.pages.dev",
+    "pagesProject": "punk-me-preview-552740b",
+    "deploymentId": "43370a7a-86c4-41f7-9812-af20636c2ca9",
+    "tarballSha256": "cf9239e66f4fc2b84d24986af51f447d808da9964c62a8f0ebfe3054ab803045",
+    "gitPin": "552740b782bf415cd788f996fd5e7005d9874bfe",
+    "verifiedBy": "Game Bot",
+    "verifiedAtNote": "401 unauthenticated; 200 with Basic Auth; 140 files hash-identical; X-Robots-Tag noindex; robots Disallow; no prod Firebase; /api stub 503",
+    "serveModel": "Pages _worker.js + KV namespace punk-me-preview-552740b-assets (JWT direct-upload workaround)",
+    "agentStoreBundle": "/cursor/stores/self/preview-552740b/punk-me-preview-552740b.tar.gz",
+    "cursorStagingProjectUnused": "punk-me-ch1-preview (empty; owner: delete nothing)",
+    "nextPreviewPolicy": "When branch tip (city build + Angelina) is ready, agent publishes new verified tarball to Agent Store; Game Bot redeploys same project."
+  },
   "desktopUncutVideo": {
-    "policy": "Exactly one unique desktop UNCUT recording for acceptance evidence.",
-    "canonical": {
+    "policy": "Exactly one unique desktop UNCUT recording per acceptance generation.",
+    "pinned552740b": {
       "path": "/opt/cursor/artifacts/ice-ch1-footage/ice-ch1-ORDINARY-UNCUT-desktop-552740b782bf-desktop1280x720-pass03.webm",
       "passLabel": "pass03",
-      "note": "Only this file is an independent desktop screen recording."
+      "note": "Desktop UNCUT at pinned gameplay SHA (no step-7 city build in recording era)."
+    },
+    "branchTipCeoP0": {
+      "status": "in_progress",
+      "targetPass": "ceo-desktop-full-v3",
+      "requiresOnboardingStep7AndCh1Complete": true,
+      "note": "Supersedes pass03 for CEO P0 only after successful WebM landing."
     },
     "retractedAliases": {
       "formerPass01Pass02": "Previously duplicated pass03 bytes — removed from evidence set 2026-11-12 per t201u."
@@ -19,6 +40,7 @@
   },
   "logicalAutomationPasses": {
     "threePassSummary": "/opt/cursor/artifacts/ice-ch1-footage/ice-ordinary-three-pass-552740b782bf.json",
-    "note": "3× logical full ordinary (portrait+desktop sessions per run); desktop UNCUT proven once via pass03."
+    "ceoDesktopFullV2Metadata": "/opt/cursor/artifacts/ice-ch1-footage/ice-ordinary-footage-metadata-pass-ceo-desktop-full-v2.json",
+    "note": "3× logical full ordinary (portrait+desktop); v2 proved step 7 + Ch1 complete; v3 for UNCUT WebM."
   }
 }

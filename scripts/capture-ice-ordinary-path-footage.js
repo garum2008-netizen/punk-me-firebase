@@ -878,30 +878,49 @@ async function runOrdinarySession(browser, viewport, label) {
     }
     return latest;
   }
+  const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
+  async function waitStableWebmFile() {
+    let lastPath = null;
+    let lastSize = 0;
+    let stable = 0;
+    for (let i = 0; i < 90; i++) {
+      await new Promise(r => setTimeout(r, 400));
+      let candidate = findWebmUnder(videoDir);
+      if (!candidate && video) {
+        try {
+          const p = await video.path();
+          if (p && fs.existsSync(p)) candidate = p;
+        } catch (_) {}
+      }
+      if (!candidate || !fs.existsSync(candidate)) {
+        stable = 0;
+        continue;
+      }
+      const sz = fs.statSync(candidate).size;
+      if (sz < minVideoBytes) {
+        stable = 0;
+        lastPath = candidate;
+        lastSize = sz;
+        continue;
+      }
+      if (candidate === lastPath && sz === lastSize) stable += 1;
+      else stable = 0;
+      lastPath = candidate;
+      lastSize = sz;
+      if (stable >= 2) return candidate;
+    }
+    return lastPath && fs.existsSync(lastPath) && fs.statSync(lastPath).size >= minVideoBytes
+      ? lastPath
+      : null;
+  }
   await page.close().catch(() => {});
   await ctx.close();
-  await new Promise(r => setTimeout(r, 1500));
-  const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
   if (video) {
-    let tmp = null;
-    for (let attempt = 0; attempt < 60; attempt++) {
-      await new Promise(r => setTimeout(r, 500));
-      try {
-        tmp = await video.path();
-      } catch (_) {
-        tmp = null;
-      }
-      if (tmp && fs.existsSync(tmp) && fs.statSync(tmp).size >= minVideoBytes) break;
-      const fallback = findWebmUnder(videoDir);
-      if (fallback && fs.existsSync(fallback) && fs.statSync(fallback).size >= minVideoBytes) {
-        tmp = fallback;
-        break;
-      }
-    }
+    const stable = await waitStableWebmFile();
     try {
-      if (tmp && fs.existsSync(tmp)) {
-        fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.copyFileSync(tmp, dest);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      if (stable) {
+        fs.copyFileSync(stable, dest);
       } else {
         await video.saveAs(dest);
       }

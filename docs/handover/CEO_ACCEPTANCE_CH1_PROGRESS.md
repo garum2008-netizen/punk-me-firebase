@@ -2,7 +2,7 @@
 
 **Decision:** GO protected preview · HOLD merge/production  
 **Target:** 20 Nov 2026  
-**Last updated:** 2026-11-12 (agent run)
+**Last updated:** 2026-11-12 18:15 CET (Game Bot preview live)
 
 ## Preview bundle (verified)
 
@@ -17,11 +17,12 @@
 
 | Item | Status |
 |------|--------|
-| Pages project | `punk-me-ch1-preview` |
-| Default URL | `https://punk-me-ch1-preview.pages.dev` |
-| Basic Auth env | `PREVIEW_USER` / `PREVIEW_PASS` set via API (values **only** in Cloudflare dashboard) |
-| First deployment | **Pending** — needs `CLOUDFLARE_API_TOKEN` on runner with `scripts/deploy-verified-bundle-pages.sh` |
-| Post-deploy checks | 401 without auth; 200 + `X-Robots-Tag` with auth; `robots.txt` Disallow |
+| **Live URL** | **https://punk-me-preview-552740b.pages.dev** |
+| Pages project | `punk-me-preview-552740b` |
+| Deployment | `43370a7a-86c4-41f7-9812-af20636c2ca9` |
+| Tarball | SHA `cf9239e66f4fc2b84d24986af51f447d808da9964c62a8f0ebfe3054ab803045` — verified by Game Bot |
+| Cursor empty project | `punk-me-ch1-preview` — **do not deploy; do not delete** |
+| Next preview | New tarball in Agent Store when branch tip ready → Game Bot redeploys same project |
 
 ## Product / evidence
 
@@ -30,11 +31,11 @@
 | Onboarding step 7 (city build) | **PASS** (`ceo-desktop-full-v2` session @ `52a91c9`) |
 | Angelina guide (onboarding + Life Ch1) | Banner + RU/EN/DA for all onboarding + Life Ch1 step ids |
 | Full Ch1 playthrough (logic) | **PASS** (`ch1_complete`, onboarding → Life Ch1 end) |
-| Desktop UNCUT video (`ceo-desktop-full-v2`) | **Re-run** after Playwright video save fix (metadata JSON already on disk) |
+| Desktop UNCUT video (`ceo-desktop-full-v3`) | **In progress** (`a37c200` video save fix); v2 logic PASS, metadata on disk |
 | Production / main merge | **HOLD** |
 
 ## Definition of Done (remaining)
 
-1. Deploy tarball to `punk-me-ch1-preview` and verify auth/noindex.
-2. Ordinary path: onboarding step 7 + Life Ch1 complete + chapter end on desktop video.
-3. Owner playable URL + acceptance summary (no credentials in repo or reports).
+1. ~~Deploy preview @ 552740b~~ **Done** (Game Bot).
+2. Desktop UNCUT `ceo-desktop-full-v3` with step 7 + Ch1 end.
+3. When branch tip ready: new Agent Store tarball for Game Bot (city + Angelina on live preview).
