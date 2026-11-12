@@ -1,0 +1,4 @@
+.tools/
+build/*.rbxlx
+*.rbxl
+*.rbxlx.lock
