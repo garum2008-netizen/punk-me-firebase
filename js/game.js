@@ -2558,6 +2558,7 @@ window.buyItem = buyItem;
 window.doJob = doJob;
 window.openJobPanel = openJobPanel;
 window.toggleBuildMode = toggleBuildMode;
+window.isBuildMode = () => buildMode;
 window.startFightUi = startFightUi;
 window.fightAttack = fightAttack;
 window.fightDodge = fightDodge;

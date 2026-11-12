@@ -1935,6 +1935,10 @@ function onPointer(e) {
       return;
     }
     const g = worldToGameLoc(hit.point.x, hit.point.z, bounds);
+    if (typeof window.isBuildMode === "function" && window.isBuildMode() && window.me?.location === "city") {
+      window.tryPlaceBuild?.(g.x, g.y);
+      return;
+    }
     hooks.onMove?.(g.x, g.y);
   }
   let best = null;
