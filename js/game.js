@@ -38,10 +38,15 @@ let lastPresenceAnimPush = 0;
 
 function soloMode() {
   try {
+    if (window.__PUNK_PREVIEW__ === true) return true;
     return new URLSearchParams(location.search).has("solo");
   } catch (e) {
     return false;
   }
+}
+
+function isPreviewBuild() {
+  return window.__PUNK_PREVIEW__ === true;
 }
 
 function demoPartyMode() {
@@ -731,6 +736,39 @@ function syncStage3D() {
   });
 }
 
+function installPreviewBanner() {
+  if (document.getElementById("previewBanner")) return;
+  const el = document.createElement("div");
+  el.id = "previewBanner";
+  el.textContent = "PREVIEW — progress stays on this device. SHA " + (document.querySelector('meta[name="punk-preview-sha"]')?.content || GAME_VERSION);
+  el.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:210;background:#140018;color:#ffe81f;text-align:center;font-size:12px;padding:4px 8px;";
+  document.body.appendChild(el);
+}
+
+function bootPreviewSession() {
+  installPreviewBanner();
+  presenceOk = false;
+  uid = window.PunkPreviewSave?.getDeviceId?.() || "preview_local";
+  window.uid = uid;
+  isOwner = false;
+  window.isOwner = false;
+  window.__punkFirebaseReady = Promise.resolve();
+  window.dispatchEvent(new Event("punkme-firebase-ready"));
+  const saved = window.PunkPreviewSave?.load?.();
+  if (saved) {
+    applyFirebasePlayerSnapshot({ exists: () => true, val: () => saved });
+    finishLoadMeFlow();
+    return;
+  }
+  window.__playerLoaded = false;
+  hideLoading();
+  const openSelect = () => {
+    if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
+    else setTimeout(openSelect, 120);
+  };
+  openSelect();
+}
+
 function init() {
   me = defaultPlayer();
   window.me = me;
@@ -742,7 +780,11 @@ function init() {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);
     btn.classList.toggle("active", btn.dataset.lang === getLanguage());
   });
-  try {
+  if (isPreviewBuild()) {
+    bootPreviewSession();
+    const ver = document.getElementById("gameVersion");
+    if (ver) ver.textContent = GAME_VERSION + "-preview";
+  } else try {
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
     db = firebase.database();
@@ -754,7 +796,7 @@ function init() {
     showLoadingFailure(t("loading_boot_error"), bootErr.message || String(bootErr));
     return;
   }
-  auth.onAuthStateChanged(async u => {
+  if (!isPreviewBuild()) auth.onAuthStateChanged(async u => {
     if (u) {
       uid = u.uid;
       window.uid = uid;
@@ -901,6 +943,7 @@ function pickCharacterAndContinue(id) {
   const def = getCharacterDef(id);
   me.avatar = def.poster;
   me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
+  window.__playerLoaded = true;
   saveMe();
   continueGameBoot();
 }
@@ -1002,6 +1045,10 @@ function saveMe() {
   if (me.level > prevLvl) showLevelUpPopup(t("level_unlock"));
   me.lastSeen = Date.now();
   const payload = sanitizePlayer(me);
+  if (isPreviewBuild()) {
+    window.PunkPreviewSave?.save?.(payload);
+    return;
+  }
   // players/{uid} must succeed even when publicProfiles is denied (pre-rules-publish).
   db.ref("players/" + uid).update(payload);
   db.ref("publicProfiles/" + uid)
@@ -1062,7 +1109,7 @@ function sanitizePlayer(p) {
 }
 
 function initMultiplayer() {
-  if (!uid) return;
+  if (!uid || !db) return;
   const probe = db.ref("presence/" + me.location + "/" + uid);
   const probePayload = {
     name: me.name || "Player",
@@ -1217,6 +1264,7 @@ function localizeChatText(text) {
 }
 
 function listenChat() {
+  if (!db) return;
   db.ref("chat").limitToLast(25).on("child_added", s => {
     const m = s.val();
     if (!m) return;
@@ -1230,6 +1278,10 @@ function listenChat() {
 
 function listenBuildings() {
   const zone = LOCATIONS[me.location]?.buildZone;
+  if (!db) {
+    if (!zone || zone === "room_private") loadPrivateDecor();
+    return;
+  }
   if (!zone || zone === "room_private") {
     loadPrivateDecor();
     return;
@@ -2001,6 +2053,11 @@ function sendChat() {
   const inp = document.getElementById("chatInput");
   const text = inp.value.trim();
   if (!text) return;
+  if (!db) {
+    toast(t("chatDown"));
+    inp.value = "";
+    return;
+  }
   db.ref("chat").push({ uid, name: me.name, text, time: Date.now(), loc: me.location }).catch(() => {
     toast(t("chatDown"));
   });
