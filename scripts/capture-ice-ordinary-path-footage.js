@@ -91,15 +91,41 @@ function findWebmUnder(dir) {
   return latest;
 }
 
+function findNewestWebmSince(root, sinceMs, minBytes) {
+  if (!fs.existsSync(root)) return null;
+  let best = null;
+  let bestMt = sinceMs;
+  const stack = [root];
+  while (stack.length) {
+    const cur = stack.pop();
+    for (const ent of fs.readdirSync(cur, { withFileTypes: true })) {
+      const p = path.join(cur, ent.name);
+      if (ent.isDirectory()) stack.push(p);
+      else if (ent.name.endsWith(".webm")) {
+        const st = fs.statSync(p);
+        if (st.mtimeMs >= sinceMs - 2000 && st.size >= minBytes && st.mtimeMs >= bestMt) {
+          bestMt = st.mtimeMs;
+          best = p;
+        }
+      }
+    }
+  }
+  return best;
+}
+
 function rescueOrdinaryRecording(rec, minBytes = 400_000) {
-  if (!rec?.file || !rec?.videoDir) return;
+  if (!rec?.file) return;
   try {
     if (fs.existsSync(rec.file) && fs.statSync(rec.file).size >= minBytes) {
       rec.videoSaveError = null;
+      Object.assign(rec, ffprobeMeta(rec.file));
       return;
     }
   } catch (_) {}
-  const w = findWebmUnder(rec.videoDir);
+  let w = rec.videoDir ? findWebmUnder(rec.videoDir) : null;
+  if (!w || !fs.existsSync(w) || fs.statSync(w).size < minBytes) {
+    w = findNewestWebmSince(OUT, rec._recordStartMs || Date.now() - 7200000, minBytes);
+  }
   if (!w || !fs.existsSync(w) || fs.statSync(w).size < minBytes) return;
   fs.mkdirSync(path.dirname(rec.file), { recursive: true });
   fs.copyFileSync(w, rec.file);
@@ -849,6 +875,7 @@ async function runOrdinarySession(browser, viewport, label) {
   });
 
   t0 = Date.now();
+  const recordStartMs = Date.now();
   inputLog.length = 0;
   scenes.length = 0;
   const recordingStartUtc = new Date();
@@ -896,15 +923,6 @@ async function runOrdinarySession(browser, viewport, label) {
   );
   let videoSaveError = null;
   const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
-  if (video) {
-    try {
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      await video.saveAs(dest);
-      videoSaveError = null;
-    } catch (e) {
-      videoSaveError = String(e.message || e);
-    }
-  }
   await page.close().catch(() => {});
 
   return {
@@ -925,6 +943,7 @@ async function runOrdinarySession(browser, viewport, label) {
     videoDir,
     ctx,
     minVideoBytes,
+    _recordStartMs: recordStartMs,
     file: dest,
     inputLog: inputLog.slice(),
     scenes: scenes.slice(),
@@ -961,7 +980,12 @@ async function runOrdinarySession(browser, viewport, label) {
       try {
         if (r?.ctx) {
           await r.ctx.close();
-          await new Promise(resolve => setTimeout(resolve, 800));
+          for (let i = 0; i < 40; i++) {
+            const minB = r?.minVideoBytes ?? (ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
+            rescueOrdinaryRecording(r, minB);
+            if (r.file && fs.existsSync(r.file) && fs.statSync(r.file).size >= minB) break;
+            await new Promise(resolve => setTimeout(resolve, 400));
+          }
         }
       } catch (_) {}
       const minB = r?.minVideoBytes ?? (ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);

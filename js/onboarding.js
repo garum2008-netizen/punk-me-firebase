@@ -183,7 +183,13 @@ function onWinFight() { bump("win_fight", 1); }
 function onShopBuy() { bump("shop_buy", 1); }
 
 function onCityBuildPlaced() {
-  if (window.me?.location === "city") bump("city_build", 1);
+  if (window.me?.location !== "city") return;
+  const st = currentStep();
+  if (st?.key === "city_build") {
+    const line = typeof t === "function" ? t("story_crypt_placed") : "";
+    if (line) toast(line);
+  }
+  bump("city_build", 1);
 }
 
 function adaptSpawnLocation() {
