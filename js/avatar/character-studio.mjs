@@ -23,12 +23,13 @@ function tt(key, fb) {
   return typeof window.t === "function" ? window.t(key) : fb;
 }
 
-function sectionOptions(list, selected, field) {
+function sectionOptions(list, selected, field, multi = false) {
+  const accSet = multi ? new Set(config.accessories || []) : null;
   return (list || [])
-    .map(
-      row =>
-        `<button type="button" class="studio-pick${row.id === selected ? " selected" : ""}" data-field="${field}" data-id="${row.id}">${L(row.label)}</button>`
-    )
+    .map(row => {
+      const isSel = multi ? accSet.has(row.id) : row.id === selected;
+      return `<button type="button" class="studio-pick${isSel ? " selected" : ""}" data-field="${field}" data-id="${row.id}">${L(row.label)}</button>`;
+    })
     .join("");
 }
 
@@ -46,7 +47,7 @@ function renderStudio(root) {
       <div class="studio-section"><b>${tt("studio_hair_color", "Hair color")}</b><div class="studio-row studio-row-scroll">${sectionOptions(catalog.hairColors, config.hairColor, "hairColor")}</div></div>
       <div class="studio-section"><b>${tt("studio_body", "Body")}</b><div class="studio-row">${sectionOptions(catalog.bodyPresets, config.bodyPreset, "bodyPreset")}</div></div>
       <div class="studio-section"><b>${tt("studio_style", "Outfit style")}</b><div class="studio-row">${sectionOptions(catalog.clothingStyles, config.outfitStyle, "outfitStyle")}</div></div>
-      <div class="studio-section"><b>${tt("studio_accessories", "Accessories")}</b><div class="studio-row studio-row-scroll">${sectionOptions(catalog.accessories, config.accessories?.[0], "accessoryToggle")}</div></div>
+      <div class="studio-section"><b>${tt("studio_accessories", "Accessories")}</b><div class="studio-row studio-row-scroll">${sectionOptions(catalog.accessories, config.accessories?.[0], "accessoryToggle", true)}</div></div>
       <div class="studio-section"><b>${tt("studio_companion", "Companion Angelina (story)")}</b><div class="studio-row">${
         (catalog.companionAngelinaSkins || ["A", "B", "C"])
           .map(

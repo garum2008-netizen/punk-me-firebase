@@ -453,12 +453,16 @@ async function uiOpenMapTravel(page, locId) {
   await page.waitForFunction(id => window.me?.location === id, locId, { timeout: 45000 });
 }
 
+const { configureCyberPunkBlueStudio, QA_CYBER_PUNK_BLUE } = require("./confirm-character-studio");
+
 async function pickAngelina(page) {
   await page.waitForSelector("#charSelect.active", { timeout: 120000 });
-  logInput("click", "character studio confirm");
-  await page.waitForSelector('[data-testid="character-studio"]', { timeout: 120000 });
-  await page.fill('[data-testid="hero-name-input"]', "InnaTest");
-  await page.click('[data-testid="character-studio-confirm"]');
+  logInput("click", "character studio CYBER PUNK BLUE (t206u)");
+  await configureCyberPunkBlueStudio(page, QA_CYBER_PUNK_BLUE.name);
+  await page.locator('[data-testid="character-studio-confirm"]').scrollIntoViewIfNeeded();
+  await page.evaluate(() => {
+    document.querySelector('[data-testid="character-studio-confirm"]')?.click();
+  });
   await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
 }
 

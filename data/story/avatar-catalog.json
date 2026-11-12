@@ -90,6 +90,19 @@
     { "id": "crown_01", "label": { "ru": "Корона", "en": "Crown", "da": "Krone" }, "spikes": true },
     { "id": "mask_01", "label": { "ru": "Маска", "en": "Mask", "da": "Maske" } }
   ],
+  "qaPresets": {
+    "cyber_punk_blue": {
+      "label": { "ru": "CYBER PUNK BLUE (QA t206u)", "en": "CYBER PUNK BLUE (QA t206u)", "da": "CYBER PUNK BLUE (QA t206u)" },
+      "config": {
+        "skinTone": "tone_02",
+        "hairStyle": "hair_mohawk",
+        "hairColor": "electric_blue",
+        "bodyPreset": "body_mohawk",
+        "outfitStyle": "style_cyber_punk",
+        "accessories": ["wings_01"]
+      }
+    }
+  },
   "companionAngelinaSkins": ["A", "B", "C"],
   "premiumPacksProposed": [
     { "id": "pack_cyber_angel", "label": { "ru": "Cyber Angel Pack", "en": "Cyber Angel Pack", "da": "Cyber Angel Pack" }, "items": ["wings_01", "style_cyber_punk", "aura_01"], "proposedPriceEur": "TBD" },

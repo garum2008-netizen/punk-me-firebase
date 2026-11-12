@@ -60,4 +60,11 @@ export function updateProcedural(actor, dt, _playerPos, _talking) {
   if (bones.head && rest.headX !== undefined) {
     bones.head.rotation.x = rest.headX + sway - 0.03;
   }
+  if (actor._wings) {
+    const flap = Math.sin(t * 3.2) * 0.08;
+    actor._wings.children?.forEach((w, i) => {
+      const baseZ = i === 0 ? 0.22 : -0.22;
+      w.rotation.z = (i === 0 ? baseZ : -baseZ) + flap * (i === 0 ? 1 : -1);
+    });
+  }
 }

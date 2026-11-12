@@ -796,6 +796,13 @@ function applyFirebasePlayerSnapshot(snap) {
   if (Array.isArray(me.cityBuilds)) {
     me.cityBuilds = sanitizeCityBuildsForSave(me.cityBuilds);
   }
+  if (!me.avatarConfig) {
+    try {
+      const stored = localStorage.getItem("punkme_avatar_v1");
+      if (stored) me.avatarConfig = JSON.parse(stored);
+    } catch (_) {}
+  }
+  if (me.avatarConfig?.name && !me.heroName) me.heroName = me.avatarConfig.name;
   window.me = me;
   window.__playerLoaded = true;
   if (window.LifeCh1Slice?.ensureLifeCh1) window.LifeCh1Slice.ensureLifeCh1(me);
@@ -1495,6 +1502,14 @@ function sanitizePlayer(p) {
     dog: dogPos,
     lang: getLanguage(),
     characterId: p.characterId || null,
+    heroName: p.heroName || null,
+    avatarVersion: p.avatarVersion ?? null,
+    avatarConfig: (() => {
+      if (!p.avatarConfig || typeof p.avatarConfig !== "object") return null;
+      const ac = { ...p.avatarConfig };
+      delete ac.meshId;
+      return ac;
+    })(),
     story: p.story,
     authority: p.authority ?? p.story?.authority,
     gang_rank: p.gang_rank ?? p.story?.gang_rank,

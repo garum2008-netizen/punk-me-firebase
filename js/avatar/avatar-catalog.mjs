@@ -19,19 +19,23 @@ function byId(list, id) {
   return list?.find(x => x.id === id) || null;
 }
 
+/** t206u mandatory owner QA hero — CYBER PUNK BLUE */
+export const QA_CYBER_PUNK_BLUE = Object.freeze({
+  avatarVersion: 1,
+  qaPresetId: "cyber_punk_blue",
+  name: "CyberBlueQA",
+  skinTone: "tone_02",
+  hairStyle: "hair_mohawk",
+  hairColor: "electric_blue",
+  facePreset: "face_04",
+  bodyPreset: "body_mohawk",
+  outfitStyle: "style_cyber_punk",
+  accessories: ["wings_01"],
+  companionAngelinaSkin: "A"
+});
+
 export function defaultAvatarConfig() {
-  return {
-    avatarVersion: 1,
-    name: "",
-    skinTone: "tone_08",
-    hairStyle: "hair_mohawk",
-    hairColor: "electric_blue",
-    facePreset: "face_04",
-    bodyPreset: "body_vienna",
-    outfitStyle: "style_cyber_punk",
-    accessories: ["wings_01"],
-    companionAngelinaSkin: "A"
-  };
+  return { ...QA_CYBER_PUNK_BLUE, name: "" };
 }
 
 export function validateAvatarConfig(cfg, cat = catalog) {
@@ -69,12 +73,14 @@ export function buildLookFromConfig(cfg, cat = catalog) {
   let choker = false;
   let spikes = false;
   let emissive = style?.emissive ?? 0xff3399;
+  let wings = false;
   for (const id of acc) {
     const a = byId(c.accessories, id);
     if (!a) continue;
     if (a.chain) chain = true;
     if (a.choker) choker = true;
     if (a.spikes) spikes = true;
+    if (id === "wings_01") wings = true;
     if (a.emissiveBoost) emissive = a.emissiveBoost;
   }
   return {
@@ -88,7 +94,8 @@ export function buildLookFromConfig(cfg, cat = catalog) {
     tint: skin?.tint ?? 0xffbbaa,
     chain,
     choker,
-    spikes
+    spikes,
+    wings
   };
 }
 

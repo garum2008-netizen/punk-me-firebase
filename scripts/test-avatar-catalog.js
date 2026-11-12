@@ -20,6 +20,9 @@ function assert(c, m) {
   const def = mod.defaultAvatarConfig();
   const v = mod.validateAvatarConfig(def, cat);
   assert(v.ok, "default config valid");
+  assert(def.skinTone === "tone_02", "t206u default warm skin");
+  assert(def.qaPresetId === "cyber_punk_blue", "t206u qa preset id");
+  assert((def.accessories || []).includes("wings_01"), "t206u default wings");
   assert(cat.skinTones.length >= 12, "12+ skin tones");
   assert(cat.hairStyles.length >= 15, "15+ hair styles");
   assert(cat.hairColors.length >= 20, "20+ hair colors");

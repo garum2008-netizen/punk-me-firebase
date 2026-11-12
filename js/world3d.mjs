@@ -2288,6 +2288,26 @@ const api = {
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
   setPlayerLifeCh1Skin,
   getPlayerLifeCh1SkinRenderState,
+  getPlayerActorSnapshot: () => {
+    const a = actors.get("player");
+    if (!a) return null;
+    return {
+      characterId: a.characterId,
+      hasWings: !!a._wings,
+      wingMeshes: a._wings?.children?.length || 0,
+      current: a.current,
+      visible: a.root?.visible !== false
+    };
+  },
+  getPlayerAnimSnapshot: () => {
+    const a = actors.get("player");
+    if (!a) return null;
+    const act = a.actions?.[a.current];
+    return {
+      current: a.current,
+      weight: act?.getEffectiveWeight?.() ?? 0
+    };
+  },
   getNpcVisibilitySnapshot,
   getRoomNpcsOnScreenSnapshot: (ids = ["vienna", "mohawk", "cobalt"]) => {
     const onScreen = {};

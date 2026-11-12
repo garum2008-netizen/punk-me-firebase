@@ -112,6 +112,7 @@ function loop() {
     );
     previewPhase += dt;
     actorRoot.rotation.y = PREVIEW_FACE_YAW + Math.sin(previewPhase * 0.75) * 0.18;
+    if (typeof window !== "undefined") window.__charSelectPreviewYaw = actorRoot.rotation.y;
   }
   renderer?.render(scene, camera);
 }

@@ -39,6 +39,23 @@ Validation: `js/avatar/avatar-catalog.mjs` · catalog: `data/story/avatar-catalo
 - **Persistence:** `me.avatarConfig`, `me.heroName`, `localStorage` `punkme_avatar_v1`.
 - **Animations:** existing walk/run/idle on body mesh.
 
+## Mandatory QA avatar (t206u) — CYBER PUNK BLUE
+
+Owner acceptance hero (player, **not** Angelina):
+
+| Field | Catalog ID | RU label |
+|-------|------------|----------|
+| Hair style | `hair_mohawk` | Синий ирокез |
+| Hair color | `electric_blue` | Электрик синий |
+| Skin | `tone_02` | Тёплый |
+| Outfit | `style_cyber_punk` | Cyber Punk |
+| Accessory | `wings_01` | Крылья |
+| Body | `body_mohawk` | (medium mesh) |
+
+Preset object: `QA_CYBER_PUNK_BLUE` in `js/avatar/avatar-catalog.mjs` and `scripts/avatar-qa-presets.js`.  
+Automated gate: `node scripts/test-avatar-qa-t206.js` (emulator env).  
+Ordinary Chapter 1 capture uses this config via `configureCyberPunkBlueStudio`.
+
 ## Limits / missing (honest)
 
 - No separate hair meshes per style ID (procedural `hairStyle` only).
