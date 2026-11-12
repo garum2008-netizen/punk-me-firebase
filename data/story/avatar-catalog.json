@@ -1,0 +1,100 @@
+{
+  "avatarVersion": 1,
+  "skinTones": [
+    { "id": "tone_01", "label": { "ru": "Светлый", "en": "Light", "da": "Lys" }, "tint": 16764084 },
+    { "id": "tone_02", "label": { "ru": "Тёплый", "en": "Warm", "da": "Varm" }, "tint": 16755234 },
+    { "id": "tone_03", "label": { "ru": "Средний", "en": "Medium", "da": "Mellem" }, "tint": 13467442 },
+    { "id": "tone_04", "label": { "ru": "Оливковый", "en": "Olive", "da": "Oliven" }, "tint": 12030946 },
+    { "id": "tone_05", "label": { "ru": "Карамель", "en": "Caramel", "da": "Karamel" }, "tint": 10589490 },
+    { "id": "tone_06", "label": { "ru": "Тёмный", "en": "Deep", "da": "Dyb" }, "tint": 9131844 },
+    { "id": "tone_07", "label": { "ru": "Глубокий", "en": "Rich", "da": "Rig" }, "tint": 7697780 },
+    { "id": "tone_08", "label": { "ru": "Тёплый глубокий", "en": "Warm deep", "da": "Varm dyb" }, "tint": 6580836 },
+    { "id": "tone_09", "label": { "ru": "Лунный", "en": "Moon", "da": "Måne" }, "tint": 14605567 },
+    { "id": "tone_10", "label": { "ru": "Пепельный", "en": "Ash", "da": "Aske" }, "tint": 12237498 },
+    { "id": "tone_11", "label": { "ru": "Фэнтези лиловый", "en": "Fantasy lilac", "da": "Lilla" }, "tint": 15262207 },
+    { "id": "tone_12", "label": { "ru": "Фэнтези бирюза", "en": "Fantasy teal", "da": "Turkis" }, "tint": 9494696 }
+  ],
+  "hairStyles": [
+    { "id": "hair_mohawk", "meshyStyle": "mohawk", "label": { "ru": "Синий ирокез", "en": "Blue mohawk", "da": "Blå mohawk" } },
+    { "id": "hair_long", "meshyStyle": "spikes", "label": { "ru": "Длинные локоны", "en": "Long curls", "da": "Lange lokker" } },
+    { "id": "hair_short", "meshyStyle": "spikes", "label": { "ru": "Короткая стрижка", "en": "Short cut", "da": "Kort klip" } },
+    { "id": "hair_braids", "meshyStyle": "spikes", "label": { "ru": "Косы", "en": "Braids", "da": "Fletninger" } },
+    { "id": "hair_curly", "meshyStyle": "mohawk", "label": { "ru": "Кудри", "en": "Curly", "da": "Krøllet" } },
+    { "id": "hair_straight", "meshyStyle": "spikes", "label": { "ru": "Прямые", "en": "Straight", "da": "Glat" } },
+    { "id": "hair_shaved", "meshyStyle": "spikes", "label": { "ru": "Ёжик", "en": "Buzz", "da": "Buzz" } },
+    { "id": "hair_punk_spikes", "meshyStyle": "spikes", "label": { "ru": "Шипы", "en": "Spikes", "da": "Pigge" } },
+    { "id": "hair_side_mohawk", "meshyStyle": "mohawk", "label": { "ru": "Боковой ирокез", "en": "Side mohawk", "da": "Side mohawk" } },
+    { "id": "hair_neon_wolf", "meshyStyle": "mohawk", "label": { "ru": "Неон-волк", "en": "Neon wolf", "da": "Neon ulv" } },
+    { "id": "hair_gothic_long", "meshyStyle": "spikes", "label": { "ru": "Готика", "en": "Gothic long", "da": "Gotisk" } },
+    { "id": "hair_street_crop", "meshyStyle": "spikes", "label": { "ru": "Стрит-кроп", "en": "Street crop", "da": "Street crop" } },
+    { "id": "hair_angel_waves", "meshyStyle": "mohawk", "label": { "ru": "Ангельские волны", "en": "Angel waves", "da": "Engle bølger" } },
+    { "id": "hair_cyber_tail", "meshyStyle": "mohawk", "label": { "ru": "Кибер-хвост", "en": "Cyber tail", "da": "Cyber hale" } },
+    { "id": "hair_rainbow", "meshyStyle": "mohawk", "label": { "ru": "Радуга", "en": "Rainbow", "da": "Regnbue" } }
+  ],
+  "hairColors": [
+    { "id": "hc_black", "hex": 1842204, "label": { "ru": "Чёрный", "en": "Black", "da": "Sort" } },
+    { "id": "hc_brown", "hex": 6042426, "label": { "ru": "Каштан", "en": "Brown", "da": "Brun" } },
+    { "id": "hc_blonde", "hex": 16764006, "label": { "ru": "Блонд", "en": "Blonde", "da": "Blond" } },
+    { "id": "hc_red", "hex": 13369344, "label": { "ru": "Рыжий", "en": "Red", "da": "Rød" } },
+    { "id": "electric_blue", "hex": 44607, "label": { "ru": "Электрик синий", "en": "Electric blue", "da": "Elektrisk blå" } },
+    { "id": "hc_pink", "hex": 16711805, "label": { "ru": "Неон розовый", "en": "Neon pink", "da": "Neon pink" } },
+    { "id": "hc_purple", "hex": 9109759, "label": { "ru": "Фиолет", "en": "Purple", "da": "Lilla" } },
+    { "id": "hc_green", "hex": 43520, "label": { "ru": "Кислотный", "en": "Acid green", "da": "Grøn" } },
+    { "id": "hc_teal", "hex": 32896, "label": { "ru": "Бирюза", "en": "Teal", "da": "Turkis" } },
+    { "id": "hc_silver", "hex": 12632256, "label": { "ru": "Серебро", "en": "Silver", "da": "Sølv" } },
+    { "id": "hc_white", "hex": 16119285, "label": { "ru": "Белый", "en": "White", "da": "Hvid" } },
+    { "id": "hc_multicolor", "hex": 16737792, "label": { "ru": "Мультиколор", "en": "Multicolor", "da": "Multifarvet" } },
+    { "id": "hc_coral", "hex": 16744272, "label": { "ru": "Коралл", "en": "Coral", "da": "Koral" } },
+    { "id": "hc_cyan", "hex": 65535, "label": { "ru": "Циан", "en": "Cyan", "da": "Cyan" } },
+    { "id": "hc_gold", "hex": 16766720, "label": { "ru": "Золото", "en": "Gold", "da": "Guld" } },
+    { "id": "hc_magenta", "hex": 16711935, "label": { "ru": "Маджента", "en": "Magenta", "da": "Magenta" } },
+    { "id": "hc_lime", "hex": 9109504, "label": { "ru": "Лайм", "en": "Lime", "da": "Lime" } },
+    { "id": "hc_navy", "hex": 128, "label": { "ru": "Тёмно-синий", "en": "Navy", "da": "Marine" } },
+    { "id": "hc_cherry", "hex": 13369395, "label": { "ru": "Вишня", "en": "Cherry", "da": "Kirsebær" } },
+    { "id": "hc_ice", "hex": 16777215, "label": { "ru": "Лёд", "en": "Ice", "da": "Is" } }
+  ],
+  "facePresets": [
+    { "id": "face_01", "label": { "ru": "Мягкое", "en": "Soft", "da": "Blød" } },
+    { "id": "face_02", "label": { "ru": "Острое", "en": "Sharp", "da": "Skarp" } },
+    { "id": "face_03", "label": { "ru": "Смелое", "en": "Bold", "da": "Modig" } },
+    { "id": "face_04", "label": { "ru": "Мечтательное", "en": "Dreamy", "da": "Drømmende" } },
+    { "id": "face_05", "label": { "ru": "Уверенное", "en": "Confident", "da": "Selvsikker" } },
+    { "id": "face_06", "label": { "ru": "Игривое", "en": "Playful", "da": "Legesyg" } },
+    { "id": "face_07", "label": { "ru": "Серьёзное", "en": "Serious", "da": "Seriøs" } },
+    { "id": "face_08", "label": { "ru": "Тайное", "en": "Mysterious", "da": "Mystisk" } }
+  ],
+  "bodyPresets": [
+    { "id": "body_vienna", "meshBase": "vienna", "scale": 0.96, "label": { "ru": "Стройный", "en": "Slim", "da": "Slank" } },
+    { "id": "body_mohawk", "meshBase": "mohawk", "scale": 1.0, "label": { "ru": "Средний", "en": "Medium", "da": "Medium" } },
+    { "id": "body_cobalt", "meshBase": "cobalt", "scale": 1.02, "label": { "ru": "Широкий", "en": "Broad", "da": "Bred" } },
+    { "id": "body_razor", "meshBase": "razor", "scale": 1.04, "label": { "ru": "Мощный", "en": "Power", "da": "Kraftig" } },
+    { "id": "body_tall", "meshBase": "mohawk", "scale": 1.08, "label": { "ru": "Высокий", "en": "Tall", "da": "Høj" } },
+    { "id": "body_compact", "meshBase": "vienna", "scale": 0.9, "label": { "ru": "Компактный", "en": "Compact", "da": "Kompakt" } }
+  ],
+  "clothingStyles": [
+    { "id": "style_cyber_punk", "label": { "ru": "Cyber Punk", "en": "Cyber Punk", "da": "Cyber Punk" }, "jacket": 2752872, "pants": 1579032, "boots": 3342592, "emissive": 65535 },
+    { "id": "style_dark_gothic", "label": { "ru": "Dark Gothic", "en": "Dark Gothic", "da": "Dark Gothic" }, "jacket": 848729, "pants": 1572864, "boots": 2621440, "emissive": 8912896 },
+    { "id": "style_street_angel", "label": { "ru": "Street Angel", "en": "Street Angel", "da": "Street Angel" }, "jacket": 2817823, "pants": 1118481, "boots": 4456545, "emissive": 16761035 },
+    { "id": "style_neon_rebel", "label": { "ru": "Neon Rebel", "en": "Neon Rebel", "da": "Neon Rebel" }, "jacket": 2752554, "pants": 1703962, "boots": 4456448, "emissive": 16711935 },
+    { "id": "style_punk_classic", "label": { "ru": "Punk Classic", "en": "Punk Classic", "da": "Punk klassisk" }, "jacket": 131586, "pants": 1703962, "boots": 3355443, "emissive": 16711769 }
+  ],
+  "accessories": [
+    { "id": "acc_none", "label": { "ru": "Нет", "en": "None", "da": "Ingen" } },
+    { "id": "wings_01", "label": { "ru": "Крылья", "en": "Wings", "da": "Vinger" }, "emissiveBoost": 9830400 },
+    { "id": "glasses_01", "label": { "ru": "Очки", "en": "Glasses", "da": "Briller" }, "chain": true },
+    { "id": "headphones_01", "label": { "ru": "Наушники", "en": "Headphones", "da": "Høretelefoner" }, "choker": true },
+    { "id": "backpack_01", "label": { "ru": "Рюкзак", "en": "Backpack", "da": "Rygsæk" }, "spikes": true },
+    { "id": "jewelry_01", "label": { "ru": "Цепи", "en": "Chains", "da": "Kæder" }, "chain": true },
+    { "id": "hat_01", "label": { "ru": "Кепка", "en": "Cap", "da": "Kasket" } },
+    { "id": "aura_01", "label": { "ru": "Аура", "en": "Aura", "da": "Aura" }, "emissiveBoost": 16711935 },
+    { "id": "crown_01", "label": { "ru": "Корона", "en": "Crown", "da": "Krone" }, "spikes": true },
+    { "id": "mask_01", "label": { "ru": "Маска", "en": "Mask", "da": "Maske" } }
+  ],
+  "companionAngelinaSkins": ["A", "B", "C"],
+  "premiumPacksProposed": [
+    { "id": "pack_cyber_angel", "label": { "ru": "Cyber Angel Pack", "en": "Cyber Angel Pack", "da": "Cyber Angel Pack" }, "items": ["wings_01", "style_cyber_punk", "aura_01"], "proposedPriceEur": "TBD" },
+    { "id": "pack_dark_punk", "label": { "ru": "Dark Punk Pack", "en": "Dark Punk Pack", "da": "Dark Punk Pack" }, "items": ["style_dark_gothic", "jewelry_01"], "proposedPriceEur": "TBD" },
+    { "id": "pack_street_legend", "label": { "ru": "Street Legend Pack", "en": "Street Legend Pack", "da": "Street Legend Pack" }, "items": ["hair_street_crop", "backpack_01", "headphones_01"], "proposedPriceEur": "TBD" },
+    { "id": "pack_fantasy_guardian", "label": { "ru": "Fantasy Guardian Pack", "en": "Fantasy Guardian Pack", "da": "Fantasy Guardian Pack" }, "items": ["hair_angel_waves", "wings_01", "crown_01"], "proposedPriceEur": "TBD" }
+  ]
+}

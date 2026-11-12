@@ -274,14 +274,8 @@ async function run() {
       .catch(() => false);
     if (!loaded) {
       await page.waitForSelector("#charSelect.active", { timeout: 120000 });
-      await page.waitForSelector("#charSelectConfirm", { timeout: 90000 });
-      const sliceChar = await page.locator('[data-testid="char-select-angelina"]').isVisible().catch(() => false);
-      if (!sliceChar) {
-        await page.click('.char-pick[data-id="cobalt"]');
-      } else {
-        await page.click(".char-portrait-pick >> nth=0");
-      }
-      await page.click("#charSelectConfirm");
+      const { confirmCharacterStudio } = require("./confirm-character-studio");
+      await confirmCharacterStudio(page, "LifeCh1E2e");
     }
     const expectId = "life_ch1_proxy";
     await page.waitForFunction(

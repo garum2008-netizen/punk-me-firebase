@@ -1,68 +1,49 @@
-# READY FOR OWNER ACCEPTANCE — Chapter 1 (t203u candidate)
+# READY FOR OWNER ACCEPTANCE — Chapter 1 + Avatar Creator (t204u)
 
 **Branch:** [`cursor/vertical-slice-ch1-d81d`](https://github.com/garum2008-netizen/punk-me-firebase/tree/cursor/vertical-slice-ch1-d81d)  
-**Candidate commit:** `7aee086d727baca54e2450ef7e9b275390193b85` on branch `cursor/vertical-slice-ch1-d81d` (not a production release tag).  
-**Status:** `READY_FOR_OWNER_ACCEPTANCE` (owner playtest + narrative canon decision still required).  
-**Owner decision:** `a37c200` accepted as **candidate** for product acceptance; **merge/production HOLD**.
+**Status:** `READY_FOR_OWNER_ACCEPTANCE` (t204u P0 Character Studio foundation + t203 Ch1 path).  
+**Merge / production / App Store / payments:** **HOLD**
 
----
+## Canon (t204u — owner 2026-11-12)
+
+- **Player** = custom hero (Character Studio, persistent `avatarConfig`).
+- **Angelina** = **companion** (skins A/B/C-v2, guide, wardrobe portraits only).
+- See `docs/story/STORY_BIBLE.md`, `docs/game-design/AVATAR_CREATOR_SPEC.md`.
 
 ## Live preview (only)
 
 | Item | Value |
 |------|--------|
 | URL | https://punk-me-preview-552740b.pages.dev |
-| Update path | New tarball in Agent Store → Game Bot redeploys **same** project |
-| Empty project | `punk-me-ch1-preview` — untouched |
-
----
+| Update | New Agent Store tarball → Game Bot redeploys **same** project |
+| Do not touch | `punk-me-ch1-preview` (empty by policy) |
 
 ## Acceptance gates
 
 | Gate | Status | Evidence |
 |------|--------|----------|
-| Commit SHA + branch | ✅ | This doc + GitHub branch link |
-| Emulator-only Firebase | ✅ | `with-emulator-env.js`, prod route block in captures |
-| Ordinary playthrough (no dev shortcuts) | ✅ | `capture-ice-ordinary-path-footage.js` — UI input only |
-| Onboarding step 7 crypt | ✅ | Sessions `ceo-desktop-full-v2`+; `onCityBuildPlaced` + crypt material |
-| Angelina persistent guide | ✅ | `#angelinaGuideBanner`, all onboarding + Life Ch1 hint keys |
-| RU / EN / DA | ✅ | `node scripts/verify-t203-i18n.js` |
-| Life Ch1 complete | ✅ | Scene `ch1_complete` in ordinary metadata |
-| Automated tests | ✅ | smoke, life-ch1-unit, city-builds-sanitize (+ preview-build when run) |
-| Desktop UNCUT video | ✅ | `ice-ch1-ORDINARY-UNCUT-desktop-7aee086d727b-…-pass-t203-owner-desktop.webm` (SHA in `EVIDENCE_INTEGRITY.json`) |
-| Story bible + arc | ✅ | `docs/story/STORY_BIBLE.md`, `CHAPTER_01_STORY_ARC.md` |
-| Monetization proposal | ✅ | `docs/story/MONETIZATION_CH1_PROPOSAL.md` (no live payments) |
+| Character Studio at new game | ✅ | `js/avatar/character-studio.mjs`, preview / Life Ch1 char select |
+| Catalog + validation | ✅ | `data/story/avatar-catalog.json`, `scripts/test-avatar-catalog.js` |
+| Save / reload avatar | ✅ | `me.avatarConfig`, `punkme_avatar_v1`, preview-build reload test |
+| Companion vs player split | ✅ | `playerCutout: false`, wardrobe = Angelina look |
+| Ch1 automated path | ✅ | `scripts/test-preview-build.js` (`prodAttempts: 0`) |
+| Story bible t204u | ✅ | `STORY_BIBLE.md`, `CHAPTER_01_STORY_ARC.md` |
+| Design docs | ✅ | `docs/game-design/AVATAR_*`, `COSMETIC_CATALOG.md` |
+| Six sample configs | ✅ | `docs/game-design/sample-avatars-t204.json` |
+| Desktop UNCUT (t203 baseline) | ✅ | `EVIDENCE_INTEGRITY.json` — **new UNCUT through Character Studio pending** |
 
----
+## Missing assets (honest)
 
-## Remaining limitations (honest)
+- Per-style hair meshes, rigged wings/backpacks, face morphs, 20 discrete clothing meshes (see `AVATAR_ASSET_INVENTORY.md`).
+- Full Roblox-level creator UI density — foundation + procedural tint/body presets ship first.
 
-1. **Proposed four-act city memory arc** — not fully scripted; crypt placement has **first-person toast** only, no open/keep-secret trial.  
-2. **Canon conflict** — proposed arc vs **player = Angelina** (03.11); see `STORY_BIBLE.md` — **owner must choose** reconciliation.  
-3. **“Feels like a real game”** — onboarding is tutorial-heavy; Life Ch1 ending is room-scale, not full city restoration cinematic.  
-4. **Cemetery chapter finale** — not in ordinary automation end state.  
-5. **Desktop video** — x11grab records full display (`-t 900` cap); tail may extend past chapter end — trim for review. Playwright WebM still flaky on this VM.
+## Owner playtest
 
----
+1. Open preview → **Character Studio** (name hero, randomize, confirm).  
+2. Complete onboarding step 7 (city + crypt).  
+3. Life Ch1 wardrobe: changes **Angelina** portraits, not your 3D hero.  
+4. Judge visual diversity vs default pink punk.
 
-## What to play (owner)
+## Game Bot
 
-1. Open preview URL (Basic Auth from Cloudflare only).  
-2. New local save: complete 7 onboarding steps (watch guide banner + language toggle in settings if present).  
-3. Step 7: Map → City → **Build** → place **crypt** → story toast.  
-4. Continue Life Ch1: mirror, note, reflect.  
-5. Judge: goal clarity, Angelina voice, city beat, ending pull.
-
----
-
-## Game Bot handoff
-
-When this commit is accepted for preview refresh:
-
-- Path: `/cursor/stores/self/preview-<short-sha>/`  
-- Files: `punk-me-preview-<short-sha>.tar.gz`, `MANIFEST.json`, `PREVIEW_DEPLOY_FOR_GAME_BOT.md`  
-- Game Bot: snapshot current deployment, then upload new bundle to **punk-me-preview-552740b**.
-
-**Game Bot — preview refresh:** `/cursor/stores/self/preview-7aee086d727b/` · SHA-256 `66be7f04d6c00c22dfe4276a299c4155b619903e9469ca2ce7a660691a2bb80e`
-
-**Status label:** `READY_FOR_OWNER_ACCEPTANCE`
+After owner accepts candidate SHA: `scripts/package-preview-agent-store.sh` → store path + SHA in `PREVIEW_DEPLOY_FOR_GAME_BOT.md`.

@@ -1,9 +1,21 @@
-/** Passive life-ch1 cutout render checks (must NOT call syncPlayerLifeCh1Skin). */
+/** Life Ch1 companion skin + player render checks (must NOT call syncPlayerLifeCh1Skin). */
+
+function companionHeroMode() {
+  return window.me?.lifeCh1?.playerCutout === false;
+}
+
+function readCompanionSkinLetter() {
+  const st = window.me?.lifeCh1;
+  return st?.companionAngelinaSkin || st?.angelinaSkin;
+}
 
 function skinRenderOk(skinLetter) {
-  if (window.me?.lifeCh1?.angelinaSkin !== skinLetter) return false;
+  if (readCompanionSkinLetter() !== skinLetter) return false;
   const rs = window.World3D?.getPlayerLifeCh1SkinRenderState?.();
   if (!rs) return false;
+  if (companionHeroMode()) {
+    return !rs.spriteVisible && rs.rootHidden === false;
+  }
   const slug = `angelina-teen-${skinLetter}`;
   const hit = rs.url.includes(slug) || rs.mapSrc.includes(slug);
   return hit && rs.textureReady && rs.spriteVisible && rs.rootHidden && rs.sceneAttached !== false;
@@ -12,9 +24,14 @@ function skinRenderOk(skinLetter) {
 async function waitUntilSkinRendered(page, skinLetter, timeoutMs = 60000) {
   await page.waitForFunction(
     letter => {
-      if (window.me?.lifeCh1?.angelinaSkin !== letter) return false;
+      const st = window.me?.lifeCh1;
+      const skin = st?.companionAngelinaSkin || st?.angelinaSkin;
+      if (skin !== letter) return false;
       const rs = window.World3D?.getPlayerLifeCh1SkinRenderState?.();
       if (!rs) return false;
+      if (st?.playerCutout === false) {
+        return !rs.spriteVisible && rs.rootHidden === false;
+      }
       const slug = `angelina-teen-${letter}`;
       const hit = rs.url.includes(slug) || rs.mapSrc.includes(slug);
       return hit && rs.textureReady && rs.spriteVisible && rs.rootHidden && rs.sceneAttached !== false;
@@ -26,17 +43,26 @@ async function waitUntilSkinRendered(page, skinLetter, timeoutMs = 60000) {
 
 async function assertSkinRenderNow(page, skinLetter, label) {
   const rs = await page.evaluate(letter => {
+    const st = window.me?.lifeCh1;
+    const skin = st?.companionAngelinaSkin || st?.angelinaSkin;
     const state = window.World3D?.getPlayerLifeCh1SkinRenderState?.();
     return {
-      skin: window.me?.lifeCh1?.angelinaSkin,
+      skin,
+      playerCutout: st?.playerCutout,
       state
     };
   }, skinLetter);
-  const slug = `angelina-teen-${skinLetter}`;
   const st = rs.state;
   if (rs.skin !== skinLetter || !st) {
     throw new Error(`skin render [${label}]: bad skin/state ${JSON.stringify(rs)}`);
   }
+  if (rs.playerCutout === false) {
+    if (st.spriteVisible || st.rootHidden) {
+      throw new Error(`companion hero render [${label}]: ${JSON.stringify(st)}`);
+    }
+    return;
+  }
+  const slug = `angelina-teen-${skinLetter}`;
   const hit = st.url.includes(slug) || st.mapSrc.includes(slug);
   if (!hit || !st.textureReady || !st.spriteVisible || !st.rootHidden || st.sceneAttached === false) {
     throw new Error(`skin render [${label}]: ${JSON.stringify(st)}`);

@@ -60,11 +60,23 @@ body.mode-world3d .room-layer { background: #050008; }
   flex-direction: column; align-items: center; justify-content: center;
   padding: 16px; gap: 12px;
 }
-.char-select.active { display: flex; }
+.char-select.active { display: flex; overflow-y: auto; justify-content: flex-start; padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 .char-select h2 { color: #0ff; text-shadow: 0 0 12px #f0f; }
 #charSelect3d { width: min(92vw, 720px); height: min(50vh, 400px); border: 2px solid #ff00ff; border-radius: 12px; }
 .char-intro { min-height: 2.5em; text-align: center; max-width: 520px; opacity: 0.9; }
-.char-select-ui { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 640px; }
+.char-select-ui { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 640px; width: min(96vw, 720px); }
+.character-studio { text-align: left; max-width: 720px; width: 100%; }
+.character-studio .studio-title { color: #0ff; margin: 0 0 8px; font-size: 1.1rem; }
+.character-studio .studio-section { margin: 10px 0; }
+.character-studio .studio-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.character-studio .studio-row-scroll { max-height: 88px; overflow-y: auto; }
+.character-studio .studio-pick {
+  font-size: 11px; padding: 6px 8px; border-radius: 8px; border: 1px solid #444; background: #1a1020; color: #eee; cursor: pointer;
+}
+.character-studio .studio-pick.selected { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px #f0f8; }
+.character-studio .studio-summary { font-size: 12px; opacity: 0.92; margin: 12px 0; line-height: 1.35; }
+.character-studio .studio-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.character-studio #heroNameInput { width: 100%; margin-top: 4px; padding: 8px; border-radius: 8px; border: 1px solid #555; background: #120818; color: #fff; }
 .char-select-ui .char-pick.active { border-color: #0ff; color: #0ff; }
 .char-select-portraits {
   display: flex;
@@ -1105,8 +1117,11 @@ body.life-ch1-active .hud-quests-wrap.collapsed .life-ch1-tracker { display: blo
 .life-ch1-dialog-row { display: flex; gap: 12px; align-items: flex-start; }
 .life-ch1-dialog-portrait { border-radius: 8px; border: 2px solid #7c3aed; flex-shrink: 0; background: transparent; }
 body.life-ch1-angelina-player button.lang-btn[onclick="changeCharacter()"],
+body.life-ch1-companion-active button.lang-btn[onclick="changeCharacter()"],
 body.life-ch1-angelina-player #howtoChangeChar,
-body.life-ch1-angelina-player #lifeCh1WardrobeDefault {
+body.life-ch1-companion-active #howtoChangeChar,
+body.life-ch1-angelina-player #lifeCh1WardrobeDefault,
+body.life-ch1-companion-active #lifeCh1WardrobeDefault {
   display: none !important;
 }
 

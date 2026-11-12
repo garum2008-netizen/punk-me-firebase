@@ -1,34 +1,26 @@
-# PUNK ME — Story Bible (working draft, t203u)
+# PUNK ME — Story Bible (working draft, t204u)
 
-**Status:** Phase 1 narrative audit · **not** approved canon until owner sign-off.  
+**Status:** Canon resolution **t204u** (Inna Kragh, 2026-11-12) · **not** production until owner acceptance.  
 **Branch:** `cursor/vertical-slice-ch1-d81d` · **Production:** HOLD.
 
 ## Executive summary
 
-PUNK ME Chapter 1 today is a **vertical slice**: UI onboarding (seven steps ending in **city crypt build**) plus **Life Ch1** (`q_life_ch1_settle`) in the room (outfit → note/trust → reflect). Wider world (street, cemetery, districts) exists as gameplay scaffolding; story text is thinnest outside Life Ch1 JSON.
+PUNK ME Chapter 1 is a **vertical slice**: **Character Studio** hero creation → onboarding (seven steps ending in **city crypt build**) → **Life Ch1** (`q_life_ch1_settle`). The **player** is a **custom 3D hero** they name. **Angelina** is a **permanent story companion/guide** (skins A/B/C-v2 = **companion** art only).
 
-## Approved canon (do not overwrite)
+## Approved canon (t204u — supersedes 03.11 “player = Angelina”)
 
-| Source | Rule |
-|--------|------|
-| `docs/release/ANGELINA_PLAYER_REWRITE.md` (2026-11-03) | In preview/slice, **the player is Angelina** (teen 13–15). |
-| `data/story/life-ch1-slice.json` | First-person POV; `speaker: "player"`; no `"speaker": "angelina"`; NPCs (e.g. Mira) address Angelina by name. |
-| `scripts/test-life-ch1-slice-unit.js` | Bans “talk to Angelina” / trust-Angelina-as-NPC strings. |
-| Owner 03.11 | Dialogues must **not** treat “you” as a separate person from Angelina. |
+| Role | Rule |
+|------|------|
+| **Player** | Creates persistent **custom hero** (`me.avatarConfig`, `me.heroName`). Appears in 3D gameplay, build, crypt, save/load. |
+| **Angelina** | **Companion** — guide banner, dialogue portraits, Life Ch1 wardrobe (companion look). Not the player mesh. |
+| **Dialogue** | May use the player’s **chosen name** where lines support `{name}` / localized variants. Life Ch1 JSON may still use first-person **player** speaker until copy pass. |
+| **Art** | Approved Angelina A/B/C-v2 → **companion only**. |
 
-## Canon conflict — owner flag (t203u proposed arc)
+**Historical note:** `docs/release/ANGELINA_PLAYER_REWRITE.md` (2026-11-03) described preview as **player = Angelina**. **t204u owner directive replaces that** for new work; file kept for audit, not as active canon.
 
-**Proposed arc draft** (“Город, который забыл своё имя”) describes **Angelina explaining the city to the player** and “accompanying” them — i.e. **guide + player** as two roles.
+## Guide + hero (resolved)
 
-**Locked canon** says **player = Angelina** (first-person identity).
-
-**Reconciliation options (owner choice required):**
-
-1. **Internal monologue / future self** — banner hints are Angelina’s own thoughts (already closest to current `angelina-guide.mjs`).
-2. **Split timeline** — playable present Angelina; voiceover is memory or older self (needs UI label).
-3. **Retcon approved 03.11** — revert to external guide (breaks Life Ch1 JSON POV and tests).
-
-**Agent default until owner decides:** keep **player = Angelina**; treat guide banner as **first-person coach**, not a second character.
+**Arc draft** (“Город, который забыл своё имя”): Angelina **accompanies** the player — **implemented** as companion + custom hero, not dual POV as “you play Angelina.”
 
 ## World layers (current build)
 
@@ -44,7 +36,8 @@ PUNK ME Chapter 1 today is a **vertical slice**: UI onboarding (seven steps endi
 
 | Id | Role in Ch1 slice |
 |----|-------------------|
-| **Angelina** | Player identity (cutout + dialogs) |
+| **Player hero** | Custom avatar (Character Studio) |
+| **Angelina** | Companion (guide + portrait dialogs + wardrobe) |
 | **Mira** | Off-screen / trust branch in reflect |
 | **Razor** | Onboarding NPC (street gang) |
 

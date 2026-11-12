@@ -5,6 +5,8 @@ import {
   createCc0Actor
 } from "./world/meshy-punk.mjs";
 import { updateProcedural } from "./character-rig.mjs";
+import { loadAvatarCatalog } from "./avatar/avatar-catalog.mjs";
+import { mountCharacterStudio } from "./avatar/character-studio.mjs";
 
 /** Vertical padding inside the canvas (hair top / boots bottom). */
 const PREVIEW_MARGIN_Y = 0.08;
@@ -63,12 +65,13 @@ function ensurePreviewLights() {
   scene.add(previewLights);
 }
 
-function showCharacter(id) {
+function showCharacter(id, lookOverride) {
   if (!templatesReady) return;
   if (actorRoot) scene.remove(actorRoot);
   const def = getCharacterDef(id);
   const tpl = getTemplateForCharacter(id);
-  const built = createCc0Actor(tpl, id, def.look || {}, {
+  const look = lookOverride ? { ...(def.look || {}), ...lookOverride } : def.look || {};
+  const built = createCc0Actor(tpl, id, look, {
     isPlayer: false,
     actorId: id
   });
@@ -113,10 +116,14 @@ function loop() {
   renderer?.render(scene, camera);
 }
 
-function isSliceAngelinaPlayer() {
+/** t204u: Character Studio from first session (player ≠ Angelina). */
+function useCharacterStudio() {
   if (typeof window !== "undefined" && window.__PUNK_PREVIEW__ === true) return true;
+  if (typeof window !== "undefined" && window.__PUNK_LIFE_CH1_LOCAL__ === true) return true;
   return window.LifeCh1Slice?.isLifeCh1SliceEnabled?.() === true;
 }
+
+let studioApi = null;
 
 function portraitUrl(manifest, skinId) {
   const rel = manifest?.skins?.[skinId]?.portrait?.path;
@@ -178,7 +185,7 @@ function escapeHtml(s) {
 function buildUi() {
   const ui = document.getElementById("charSelectUi");
   if (!ui) return;
-  if (isSliceAngelinaPlayer()) {
+  if (useCharacterStudio()) {
     ui.innerHTML = "";
     return;
   }
@@ -208,14 +215,56 @@ function buildUi() {
   }
 }
 
+async function openCharacterStudio(onPick) {
+  onPickCb = onPick;
+  const wrap = document.getElementById("charSelect");
+  if (!wrap) return;
+  wrap.classList.add("active");
+  const canvas = document.getElementById("charSelect3d");
+  const portraits = document.getElementById("charSelectPortraits");
+  if (canvas) {
+    canvas.hidden = false;
+    canvas.removeAttribute("aria-hidden");
+  }
+  if (portraits) {
+    portraits.hidden = true;
+    portraits.setAttribute("aria-hidden", "true");
+  }
+  if (!renderer) {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.38;
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x12081c);
+    camera = new THREE.PerspectiveCamera(38, 1, 0.1, 50);
+    ensurePreviewLights();
+    clock = new THREE.Clock();
+  }
+  resize();
+  await loadAvatarCatalog();
+  await loadAllCc0Templates().then(() => {
+    templatesReady = true;
+    if (!raf) loop();
+  });
+  const studioHost = document.getElementById("charSelectUi");
+  studioApi = await mountCharacterStudio(studioHost, {
+    onPreview: (meshId, look) => showCharacter(meshId, look),
+    onConfirm: cfg => {
+      close();
+      onPickCb?.(cfg.meshId, cfg.companionAngelinaSkin, cfg);
+    }
+  });
+}
+
 function open(onPick) {
   onPickCb = onPick;
   const wrap = document.getElementById("charSelect");
   if (!wrap) return;
   wrap.classList.add("active");
-  if (isSliceAngelinaPlayer()) {
-    buildUi();
-    buildSlicePortraitUi();
+  if (useCharacterStudio()) {
+    openCharacterStudio(onPick);
     return;
   }
   const canvas = document.getElementById("charSelect3d");
@@ -271,4 +320,10 @@ function close() {
   document.getElementById("charSelect")?.classList.remove("active");
 }
 
-window.CharSelect = { open, close, resize, getPendingSliceSkin: () => pendingSliceSkin };
+window.CharSelect = {
+  open,
+  close,
+  resize,
+  getPendingSliceSkin: () => pendingSliceSkin,
+  useCharacterStudio
+};

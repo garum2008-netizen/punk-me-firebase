@@ -57,6 +57,8 @@ async function main() {
 
   const d = defaultLifeCh1State();
   assert(d.claimedSteps && d.flags, "default state has sub-objects");
+  assert(d.playerCutout === false, "t204u default player is 3D hero not Angelina cutout");
+  assert(d.companionAngelinaSkin === "A", "companion Angelina skin default");
 
   const coinMe = { coins: 50, lifeCh1: { v: 1, active: true, stepIndex: 1, flags: {}, claimedSteps: {} } };
   global.window = { me: coinMe, isOwner: false };

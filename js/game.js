@@ -766,6 +766,10 @@ function normalizeSlicePlayerMeshCharacterId() {
   const proxy = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
   const playable = window.PLAYABLE_CHARACTER_IDS || [];
   const st = me.lifeCh1;
+  if (st && st.playerCutout === false) {
+    me.characterId = proxy;
+    return;
+  }
   if (st && st.playerCutout !== false && playable.includes(me.characterId)) {
     me.characterId = proxy;
   }
@@ -1195,23 +1199,34 @@ function loadMe() {
     });
 }
 
-function pickCharacterAndContinue(id, sliceSkin) {
+function pickCharacterAndContinue(id, companionSkin, avatarBundle) {
+  if (avatarBundle && typeof avatarBundle === "object" && avatarBundle.avatarVersion) {
+    me.avatarVersion = avatarBundle.avatarVersion;
+    me.avatarConfig = { ...avatarBundle };
+    delete me.avatarConfig.meshId;
+    me.heroName = avatarBundle.name || (typeof t === "function" ? t("studio_name_default") : "Hero");
+    id = window.meshIdFromAvatarConfig?.(me.avatarConfig) || avatarBundle.meshId || id || "mohawk";
+  }
   if (window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) {
-    id = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
     window.LifeCh1Slice.ensureLifeCh1?.(me);
     const st = me.lifeCh1;
     if (st) {
-      st.playerCutout = true;
-      st.angelinaSkin = sliceSkin || window.CharSelect?.getPendingSliceSkin?.() || st.angelinaSkin || "A";
+      st.playerCutout = false;
+      st.companionAngelinaSkin = companionSkin || avatarBundle?.companionAngelinaSkin || st.companionAngelinaSkin || "A";
+      st.angelinaSkin = st.companionAngelinaSkin;
     }
-    window.LifeCh1Slice.applySliceAngelinaPlayerChrome?.();
+    window.LifeCh1Slice.applyCompanionStoryChrome?.();
   } else if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
   me.characterId = id;
   normalizeSlicePlayerMeshCharacterId();
   writeStoredCharacterId(me.characterId);
   const def = getCharacterDef(id);
   me.avatar = def.poster;
-  me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
+  if (!me.heroName) {
+    me.name = (typeof tNpcName === "function" ? tNpcName(id) : id) + Math.floor(Math.random() * 90 + 10);
+  } else {
+    me.name = me.heroName;
+  }
   window.__playerLoaded = true;
   if (typeof performance !== "undefined") {
     window.__punkTimeToPlayerMs = Math.round(performance.now() - (window.__punkPageLoadStart || 0));

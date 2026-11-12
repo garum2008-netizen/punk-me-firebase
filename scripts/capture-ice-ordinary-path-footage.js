@@ -455,11 +455,10 @@ async function uiOpenMapTravel(page, locId) {
 
 async function pickAngelina(page) {
   await page.waitForSelector("#charSelect.active", { timeout: 120000 });
-  logInput("click", "char select Angelina");
-  await page.waitForSelector('[data-testid="char-select-angelina"]', { timeout: 120000 });
-  await page.waitForSelector("#charSelectPortraits .char-portrait-pick", { timeout: 120000 });
-  await page.click("#charSelectPortraits .char-portrait-pick >> nth=0");
-  await page.click("#charSelectConfirm");
+  logInput("click", "character studio confirm");
+  await page.waitForSelector('[data-testid="character-studio"]', { timeout: 120000 });
+  await page.fill('[data-testid="hero-name-input"]', "InnaTest");
+  await page.click('[data-testid="character-studio-confirm"]');
   await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
 }
 

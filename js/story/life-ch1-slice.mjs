@@ -106,7 +106,8 @@ export function defaultLifeCh1State() {
     flags: {},
     claimedSteps: {},
     angelinaSkin: "A",
-    playerCutout: true,
+    playerCutout: false,
+    companionAngelinaSkin: "A",
     completed: false,
     startedAt: 0
   };
@@ -198,7 +199,10 @@ export function getAngelinaSkin() {
 
 export function setAngelinaSkin(skinId) {
   const st = ensureLifeCh1();
-  if (st) st.playerCutout = true;
+  if (st) {
+    st.playerCutout = false;
+    st.companionAngelinaSkin = normalizeSkinId(skinId);
+  }
   const id = writeSelectedSkin(st, skinId);
   persistLocalOverlay();
   hooks.save?.();
@@ -255,18 +259,25 @@ function previewPlayerLifeCh1Skin(skinId) {
   window.World3D?.setPlayerLifeCh1Skin?.({ visible: true, url });
 }
 
-/** Slice: player is Angelina cutout — hide 3D hero swap UI. */
-export function applySliceAngelinaPlayerChrome() {
+/** t204u: player = custom hero; Angelina = companion (dialogs + guide). */
+export function applyCompanionStoryChrome() {
   if (!isLifeCh1SliceEnabled()) {
+    document.body.classList.remove("life-ch1-companion-active");
     document.body.classList.remove("life-ch1-angelina-player");
     return;
   }
-  document.body.classList.add("life-ch1-angelina-player");
+  document.body.classList.add("life-ch1-companion-active");
+  document.body.classList.remove("life-ch1-angelina-player");
   const st = ensureLifeCh1();
   if (st) {
-    st.playerCutout = true;
-    st.angelinaSkin = normalizeSkinId(st.angelinaSkin || "A");
+    st.playerCutout = false;
+    st.companionAngelinaSkin = normalizeSkinId(st.companionAngelinaSkin || st.angelinaSkin || "A");
+    st.angelinaSkin = st.companionAngelinaSkin;
   }
+}
+
+export function applySliceAngelinaPlayerChrome() {
+  applyCompanionStoryChrome();
 }
 
 function useLocalOverlay() {
@@ -556,7 +567,7 @@ export async function tryStartAfterOnboarding() {
   st.startedAt = Date.now();
   st.stepIndex = 0;
   delete st._moveStepBaseline;
-  st.playerCutout = true;
+  st.playerCutout = false;
   document.body.classList.add("life-ch1-active");
   try {
     const { dismissHowToOverlay } = await import("../how-to-play.mjs");
@@ -564,7 +575,7 @@ export async function tryStartAfterOnboarding() {
   } catch (_) {
     document.getElementById("howToOverlay")?.classList.remove("active");
   }
-  applySliceAngelinaPlayerChrome();
+  applyCompanionStoryChrome();
   persistLocalOverlay();
   hooks.save?.();
   setSubtitle(
@@ -703,14 +714,14 @@ function openWardrobePanel() {
   wardrobePending.outfitFlag = null;
   panel.hidden = false;
   document.getElementById("lifeCh1WardrobeTitle").textContent = L({
-    ru: "Гардероб",
-    en: "Wardrobe",
-    da: "Garderobe"
+    ru: "Ангелина — образ спутника",
+    en: "Angelina — companion look",
+    da: "Angelina — ledsagerens look"
   });
   document.getElementById("lifeCh1WardrobeHint").textContent = L({
-    ru: "Выберу, в чём сегодня выйду.",
-    en: "I'll choose what to wear today.",
-    da: "Jeg vælger, hvad jeg tager på i dag."
+    ru: "Выбери, как Ангелина выглядит в диалогах и подсказках — твой герой остаётся в 3D.",
+    en: "Pick how Angelina looks in dialogs and hints — your hero stays in 3D.",
+    da: "Vælg Angels udseende i dialog og hints — din helt forbliver i 3D."
   });
   document.getElementById("lifeCh1OutfitLabel").textContent = L({
     ru: "Стиль на сегодня:",

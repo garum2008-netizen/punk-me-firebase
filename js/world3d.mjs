@@ -512,7 +512,12 @@ function createActorFromCatalog(id, characterId, isNpc) {
   const tpl = getTemplateForCharacter(cid, { allowFallback });
   if (!tpl?.gltf) return null;
   const def = charDef(cid);
-  const built = createCc0Actor(tpl, cid, def.look || {}, {
+  let look = def.look || {};
+  if (id === "player" && typeof window.getPlayerAvatarLook === "function") {
+    const custom = window.getPlayerAvatarLook();
+    if (custom) look = { ...look, ...custom };
+  }
+  const built = createCc0Actor(tpl, cid, look, {
     isPlayer: id === "player",
     actorId: id
   });

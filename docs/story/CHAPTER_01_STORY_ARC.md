@@ -1,10 +1,10 @@
 # Chapter 1 — Story arc map (current + proposed)
 
-**t203u** · Audit against playable build on branch `cursor/vertical-slice-ch1-d81d`.
+**t204u** · Audit against playable build on branch `cursor/vertical-slice-ch1-d81d`.
 
-## Canon conflict (read first)
+## Canon (t204u)
 
-See `STORY_BIBLE.md`. Proposed four-act arc uses **Angelina-as-guide + separate player**. Approved **03.11** uses **player = Angelina**. Do not implement dual-POV until owner picks a reconciliation option.
+**Player** = custom hero (Character Studio). **Angelina** = companion/guide. See `STORY_BIBLE.md` and `docs/game-design/AVATAR_CREATOR_SPEC.md`.
 
 ---
 
@@ -13,7 +13,7 @@ See `STORY_BIBLE.md`. Proposed four-act arc uses **Angelina-as-guide + separate 
 ```mermaid
 flowchart LR
   subgraph entry [Act I Entry]
-    A[Char select Angelina]
+    A[Character Studio — create hero]
     B[Onboarding move / street]
   end
   subgraph dev [Act II Development]

@@ -1,0 +1,83 @@
+[
+  {
+    "avatarVersion": 1,
+    "name": "Nova",
+    "skinTone": "tone_08",
+    "hairStyle": "hair_mohawk",
+    "hairColor": "electric_blue",
+    "facePreset": "face_04",
+    "bodyPreset": "body_vienna",
+    "outfitStyle": "style_cyber_punk",
+    "accessories": [
+      "wings_01"
+    ],
+    "companionAngelinaSkin": "A"
+  },
+  {
+    "avatarVersion": 1,
+    "name": "Rix",
+    "skinTone": "tone_08",
+    "hairStyle": "hair_mohawk",
+    "hairColor": "electric_blue",
+    "facePreset": "face_04",
+    "bodyPreset": "body_vienna",
+    "outfitStyle": "style_cyber_punk",
+    "accessories": [
+      "wings_01"
+    ],
+    "companionAngelinaSkin": "A"
+  },
+  {
+    "avatarVersion": 1,
+    "name": "Yuki",
+    "skinTone": "tone_07",
+    "hairStyle": "hair_gothic_long",
+    "hairColor": "hc_silver",
+    "facePreset": "face_02",
+    "bodyPreset": "body_compact",
+    "outfitStyle": "style_dark_gothic",
+    "accessories": [],
+    "companionAngelinaSkin": "A"
+  },
+  {
+    "avatarVersion": 1,
+    "name": "Zef",
+    "skinTone": "tone_04",
+    "hairStyle": "hair_gothic_long",
+    "hairColor": "hc_gold",
+    "facePreset": "face_08",
+    "bodyPreset": "body_compact",
+    "outfitStyle": "style_dark_gothic",
+    "accessories": [],
+    "companionAngelinaSkin": "A"
+  },
+  {
+    "avatarVersion": 1,
+    "name": "MiraHero",
+    "skinTone": "tone_05",
+    "hairStyle": "hair_short",
+    "hairColor": "hc_ice",
+    "facePreset": "face_01",
+    "bodyPreset": "body_vienna",
+    "outfitStyle": "style_neon_rebel",
+    "accessories": [
+      "jewelry_01",
+      "mask_01"
+    ],
+    "companionAngelinaSkin": "A"
+  },
+  {
+    "avatarVersion": 1,
+    "name": "Ash",
+    "skinTone": "tone_02",
+    "hairStyle": "hair_cyber_tail",
+    "hairColor": "hc_silver",
+    "facePreset": "face_03",
+    "bodyPreset": "body_razor",
+    "outfitStyle": "style_street_angel",
+    "accessories": [
+      "glasses_01"
+    ],
+    "companionAngelinaSkin": "A"
+  }
+]

@@ -8,9 +8,19 @@ function tt(key, fallback) {
   return typeof window.t === "function" ? window.t(key) : fallback;
 }
 
+function heroName() {
+  const n = window.me?.heroName || window.me?.name;
+  return n ? String(n).slice(0, 24) : "";
+}
+
 function pickLine() {
   const me = window.me;
+  const who = heroName();
   if (!me) return tt("angelina_guide_welcome", "Hey — I'll hint what to do next. Follow the quest box.");
+  if (who && typeof tt === "function") {
+    const named = tt("angelina_guide_welcome_named", "");
+    if (named) return named.replace(/\{name\}/g, who);
+  }
   if (window.LifeCh1Slice?.isActive?.()) {
     const idx = me.lifeCh1?.stepIndex ?? 0;
     const stepIds = ["move", "outfit", "trust", "reflect"];
