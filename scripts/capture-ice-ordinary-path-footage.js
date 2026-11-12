@@ -69,6 +69,44 @@ function cetTimestamp(date = new Date()) {
   );
 }
 
+function findWebmUnder(dir) {
+  if (!fs.existsSync(dir)) return null;
+  const stack = [dir];
+  let latest = null;
+  let latestMtime = 0;
+  while (stack.length) {
+    const cur = stack.pop();
+    for (const ent of fs.readdirSync(cur, { withFileTypes: true })) {
+      const p = path.join(cur, ent.name);
+      if (ent.isDirectory()) stack.push(p);
+      else if (ent.name.endsWith(".webm")) {
+        const mt = fs.statSync(p).mtimeMs;
+        if (mt >= latestMtime) {
+          latestMtime = mt;
+          latest = p;
+        }
+      }
+    }
+  }
+  return latest;
+}
+
+function rescueOrdinaryRecording(rec, minBytes = 400_000) {
+  if (!rec?.file || !rec?.videoDir) return;
+  try {
+    if (fs.existsSync(rec.file) && fs.statSync(rec.file).size >= minBytes) {
+      rec.videoSaveError = null;
+      return;
+    }
+  } catch (_) {}
+  const w = findWebmUnder(rec.videoDir);
+  if (!w || !fs.existsSync(w) || fs.statSync(w).size < minBytes) return;
+  fs.mkdirSync(path.dirname(rec.file), { recursive: true });
+  fs.copyFileSync(w, rec.file);
+  rec.videoSaveError = null;
+  Object.assign(rec, ffprobeMeta(rec.file));
+}
+
 function ffprobeMeta(filePath) {
   try {
     const r = spawnSync(
@@ -857,27 +895,6 @@ async function runOrdinarySession(browser, viewport, label) {
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
   let videoSaveError = null;
-  function findWebmUnder(dir) {
-    if (!fs.existsSync(dir)) return null;
-    const stack = [dir];
-    let latest = null;
-    let latestMtime = 0;
-    while (stack.length) {
-      const cur = stack.pop();
-      for (const ent of fs.readdirSync(cur, { withFileTypes: true })) {
-        const p = path.join(cur, ent.name);
-        if (ent.isDirectory()) stack.push(p);
-        else if (ent.name.endsWith(".webm")) {
-          const mt = fs.statSync(p).mtimeMs;
-          if (mt >= latestMtime) {
-            latestMtime = mt;
-            latest = p;
-          }
-        }
-      }
-    }
-    return latest;
-  }
   const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
   async function waitStableWebmFile() {
     let lastPath = null;
@@ -964,6 +981,7 @@ async function runOrdinarySession(browser, viewport, label) {
     prodNetworkCoverageNote:
       "Blocked URLs listed when prod host matched; zero blocks means no prod host appeared, not full egress inventory.",
     videoSaveError,
+    videoDir,
     file: dest,
     inputLog: inputLog.slice(),
     scenes: scenes.slice(),
@@ -996,6 +1014,9 @@ async function runOrdinarySession(browser, viewport, label) {
       await page.close();
     } catch (_) {}
   } finally {
+    for (const r of results) {
+      rescueOrdinaryRecording(r, ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
+    }
     await browser.close();
     try {
       process.kill(-serveChild.pid, "SIGTERM");
