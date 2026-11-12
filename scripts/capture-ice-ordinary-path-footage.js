@@ -914,26 +914,40 @@ async function runOrdinarySession(browser, viewport, label) {
       : null;
   }
   await page.close().catch(() => {});
-  await ctx.close();
+  let ctxClosed = false;
   if (video) {
-    const stable = await waitStableWebmFile();
+    let stable = await waitStableWebmFile();
     try {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
-      if (stable) {
+      if (stable && fs.existsSync(stable)) {
         fs.copyFileSync(stable, dest);
-      } else {
-        await video.saveAs(dest);
       }
     } catch (e) {
       videoSaveError = String(e.message || e);
-      const fallback = findWebmUnder(videoDir);
-      if (fallback && fs.existsSync(fallback) && fs.statSync(fallback).size >= minVideoBytes) {
-        fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.copyFileSync(fallback, dest);
-        videoSaveError = null;
+    }
+    if (!fs.existsSync(dest) || fs.statSync(dest).size < minVideoBytes) {
+      await ctx.close();
+      ctxClosed = true;
+      stable = await waitStableWebmFile();
+      try {
+        if (stable && fs.existsSync(stable)) {
+          fs.copyFileSync(stable, dest);
+          videoSaveError = null;
+        } else {
+          await video.saveAs(dest);
+          videoSaveError = null;
+        }
+      } catch (e) {
+        videoSaveError = String(e.message || e);
+        const fallback = findWebmUnder(videoDir);
+        if (fallback && fs.existsSync(fallback) && fs.statSync(fallback).size >= minVideoBytes) {
+          fs.copyFileSync(fallback, dest);
+          videoSaveError = null;
+        }
       }
     }
   }
+  if (!ctxClosed) await ctx.close();
 
   return {
     label,
