@@ -470,6 +470,35 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   opacity: 0; pointer-events: none; transition: opacity 0.2s;
 }
 .context-hint.visible { opacity: 1; }
+
+.angelina-guide-banner {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
+  z-index: 9200;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  background: rgba(18, 12, 28, 0.88);
+  color: #f3e8ff;
+  border: 1px solid rgba(196, 132, 252, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.angelina-guide-banner.visible { opacity: 1; }
+@media (min-width: 900px) {
+  .angelina-guide-banner {
+    left: auto;
+    right: 12px;
+    bottom: 12px;
+    max-width: 380px;
+  }
+}
 .voice-subtitle {
   position: absolute; left: 50%; transform: translateX(-50%);
   bottom: calc(var(--dock-h, 150px) + 88px); z-index: 21;

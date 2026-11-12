@@ -3,7 +3,7 @@
 **Gameplay acceptance SHA:** `552740b782bf415cd788f996fd5e7005d9874bfe`  
 **Branch tip (tooling):** `6bccf30`+ (video E5, Cloudflare workflow) — gameplay logic frozen at `552740b`  
 **PR:** [#52](https://github.com/garum2008-netizen/punk-me-firebase/pull/52)  
-**Production:** **NOT merged** — owner gates E1 (visual), E2 (physical device) remain.
+**Production:** **HOLD** (t201u 2026-11-12) — no merge, no halloween domain changes. Gates: E1 visual, E2 physical device.
 
 ---
 
@@ -15,7 +15,7 @@
 | Multi-location 3D world (room, street, cemetery, city, …) | **Yes (world)** | `js/game.js` `LOCATIONS`; ordinary path visits street/cemetery cutouts; map travel in captures |
 | Room / city **construction** in ordinary Ch1 path | **No on tested path** | `buildZone`, `cityBuilds`, `construction` exist in `game.js` / `world3d.mjs`; **not** exercised in ordinary Ch1 acceptance runs |
 | Angelina as teen **player** + dialogue | **Yes (Ch1)** | Player-voice lines in slice dialogues; wardrobe/mirror flow; not a separate 3D guide NPC on every step |
-| Humorous / contextual instructions | **Partial** | Onboarding + Life Ch1 subtitles (`setSubtitle`); global “Angelina explains every button” **not** verified for full world |
+| Humorous / contextual instructions | **In progress (branch tip)** | `js/angelina-guide.mjs` persistent banner; **E1** still required for child-clarity |
 | Desktop landscape + mobile HUD | **Yes (tested)** | 1280×720 + 390×844 captures; `test:preview-build` mobile HUD PASS |
 | Understandable for a child | **Owner only (E1)** | Automation proves flows complete; **no** child-usability sign-off |
 
@@ -31,7 +31,9 @@
 | `test:preview-build` / `test:preview-wrangler` | PASS |
 | `test-dev-coins-gate`, RTDB roundtrip | PASS |
 | Halo E4 | **Non-blocking:** shipped A `32c087ba…` unchanged (`restore_ab6fa302` policy) |
-| Desktop UNCUT WebM E5 | **PASS** — canonical `pass03` capture (~100 MB) + derivatives; `pass01`/`pass02` desktop files aligned from same canonical encode for packaging |
+| Desktop UNCUT WebM E5 | **One canonical** `pass03` only (`EVIDENCE_INTEGRITY.json`); pass01/02 aliases **retracted** |
+| Cloudflare preview E3 | **GO (isolated)** — tarball `punk-me-preview-552740b.tar.gz` @ SHA `552740b`; see `PREVIEW_DEPLOY_FOR_GAME_BOT.md` |
+| Product v1 | **Not claimed** — Ch1 slice = technical foundation; city-build step + Angelina guide in progress on branch tip |
 | Cloudflare preview E3 | **Ready:** `.github/workflows/deploy-cloudflare-preview.yml` + `scripts/deploy-preview-cloudflare.js` — requires repo secrets (not in agent VM) |
 
 ---

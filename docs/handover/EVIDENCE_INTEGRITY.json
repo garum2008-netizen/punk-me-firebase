@@ -1,0 +1,24 @@
+{
+  "gameplayAcceptanceSha": "552740b782bf415cd788f996fd5e7005d9874bfe",
+  "updatedAt": "2026-11-12T17:30:00Z",
+  "ownerDirective": "t201u-2026-11-12-production-HOLD",
+  "desktopUncutVideo": {
+    "policy": "Exactly one unique desktop UNCUT recording for acceptance evidence.",
+    "canonical": {
+      "path": "/opt/cursor/artifacts/ice-ch1-footage/ice-ch1-ORDINARY-UNCUT-desktop-552740b782bf-desktop1280x720-pass03.webm",
+      "passLabel": "pass03",
+      "note": "Only this file is an independent desktop screen recording."
+    },
+    "retractedAliases": {
+      "formerPass01Pass02": "Previously duplicated pass03 bytes — removed from evidence set 2026-11-12 per t201u."
+    }
+  },
+  "portraitUncutVideo": {
+    "policy": "Three independent portrait passes (automation runs 01–03).",
+    "pattern": "ice-ch1-ORDINARY-UNCUT-portrait-552740b782bf-mobile390x844-pass{01,02,03}.webm"
+  },
+  "logicalAutomationPasses": {
+    "threePassSummary": "/opt/cursor/artifacts/ice-ch1-footage/ice-ordinary-three-pass-552740b782bf.json",
+    "note": "3× logical full ordinary (portrait+desktop sessions per run); desktop UNCUT proven once via pass03."
+  }
+}

@@ -2324,6 +2324,7 @@ function placeBuildAt(x, y) {
     me.built = (me.built || 0) + 1;
     saveMe();
     questBump("built", 1);
+    window.Onboarding?.onCityBuildPlaced?.();
     toast(t("built"));
     return;
   }
@@ -2334,6 +2335,7 @@ function placeBuildAt(x, y) {
   me.built = (me.built || 0) + 1;
   saveMe();
   questBump("built", 1);
+  window.Onboarding?.onCityBuildPlaced?.();
   toast(t("built"));
 }
 

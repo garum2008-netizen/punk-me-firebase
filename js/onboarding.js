@@ -11,13 +11,16 @@ const ONBOARDING_STEPS = [
   { id: "win_fight", key: "win_fight", goal: 1, reward: { coins: 80, xp: 45 },
     target: () => ({ loc: "street", npcId: "razor" }) },
   { id: "shop_buy", key: "shop_buy", goal: 1, reward: { coins: 25, xp: 35 },
-    target: () => ({ loc: "room", wx: -1, wz: 0, ui: "shop" }) }
+    target: () => ({ loc: "room", wx: -1, wz: 0, ui: "shop" }) },
+  { id: "city_build", key: "city_build", goal: 1, reward: { coins: 55, xp: 40 },
+    target: () => ({ loc: "city", ui: "build" }) }
 ];
 
 /** Portal waypoints when the player is not yet in the step's target location. */
 const PORTAL_WAYPOINTS = {
   street: { room: { wx: 0, wz: 5.5 } },
-  cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.5 } }
+  cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.5 } },
+  city: { street: { wx: 45, wz: 70 }, room: { wx: 0, wz: 5.5 } }
 };
 
 function stepIndex() {
@@ -56,6 +59,11 @@ function completeStep() {
   window.me.onboarding.progress = {};
   const nextSt = currentStep();
   if (nextSt?.key === "visit_street") window.World3D?.setPortalGrace?.(1400);
+  if (nextSt?.key === "city_build") {
+    window.me.inventory = window.me.inventory || { materials: {}, spells: [] };
+    window.me.inventory.materials = window.me.inventory.materials || {};
+    window.me.inventory.materials.crypt = (window.me.inventory.materials.crypt || 0) + 1;
+  }
   if (window.me.onboarding.step >= ONBOARDING_STEPS.length) {
     window.me.onboarding.done = true;
     toast(typeof t === "function" ? t("onboard_all_done") : "Onboarding complete!");
@@ -66,6 +74,7 @@ function completeStep() {
   else saveMeQuiet();
   renderOnboardingQuest();
   syncGuideTarget();
+  window.AngelinaGuide?.refresh?.();
 }
 
 function saveMeQuiet() {
@@ -108,6 +117,10 @@ function getGuideTarget() {
   if (tgt.ui === "shop") {
     if (window.me.location === "room") return { wx: tgt.wx, wz: tgt.wz };
     return waypointToReach("room") || null;
+  }
+  if (tgt.ui === "build") {
+    if (window.me.location === "city") return { wx: 0, wz: 0, loc: "city" };
+    return waypointToReach("city") || null;
   }
   const here = window.me.location;
   if (tgt.loc && here !== tgt.loc) {
@@ -161,12 +174,17 @@ function onEnterLocation(loc) {
   if (!st) return;
   if (st.key === "visit_street" && loc === "street") bump("visit_street", 1);
   if (st.key === "visit_cemetery" && loc === "cemetery") bump("visit_cemetery", 1);
+  if (st.key === "city_build" && loc === "city") syncGuideTarget();
 }
 
 function onTalkRazor() { bump("talk_razor", 1); }
 function onVisitCemetery() { if (window.me?.location === "cemetery") bump("visit_cemetery", 1); }
 function onWinFight() { bump("win_fight", 1); }
 function onShopBuy() { bump("shop_buy", 1); }
+
+function onCityBuildPlaced() {
+  if (window.me?.location === "city") bump("city_build", 1);
+}
 
 function adaptSpawnLocation() {
   if (!window.me?.onboarding || window.me.onboarding.done) return;
@@ -186,6 +204,7 @@ function initOnboarding() {
   }
   renderOnboardingQuest();
   syncGuideTarget();
+  window.AngelinaGuide?.refresh?.();
 }
 
 window.Onboarding = {
@@ -200,6 +219,7 @@ window.Onboarding = {
   onVisitCemetery,
   onWinFight,
   onShopBuy,
+  onCityBuildPlaced,
   getGuideTarget,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
 };

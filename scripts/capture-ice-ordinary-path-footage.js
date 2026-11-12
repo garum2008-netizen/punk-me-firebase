@@ -533,6 +533,23 @@ async function completeOnboarding(page) {
       await visibleUiClick(page, '#shopModal button[onclick*="buyItem"]', "shop buy");
       await page.waitForTimeout(600);
       await page.click("#shopModal .close").catch(() => {});
+    } else if (step === 6) {
+      if (st.location !== "city") await uiOpenMapTravel(page, "city");
+      await page.waitForFunction(() => window.me?.location === "city", undefined, { timeout: 90000 });
+      await page.waitForSelector("#btnBuild", { timeout: 30000 });
+      await visibleUiClick(page, "#btnBuild", "toggle build mode");
+      await focusStage(page);
+      const vp = page.viewportSize() || { width: 1280, height: 720 };
+      const bx = Math.round(vp.width * 0.5);
+      const by = Math.round(vp.height * 0.62);
+      logInput("ui_click", `city build place @${bx},${by}`);
+      await page.mouse.click(bx, by);
+      await page.waitForTimeout(800);
+      await page.waitForFunction(
+        () => (window.me?.onboarding?.step || 0) > 6 || window.me?.onboarding?.done,
+        undefined,
+        { timeout: 45000 }
+      );
     }
     await page
       .waitForFunction(s => window.me?.onboarding?.done || (window.me?.onboarding?.step || 0) > s, stepBefore, {
