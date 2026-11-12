@@ -1,5 +1,5 @@
 {
-  "gameplayAcceptanceSha": "2b4ed404af2961911509f36cd01e5a5473da13fa",
+  "gameplayAcceptanceSha": "a95efee6edd5c136035ed5fa5911c9ca214643ea",
   "ownerAcceptanceCandidate": "a37c200+ (t203u) — NOT production release",
   "updatedAt": "2026-11-12T20:30:00+01:00",
   "ownerDirective": "t201u-2026-11-12-production-HOLD",
@@ -18,11 +18,11 @@
     "cursorStagingProjectUnused": "punk-me-ch1-preview (empty; owner: delete nothing)",
     "nextPreviewPolicy": "When branch tip (city build + Angelina) is ready, agent publishes new verified tarball to Agent Store; Game Bot redeploys same project.",
     "branchTipBundle": {
-      "agentStore": "/cursor/stores/self/preview-2b4ed404af29/",
-      "tarball": "punk-me-preview-2b4ed404af29.tar.gz",
-      "sha256": "b9fe6f121e2401b368bee35d072a7f6606e2b6c701c4f74cd1a90f5d7fb282ff",
-      "gitSha": "2b4ed404af2961911509f36cd01e5a5473da13fa",
-      "featureNote": "t204u Character Studio + companion Angelina",
+      "agentStore": "/cursor/stores/self/preview-a95efee6edd5/",
+      "tarball": "punk-me-preview-a95efee6edd5.tar.gz",
+      "sha256": "1fd7d50508786860c219f28a5f902903ae78178eefe46f17bb15a17543a78312",
+      "gitSha": "a95efee6edd5c136035ed5fa5911c9ca214643ea",
+      "featureNote": "t206u CYBER PUNK BLUE QA + t204u Character Studio",
       "gameBotAction": "Snapshot current deployment, then update punk-me-preview-552740b"
     }
   },
@@ -32,6 +32,16 @@
       "path": "/opt/cursor/artifacts/ice-ch1-footage/ice-ch1-ORDINARY-UNCUT-desktop-552740b782bf-desktop1280x720-pass03.webm",
       "passLabel": "pass03",
       "note": "Desktop UNCUT at pinned gameplay SHA (no step-7 city build in recording era)."
+    },
+    "t206CyberPunkBlue": {
+      "status": "in_progress",
+      "gitShaTarget": "a95efee6edd5c136035ed5fa5911c9ca214643ea",
+      "pathPattern": "ice-ch1-ORDINARY-UNCUT-desktop-*-pass-t206-cyber-blue.webm",
+      "qaScreenshots": [
+        "/opt/cursor/artifacts/avatar-qa-t206/t206-character-studio-cyber-punk-blue.png",
+        "/opt/cursor/artifacts/avatar-qa-t206/t206-gameplay-room-cyber-punk-blue.png"
+      ],
+      "automatedGate": "node scripts/test-avatar-qa-t206.js"
     },
     "branchTipCeoP0": {
       "status": "complete",
