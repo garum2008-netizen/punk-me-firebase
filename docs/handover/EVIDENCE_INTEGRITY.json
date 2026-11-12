@@ -1,5 +1,5 @@
 {
-  "gameplayAcceptanceSha": "720423a134cad626994657d8baccf28a9d375ea9",
+  "gameplayAcceptanceSha": "c90548fa5da92e13a72e45ab83896a6c16eef04b",
   "ownerAcceptanceCandidate": "a37c200+ (t203u) — NOT production release",
   "updatedAt": "2026-11-12T18:45:00+01:00",
   "ownerDirective": "t201u-2026-11-12-production-HOLD",
@@ -18,10 +18,10 @@
     "cursorStagingProjectUnused": "punk-me-ch1-preview (empty; owner: delete nothing)",
     "nextPreviewPolicy": "When branch tip (city build + Angelina) is ready, agent publishes new verified tarball to Agent Store; Game Bot redeploys same project.",
     "branchTipBundle": {
-      "agentStore": "/cursor/stores/self/preview-720423a134ca/",
-      "tarball": "punk-me-preview-720423a134ca.tar.gz",
-      "sha256": "d78ebbc8be09ee28038b60300e6cce6cc1e1b496261f56a0a86571a691701289",
-      "gitSha": "720423a134cad626994657d8baccf28a9d375ea9",
+      "agentStore": "/cursor/stores/self/preview-c90548fa5da9/",
+      "tarball": "punk-me-preview-c90548fa5da9.tar.gz",
+      "sha256": "0ba9513807004c655fd091250580177d28951af7e486fc6dc692bd51b2bff180",
+      "gitSha": "c90548fa5da92e13a72e45ab83896a6c16eef04b",
       "gameBotAction": "Snapshot current deployment, then update punk-me-preview-552740b"
     }
   },

@@ -983,18 +983,36 @@ async function runOrdinarySession(browser, viewport, label) {
         if (r?.ctx) await r.ctx.close();
         if (r?._video && r.file) {
           fs.mkdirSync(path.dirname(r.file), { recursive: true });
-          try {
-            await r._video.saveAs(r.file);
-            r.videoSaveError = null;
-          } catch (e) {
-            r.videoSaveError = String(e.message || e);
+          for (let attempt = 0; attempt < 25; attempt++) {
             try {
               const vp = await r._video.path();
-              if (vp && fs.existsSync(vp) && fs.statSync(vp).size >= minB) {
-                fs.copyFileSync(vp, r.file);
-                r.videoSaveError = null;
+              if (!vp || !fs.existsSync(vp)) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                continue;
               }
-            } catch (_) {}
+              const sz = fs.statSync(vp).size;
+              if (sz < minB) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                continue;
+              }
+              const buf = fs.readFileSync(vp);
+              if (buf.length >= minB) {
+                fs.writeFileSync(r.file, buf);
+                r.videoSaveError = null;
+                break;
+              }
+            } catch (e) {
+              r.videoSaveError = String(e.message || e);
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+          }
+          if (!fs.existsSync(r.file) || fs.statSync(r.file).size < minB) {
+            try {
+              await r._video.saveAs(r.file);
+              r.videoSaveError = null;
+            } catch (e) {
+              if (!r.videoSaveError) r.videoSaveError = String(e.message || e);
+            }
           }
         }
         if (!r?.videoSaveError) Object.assign(r, ffprobeMeta(r.file));
