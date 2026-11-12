@@ -11,7 +11,7 @@
       "responsibility_now": "content_production + media_validation + publishing_queue",
       "transferred": true,
       "disable": false,
-      "reason": "Production stays on. This environment cannot switch off Grok bots, and it does not start a new one."
+      "reason": "No new bot is started. Conversations from the existing bots were not accessible here and are not recorded as recovered."
     },
     {
       "name": "grok_ceo_bot",

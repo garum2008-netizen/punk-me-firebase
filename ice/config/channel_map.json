@@ -1,0 +1,53 @@
+{
+  "verified_at": "2026-11-11T11:25:45+01:00",
+  "organization_id": "6a9d916e87a0b6a56deaf510",
+  "organization_name": "My organization",
+  "business": [
+    {
+      "key": "linkedin_inna",
+      "id": "6a9d9227cd8b9c702c197a40",
+      "service": "linkedin",
+      "name": "INNA KRAGH",
+      "audience": "business",
+      "brand": "INNA KRAGH"
+    },
+    {
+      "key": "facebook_legal",
+      "id": "6a9d9398cd8b9c702c1981cd",
+      "service": "facebook",
+      "name": "Legal Tech Counsellor",
+      "audience": "business",
+      "brand": "Legal Tech Counsellor"
+    }
+  ],
+  "requested_but_not_connected": [
+    {
+      "role": "youtube_inna_kragh",
+      "reason": "The editorial map says YouTube belongs to Inna Kragh. The connected YouTube channels are PUNK ME ANGEL and Angel&Chris Play. Business video is not assigned to them."
+    },
+    {
+      "role": "instagram_reels_business",
+      "reason": "The only Instagram channel is angelinalinakragh. It stays with the children's and family projects."
+    }
+  ],
+  "separated": [
+    {
+      "id": "6ad64323778b240e2f5abcb6",
+      "service": "youtube",
+      "name": "PUNK ME ANGEL",
+      "audience": "children"
+    },
+    {
+      "id": "6ad507a4778b240e2f4bb2d6",
+      "service": "youtube",
+      "name": "Angel&Chris Play",
+      "audience": "children"
+    },
+    {
+      "id": "6ad50e6f778b240e2f4c26d0",
+      "service": "instagram",
+      "name": "angelinalinakragh",
+      "audience": "children"
+    }
+  ]
+}

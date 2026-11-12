@@ -1,0 +1,217 @@
+{
+  "week": "2026-11-16",
+  "status": "proposed_not_scheduled",
+  "authorization": "English business drafts may be prepared from these texts. Nothing in this file is scheduled or published. Owner approval is still required before a date is set.",
+  "research_notes": [
+    {
+      "id": "note-incoterms-2020-fca",
+      "source": "ICC Incoterms® 2020, FCA rule, delivery and transfer of risk",
+      "status": "public_instrument",
+      "client_file": false
+    },
+    {
+      "id": "note-cisg-67",
+      "source": "CISG Article 67, risk when the contract involves carriage",
+      "status": "public_instrument",
+      "client_file": false
+    },
+    {
+      "id": "note-eidas-25",
+      "source": "Regulation (EU) No 910/2014, Article 25",
+      "status": "public_instrument",
+      "client_file": false
+    }
+  ],
+  "packages": [
+    {
+      "id": "wk16-fca-incoterms",
+      "title": "Who bears the risk if goods are damaged after handover to the carrier?",
+      "proposed_day": "2026-11-16",
+      "formats": [
+        "linkedin",
+        "facebook"
+      ],
+      "channels": [
+        "linkedin_inna",
+        "facebook_legal"
+      ],
+      "scenario_kind": "educational",
+      "source": "owner directive 2026-11-11, public Incoterms and CISG",
+      "approval_state": "pending_owner",
+      "visual": true,
+      "media": {
+        "url": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/generated/wk16-fca-incoterms.png",
+        "kind": "image",
+        "width": 1080,
+        "height": 1350,
+        "bytes": 38936,
+        "sha256": "19d707fd6a8ac41d1d0e565ec87a1f358e364278409e73c4e0d90086ddcb4dc0",
+        "alt": "Who bears the risk if goods are damaged after handover to the carrier?",
+        "buffer_confirmed": true,
+        "source": "local typographic card, no paid image model"
+      },
+      "buffer_drafts": [
+        {
+          "id": "6af4551c2c0a5da53405fb38",
+          "job_id": "wk16-fca-incoterms-linkedin",
+          "channel": "linkedin_inna",
+          "status": "draft",
+          "dueAt": null,
+          "sentAt": null,
+          "sharedNow": false,
+          "confirmed_via": "get_post"
+        },
+        {
+          "id": "6af4554d9494b43fade78f00",
+          "job_id": "wk16-fca-incoterms-facebook",
+          "channel": "facebook_legal",
+          "status": "draft",
+          "dueAt": null,
+          "sentAt": null,
+          "sharedNow": false,
+          "confirmed_via": "get_post"
+        }
+      ],
+      "native_review": {
+        "da": "required"
+      },
+      "texts": {
+        "en": "Educational scenario, not a client matter and not a court decision.\n\nA seller hands the goods to the carrier named by the buyer. The truck leaves. The goods arrive damaged. The contract says FCA and names the place of handover.\n\nUnder Incoterms® 2020 FCA, the seller delivers when the goods are handed to the carrier nominated by the buyer at the named place. Risk of loss or damage passes at that handover, not when the goods later reach the buyer. Damage after that point is, as a starting point, the buyer's risk in transit.\n\nTwo lines still decide the argument. The named place matters, because handover at the seller's door and handover at a terminal are not the same moment. The contract also has to say who insures the carriage. FCA allocates risk between seller and buyer. It does not by itself win a claim against the carrier.\n\nWhere the CISG applies and the contract involves carriage, Article 67 is the related default. The FCA clause usually answers the question first.\n\nInna Kragh\nM.Sc. in International Law · International Legal & EU Compliance Expert\n\nIf the contract leaves the named place or the insurance duty blank, have that page read before you sign.\n\n#Incoterms #InternationalTrade #ContractReview",
+        "da": "Undervisningseksempel. Det er ikke en klientsag og ikke en dom.\n\nEn sælger overgiver varerne til den fragtmand, køberen har udpeget. Lastbilen kører. Varen ankommer med skade. Kontrakten siger FCA og nævner stedet for overgivelsen.\n\nEfter Incoterms® 2020 FCA leverer sælgeren, når varerne overgives til køberens fragtmand på det navngivne sted. Risikoen for tab eller skade går over ved den overgivelse, ikke først når varen når køberen. Skade efter det tidspunkt er som udgangspunkt køberens risiko under transporten.\n\nTo linjer afgør stadig uenigheden. Det navngivne sted betyder noget, fordi overgivelse ved sælgers dør og overgivelse på en terminal ikke er samme øjeblik. Kontrakten skal også sige, hvem der forsikrer transporten. FCA fordeler risikoen mellem sælger og køber. Den vinder ikke i sig selv et krav mod fragtmanden.\n\nNår CISG gælder, og kontrakten indebærer transport, er artikel 67 det beslægtede udgangspunkt. FCA-klausulen svarer normalt først.\n\nInna Kragh\nM.Sc. in International Law · International Legal & EU Compliance Expert\n\nHvis kontrakten lader stedet eller forsikringspligten stå tom, så få siden læst, før du skriver under.\n\n#Incoterms #InternationalHandel #Kontrakt"
+      }
+    },
+    {
+      "id": "wk16-comedy-unlimited-liability",
+      "title": "A three-page contract, unlimited liability",
+      "proposed_day": "2026-11-17",
+      "formats": [
+        "reel",
+        "short"
+      ],
+      "channels": [],
+      "scenario_kind": "fictional",
+      "source": "owner directive 2026-11-11, fictional Legal Comedy",
+      "approval_state": "pending_owner",
+      "visual": true,
+      "media": {
+        "url": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/generated/wk16-comedy-unlimited-liability.png",
+        "kind": "image",
+        "width": 1080,
+        "height": 1350,
+        "bytes": 35432,
+        "alt": "A three-page contract, unlimited liability",
+        "buffer_confirmed": false,
+        "source": "local typographic card, no paid image model"
+      },
+      "native_review": {},
+      "texts": {
+        "en": "Fictional sketch. Not a client, not a real contract, and not legal advice for a named company.\n\nVoice: Three pages. We kept it short.\nReply: Short is fine. Unlimited liability on page three is not a small sentence.\nVoice: It only applies if something goes wrong.\nReply: That is the only time liability matters.\n\nThe lesson is the cap. A short contract can still place the whole loss on one party. Write the limit, what it does not cover, and what happens to paid fees if the work stops.\n\nInna Kragh\nM.Sc. in International Law · International Legal & EU Compliance Expert\n\n#ContractDrafting #Liability #LegalComedy"
+      }
+    },
+    {
+      "id": "wk16-saas-integration",
+      "title": "What if the vendor never delivered the promised integration?",
+      "proposed_day": "2026-11-18",
+      "formats": [
+        "linkedin",
+        "article"
+      ],
+      "channels": [
+        "linkedin_inna"
+      ],
+      "scenario_kind": "educational",
+      "source": "owner directive 2026-11-11, general contract practice",
+      "approval_state": "pending_owner",
+      "visual": true,
+      "media": {
+        "url": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/generated/wk16-saas-integration.png",
+        "kind": "image",
+        "width": 1080,
+        "height": 1350,
+        "bytes": 33709,
+        "sha256": "6a0972bde286a2096701c32c2cc5c27ed46907f78be02f4e5eee07c79ef9c100",
+        "alt": "What if the vendor never delivered the promised integration?",
+        "buffer_confirmed": true,
+        "source": "local typographic card, no paid image model"
+      },
+      "buffer_drafts": [
+        {
+          "id": "6af45551a197a2c4d57a6384",
+          "job_id": "wk16-saas-integration-linkedin",
+          "channel": "linkedin_inna",
+          "status": "draft",
+          "dueAt": null,
+          "sentAt": null,
+          "sharedNow": false,
+          "confirmed_via": "get_post"
+        }
+      ],
+      "native_review": {},
+      "texts": {
+        "en": "Educational scenario, not a named vendor and not a client dispute.\n\nA company buys a CRM subscription because the order says the tool will connect to the accounting system. Months pass. The connection is still a slide in the sales deck.\n\nThe useful clauses are written before the argument. Name the integration, the date, and the test that shows it works. Say whether go-live depends on that test. Say what happens to the fees if the test fails, and how the customer leaves with its data.\n\nA limitation of liability does not repair a missing acceptance test. Neither does a promise that the vendor will use reasonable efforts, unless the contract also says what those efforts must achieve.\n\nInna Kragh\nM.Sc. in International Law · International Legal & EU Compliance Expert\n\nIf the integration is the reason you are buying, put the test in the order before you sign.\n\n#SaaS #ContractReview #Procurement"
+      }
+    },
+    {
+      "id": "wk16-comedy-nda",
+      "title": "Signed an NDA but never defined confidential information",
+      "proposed_day": "2026-11-19",
+      "formats": [
+        "reel",
+        "short"
+      ],
+      "channels": [],
+      "scenario_kind": "fictional",
+      "source": "owner directive 2026-11-11, fictional Legal Comedy",
+      "approval_state": "pending_owner",
+      "visual": true,
+      "media": {
+        "url": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/generated/wk16-comedy-nda.png",
+        "kind": "image",
+        "width": 1080,
+        "height": 1350,
+        "bytes": 34300,
+        "alt": "Signed an NDA but never defined confidential information",
+        "buffer_confirmed": false,
+        "source": "local typographic card, no paid image model"
+      },
+      "native_review": {},
+      "texts": {
+        "en": "Fictional sketch. Not a client and not a real negotiation.\n\nVoice: We signed the NDA. Everything is confidential.\nReply: What is everything?\nVoice: You know. The important parts.\nReply: A court will ask for the definition you skipped.\n\nThe lesson is the definition. Confidential information needs a boundary: what is marked, what was already public, and how long the duty lasts. A signature without that boundary is a short document with a long argument.\n\nInna Kragh\nM.Sc. in International Law · International Legal & EU Compliance Expert\n\n#NDA #Confidentiality #LegalComedy"
+      }
+    },
+    {
+      "id": "wk16-eidas-signature",
+      "title": "When does an e-signature really carry legal force?",
+      "proposed_day": "2026-11-20",
+      "formats": [
+        "linkedin",
+        "facebook"
+      ],
+      "channels": [
+        "linkedin_inna",
+        "facebook_legal"
+      ],
+      "scenario_kind": "educational",
+      "source": "owner directive 2026-11-11, eIDAS Article 25",
+      "approval_state": "pending_owner",
+      "visual": true,
+      "media": {
+        "url": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/generated/wk16-eidas-signature.png",
+        "kind": "image",
+        "width": 1080,
+        "height": 1350,
+        "bytes": 39715,
+        "alt": "When does an e-signature really carry legal force?",
+        "buffer_confirmed": false,
+        "source": "local typographic card, no paid image model"
+      },
+      "native_review": {
+        "da": "required"
+      },
+      "texts": {
+        "en": "Educational note, not a ruling on a particular signing tool.\n\nA contract is signed in a browser. Later someone says the signature was only a click.\n\nRegulation (EU) No 910/2014, Article 25, draws the line. A qualified electronic signature has the equivalent legal effect of a handwritten signature. Other electronic signatures are not automatically the same thing. They can still be evidence, and a member state may have its own rules for when they are enough.\n\nThe practical check is short. Which kind of signature did the contract require? Who can show the signer's identity and the integrity of the file? Was the process the one the clause actually named?\n\nAn e-signature is not a stronger contract. It is a way of signing. The clause still has to say what was agreed.\n\nInna Kragh\nM.Sc. in International Law · International Legal & EU Compliance Expert\n\nBefore you rely on a click, read the sentence that says which signature the contract demands.\n\n#eIDAS #ESignature #ContractReview",
+        "da": "Undervisningsnote. Det er ikke en afgørelse om et bestemt underskriftsværktøj.\n\nEn kontrakt underskrives i en browser. Bagefter siger nogen, at underskriften kun var et klik.\n\nForordning (EU) nr. 910/2014, artikel 25, trækker linjen. En kvalificeret elektronisk signatur har samme retsvirkning som en håndskreven underskrift. Andre elektroniske signaturer er ikke automatisk det samme. De kan stadig være bevis, og en medlemsstat kan have egne regler for, hvornår de er nok.\n\nDen praktiske prøve er kort. Hvilken type underskrift krævede kontrakten? Hvem kan vise underskriverens identitet og filens integritet? Var fremgangsmåden den, klausulen faktisk nævnte?\n\nEn e-signatur gør ikke kontrakten stærkere. Den er en måde at skrive under på. Klausulen skal stadig sige, hvad der blev aftalt.\n\nInna Kragh\nM.Sc. in International Law · International Legal & EU Compliance Expert\n\nFør du stoler på et klik, så læs sætningen, der siger, hvilken underskrift kontrakten kræver.\n\n#eIDAS #ESignatur #Kontrakt"
+      }
+    }
+  ]
+}

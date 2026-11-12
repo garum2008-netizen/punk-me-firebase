@@ -1,0 +1,117 @@
+{
+  "observed_at": "2026-11-11T12:55:00+01:00",
+  "publication": "none",
+  "existing_schedule_changed": false,
+  "save_to_draft": true,
+  "due_at_set": false,
+  "share_now": false,
+  "summary_ru": "Три английских деловых черновика созданы в Buffer и подтверждены как draft без даты и без отправки. Картинки FCA и SaaS открываются по публичному адресу. Черновики eIDAS не создавались: картинка ещё не собрана в R2. Датские тексты не отправлялись. Комедийные карточки не отправлялись в Buffer, потому что делового канала для роликов нет. Существующее расписание не менялось.",
+  "confirmed_drafts": [
+    {
+      "job_id": "wk16-fca-incoterms-linkedin",
+      "buffer_id": "6af4551c2c0a5da53405fb38",
+      "channel_id": "6a9d9227cd8b9c702c197a40",
+      "service": "linkedin",
+      "status": "draft",
+      "dueAt": null,
+      "sentAt": null,
+      "sharedNow": false,
+      "assets": 1,
+      "asset_url": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/generated/wk16-fca-incoterms.png",
+      "asset_width": 1080,
+      "asset_height": 1350,
+      "confirmed_via": "get_post",
+      "created_at": "2026-11-11T12:44:28+01:00"
+    },
+    {
+      "job_id": "wk16-fca-incoterms-facebook",
+      "buffer_id": "6af4554d9494b43fade78f00",
+      "channel_id": "6a9d9398cd8b9c702c1981cd",
+      "service": "facebook",
+      "status": "draft",
+      "dueAt": null,
+      "sentAt": null,
+      "sharedNow": false,
+      "assets": 1,
+      "asset_url": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/generated/wk16-fca-incoterms.png",
+      "asset_width": 1080,
+      "asset_height": 1350,
+      "confirmed_via": "get_post",
+      "created_at": "2026-11-11T12:45:17+01:00"
+    },
+    {
+      "job_id": "wk16-saas-integration-linkedin",
+      "buffer_id": "6af45551a197a2c4d57a6384",
+      "channel_id": "6a9d9227cd8b9c702c197a40",
+      "service": "linkedin",
+      "status": "draft",
+      "dueAt": null,
+      "sentAt": null,
+      "sharedNow": false,
+      "assets": 1,
+      "asset_url": "https://pub-2cf3acbd41594638a1855b3db79b5fad.r2.dev/ice-media/generated/wk16-saas-integration.png",
+      "asset_width": 1080,
+      "asset_height": 1350,
+      "confirmed_via": "get_post",
+      "created_at": "2026-11-11T12:45:21+01:00"
+    }
+  ],
+  "not_created": [
+    {
+      "job_id": "wk16-eidas-signature-linkedin",
+      "reason": "Public image is not verified yet. The card is local only. Buffer draft was not created."
+    },
+    {
+      "job_id": "wk16-eidas-signature-facebook",
+      "reason": "Public image is not verified yet. The card is local only. Buffer draft was not created."
+    },
+    {
+      "job_id": "wk16-comedy-unlimited-liability",
+      "reason": "No connected business reel channel. Stays in the library. Image is not on R2 yet."
+    },
+    {
+      "job_id": "wk16-comedy-nda",
+      "reason": "No connected business reel channel. Stays in the library. Image is not on R2 yet."
+    },
+    {
+      "language": "da",
+      "packages": ["wk16-fca-incoterms", "wk16-eidas-signature"],
+      "reason": "Native review is still required. Danish text was not sent to Buffer."
+    }
+  ],
+  "media_http": [
+    {
+      "name": "wk16-fca-incoterms.png",
+      "status": 200,
+      "bytes": 38936,
+      "sha256": "19d707fd6a8ac41d1d0e565ec87a1f358e364278409e73c4e0d90086ddcb4dc0"
+    },
+    {
+      "name": "wk16-saas-integration.png",
+      "status": 200,
+      "bytes": 33709,
+      "sha256": "6a0972bde286a2096701c32c2cc5c27ed46907f78be02f4e5eee07c79ef9c100"
+    },
+    {
+      "name": "wk16-eidas-signature.png",
+      "status": 404,
+      "local_bytes": 39715,
+      "local_sha256": "16319975c73e714f1a546442a6e15df45c81501e4d5a23aca687cc33f9ba5349",
+      "r2_fragments_verified": ["C00", "C01", "C02", "C03"]
+    },
+    {
+      "name": "wk16-comedy-nda.png",
+      "status": 404,
+      "local_bytes": 34300,
+      "local_sha256": "c1e449269394116ade0939373cec9706fc2b8c26d9eee05460ed5140ec59f808"
+    },
+    {
+      "name": "wk16-comedy-unlimited-liability.png",
+      "status": 404,
+      "local_bytes": 35432,
+      "local_sha256": "be1d0ef0886dc1e8805828e78036acf3e4e2c9cca63a629d7ac8a83d45885149"
+    }
+  ],
+  "buffer_autolink_note": "On all three drafts Buffer stored an automatic url annotation for the four characters M.Sc. The post text itself still reads M.Sc. The drafts were not edited after confirmation, so their draft status and empty due date were left as confirmed.",
+  "approval": "Owner approval is still required before any of these drafts receives a date."
+}
