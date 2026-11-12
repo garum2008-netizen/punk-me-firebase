@@ -13,7 +13,12 @@ function pickLine() {
   if (!me) return tt("angelina_guide_welcome", "Hey — I'll hint what to do next. Follow the quest box.");
   if (window.LifeCh1Slice?.isActive?.()) {
     const idx = me.lifeCh1?.stepIndex ?? 0;
-    return tt(`angelina_guide_lifech1_${idx}`, tt("angelina_guide_lifech1", "Life Ch1: read the panel, walk, press E at the marker."));
+    const stepIds = ["move", "outfit", "trust", "reflect"];
+    const sid = stepIds[idx] ?? String(idx);
+    return tt(
+      `angelina_guide_lifech1_${sid}`,
+      tt(`angelina_guide_lifech1_${idx}`, tt("angelina_guide_lifech1", "Life Ch1: read the panel, walk, press E at the marker."))
+    );
   }
   if (window.Onboarding?.isActive?.()) {
     const si = Math.min(me.onboarding?.step ?? 0, ONBOARD_IDS.length - 1);

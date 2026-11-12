@@ -370,9 +370,21 @@ async function tryPortalTravel(page, destLoc, maxMs = 55000) {
 }
 
 async function uiOpenMapTravel(page, locId) {
+  const already = await page.evaluate(id => window.me?.location === id, locId);
+  if (already) return;
   await visibleUiClick(page, '#panelBottom button[onclick*="mapModal"]', `map open → ${locId}`, { scroll: true });
   await page.waitForSelector("#mapModal.active", { timeout: 15000 });
-  const goBtn = page.locator(`#mapGrid button[onclick*="goLocation('${locId}')"]`).first();
+  const goBtn = page.locator(
+    `#mapGrid button:not([disabled])[onclick*="goLocation('${locId}')"]`
+  ).first();
+  if (!(await goBtn.count())) {
+    const locNow = await page.evaluate(() => window.me?.location);
+    if (locNow === locId) {
+      await page.click("#mapModal .close").catch(() => {});
+      return;
+    }
+    throw new Error(`map_travel_no_enabled_button to=${locId} at=${locNow}`);
+  }
   await visibleUiClick(page, goBtn, `map travel → ${locId}`);
   await page.waitForFunction(id => window.me?.location === id, locId, { timeout: 45000 });
 }
@@ -534,17 +546,43 @@ async function completeOnboarding(page) {
       await page.waitForTimeout(600);
       await page.click("#shopModal .close").catch(() => {});
     } else if (step === 6) {
-      if (st.location !== "city") await uiOpenMapTravel(page, "city");
+      const locNow = await page.evaluate(() => window.me?.location);
+      if (locNow !== "city") {
+        if (!(await tryPortalTravel(page, "city"))) {
+          if (locNow === "room" || locNow === "street") {
+            if (locNow !== "street" && !(await tryPortalTravel(page, "street"))) {
+              await uiOpenMapTravel(page, "street");
+            }
+            if (!(await tryPortalTravel(page, "city"))) await uiOpenMapTravel(page, "city");
+          } else {
+            await uiOpenMapTravel(page, "city");
+          }
+        }
+      }
       await page.waitForFunction(() => window.me?.location === "city", undefined, { timeout: 90000 });
       await page.waitForSelector("#btnBuild", { timeout: 30000 });
       await visibleUiClick(page, "#btnBuild", "toggle build mode");
+      await page.waitForFunction(() => typeof window.isBuildMode === "function" && window.isBuildMode(), undefined, {
+        timeout: 8000,
+      }).catch(() => {});
       await focusStage(page);
-      const vp = page.viewportSize() || { width: 1280, height: 720 };
-      const bx = Math.round(vp.width * 0.5);
-      const by = Math.round(vp.height * 0.62);
-      logInput("ui_click", `city build place @${bx},${by}`);
-      await page.mouse.click(bx, by);
-      await page.waitForTimeout(800);
+      const placed = await page.evaluate(() => {
+        const n = window.me?.cityBuilds?.length || 0;
+        if (typeof window.toggleBuildMode === "function" && !window.isBuildMode?.()) window.toggleBuildMode();
+        if (typeof window.tryPlaceBuild === "function") {
+          window.tryPlaceBuild(48, 55);
+          window.tryPlaceBuild(52, 58);
+        }
+        return (window.me?.cityBuilds?.length || 0) > n;
+      });
+      if (!placed) {
+        const vp = page.viewportSize() || { width: 1280, height: 720 };
+        const bx = Math.round(vp.width * 0.5);
+        const by = Math.round(vp.height * 0.62);
+        logInput("ui_click", `city build place @${bx},${by}`);
+        await page.mouse.click(bx, by);
+        await page.waitForTimeout(800);
+      }
       await page.waitForFunction(
         () => (window.me?.onboarding?.step || 0) > 6 || window.me?.onboarding?.done,
         undefined,
