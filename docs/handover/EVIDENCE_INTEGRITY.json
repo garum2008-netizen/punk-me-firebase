@@ -1,7 +1,7 @@
 {
-  "gameplayAcceptanceSha": "7aee086d727baca54e2450ef7e9b275390193b85",
+  "gameplayAcceptanceSha": "2b4ed404af2961911509f36cd01e5a5473da13fa",
   "ownerAcceptanceCandidate": "a37c200+ (t203u) — NOT production release",
-  "updatedAt": "2026-11-12T18:45:00+01:00",
+  "updatedAt": "2026-11-12T20:30:00+01:00",
   "ownerDirective": "t201u-2026-11-12-production-HOLD",
   "protectedPreview552740b": {
     "policy": "Isolated Ch1 preview only — not production.",
@@ -18,10 +18,11 @@
     "cursorStagingProjectUnused": "punk-me-ch1-preview (empty; owner: delete nothing)",
     "nextPreviewPolicy": "When branch tip (city build + Angelina) is ready, agent publishes new verified tarball to Agent Store; Game Bot redeploys same project.",
     "branchTipBundle": {
-      "agentStore": "/cursor/stores/self/preview-7aee086d727b/",
-      "tarball": "punk-me-preview-7aee086d727b.tar.gz",
-      "sha256": "66be7f04d6c00c22dfe4276a299c4155b619903e9469ca2ce7a660691a2bb80e",
-      "gitSha": "7aee086d727baca54e2450ef7e9b275390193b85",
+      "agentStore": "/cursor/stores/self/preview-2b4ed404af29/",
+      "tarball": "punk-me-preview-2b4ed404af29.tar.gz",
+      "sha256": "b9fe6f121e2401b368bee35d072a7f6606e2b6c701c4f74cd1a90f5d7fb282ff",
+      "gitSha": "2b4ed404af2961911509f36cd01e5a5473da13fa",
+      "featureNote": "t204u Character Studio + companion Angelina",
       "gameBotAction": "Snapshot current deployment, then update punk-me-preview-552740b"
     }
   },

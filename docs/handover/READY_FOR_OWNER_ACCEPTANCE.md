@@ -1,6 +1,7 @@
 # READY FOR OWNER ACCEPTANCE — Chapter 1 + Avatar Creator (t204u)
 
 **Branch:** [`cursor/vertical-slice-ch1-d81d`](https://github.com/garum2008-netizen/punk-me-firebase/tree/cursor/vertical-slice-ch1-d81d)  
+**Candidate commit:** `2b4ed404af2961911509f36cd01e5a5473da13fa`  
 **Status:** `READY_FOR_OWNER_ACCEPTANCE` (t204u P0 Character Studio foundation + t203 Ch1 path).  
 **Merge / production / App Store / payments:** **HOLD**
 
