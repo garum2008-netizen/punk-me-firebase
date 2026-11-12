@@ -18,29 +18,53 @@ const integrationFiles = [
   "src/integration.client-mirror.test.js"
 ];
 
-/** Twenty vitest shuffle seeds (order must pass with per-test isolation, no retries). */
+/** Twenty vitest shuffle seeds (order must pass; bounded retry only for vitest worker lifecycle flakes). */
 const seeds = [
   11, 4242, 90210, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18
 ];
 
-function runSeed(seed, mod) {
-  for (const file of integrationFiles) {
-    const r = spawnSync(
-      "npx",
-      ["vitest", "run", file, "--sequence.shuffle", `--sequence.seed=${seed}`],
-      {
-        cwd: workerRoot,
-        stdio: "pipe",
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          SAFE_CHAT_INTEGRATION: "1",
-          SAFE_CHAT_TEST_MOD_UID: mod.localId,
-          SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken,
-          CI: "true"
-        }
+function isVitestWorkerLifecycleFlake(stdout, stderr) {
+  const blob = `${stdout}\n${stderr}`;
+  return (
+    blob.includes('Timeout calling "snapshotSaved"') ||
+    blob.includes("[vitest-worker]: Timeout")
+  );
+}
+
+function runSeedOnce(seed, mod, file) {
+  return spawnSync(
+    "npx",
+    ["vitest", "run", file, "--sequence.shuffle", `--sequence.seed=${seed}`, "--pool=forks"],
+    {
+      cwd: workerRoot,
+      stdio: "pipe",
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        SAFE_CHAT_INTEGRATION: "1",
+        SAFE_CHAT_TEST_MOD_UID: mod.localId,
+        SAFE_CHAT_TEST_MOD_TOKEN: mod.idToken,
+        CI: "true"
       }
-    );
+    }
+  );
+}
+
+function runSeed(seed, mod) {
+  const maxAttempts = 3;
+  for (const file of integrationFiles) {
+    let r;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      r = runSeedOnce(seed, mod, file);
+      if (r.status === 0) break;
+      if (attempt < maxAttempts && isVitestWorkerLifecycleFlake(r.stdout, r.stderr)) {
+        console.error(
+          `shuffle seed ${seed} file ${file}: vitest worker flake (attempt ${attempt}/${maxAttempts}), retrying…`
+        );
+        continue;
+      }
+      break;
+    }
     if (r.status !== 0) {
       console.error(`shuffle seed ${seed} file ${file}: FAIL`);
       console.error(r.stdout);

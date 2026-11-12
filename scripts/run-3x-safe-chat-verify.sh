@@ -11,8 +11,10 @@ for i in $(seq 1 "$STREAK"); do
   node "$ROOT/scripts/safe-chat-autopilot-checkpoint.mjs" run-start "$i" || true
   pkill -f firebase 2>/dev/null || true
   pkill -f vitest 2>/dev/null || true
+  pkill -f miniflare 2>/dev/null || true
+  pkill -f workerd 2>/dev/null || true
   fuser -k 9000/tcp 9099/tcp 4400/tcp 2>/dev/null || true
-  sleep 3
+  sleep "${SAFE_CHAT_INTER_RUN_SLEEP_SEC:-30}"
   echo "=== RUN $i $SHORT ($SHA) ===" | tee -a "$REPORT"
   (
     cd "$ROOT"
