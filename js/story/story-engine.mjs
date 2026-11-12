@@ -340,6 +340,7 @@ function onJoinedGang() {
     startQuest("q_hangout_build");
   }
   hooks.toast?.(L({ ru: "Нашивка «Ржавые Цепи» получена!", en: "Rusty Chains patch earned!", da: "Rusty Chains-mærke!" }));
+  window.Chapter1?.showEnding?.();
 }
 
 export function startQuest(qid) {

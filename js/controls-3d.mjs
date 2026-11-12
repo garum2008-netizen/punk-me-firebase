@@ -13,11 +13,14 @@ const state = {
 let orbitCb = null;
 let orbitDragging = false;
 let lastX = 0;
+const touch = { x: 0, z: 0, run: false, active: false };
 
 function storyUiOpen() {
   if (typeof document === "undefined") return false;
   if (document.getElementById("storyDialog")?.classList.contains("active")) return true;
   if (document.getElementById("howToOverlay")?.classList.contains("active")) return true;
+  if (document.getElementById("chapterCrawl")?.classList.contains("active")) return true;
+  if (document.getElementById("chapterEnding")?.classList.contains("active")) return true;
   return !!document.querySelector(".modal.active");
 }
 
@@ -34,9 +37,21 @@ export function getInputState() {
   const down = state.s || state.arrowdown;
   const left = state.a || state.arrowleft;
   const right = state.d || state.arrowright;
-  state.moveX = (right ? 1 : 0) - (left ? 1 : 0);
-  state.moveZ = (up ? 1 : 0) - (down ? 1 : 0);
-  state.run = state.shift;
+  const keyX = (right ? 1 : 0) - (left ? 1 : 0);
+  const keyZ = (up ? 1 : 0) - (down ? 1 : 0);
+  if (keyX !== 0 || keyZ !== 0) {
+    state.moveX = keyX;
+    state.moveZ = keyZ;
+    state.run = state.shift;
+  } else if (touch.active) {
+    state.moveX = touch.x;
+    state.moveZ = touch.z;
+    state.run = touch.run;
+  } else {
+    state.moveX = 0;
+    state.moveZ = 0;
+    state.run = false;
+  }
   return state;
 }
 
@@ -113,9 +128,10 @@ function onPtrUp() {
 
 /** Touch layer fills move/run (joystick). */
 export function setTouchMove(x, z, run) {
-  state.moveX = x;
-  state.moveZ = z;
-  state.run = !!run;
+  touch.x = x;
+  touch.z = z;
+  touch.run = !!run;
+  touch.active = Math.hypot(x, z) > 0.05;
 }
 
 export function touchJump() {

@@ -251,6 +251,18 @@
   </div>
 </div>
 <div id="howToOverlay" class="howto-overlay"></div>
+<div id="chapterCrawl" class="chapter-crawl" aria-hidden="true">
+  <div class="chapter-crawl-stage"><div class="chapter-crawl-body"></div></div>
+  <button type="button" class="chapter-crawl-skip" id="chapterCrawlSkip">Skip</button>
+</div>
+<div id="chapterEnding" class="chapter-ending" aria-hidden="true" role="dialog">
+  <div class="chapter-ending-card">
+    <h2 class="chapter-ending-title"></h2>
+    <p class="chapter-ending-body"></p>
+    <button type="button" class="btn chapter-ending-ok"></button>
+  </div>
+</div>
+<div id="angelinaGuide" class="angelina-guide" hidden></div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -262,6 +274,7 @@
 <script src="js/i18n.js?v=living3d-v22r6-ch1"></script>
 <script src="js/voice.js?v=living3d-v22r6-ch1"></script>
 <script src="js/onboarding.js?v=living3d-v22r6-ch1"></script>
+<script type="module" src="js/story/chapter1-flow.mjs?v=living3d-v22r6-ch1"></script>
 <script type="module" src="js/context-hints.mjs?v=living3d-v22r6-ch1"></script>
 <script type="module" src="js/how-to-play.mjs?v=living3d-v22r6-ch1"></script>
 <script type="module" src="js/world3d.mjs?v=living3d-v22r6-ch1"></script>

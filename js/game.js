@@ -506,6 +506,8 @@ function applyFirebasePlayerSnapshot(snap) {
         ? savedOnboarding
         : { step: 0, progress: {}, done: false, paid: {} });
     me.story = v.story || me.story;
+    if (v.chapter1 && typeof v.chapter1 === "object") me.chapter1 = v.chapter1;
+    if (Array.isArray(v.cityStones)) me.cityStones = v.cityStones;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
     me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
@@ -926,6 +928,7 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    window.Chapter1?.onWorldReady?.();
   } catch (err) {
     console.error("continueGameBoot", err);
     showLoadingFailure(t("loading_boot_error"), err.message || String(err));
@@ -1050,7 +1053,11 @@ function sanitizePlayer(p) {
           done: !!p.onboarding.done,
           paid: p.onboarding.paid && typeof p.onboarding.paid === "object" ? p.onboarding.paid : {}
         }
-      : { step: 0, progress: {}, done: false, paid: {} }
+      : { step: 0, progress: {}, done: false, paid: {} },
+    chapter1: p.chapter1 && typeof p.chapter1 === "object"
+      ? { crawlSeen: !!p.chapter1.crawlSeen, ended: !!p.chapter1.ended }
+      : { crawlSeen: false, ended: false },
+    cityStones: Array.isArray(p.cityStones) ? p.cityStones.slice(0, 24) : []
   };
 }
 
@@ -1782,19 +1789,31 @@ function travelJob(action, loc) {
 
 function toggleBuildMode() {
   buildMode = !buildMode;
+  window.__buildMode = buildMode;
   toast(buildMode ? t("build_mode_on") : t("build_mode_off"));
 }
 
-function tryPlaceBuild(x, y) {
+function tryPlaceBuild(x, y, worldPoint) {
   const type = selectedBuild;
   const count = me.inventory.materials[type] || 0;
   if (count < 1) { toast(t("buy_materials")); return; }
+  if (window.Onboarding?.stepId?.() === "city_build" && me.location !== "city") {
+    toast(t("onboard_city_build_text"));
+    return;
+  }
   me.inventory.materials[type]--;
   const piece = { type, x, y, owner: uid, ts: Date.now() };
-  db.ref("buildings/city").push(piece);
+  buildings = buildings.concat(piece);
+  renderBuildings();
+  try { db.ref("buildings/city").push(piece); } catch (_) {}
+  if (me.location === "city") {
+    const spot = worldPoint || { x: 0, z: 1.2 };
+    window.World3D?.placeCityStone?.(spot.x, spot.z);
+  }
   me.built = (me.built || 0) + 1;
   saveMe();
   questBump("built", 1);
+  window.Onboarding?.onCityBuild?.();
   toast(t("built"));
 }
 
@@ -2020,6 +2039,7 @@ window.startNpcFight = startNpcFight;
 window.acceptQuest = acceptQuest;
 window.tryDecorPlace = tryDecorPlace;
 window.setBuildType = function (bt) { selectedBuild = bt; toast(t("building") + " " + bt); };
+window.tryPlaceBuild = tryPlaceBuild;
 window.travelJob = travelJob;
 window.runJobAction = runJobAction;
 
