@@ -1,6 +1,7 @@
 {
-  "gameplayAcceptanceSha": "552740b782bf415cd788f996fd5e7005d9874bfe",
-  "updatedAt": "2026-11-12T18:15:00+01:00",
+  "gameplayAcceptanceSha": "720423a134cad626994657d8baccf28a9d375ea9",
+  "ownerAcceptanceCandidate": "a37c200+ (t203u) — NOT production release",
+  "updatedAt": "2026-11-12T18:45:00+01:00",
   "ownerDirective": "t201u-2026-11-12-production-HOLD",
   "protectedPreview552740b": {
     "policy": "Isolated Ch1 preview only — not production.",
@@ -15,7 +16,14 @@
     "serveModel": "Pages _worker.js + KV namespace punk-me-preview-552740b-assets (JWT direct-upload workaround)",
     "agentStoreBundle": "/cursor/stores/self/preview-552740b/punk-me-preview-552740b.tar.gz",
     "cursorStagingProjectUnused": "punk-me-ch1-preview (empty; owner: delete nothing)",
-    "nextPreviewPolicy": "When branch tip (city build + Angelina) is ready, agent publishes new verified tarball to Agent Store; Game Bot redeploys same project."
+    "nextPreviewPolicy": "When branch tip (city build + Angelina) is ready, agent publishes new verified tarball to Agent Store; Game Bot redeploys same project.",
+    "branchTipBundle": {
+      "agentStore": "/cursor/stores/self/preview-720423a134ca/",
+      "tarball": "punk-me-preview-720423a134ca.tar.gz",
+      "sha256": "d78ebbc8be09ee28038b60300e6cce6cc1e1b496261f56a0a86571a691701289",
+      "gitSha": "720423a134cad626994657d8baccf28a9d375ea9",
+      "gameBotAction": "Snapshot current deployment, then update punk-me-preview-552740b"
+    }
   },
   "desktopUncutVideo": {
     "policy": "Exactly one unique desktop UNCUT recording per acceptance generation.",
@@ -26,9 +34,10 @@
     },
     "branchTipCeoP0": {
       "status": "in_progress",
-      "targetPass": "ceo-desktop-full-v3",
+      "targetPass": "t203-owner-desktop",
+      "gitSha": "720423a134cad626994657d8baccf28a9d375ea9",
       "requiresOnboardingStep7AndCh1Complete": true,
-      "note": "Supersedes pass03 for CEO P0 only after successful WebM landing."
+      "note": "New continuous UNCUT at acceptance commit; pass03 remains pinned-552740b era only."
     },
     "retractedAliases": {
       "formerPass01Pass02": "Previously duplicated pass03 bytes — removed from evidence set 2026-11-12 per t201u."
