@@ -2584,7 +2584,7 @@ window.travelJob = travelJob;
 window.runJobAction = runJobAction;
 
 function exposePreviewBuildHooks() {
-  if (isPreviewBuild()) {
+  if (isPreviewBuild() || isLifeCh1LocalSaveBuild()) {
     window.tryPlaceBuild = (x, y) => placeBuildAt(x, y);
   } else if ("tryPlaceBuild" in window) {
     delete window.tryPlaceBuild;
