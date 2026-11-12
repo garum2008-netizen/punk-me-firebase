@@ -845,6 +845,46 @@ async function runOrdinarySession(browser, viewport, label) {
   const videoDir = path.join(OUT, `playwright-video-${passTag}-${label}-${Date.now()}`);
   if (fs.existsSync(videoDir)) fs.rmSync(videoDir, { recursive: true, force: true });
   fs.mkdirSync(videoDir, { recursive: true });
+  const shaShort = SHA.slice(0, 12);
+  const suffix = viewport.width >= 1000 ? "desktop1280x720" : "mobile390x844";
+  const inputTag = INPUT_MODE === "touch" ? "-touch" : "";
+  const dest = path.join(
+    OUT,
+    `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
+  );
+  let ffmpegProc = null;
+  const useFfmpegGrab =
+    viewport.width >= 1000 && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
+  if (useFfmpegGrab) {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    const disp = process.env.DISPLAY || ":1";
+    ffmpegProc = spawn(
+      "ffmpeg",
+      [
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "x11grab",
+        "-framerate",
+        "12",
+        "-video_size",
+        "1280x720",
+        "-i",
+        disp,
+        "-t",
+        "900",
+        "-c:v",
+        "libvpx-vp9",
+        "-b:v",
+        "1.5M",
+        dest,
+      ],
+      { stdio: "ignore" }
+    );
+    logScene("ffmpeg_x11grab", `recording ${dest}`);
+  }
 
   const ctx = await browser.newContext({
     viewport,
@@ -914,15 +954,18 @@ async function runOrdinarySession(browser, viewport, label) {
   const recordingEndCet = cetTimestamp(recordingEndUtc);
 
   const video = page.video();
-  const shaShort = SHA.slice(0, 12);
-  const suffix = viewport.width >= 1000 ? "desktop1280x720" : "mobile390x844";
-  const inputTag = INPUT_MODE === "touch" ? "-touch" : "";
-  const dest = path.join(
-    OUT,
-    `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
-  );
-  let videoSaveError = null;
+  let videoSaveError = useFfmpegGrab ? "ffmpeg_primary" : null;
   const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
+  if (ffmpegProc) {
+    try {
+      ffmpegProc.kill("SIGINT");
+    } catch (_) {}
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    if (fs.existsSync(dest) && fs.statSync(dest).size >= minVideoBytes) {
+      videoSaveError = null;
+      logScene("ffmpeg_saved", `${Math.round(fs.statSync(dest).size / 1e6)}MB`);
+    }
+  }
   await page.close().catch(() => {});
 
   return {
@@ -943,6 +986,7 @@ async function runOrdinarySession(browser, viewport, label) {
     videoDir,
     ctx,
     _video: video,
+    ffmpegProc,
     minVideoBytes,
     _recordStartMs: recordStartMs,
     file: dest,
@@ -980,6 +1024,16 @@ async function runOrdinarySession(browser, viewport, label) {
     for (const r of results) {
       const minB = r?.minVideoBytes ?? (ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
       try {
+        if (r?.ffmpegProc) {
+          try {
+            r.ffmpegProc.kill("SIGINT");
+          } catch (_) {}
+          await new Promise(resolve => setTimeout(resolve, 2500));
+        }
+        if (r?.file && fs.existsSync(r.file) && fs.statSync(r.file).size >= minB) {
+          r.videoSaveError = null;
+          Object.assign(r, ffprobeMeta(r.file));
+        }
         if (r?.ctx) await r.ctx.close();
         if (r?._video && r.file) {
           fs.mkdirSync(path.dirname(r.file), { recursive: true });
@@ -1021,6 +1075,7 @@ async function runOrdinarySession(browser, viewport, label) {
       if (r) {
         delete r.ctx;
         delete r._video;
+        delete r.ffmpegProc;
       }
     }
     await browser.close();
