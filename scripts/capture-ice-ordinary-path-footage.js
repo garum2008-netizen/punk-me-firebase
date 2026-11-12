@@ -896,6 +896,15 @@ async function runOrdinarySession(browser, viewport, label) {
   );
   let videoSaveError = null;
   const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
+  if (video) {
+    try {
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      await video.saveAs(dest);
+      videoSaveError = null;
+    } catch (e) {
+      videoSaveError = String(e.message || e);
+    }
+  }
   await page.close().catch(() => {});
 
   return {
