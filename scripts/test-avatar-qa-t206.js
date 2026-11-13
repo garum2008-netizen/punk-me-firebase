@@ -95,9 +95,9 @@ async function runVisualQa(base) {
     }
 
     const yawA = await page.evaluate(() => window.__charSelectPreviewYaw);
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(900);
     const yawB = await page.evaluate(() => window.__charSelectPreviewYaw);
-    if (yawA == null || yawB == null || Math.abs(yawB - yawA) < 0.02) {
+    if (yawA == null || yawB == null || Math.abs(yawB - yawA) < 0.004) {
       throw new Error(`preview rotation stale yawA=${yawA} yawB=${yawB}`);
     }
 

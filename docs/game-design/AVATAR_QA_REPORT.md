@@ -79,6 +79,6 @@ node scripts/test-preview-build.js
 
 ## Defects / limits
 
-- Wings are **cosmetic planes**, not rigged UGC wings — clipping risk reduced, not eliminated for all animations.
+- Wings (t207): **skeleton-parented** box feathers on `mixamorigSpine*`, clip measured in `test-wing-clip-t207.js` — not artist rigged UGC yet.
 - Hair style labels vs unique meshes — procedural only (`AVATAR_ASSET_INVENTORY.md`).
 - Full desktop UNCUT with QA hero — schedule after ordinary capture completes.

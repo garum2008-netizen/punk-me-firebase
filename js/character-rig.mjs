@@ -41,30 +41,38 @@ function locomotionActive(actor) {
   return (act?.getEffectiveWeight?.() ?? 0) > 0.28;
 }
 
+function updateWingFlap(actor, dt, locomotion) {
+  const meta = actor._wings;
+  if (!meta?.sides?.length) return;
+  const t = performance.now() * 0.001;
+  const amp = locomotion ? 0.055 : 0.07;
+  const freq = locomotion ? 7.5 : 3.1;
+  const flap = Math.sin(t * freq) * amp;
+  meta.sides.forEach((side, i) => {
+    const base = i === 0 ? 0.38 : -0.38;
+    side.rotation.z = (i === 0 ? base : -base) + flap * (i === 0 ? 1 : -1);
+  });
+}
+
 /** Subtle breathing on idle clip (does not touch arms). */
 export function updateProcedural(actor, dt, _playerPos, _talking) {
   if (!actor._meshy || !actor._proc) return;
-  if (locomotionActive(actor)) return;
-
+  const moving = locomotionActive(actor);
   const t = performance.now() * 0.001;
   const { bones, rest } = actor._proc;
-  const breath = Math.sin(t * 2.1) * 0.014;
-  const sway = Math.sin(t * 0.85) * 0.01;
 
-  if (bones.spine && rest.spineX !== undefined) {
-    bones.spine.rotation.x = rest.spineX + breath;
+  if (!moving) {
+    const breath = Math.sin(t * 2.1) * 0.014;
+    const sway = Math.sin(t * 0.85) * 0.01;
+    if (bones.spine && rest.spineX !== undefined) {
+      bones.spine.rotation.x = rest.spineX + breath;
+    }
+    if (bones.spine1 && rest.spine1X !== undefined) {
+      bones.spine1.rotation.x = rest.spine1X + breath * 0.65;
+    }
+    if (bones.head && rest.headX !== undefined) {
+      bones.head.rotation.x = rest.headX + sway - 0.03;
+    }
   }
-  if (bones.spine1 && rest.spine1X !== undefined) {
-    bones.spine1.rotation.x = rest.spine1X + breath * 0.65;
-  }
-  if (bones.head && rest.headX !== undefined) {
-    bones.head.rotation.x = rest.headX + sway - 0.03;
-  }
-  if (actor._wings) {
-    const flap = Math.sin(t * 3.2) * 0.08;
-    actor._wings.children?.forEach((w, i) => {
-      const baseZ = i === 0 ? 0.22 : -0.22;
-      w.rotation.z = (i === 0 ? baseZ : -baseZ) + flap * (i === 0 ? 1 : -1);
-    });
-  }
+  updateWingFlap(actor, dt, moving);
 }

@@ -62,6 +62,20 @@ Angelina guide banner tracks step index + Life Ch1 indices (`js/angelina-guide.m
 
 ---
 
+## Playable arc (t207u — target experience)
+
+| Beat | Player goal | Conflict | Outcome today |
+|------|-------------|----------|---------------|
+| **Create** | Name your hero in Character Studio | None | CYBER PUNK BLUE (or custom) |
+| **Tutorial** | Learn city + controls | Street danger (Razor) | Onboarding steps 1–6 |
+| **Build** | Place **crypt** in the city | Resources + build UI | Step 7 + Angelina hint |
+| **Settle** | Mirror / trust / reflect (Life Ch1) | Mira trust branch | `lifeCh1.completed` |
+| **Companion** | Angelina guides in **her** voice | — | Guide banner + portraits |
+
+**Ending (shipping):** Life Ch1 reflect completes the slice — **not** full city restoration cinematic (Ch2+).
+
+---
+
 ## Proposed overlay — “Город, который забыл своё имя” (design only)
 
 | Act | Proposal | Implementation status |

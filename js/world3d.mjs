@@ -475,9 +475,30 @@ function expectedMeshUrlForCharacter(characterId) {
   return tpl?.def?.url || "";
 }
 
+function playerAvatarLookSignature() {
+  if (typeof window !== "undefined" && typeof window.getPlayerAvatarLook === "function") {
+    const look = window.getPlayerAvatarLook();
+    if (look) {
+      return [
+        look.tint,
+        look.hair,
+        look.hairStyle,
+        look.jacket,
+        look.wings ? "w" : "-",
+        look.emissive
+      ].join(":");
+    }
+  }
+  return "default";
+}
+
 function actorNeedsTemplateRebuild(actor, characterId, isNpc) {
   if (!actor) return false;
   const cid = characterId || "vienna";
+  if (!isNpc && actor.id === "player") {
+    const sig = playerAvatarLookSignature();
+    if (actor._lookSig !== sig) return true;
+  }
   if ((actor.characterId || "vienna") !== cid) return true;
   if (isNpc && isDedicatedShippedHero(cid) && cid !== "vienna") {
     const dedicated = getTemplateForCharacter(cid, { allowFallback: false });
@@ -517,6 +538,9 @@ function createActorFromCatalog(id, characterId, isNpc) {
     const custom = window.getPlayerAvatarLook();
     if (custom) look = { ...look, ...custom };
   }
+  if (id === "player" && window.me?.avatarConfig?.accessories?.includes?.("wings_01")) {
+    look = { ...look, wings: true };
+  }
   const built = createCc0Actor(tpl, cid, look, {
     isPlayer: id === "player",
     actorId: id
@@ -531,9 +555,20 @@ function createActorFromCatalog(id, characterId, isNpc) {
     id, characterId: cid, group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
     _meshUrl: tpl.def.url, _meshy: built._meshy, _proc: built._proc,
+    _wings: built._wings,
     _visPushX: 0, _visPushZ: 0
   };
   for (let i = 0; i < 4; i++) updateProcedural(actor, 1 / 60, null, false);
+  if (id === "player") {
+    actor._lookSig = [
+      look.tint,
+      look.hair,
+      look.hairStyle,
+      look.jacket,
+      look.wings ? "w" : "-",
+      look.emissive
+    ].join(":");
+  }
   actors.set(id, actor);
   return actor;
 }
@@ -2294,7 +2329,8 @@ const api = {
     return {
       characterId: a.characterId,
       hasWings: !!a._wings,
-      wingMeshes: a._wings?.children?.length || 0,
+      wingAttachBone: a._wings?.attachBone || null,
+      wingFeathers: a._wings?.feathers?.length || 0,
       current: a.current,
       visible: a.root?.visible !== false
     };
@@ -2307,6 +2343,32 @@ const api = {
       current: a.current,
       weight: act?.getEffectiveWeight?.() ?? 0
     };
+  },
+  measurePlayerWingClip: () => {
+    const a = actors.get("player");
+    if (!a?.root || !a._wings) return { ok: false, reason: "no_player_wings" };
+    return import("./world/cosmetic-wings.mjs").then(({ measureWingTorsoGap }) =>
+      measureWingTorsoGap(a.root, a._wings)
+    );
+  },
+  getPlayerWingAttach: () => {
+    const a = actors.get("player");
+    if (!a?._wings) {
+      const hasPlayer = !!a;
+      return hasPlayer
+        ? { attachBone: null, featherCount: 0, playerReady: true, lookSig: a._lookSig }
+        : null;
+    }
+    return { attachBone: a._wings.attachBone, featherCount: a._wings.feathers?.length || 0 };
+  },
+  debugPlayerBoneNames: () => {
+    const a = actors.get("player");
+    if (!a?.root) return [];
+    const names = [];
+    a.root.traverse(o => {
+      if (o.isBone) names.push(o.name);
+    });
+    return names.slice(0, 40);
   },
   getNpcVisibilitySnapshot,
   getRoomNpcsOnScreenSnapshot: (ids = ["vienna", "mohawk", "cobalt"]) => {

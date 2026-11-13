@@ -5,6 +5,7 @@ import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { buildIdleStandClip } from "./meshy-idle-clip.mjs";
 // PlayerWave builder kept in meshy-wave-clip.mjs (disabled for release — see WAVE_EMOTE_ENABLED).
 import { accentForActor, hueShiftAccentTexture } from "./meshy-accent-tint.mjs";
+import { attachSkeletonWings } from "./cosmetic-wings.mjs";
 
 /** Inna-approved merge: wave emote off; clip file remains for future use. */
 export const WAVE_EMOTE_ENABLED = false;
@@ -345,38 +346,6 @@ function accentForMeshyActor(characterId, templateEntry, opts) {
   return accentForActor(characterId, accentKey);
 }
 
-function attachCosmeticWings(root, look) {
-  if (!look?.wings) return null;
-  const existing = root.getObjectByName("cosmetic_wings");
-  if (existing) root.remove(existing);
-  const wingGroup = new THREE.Group();
-  wingGroup.name = "cosmetic_wings";
-  const em = look.emissive ?? 0x95ff00;
-  const mat = new THREE.MeshStandardMaterial({
-    color: em,
-    emissive: em,
-    emissiveIntensity: 0.75,
-    metalness: 0.15,
-    roughness: 0.45,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.9,
-    polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -2
-  });
-  const geo = new THREE.PlaneGeometry(0.48, 1.05);
-  for (const side of [-1, 1]) {
-    const w = new THREE.Mesh(geo, mat.clone());
-    w.position.set(side * 0.36, 1.28, -0.18);
-    w.rotation.y = side * 0.42;
-    w.rotation.z = side * 0.22;
-    wingGroup.add(w);
-  }
-  root.add(wingGroup);
-  return wingGroup;
-}
-
 export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
   const { gltf, foot, def } = templateEntry;
   const accent = accentForMeshyActor(characterId, templateEntry, opts);
@@ -406,7 +375,9 @@ export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
   }
   if (proc.bones.rightForeArm) proc.rest.rightForeArmX = proc.bones.rightForeArm.rotation.x;
 
-  const wings = attachCosmeticWings(root, look);
+  const wings =
+    attachSkeletonWings(root, look) ||
+    (look?.wings && proc.bones.spine ? attachSkeletonWings(root, look, proc.bones.spine) : null);
 
   return {
     root,

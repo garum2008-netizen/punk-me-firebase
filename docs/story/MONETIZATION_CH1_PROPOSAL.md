@@ -1,6 +1,18 @@
-# Chapter 1 — Monetization design (proposal only, t203u)
+# Chapter 1 — Monetization design (proposal only, t207u)
 
 **Not approved for production.** No real payments, no prod checkout (`preview-shop` stub only).
+
+## Free vs paid (Ch1 scope)
+
+| | Free (always) | Paid (proposal, parent gate) |
+|---|---------------|------------------------------|
+| Story | Full Ch1 onboarding + Life Ch1 ending | Ch2+ episodes (Scenario A) |
+| Hero | Character Studio base catalog | Premium packs (`COSMETIC_CATALOG.md`) |
+| City / crypt | Step 7 build + save | — |
+| Companion | Angelina A/B/C companion skins | Extra companion cosmetics |
+| Wings | **Base wings** (`wings_01`) in creator | Glowing / VFX wing skins |
+
+**t207u owner:** monetization is **designed in parallel**; **no sales** until Ch1 full acceptance.
 
 ## Owner recommendation
 
