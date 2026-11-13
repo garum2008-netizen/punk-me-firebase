@@ -2344,6 +2344,19 @@ const api = {
       weight: act?.getEffectiveWeight?.() ?? 0
     };
   },
+  /** E2E wing/anim QA only — force locomotion clip while input may still move the hero. */
+  setPlayerAnimForE2e: (name, holdMs = 10000) => {
+    if (!isLifeCh1E2eNavAid()) return false;
+    const a = actors.get("player");
+    if (!a) return false;
+    const n = name === "run" || name === "walk" ? name : "idle";
+    a._intentRun = n === "run";
+    a._holdAnim = n;
+    a._holdUntil = performance.now() + Math.max(500, holdMs | 0);
+    fadeTo(a, n);
+    a.current = n;
+    return a.actions?.[n] != null;
+  },
   measurePlayerWingClip: () => {
     const a = actors.get("player");
     if (!a?.root || !a._wings) return { ok: false, reason: "no_player_wings" };

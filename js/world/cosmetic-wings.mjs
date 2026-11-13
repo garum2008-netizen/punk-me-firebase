@@ -87,8 +87,8 @@ export function attachSkeletonWings(root, look, attachBoneOverride = null) {
   const mat = wingMaterial(look.emissive);
   const wingRoot = new THREE.Group();
   wingRoot.name = "cosmetic_wings";
-  wingRoot.position.set(0, WING_ATTACH.y, WING_ATTACH.z);
-  wingRoot.rotation.x = -0.12;
+  wingRoot.position.set(0, WING_ATTACH.y, -0.14);
+  wingRoot.rotation.x = -0.1;
 
   const left = buildWingSide(-1, mat);
   const right = buildWingSide(1, mat);
@@ -144,10 +144,19 @@ export function measureWingTorsoGap(actorRoot, wingMeta) {
     minGap = Math.min(minGap, signed);
   });
 
+  const TOUCH_EPS = 0.02;
+  const gapRounded = +minGap.toFixed(4);
+  let classification = "clear";
+  if (gapRounded < 0) classification = "penetrating";
+  else if (gapRounded < TOUCH_EPS) classification = "touching";
+
   return {
     ok: true,
-    minGap: +minGap.toFixed(4),
-    penetrating: minGap < 0,
+    minGap: gapRounded,
+    penetrating: gapRounded < 0,
+    touching: gapRounded >= 0 && gapRounded < TOUCH_EPS,
+    classification,
+    touchEpsilon: TOUCH_EPS,
     torsoMeshes,
     attachBone: wingMeta.attachBone
   };

@@ -15,7 +15,7 @@
 | ID | Issue | Notes |
 |----|-------|-------|
 | T207-01 | **No full Ch1 UNCUT video** at tip SHA with CYBER PUNK BLUE | Capture in progress / required for acceptance |
-| T207-02 | Wings still **procedural**, not artist rigged UGC | Clip measured; may need mesh offset per body preset |
+| T207-02 | Wings still **procedural**, not artist rigged UGC | Skeleton attach + `wing-clip-samples-t207.json` (touching at minGap 0 is **not** penetrating; see thresholds) |
 | T207-03 | Story arc thin outside Life Ch1 JSON | See `CHAPTER_01_STORY_ARC.md` gaps |
 | T207-04 | Crypt / memory city **no branch trial** | Step 7 placement only |
 | T207-05 | **iPad Safari** not tested | No device in agent VM (explicit gate) |

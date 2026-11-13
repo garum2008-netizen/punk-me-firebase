@@ -10,7 +10,7 @@
 | Avatar | Save / reload config | `test-avatar-qa-t206.js` | — | PASS |
 | Avatar | RU / EN / DA studio | `test-avatar-qa-t206.js` | — | PASS |
 | Avatar | Wings on skeleton | `test-wing-clip-t207.js` | Visual in playthrough | **NEW — run each build** |
-| Avatar | Wing clip metrics | `wing-clip-samples-t207.json` | Walk/run/turn | **Measured** |
+| Avatar | Wing clip metrics | `wing-clip-samples-t207.json` | 7 samples incl. build + Angelina; thresholds documented in JSON | **PASS** |
 | Ch1 path | Onboarding 1–7 + crypt | `capture-ice-ordinary-path-footage.js` | **Full UNCUT video** | **PENDING** |
 | Ch1 | Life Ch1 complete | ordinary metadata `ch1_complete` | Video | PENDING |
 | Ch1 | Progress save + re-entry | preview-build reload | Playthrough | PENDING |

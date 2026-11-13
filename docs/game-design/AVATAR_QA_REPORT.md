@@ -32,6 +32,14 @@
 }
 ```
 
+### Wing clip evidence (t207u — Game Bot)
+
+| Field | Value |
+|-------|--------|
+| File | `/opt/cursor/artifacts/avatar-qa-t207/wing-clip-samples-t207.json` |
+| Thresholds | `penetrating`: minGap &lt; 0 · `touching`: 0 ≤ minGap &lt; 0.02 · fail gate: minGap &lt; -0.08 |
+| Samples | idle, **walk** (e2e hold clip), run, turn, Angelina guide, wardrobe, city build mode |
+
 ### Acceptance tests (t206u checklist)
 
 | # | Test | Status |

@@ -34,6 +34,11 @@
       "passLabel": "pass03",
       "note": "Desktop UNCUT at pinned gameplay SHA (no step-7 city build in recording era)."
     },
+    "t207WingClipSamples": {
+      "path": "/opt/cursor/artifacts/avatar-qa-t207/wing-clip-samples-t207.json",
+      "test": "node scripts/test-wing-clip-t207.js",
+      "thresholdsNote": "penetrating if minGap<0; touching if 0<=minGap<0.02; fail if minGap<-0.08"
+    },
     "t207Ch1FullPlaythrough": {
       "status": "in_progress",
       "gitShaTarget": "a5c305c780717fbb6aa9906b3282f7963c4c7961",
