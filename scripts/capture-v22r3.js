@@ -1,3 +1,4 @@
+require('./lib/require-local-capture.js');
 #!/usr/bin/env node
 /** v22r3 targeted captures — 3 min cap, one retry per shot. */
 const { chromium } = require("playwright");

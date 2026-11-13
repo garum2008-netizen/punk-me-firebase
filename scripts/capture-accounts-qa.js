@@ -1,3 +1,4 @@
+require('./lib/require-local-capture.js');
 #!/usr/bin/env node
 const { chromium, webkit } = require("playwright");
 const fs = require("fs");

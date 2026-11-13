@@ -1,9 +1,9 @@
-# RTDB rules snapshots (deploy-order tests)
+# RTDB rules snapshots
 
 | File | Meaning |
 |------|---------|
-| `repo-main-7ee242b.json` | `database.rules.json` on git `main` at `7ee242b` / `a0e15b5` (#16) — **never published** to production per owner; no `publicProfiles`. |
-| `live-published-open.json` | Documented **actually live** rules (open `/players` read). Used to prove new JS works before rules publish. |
-| `secure-pr33.json` | PR #33 secure rules (admin claim, per-uid saves, `publicProfiles`). |
+| `main-450d6da-pre-hotfix.json` | Copy of **git** `database.rules.json` on `main` @ `450d6da` — **not** live prod |
 
-Production today: **live-published-open** ≠ **repo-main**.
+**Rollback target after any rules deploy:** file from owner export  
+`docs/release/prod-readonly-snapshots/rtdb-rules-prod-*.json`  
+(see `scripts/owner-readonly-check.sh`).
