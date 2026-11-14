@@ -14,6 +14,7 @@ import {
   pointInsideCollider
 } from "./world/locations.mjs";
 import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs";
+import { attachAvatarLook, readAvatarLook } from "./avatar-mesh.mjs";
 import {
   loadAllCc0Templates,
   getTemplateForCharacter,
@@ -1238,6 +1239,10 @@ function sync(data) {
       applyNetworkAnim(a, player.anim);
       a._netAnim = player.anim;
     }
+    const wanted = player.avatarLook || null;
+    const worn = readAvatarLook(a.root);
+    const sameLook = !!wanted && !!worn && wanted.hair === worn.hair && wanted.jacket === worn.jacket && wanted.accessory === worn.accessory;
+    if (!sameLook) attachAvatarLook(a.root, wanted);
   }
 
   const hideCrowd = isDuelActive() || captureFrameLock;
@@ -1543,6 +1548,17 @@ const api = {
     playOneShot(a, name === "sit" ? "sit" : "interact", 1500);
   },
   isReady: () => modelsReady,
+  playerAvatarMark: () => {
+    const pl = actors.get("player");
+    const look = pl?.root ? readAvatarLook(pl.root) : null;
+    const hair = pl?.root?.getObjectByName("avatar-hair") || null;
+    return {
+      attached: !!(look && hair),
+      hair: look?.hair || null,
+      jacket: look?.jacket || null,
+      accessory: look?.accessory || null
+    };
+  },
   getDebugCamera: () => {
     const pl = actors.get("player");
     const dog = actors.get("dog");

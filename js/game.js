@@ -512,6 +512,7 @@ function applyFirebasePlayerSnapshot(snap) {
         : { step: 0, progress: {}, done: false, paid: {} });
     me.story = v.story || me.story;
     if (v.chapter1 && typeof v.chapter1 === "object") me.chapter1 = v.chapter1;
+    me.avatarLook = cleanAvatarLook(v.avatarLook);
     if (Array.isArray(v.cityStones)) me.cityStones = v.cityStones;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
@@ -726,6 +727,7 @@ function syncStage3D() {
     player: {
       x: me.x, y: me.y, avatar: me.avatar,
       characterId: me.characterId || "vienna",
+      avatarLook: me.avatarLook || null,
       anim: me._animState || "idle"
     },
     others: othersForStage3D(),
@@ -936,9 +938,21 @@ function loadMe() {
     });
 }
 
-function pickCharacterAndContinue(id) {
+function cleanAvatarLook(raw) {
+  const hair = ["cyan", "pink", "lime", "violet"];
+  const jacket = ["night", "magenta", "olive", "ink"];
+  const accessory = ["chain", "choker", "spikes"];
+  if (window.AvatarLook?.normalizeAvatarLook) return window.AvatarLook.normalizeAvatarLook(raw);
+  if (!raw || typeof raw !== "object") return null;
+  if (!hair.includes(raw.hair) || !jacket.includes(raw.jacket) || !accessory.includes(raw.accessory)) return null;
+  return { hair: raw.hair, jacket: raw.jacket, accessory: raw.accessory };
+}
+
+function pickCharacterAndContinue(pick) {
+  const id = typeof pick === "string" ? pick : pick?.id;
   if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
   me.characterId = id;
+  me.avatarLook = cleanAvatarLook(typeof pick === "object" ? pick.look : null);
   writeStoredCharacterId(id);
   const def = getCharacterDef(id);
   me.avatar = def.poster;
@@ -1102,8 +1116,9 @@ function sanitizePlayer(p) {
         }
       : { step: 0, progress: {}, done: false, paid: {} },
     chapter1: p.chapter1 && typeof p.chapter1 === "object"
-      ? { crawlSeen: !!p.chapter1.crawlSeen, ended: !!p.chapter1.ended }
-      : { crawlSeen: false, ended: false },
+      ? { crawlSeen: !!p.chapter1.crawlSeen, finaleSeen: !!p.chapter1.finaleSeen, ended: !!p.chapter1.ended }
+      : { crawlSeen: false, finaleSeen: false, ended: false },
+    avatarLook: cleanAvatarLook(p.avatarLook),
     cityStones: Array.isArray(p.cityStones) ? p.cityStones.slice(0, 24) : []
   };
 }

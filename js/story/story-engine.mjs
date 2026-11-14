@@ -334,13 +334,9 @@ function onJoinedGang() {
     p.authority = st.authority;
     p.gang_rank = st.gang_rank;
   }
-  st.chapter = Math.max(st.chapter || 1, 2);
   Authority.renderAuthorityHud(p);
-  if (!st.quest.completed.q_hangout_build && !st.quest.activeId) {
-    startQuest("q_hangout_build");
-  }
   hooks.toast?.(L({ ru: "Нашивка «Ржавые Цепи» получена!", en: "Rusty Chains patch earned!", da: "Rusty Chains-mærke!" }));
-  window.Chapter1?.showEnding?.();
+  window.Chapter1?.tryFinishChapter?.();
 }
 
 export function startQuest(qid) {

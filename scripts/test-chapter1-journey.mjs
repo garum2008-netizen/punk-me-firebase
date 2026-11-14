@@ -43,9 +43,17 @@ async function boot(page) {
   });
   if (await page.locator("#charSelectUi .char-pick").count()) {
     await page.click('.char-pick[data-id="cobalt"]');
+    await page.click('[data-avatar-hair="pink"]');
+    await page.click('[data-avatar-jacket="magenta"]');
+    await page.click('[data-avatar-accessory="chain"]');
+    await shot(page, "ch1-avatar-creator.png");
     await page.click("#charSelectConfirm");
   }
   await page.waitForFunction(() => window.__playerLoaded === true && window.me?.characterId === "cobalt");
+  await page.waitForFunction(() => {
+    const mark = window.World3D?.playerAvatarMark?.();
+    return mark?.attached === true && mark.hair === "pink" && mark.jacket === "magenta" && mark.accessory === "chain";
+  }, { timeout: 20000 });
   const skip = page.locator("#chapterCrawlSkip");
   if (await skip.isVisible().catch(() => false)) await skip.click();
   await dismissHowTo(page);
@@ -101,7 +109,16 @@ async function main() {
   page.setDefaultTimeout(120000);
   page.setDefaultNavigationTimeout(120000);
   const errors = await boot(page);
-  log("character-select", (await page.evaluate(() => window.me.characterId)) === "cobalt", "cobalt");
+  const created = await page.evaluate(() => ({
+    id: window.me.characterId,
+    look: window.me.avatarLook,
+    mark: window.World3D.playerAvatarMark()
+  }));
+  log(
+    "avatar-create",
+    created.id === "cobalt" && created.look?.hair === "pink" && created.look?.jacket === "magenta" && created.look?.accessory === "chain" && created.mark?.attached === true,
+    JSON.stringify(created)
+  );
   log("not-owner", await page.evaluate(() => window.isOwner === false), "anonymous is not owner");
 
   const questVisible = await page.evaluate(() => {
@@ -124,13 +141,20 @@ async function main() {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__playerLoaded === true && window.me?.characterId === "cobalt");
   await dismissHowTo(page);
+  await page.waitForFunction(() => window.World3D?.playerAvatarMark?.()?.attached === true, { timeout: 20000 });
   const reloaded = await page.evaluate(() => ({
     step: window.me.onboarding?.step,
     coins: window.me.coins,
     paid: window.me.onboarding?.paid?.move,
-    characterId: window.me.characterId
+    characterId: window.me.characterId,
+    look: window.me.avatarLook,
+    mark: window.World3D.playerAvatarMark()
   }));
-  log("save-reload-move", reloaded.characterId === "cobalt" && reloaded.step >= 1 && reloaded.coins === 120 && reloaded.paid === true, JSON.stringify(reloaded));
+  log(
+    "save-reload-move",
+    reloaded.characterId === "cobalt" && reloaded.step >= 1 && reloaded.coins === 120 && reloaded.paid === true && reloaded.look?.hair === "pink" && reloaded.look?.jacket === "magenta" && reloaded.mark?.accessory === "chain",
+    JSON.stringify(reloaded)
+  );
   await shot(page, "ch1-after-reload.png");
 
   await go(page, "street");
@@ -188,6 +212,11 @@ async function main() {
     done: window.me.onboarding.done
   }));
   log("city-build", city.stones >= 1 && city.built >= 1 && city.done === true, JSON.stringify(city));
+  const beforeJoin = await page.evaluate(() => ({
+    ended: window.me?.chapter1?.ended === true,
+    joined: !!window.me?.story?.flags?.joined_gang
+  }));
+  log("ending-waits-for-initiation", beforeJoin.ended === false && beforeJoin.joined === false, JSON.stringify(beforeJoin));
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__playerLoaded === true);
@@ -234,15 +263,53 @@ async function main() {
     priorDuel: !!window.me?.story?.events?.duel_razor_win
   }));
   log("initiation", initiated && joinState.joined === true && joinState.authority >= 100 && joinState.rank === "gang_member", JSON.stringify(joinState));
+  await dismissHowTo(page);
+  await page.waitForFunction(() => {
+    const line = document.querySelector("#chapterFinaleLine")?.textContent || "";
+    const gate = document.getElementById("chapterEnding")?.classList.contains("active") === true;
+    return line.includes("The patch is yours") && gate === false && window.me?.chapter1?.ended !== true;
+  }, { timeout: 15000 });
+  const finale = await page.evaluate(() => ({
+    line: document.querySelector("#chapterFinaleLine")?.textContent || "",
+    ended: window.me?.chapter1?.ended === true,
+    gate: document.getElementById("chapterEnding")?.classList.contains("active") === true,
+    chapter: window.me?.story?.chapter
+  }));
+  log(
+    "finale-scene",
+    /patch is yours/i.test(finale.line) && finale.ended === false && finale.gate === false && finale.chapter === 1,
+    JSON.stringify(finale)
+  );
+  await shot(page, "ch1-finale.png");
+  for (let i = 0; i < 3; i++) {
+    await page.locator("#storyDialog.chapter-finale #storyDlgNext").click();
+    await page.waitForTimeout(150);
+  }
+  await page.waitForFunction(() => document.getElementById("chapterEnding")?.classList.contains("active") === true, { timeout: 10000 });
   const ending = await page.evaluate(() => ({
     ended: window.me?.chapter1?.ended === true,
     overlay: document.getElementById("chapterEnding")?.classList.contains("active") === true
   }));
-  log("chapter-ending", ending.ended && ending.overlay, JSON.stringify(ending));
+  const endingCopy = await page.evaluate(() => ({
+    title: document.querySelector("#chapterEnding .chapter-ending-title")?.textContent || "",
+    body: document.querySelector("#chapterEnding .chapter-ending-body")?.textContent || "",
+    chapter: window.me?.story?.chapter,
+    hangout: window.me?.story?.quest?.activeId || null,
+    paid: window.me?.onboarding?.paid || {}
+  }));
+  const cityHonest = /first mark, not a finished city/i.test(endingCopy.body)
+    && !/four stages|hangout|четыре этапа|fire etaper/i.test(endingCopy.body);
+  log(
+    "chapter-ending",
+    ending.ended && ending.overlay && endingCopy.chapter === 1 && endingCopy.hangout !== "q_hangout_build" && cityHonest,
+    JSON.stringify({ ending, endingCopy })
+  );
   await shot(page, "ch1-initiation.png");
 
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => window.__playerLoaded === true);
+  await page.goto("about:blank");
+  await page.goto(`${base}/?solo=1&v=ch1-reentry`, { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => window.__playerLoaded === true && window.me?.characterId === "cobalt");
+  await page.waitForFunction(() => window.World3D?.playerAvatarMark?.()?.hair === "pink", { timeout: 20000 });
   await dismissHowTo(page);
   const joinPersist = await page.evaluate(() => ({
     joined: !!window.me?.story?.flags?.joined_gang,
@@ -251,7 +318,26 @@ async function main() {
     ended: window.me?.chapter1?.ended === true,
     stones: (window.me?.cityStones || []).length
   }));
-  log("initiation-persists", joinPersist.joined === true && joinPersist.characterId === "cobalt" && joinPersist.ended === true && joinPersist.stones >= 1, JSON.stringify(joinPersist));
+  const objectives = await page.evaluate(() => {
+    const paid = window.me?.onboarding?.paid || {};
+    const ids = ["move", "go_street", "talk_razor", "visit_cemetery", "win_fight", "shop_buy", "city_build"];
+    return {
+      training: ids.filter(id => paid[id] === true),
+      joined: !!window.me?.story?.flags?.joined_gang,
+      ended: window.me?.chapter1?.ended === true,
+      finaleSeen: window.me?.chapter1?.finaleSeen === true,
+      cityStones: (window.me?.cityStones || []).length,
+      chapter: window.me?.story?.chapter,
+      look: window.me?.avatarLook || null,
+      mark: window.World3D?.playerAvatarMark?.() || null
+    };
+  });
+  fs.writeFileSync(path.join(outDir, "ch1-objectives.json"), JSON.stringify(objectives, null, 2));
+  log(
+    "initiation-persists",
+    joinPersist.joined === true && joinPersist.characterId === "cobalt" && joinPersist.ended === true && joinPersist.stones >= 1 && objectives.training.length === 7 && objectives.finaleSeen === true && objectives.look?.hair === "pink" && objectives.mark?.attached === true,
+    JSON.stringify({ joinPersist, objectives })
+  );
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "domcontentloaded" });

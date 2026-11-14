@@ -24,6 +24,7 @@ export function ensureChapter1(player) {
     player.chapter1 = { crawlSeen: false, ended: false };
   }
   if (typeof player.chapter1.crawlSeen !== "boolean") player.chapter1.crawlSeen = !!player.chapter1.crawlSeen;
+  if (typeof player.chapter1.finaleSeen !== "boolean") player.chapter1.finaleSeen = !!player.chapter1.finaleSeen;
   if (typeof player.chapter1.ended !== "boolean") player.chapter1.ended = !!player.chapter1.ended;
   return player.chapter1;
 }
@@ -44,6 +45,24 @@ export function ensureCityKit(player) {
   return player.inventory.materials.crypt;
 }
 
+export const CHAPTER1_OBJECTIVES = [
+  "move",
+  "go_street",
+  "talk_razor",
+  "visit_cemetery",
+  "win_fight",
+  "shop_buy",
+  "city_build"
+];
+
+/** Training steps plus the gang patch. The city step is one crypt stone, not a finished district. */
+export function chapterObjectivesMet(player) {
+  if (!player?.onboarding?.done) return false;
+  if (!player.story?.flags?.joined_gang) return false;
+  const paid = player.onboarding.paid || {};
+  return CHAPTER1_OBJECTIVES.every(id => paid[id] === true);
+}
+
 export function guideKey(player) {
   if (!player) return "";
   if (player.chapter1?.ended) return "angelina_closing";
@@ -51,8 +70,8 @@ export function guideKey(player) {
     const steps = window.Onboarding?.stepId?.();
     return steps ? `onboard_${steps}_text` : "onboard_move_text";
   }
-  if (player.story?.flags?.joined_gang) return "angelina_closing";
-  return "onboard_talk_razor_text";
+  if (chapterObjectivesMet(player)) return "angelina_finale";
+  return "angelina_initiation";
 }
 
 function lang() {
@@ -160,9 +179,83 @@ export function openCrawl() {
   }, { once: true });
 }
 
-export function showEnding() {
+const FINALE_LINES = ["chapter1_finale_1", "chapter1_finale_2", "chapter1_finale_3"];
+let finaleTimer = 0;
+
+function overlaysClear() {
+  const fight = document.getElementById("fightOverlay");
+  const howto = document.getElementById("howToOverlay");
+  return !fight?.classList.contains("active") && !howto?.classList.contains("active");
+}
+
+/** Razor's patch scene in the street dialog. The completion card comes after it. */
+export function playFinale() {
+  const player = window.me;
+  if (!player || !chapterObjectivesMet(player)) return false;
+  const st = ensureChapter1(player);
+  if (st.ended || st.finaleSeen) return false;
+  const el = document.getElementById("storyDialog");
+  if (!el) return false;
+  if (!overlaysClear()) {
+    if (!finaleTimer) {
+      finaleTimer = setTimeout(() => {
+        finaleTimer = 0;
+        playFinale();
+      }, 400);
+    }
+    return true;
+  }
+  if (el.classList.contains("chapter-finale")) return true;
+  el.classList.add("active", "chapter-finale");
+  el.setAttribute("aria-hidden", "false");
+  const title = el.querySelector(".story-dialog-title");
+  if (title) title.textContent = "Razor";
+  try { window.StoryEngine?.applyDialogueCamera?.("razor"); } catch (_) {}
+  let idx = 0;
+  const showLine = () => {
+    const body = el.querySelector(".story-dialog-body");
+    if (!body) return;
+    body.innerHTML = `<p class="story-line" id="chapterFinaleLine">${t(FINALE_LINES[idx])}</p>
+      <button type="button" class="btn" id="storyDlgNext">${t("chapter1_finale_next")}</button>`;
+    el.querySelector("#storyDlgNext").onclick = () => {
+      idx += 1;
+      if (idx >= FINALE_LINES.length) finishFinale();
+      else showLine();
+    };
+  };
+  showLine();
+  refreshGuide();
+  return true;
+}
+
+function finishFinale() {
   const player = window.me;
   if (!player) return;
+  const st = ensureChapter1(player);
+  st.finaleSeen = true;
+  const el = document.getElementById("storyDialog");
+  el?.classList.remove("active", "chapter-finale");
+  if (el) el.setAttribute("aria-hidden", "true");
+  window.StoryEngine?.clearDialogueCamera?.();
+  showEnding();
+}
+
+export function tryFinishChapter() {
+  const player = window.me;
+  if (!player || !chapterObjectivesMet(player)) return false;
+  const st = ensureChapter1(player);
+  if (st.ended) return false;
+  if (!st.finaleSeen) {
+    setTimeout(() => playFinale(), 40);
+    return true;
+  }
+  showEnding();
+  return true;
+}
+
+export function showEnding() {
+  const player = window.me;
+  if (!player || !chapterObjectivesMet(player)) return;
   const st = ensureChapter1(player);
   if (st.ended) return;
   st.ended = true;
@@ -186,7 +279,10 @@ export function onWorldReady() {
   if (!player) return;
   ensureChapter1(player);
   if (shouldShowCrawl(player)) openCrawl();
-  else refreshGuide();
+  else {
+    refreshGuide();
+    tryFinishChapter();
+  }
 }
 
 if (typeof window !== "undefined") {
@@ -194,6 +290,9 @@ if (typeof window !== "undefined") {
     onWorldReady,
     refreshGuide,
     showEnding,
+    tryFinishChapter,
+    playFinale,
+    chapterObjectivesMet,
     ensureCityKit,
     shouldShowCrawl,
     ensureChapter1

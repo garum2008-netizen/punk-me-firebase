@@ -5,6 +5,8 @@ import {
   createCc0Actor
 } from "./world/meshy-punk.mjs";
 import { updateProcedural } from "./character-rig.mjs";
+import { attachAvatarLook } from "./avatar-mesh.mjs";
+import { presetFor, HAIR, JACKETS, ACCESSORIES } from "./avatar-look.mjs";
 
 /** Vertical padding inside the canvas (hair top / boots bottom). */
 const PREVIEW_MARGIN_Y = 0.08;
@@ -20,6 +22,7 @@ let onPickCb = null;
 let templatesReady = false;
 let previewPhase = 0;
 let previewLights = null;
+let draftLook = presetFor("vienna");
 
 function framePreviewActor(root, cam, canvas) {
   root.updateMatrixWorld(true);
@@ -86,6 +89,7 @@ function showCharacter(id) {
     null,
     false
   );
+  attachAvatarLook(actorRoot, draftLook);
   const canvas = document.getElementById("charSelect3d");
   if (canvas && camera) framePreviewActor(actorRoot, camera, canvas);
   previewPhase = 0;
@@ -112,17 +116,61 @@ function loop() {
   renderer?.render(scene, camera);
 }
 
+function label(key, fallback) {
+  return typeof t === "function" ? t(key) : fallback;
+}
+
+function creatorHtml() {
+  const hair = HAIR.map(sw =>
+    `<button type="button" class="avatar-swatch ${draftLook.hair === sw.id ? "active" : ""}" data-avatar-hair="${sw.id}" style="background:#${sw.color.toString(16).padStart(6, "0")}" aria-label="${sw.id}"></button>`
+  ).join("");
+  const jacket = JACKETS.map(sw =>
+    `<button type="button" class="avatar-swatch ${draftLook.jacket === sw.id ? "active" : ""}" data-avatar-jacket="${sw.id}" style="background:#${sw.color.toString(16).padStart(6, "0")}" aria-label="${sw.id}"></button>`
+  ).join("");
+  const accessory = ACCESSORIES.map(id =>
+    `<button type="button" class="avatar-acc ${draftLook.accessory === id ? "active" : ""}" data-avatar-accessory="${id}">${label("avatar_" + id, id)}</button>`
+  ).join("");
+  return `<div id="avatarCreator" class="avatar-creator">
+    <p>${label("avatar_creator", "Make your look")}</p>
+    <div class="avatar-row"><span>${label("avatar_hair", "Hair")}</span>${hair}</div>
+    <div class="avatar-row"><span>${label("avatar_jacket", "Jacket")}</span>${jacket}</div>
+    <div class="avatar-row"><span>${label("avatar_accessory", "Detail")}</span>${accessory}</div>
+  </div>`;
+}
+
 function buildUi() {
   const ui = document.getElementById("charSelectUi");
   if (!ui) return;
   ui.innerHTML = getPlayableCharacters().map((c, i) =>
     `<button type="button" class="btn char-pick ${i === selectedIdx ? "active" : ""}" data-idx="${i}" data-id="${c.id}">${c.id.toUpperCase()}</button>`
-  ).join("") + `<button type="button" class="btn" id="charSelectConfirm">${typeof t === "function" ? t("char_select_confirm") : "Play"}</button>`;
+  ).join("") + creatorHtml() + `<button type="button" class="btn" id="charSelectConfirm">${label("char_select_confirm", "Play")}</button>`;
   ui.querySelectorAll(".char-pick").forEach(btn => {
     btn.onclick = () => {
       selectedIdx = parseInt(btn.dataset.idx, 10);
+      draftLook = presetFor(btn.dataset.id);
       buildUi();
       showCharacter(btn.dataset.id);
+    };
+  });
+  ui.querySelectorAll("[data-avatar-hair]").forEach(btn => {
+    btn.onclick = () => {
+      draftLook = { ...draftLook, hair: btn.dataset.avatarHair };
+      buildUi();
+      showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
+    };
+  });
+  ui.querySelectorAll("[data-avatar-jacket]").forEach(btn => {
+    btn.onclick = () => {
+      draftLook = { ...draftLook, jacket: btn.dataset.avatarJacket };
+      buildUi();
+      showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
+    };
+  });
+  ui.querySelectorAll("[data-avatar-accessory]").forEach(btn => {
+    btn.onclick = () => {
+      draftLook = { ...draftLook, accessory: btn.dataset.avatarAccessory };
+      buildUi();
+      showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
     };
   });
   const confirmBtn = document.getElementById("charSelectConfirm");
@@ -136,7 +184,7 @@ function buildUi() {
       const pick = PLAYABLE_CHARACTER_IDS[selectedIdx];
       if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(pick)) return;
       close();
-      onPickCb?.(pick);
+      onPickCb?.({ id: pick, look: { ...draftLook } });
     };
   }
 }

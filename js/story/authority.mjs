@@ -268,7 +268,10 @@ function finishInitiation() {
 }
 
 export function maybeChapter2Bullying() {
-  const st = ensureAuthority(me());
+  const player = me();
+  const st = ensureAuthority(player);
+  if (!player?.chapter1?.ended) return;
+  if (document.getElementById("chapterEnding")?.classList.contains("active")) return;
   if (st.auth.ch2Done || st.gang_rank !== "gang_member") return;
   if ((st.chapter || 1) < 2) {
     st.chapter = 2;
