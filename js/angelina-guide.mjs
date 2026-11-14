@@ -1,8 +1,11 @@
 /**
- * Angelina teen coach — persistent contextual guide (first-person teen voice).
- * Updates on a timer and when onboarding / Life Ch1 / location changes.
+ * Angelina — permanent story companion (text guide banner + reaction lines).
+ * t208u: reacts to player actions; separate from the custom 3D hero.
  */
 const ONBOARD_IDS = ["move", "go_street", "talk_razor", "visit_cemetery", "win_fight", "shop_buy", "city_build"];
+
+let reactUntil = 0;
+let reactKey = null;
 
 function tt(key, fallback) {
   return typeof window.t === "function" ? window.t(key) : fallback;
@@ -14,6 +17,10 @@ function heroName() {
 }
 
 function pickLine() {
+  if (reactKey && Date.now() < reactUntil) {
+    const line = tt(reactKey, "");
+    if (line) return line;
+  }
   const me = window.me;
   const who = heroName();
   if (!me) return tt("angelina_guide_welcome", "Hey — I'll hint what to do next. Follow the quest box.");
@@ -56,13 +63,40 @@ function refresh() {
   el.classList.add("visible");
 }
 
+const REACT_I18N = {
+  crypt_placed: "angelina_react_crypt_placed",
+  fight_win: "angelina_react_fight_win",
+  shop_buy: "angelina_react_shop_buy",
+  ch1_complete: "angelina_react_ch1_complete"
+};
+
+/** Short-lived reaction line (crypt, fight win, onboarding step, etc.). */
+export function react(eventId, durationMs = 5200) {
+  if (!eventId) return;
+  let key = eventId;
+  if (eventId.startsWith("onboard_")) {
+    key = `angelina_guide_${eventId.slice("onboard_".length)}`;
+  } else if (eventId.startsWith("angelina_")) {
+    key = eventId;
+  } else {
+    key = REACT_I18N[eventId] || `angelina_react_${eventId}`;
+  }
+  reactKey = key;
+  reactUntil = Date.now() + Math.max(1200, durationMs | 0);
+  refresh();
+  const el = document.getElementById("angelinaGuideBanner");
+  el?.classList.add("angelina-guide-react");
+  setTimeout(() => el?.classList.remove("angelina-guide-react"), durationMs);
+  window.LifeCh1Slice?.syncCompanionAngelina3D?.();
+}
+
 export function initAngelinaGuide() {
   refresh();
   setInterval(refresh, 1400);
   window.addEventListener("punk-me-save", refresh, { passive: true });
 }
 
-window.AngelinaGuide = { refresh, init: initAngelinaGuide };
+window.AngelinaGuide = { refresh, react, init: initAngelinaGuide };
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => initAngelinaGuide(), { once: true });

@@ -75,6 +75,7 @@ function completeStep() {
   renderOnboardingQuest();
   syncGuideTarget();
   window.AngelinaGuide?.refresh?.();
+  window.AngelinaGuide?.react?.(`onboard_${st.id}`);
 }
 
 function saveMeQuiet() {
@@ -179,8 +180,14 @@ function onEnterLocation(loc) {
 
 function onTalkRazor() { bump("talk_razor", 1); }
 function onVisitCemetery() { if (window.me?.location === "cemetery") bump("visit_cemetery", 1); }
-function onWinFight() { bump("win_fight", 1); }
-function onShopBuy() { bump("shop_buy", 1); }
+function onWinFight() {
+  window.AngelinaGuide?.react?.("fight_win");
+  bump("win_fight", 1);
+}
+function onShopBuy() {
+  window.AngelinaGuide?.react?.("shop_buy");
+  bump("shop_buy", 1);
+}
 
 function onCityBuildPlaced() {
   if (window.me?.location !== "city") return;
@@ -188,19 +195,17 @@ function onCityBuildPlaced() {
   if (st?.key === "city_build") {
     const line = typeof t === "function" ? t("story_crypt_placed") : "";
     if (line) toast(line);
+    window.AngelinaGuide?.react?.("crypt_placed");
   }
   bump("city_build", 1);
 }
 
+/** t208u: never auto-skip the move tutorial — kids must earn step 0 with real movement. */
 function adaptSpawnLocation() {
   if (!window.me?.onboarding || window.me.onboarding.done) return;
-  const loc = window.me.location;
-  if (!loc || loc === "room") return;
-  const st = currentStep();
-  if (st?.key === "moved") {
-    window.me.onboarding.progress.moved = st.goal;
-    completeStep();
-  }
+  renderOnboardingQuest();
+  syncGuideTarget();
+  window.AngelinaGuide?.refresh?.();
 }
 
 function initOnboarding() {

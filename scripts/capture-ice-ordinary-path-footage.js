@@ -796,24 +796,37 @@ async function playLifeCh1Ordinary(page) {
   await visibleUiClick(page, "#lifeCh1DlgOk", "reflect OK");
   await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, { timeout: 25000 });
   logScene("ch1_complete", "lifeCh1.completed=true");
-  await page.waitForTimeout(400);
-  const shaShort = SHA.slice(0, 12);
-  const passTag = ordinaryPassTag();
-  await uiOpenMapTravel(page, "street");
-  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 20000 });
-  await page.waitForTimeout(280);
-  await page.screenshot({
-    path: path.join(OUT, `ordinary-street-cutout-${shaShort}-${passTag}.png`),
-    fullPage: false
-  });
-  logScene("visual_street", "outdoor cutout screenshot");
-  await uiOpenMapTravel(page, "cemetery");
-  await page.waitForTimeout(280);
-  await page.screenshot({
-    path: path.join(OUT, `ordinary-cemetery-cutout-${shaShort}-${passTag}.png`),
-    fullPage: false
-  });
-  logScene("visual_cemetery", "cemetery cutout screenshot");
+  await page.waitForTimeout(1200);
+  logScene("ch1_save", "persist before reload");
+  await page.evaluate(() => window.saveMe?.());
+  await page.waitForTimeout(600);
+  const snapshot = await page.evaluate(() => ({
+    lifeCh1Done: !!window.me?.lifeCh1?.completed,
+    onboardingDone: !!window.me?.onboarding?.done,
+    heroName: window.me?.heroName || "",
+    preset: window.me?.avatarConfig?.presetId || window.me?.avatarConfig?.name || ""
+  }));
+  if (!snapshot.lifeCh1Done) throw new Error("ch1 not complete before save");
+  await page.reload({ waitUntil: "load", timeout: 120000 });
+  await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+  await dismissHowTo(page);
+  await page.waitForFunction(
+    () => window.me?.lifeCh1?.completed === true && window.me?.onboarding?.done === true,
+    undefined,
+    { timeout: 90000 }
+  );
+  const after = await page.evaluate(() => ({
+    lifeCh1Done: !!window.me?.lifeCh1?.completed,
+    onboardingDone: !!window.me?.onboarding?.done,
+    heroName: window.me?.heroName || "",
+    preset: window.me?.avatarConfig?.presetId || window.me?.avatarConfig?.name || "",
+    guide: document.getElementById("angelinaGuideBanner")?.textContent?.slice(0, 80) || ""
+  }));
+  if (!after.lifeCh1Done || !after.onboardingDone) {
+    throw new Error(`save reload lost progress: ${JSON.stringify(after)}`);
+  }
+  logScene("ch1_reentry", JSON.stringify({ snapshot, after }));
+  await page.waitForTimeout(2500);
   if (INPUT_MODE === "touch") {
     const perf = await page.evaluate(() => {
       return new Promise(resolve => {
@@ -886,7 +899,6 @@ async function runOrdinarySession(browser, viewport, label) {
       ],
       { stdio: "ignore" }
     );
-    logScene("ffmpeg_x11grab", `recording ${dest}`);
   }
 
   const ctx = await browser.newContext({
@@ -923,6 +935,9 @@ async function runOrdinarySession(browser, viewport, label) {
   scenes.length = 0;
   const recordingStartUtc = new Date();
   const recordingStartCet = cetTimestamp(recordingStartUtc);
+  if (useFfmpegGrab) {
+    logScene("ffmpeg_x11grab", `recording ${dest}`);
+  }
 
   logInput("navigation", entryUrl);
   await page.goto(entryUrl, { waitUntil: "domcontentloaded", timeout: 120000 });

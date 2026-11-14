@@ -1,3 +1,18 @@
+# Chapter 1 — Defects & rework log (t208u)
+
+**Owner decision 2026-11-14:** Preview `a5c305c` **technical stage GO**; Chapter 1 **PENDING** until UNCUT proof.
+
+## Closed / mitigated (t208 branch tip)
+
+| ID | Issue | Resolution |
+|----|-------|------------|
+| T208-01 | `adaptSpawnLocation` auto-skipped **move** step | Removed auto-complete; refresh quest/guide only |
+| T208-02 | Ch1 capture hung after complete on map→cemetery | Post-Ch1 optional screenshots removed; save/reload proof added |
+| T208-03 | Angelina = player copy in outfit hint | i18n + companion 3D billboard (`syncCompanionAngelina3D`) |
+| T208-04 | Angelina static text only | `AngelinaGuide.react` on steps, crypt, fight, shop, Ch1 complete |
+| T208-05 | Wing QA missing interaction states | Extended `test-wing-clip-t207.js` samples + jump N/A note |
+| T208-06 | Scene log bogus timestamps before `t0` reset | ffmpeg log moved after `t0` init in capture script |
+
 # Chapter 1 — Defects & rework log (t207u)
 
 **Owner decision 2026-11-13:** Preview Avatar QA **GO**; Chapter 1 **NOT release-ready**.

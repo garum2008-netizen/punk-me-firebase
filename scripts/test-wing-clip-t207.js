@@ -211,6 +211,81 @@ async function main() {
     samples.push(await sampleClip(page, "city_build_mode", { phase: "build_interaction" }));
     await releaseKeys(page);
 
+    await page.evaluate(() => {
+      window.Onboarding?.onCityBuildPlaced?.();
+      window.AngelinaGuide?.react?.("crypt_placed");
+    });
+    await page.waitForTimeout(450);
+    samples.push(await sampleClip(page, "crypt_placed", { phase: "build_interaction" }));
+
+    await page.evaluate(() => {
+      document.getElementById("duel3dHud")?.classList.remove("hidden");
+      window.fight = {
+        npcName: "Razor",
+        playerHp: 80,
+        playerMax: 100,
+        npcHp: 40,
+        npcMax: 100,
+        log: []
+      };
+      window.AngelinaGuide?.react?.("fight_win");
+    });
+    await page.waitForTimeout(400);
+    samples.push(await sampleClip(page, "combat_duel_hud", { phase: "combat", note: "duel UI overlay" }));
+
+    await page.evaluate(() => {
+      const dlg = document.getElementById("storyDialog");
+      if (dlg) {
+        dlg.hidden = false;
+        dlg.classList.add("active");
+        const body = dlg.querySelector(".story-dialog-body, .life-ch1-dialog-text");
+        if (body) body.innerHTML = "<p>Angelina: trust your gut — pick who you believe.</p>";
+      }
+      window.AngelinaGuide?.refresh?.();
+    });
+    await page.waitForTimeout(350);
+    samples.push(await sampleClip(page, "story_dialogue", { phase: "dialogue_angelina" }));
+
+    await page.evaluate(() => {
+      window.LifeCh1Slice?.ensureLifeCh1?.(window.me);
+      const st = window.me.lifeCh1;
+      if (st) {
+        st.active = true;
+        st.stepIndex = 1;
+        st.playerCutout = false;
+      }
+      window.LifeCh1Slice?.syncCompanionAngelina3D?.();
+    });
+    await page.waitForTimeout(500);
+    await page.waitForTimeout(200);
+    const companion3d = await page.evaluate(() => window.World3D?.getAngelinaLifeBillboardSnapshot?.() || null);
+    samples.push(
+      await sampleClip(page, "companion_3d_follow", {
+        phase: "companion_3d",
+        companionBillboard: companion3d
+      })
+    );
+    if (!companion3d?.visible) {
+      throw new Error("companion 3D billboard not visible: " + JSON.stringify(companion3d));
+    }
+
+    const actionNames =
+      (await page.evaluate(() => window.World3D?.getPlayerActorSnapshot?.()?.actionKeys || [])) || [];
+    if (actionNames.includes("sit")) {
+      await forceLocomotion(page, "sit");
+      samples.push(await sampleClip(page, "sit_interact", { phase: "interact", locomotionMethod: "sit_clip" }));
+    } else if (actionNames.includes("interact")) {
+      await forceLocomotion(page, "interact");
+      samples.push(await sampleClip(page, "interact_emote", { phase: "interact" }));
+    }
+    samples.push(
+      await sampleClip(page, "jump_not_in_rig", {
+        phase: "jump",
+        note: "no jump clip in Mixamo player rig — measured at idle instead",
+        playerActionClips: actionNames
+      })
+    );
+
     const penetrations = samples.filter(s => s.clip?.penetrating);
     const touching = samples.filter(s => s.clip?.touching);
     const minGap = Math.min(...samples.map(s => s.clip?.minGap ?? 999));

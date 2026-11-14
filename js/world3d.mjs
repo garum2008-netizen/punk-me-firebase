@@ -88,7 +88,15 @@ const talkingIds = new Set();
 const texLoader = new THREE.TextureLoader();
 let guideTarget = null;
 /** Deprecated billboard — slice uses player cutout; kept for clear API. */
-let lifeAngelinaBillboard = { sprite: null, url: "", wx: 0, wz: 0, loc: "room", visible: false };
+let lifeAngelinaBillboard = {
+  sprite: null,
+  url: "",
+  wx: 0,
+  wz: 0,
+  loc: "room",
+  visible: false,
+  followPlayer: false
+};
 /** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
 let lifeCh1PlayerSkin = {
   sprite: null,
@@ -364,6 +372,7 @@ function setAngelinaLifeBillboard(opts = {}) {
   lifeAngelinaBillboard.wx = opts.wx ?? lifeAngelinaBillboard.wx;
   lifeAngelinaBillboard.wz = opts.wz ?? lifeAngelinaBillboard.wz;
   lifeAngelinaBillboard.loc = opts.loc ?? lifeAngelinaBillboard.loc;
+  if (typeof opts.followPlayer === "boolean") lifeAngelinaBillboard.followPlayer = opts.followPlayer;
   if (opts.url) lifeAngelinaBillboard.url = opts.url;
   const sp = ensureLifeAngelinaBillboardSprite();
   if (!sp) return;
@@ -389,7 +398,16 @@ function tickLifeAngelinaBillboard() {
     return;
   }
   lifeAngelinaBillboard.sprite.visible = true;
-  lifeAngelinaBillboard.sprite.position.set(lifeAngelinaBillboard.wx, 1.55, lifeAngelinaBillboard.wz);
+  let wx = lifeAngelinaBillboard.wx;
+  let wz = lifeAngelinaBillboard.wz;
+  if (lifeAngelinaBillboard.followPlayer) {
+    const pl = actors.get("player");
+    if (pl?.wx != null) {
+      wx = pl.wx - 0.85;
+      wz = pl.wz + 0.45;
+    }
+  }
+  lifeAngelinaBillboard.sprite.position.set(wx, 1.55, wz);
 }
 let mobileQuality = false;
 let locFillLight = null;
@@ -2321,6 +2339,12 @@ const api = {
   snapPlayerToLocationSpawn,
   setAngelinaLifeBillboard: setAngelinaLifeBillboard,
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
+  getAngelinaLifeBillboardSnapshot: () => ({
+    visible: lifeAngelinaBillboard.visible,
+    followPlayer: lifeAngelinaBillboard.followPlayer,
+    loc: lifeAngelinaBillboard.loc,
+    hasSprite: !!lifeAngelinaBillboard.sprite
+  }),
   setPlayerLifeCh1Skin,
   getPlayerLifeCh1SkinRenderState,
   getPlayerActorSnapshot: () => {
@@ -2332,7 +2356,8 @@ const api = {
       wingAttachBone: a._wings?.attachBone || null,
       wingFeathers: a._wings?.feathers?.length || 0,
       current: a.current,
-      visible: a.root?.visible !== false
+      visible: a.root?.visible !== false,
+      actionKeys: a.actions ? Object.keys(a.actions) : []
     };
   },
   getPlayerAnimSnapshot: () => {
@@ -2349,7 +2374,7 @@ const api = {
     if (!isLifeCh1E2eNavAid()) return false;
     const a = actors.get("player");
     if (!a) return false;
-    const n = name === "run" || name === "walk" ? name : "idle";
+    const n = a.actions?.[name] ? name : name === "run" || name === "walk" ? name : "idle";
     a._intentRun = n === "run";
     a._holdAnim = n;
     a._holdUntil = performance.now() + Math.max(500, holdMs | 0);

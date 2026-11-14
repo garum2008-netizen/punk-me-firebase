@@ -226,6 +226,22 @@ function dialogPortraitHtml(skinId) {
   return `<img id="lifeCh1DialogPortrait" class="life-ch1-dialog-portrait" src="${escapeHtml(url)}" alt="${escapeHtml(label)}" width="96" height="144" data-skin="${escapeHtml(skinId)}">`;
 }
 
+export function syncCompanionAngelina3D() {
+  if (!isLifeCh1SliceEnabled()) {
+    window.World3D?.clearAngelinaLifeBillboard?.();
+    return;
+  }
+  const st = ensureLifeCh1();
+  if (!st || st.playerCutout !== false) {
+    window.World3D?.clearAngelinaLifeBillboard?.();
+    return;
+  }
+  const skin = normalizeSkinId(st.companionAngelinaSkin || st.angelinaSkin || "A");
+  const url = worldUrl(skin, skinManifest);
+  const loc = window.me?.location || "room";
+  window.World3D?.setAngelinaLifeBillboard?.({ visible: true, url, loc, followPlayer: true });
+}
+
 export function syncPlayerLifeCh1Skin() {
   previewPlayerLifeCh1Skin(readSelectedSkin(ensureLifeCh1()));
 }
@@ -234,10 +250,12 @@ function previewPlayerLifeCh1Skin(skinId) {
   const st = ensureLifeCh1();
   if (!st) {
     window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
+    window.World3D?.clearAngelinaLifeBillboard?.();
     return;
   }
   if (st.playerCutout === false) {
     window.World3D?.setPlayerLifeCh1Skin?.({ visible: false });
+    syncCompanionAngelina3D();
     return;
   }
   const skin = normalizeSkinId(skinId);
@@ -508,6 +526,8 @@ function advanceStep(extraReward = 0) {
         da: "Liv kapitel 1 færdig!"
       })
     );
+    window.AngelinaGuide?.react?.("ch1_complete", 7000);
+    syncCompanionAngelina3D();
   } else {
     st.stepIndex = next;
     const upcoming = steps[next];
@@ -1029,6 +1049,7 @@ export async function initLifeCh1Slice(h) {
     setAngelinaSkin,
     setDefaultPlayerLook,
     syncPlayerLifeCh1Skin,
+    syncCompanionAngelina3D,
     applySliceAngelinaPlayerChrome,
     isLifeCh1SliceEnabled,
     isProductionGameHost,
