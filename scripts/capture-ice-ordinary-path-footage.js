@@ -959,6 +959,7 @@ async function runOrdinarySession(browser, viewport, label) {
     viewport.width >= 1000 && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
   if (useFfmpegGrab) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
+    if (fs.existsSync(dest)) fs.unlinkSync(dest);
     const disp = process.env.DISPLAY || ":1";
     ffmpegProc = spawn(
       "ffmpeg",
@@ -1107,7 +1108,9 @@ async function runOrdinarySession(browser, viewport, label) {
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const serveChild = await serveRoot();
-  const browser = await chromium.launch();
+  const desktopFfmpeg =
+    ORDINARY_DESKTOP_ONLY && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
+  const browser = await chromium.launch({ headless: !desktopFfmpeg });
   const results = [];
   let err = null;
   try {
