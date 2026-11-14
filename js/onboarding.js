@@ -120,6 +120,7 @@ function completeStep() {
   else saveMeQuiet();
   renderOnboardingQuest();
   syncGuideTarget();
+  window.Chapter1?.tryFinishChapter?.();
   window.Chapter1?.refreshGuide?.();
 }
 

@@ -188,6 +188,11 @@ async function main() {
     done: window.me.onboarding.done
   }));
   log("city-build", city.stones >= 1 && city.built >= 1 && city.done === true, JSON.stringify(city));
+  const beforeJoin = await page.evaluate(() => ({
+    ended: window.me?.chapter1?.ended === true,
+    joined: !!window.me?.story?.flags?.joined_gang
+  }));
+  log("ending-waits-for-initiation", beforeJoin.ended === false && beforeJoin.joined === false, JSON.stringify(beforeJoin));
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__playerLoaded === true);
@@ -238,11 +243,25 @@ async function main() {
     ended: window.me?.chapter1?.ended === true,
     overlay: document.getElementById("chapterEnding")?.classList.contains("active") === true
   }));
-  log("chapter-ending", ending.ended && ending.overlay, JSON.stringify(ending));
+  const endingCopy = await page.evaluate(() => ({
+    title: document.querySelector("#chapterEnding .chapter-ending-title")?.textContent || "",
+    body: document.querySelector("#chapterEnding .chapter-ending-body")?.textContent || "",
+    chapter: window.me?.story?.chapter,
+    hangout: window.me?.story?.quest?.activeId || null,
+    paid: window.me?.onboarding?.paid || {}
+  }));
+  const cityHonest = /first mark, not a finished city/i.test(endingCopy.body)
+    && !/four stages|hangout|четыре этапа|fire etaper/i.test(endingCopy.body);
+  log(
+    "chapter-ending",
+    ending.ended && ending.overlay && endingCopy.chapter === 1 && endingCopy.hangout !== "q_hangout_build" && cityHonest,
+    JSON.stringify({ ending, endingCopy })
+  );
   await shot(page, "ch1-initiation.png");
 
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => window.__playerLoaded === true);
+  await page.goto("about:blank");
+  await page.goto(`${base}/?solo=1&v=ch1-reentry`, { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => window.__playerLoaded === true && window.me?.characterId === "cobalt");
   await dismissHowTo(page);
   const joinPersist = await page.evaluate(() => ({
     joined: !!window.me?.story?.flags?.joined_gang,
@@ -251,7 +270,23 @@ async function main() {
     ended: window.me?.chapter1?.ended === true,
     stones: (window.me?.cityStones || []).length
   }));
-  log("initiation-persists", joinPersist.joined === true && joinPersist.characterId === "cobalt" && joinPersist.ended === true && joinPersist.stones >= 1, JSON.stringify(joinPersist));
+  const objectives = await page.evaluate(() => {
+    const paid = window.me?.onboarding?.paid || {};
+    const ids = ["move", "go_street", "talk_razor", "visit_cemetery", "win_fight", "shop_buy", "city_build"];
+    return {
+      training: ids.filter(id => paid[id] === true),
+      joined: !!window.me?.story?.flags?.joined_gang,
+      ended: window.me?.chapter1?.ended === true,
+      cityStones: (window.me?.cityStones || []).length,
+      chapter: window.me?.story?.chapter
+    };
+  });
+  fs.writeFileSync(path.join(outDir, "ch1-objectives.json"), JSON.stringify(objectives, null, 2));
+  log(
+    "initiation-persists",
+    joinPersist.joined === true && joinPersist.characterId === "cobalt" && joinPersist.ended === true && joinPersist.stones >= 1 && objectives.training.length === 7,
+    JSON.stringify({ joinPersist, objectives })
+  );
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "domcontentloaded" });

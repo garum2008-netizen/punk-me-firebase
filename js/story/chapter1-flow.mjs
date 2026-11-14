@@ -44,6 +44,24 @@ export function ensureCityKit(player) {
   return player.inventory.materials.crypt;
 }
 
+export const CHAPTER1_OBJECTIVES = [
+  "move",
+  "go_street",
+  "talk_razor",
+  "visit_cemetery",
+  "win_fight",
+  "shop_buy",
+  "city_build"
+];
+
+/** Training steps plus the gang patch. The city step is one crypt stone, not a finished district. */
+export function chapterObjectivesMet(player) {
+  if (!player?.onboarding?.done) return false;
+  if (!player.story?.flags?.joined_gang) return false;
+  const paid = player.onboarding.paid || {};
+  return CHAPTER1_OBJECTIVES.every(id => paid[id] === true);
+}
+
 export function guideKey(player) {
   if (!player) return "";
   if (player.chapter1?.ended) return "angelina_closing";
@@ -51,8 +69,7 @@ export function guideKey(player) {
     const steps = window.Onboarding?.stepId?.();
     return steps ? `onboard_${steps}_text` : "onboard_move_text";
   }
-  if (player.story?.flags?.joined_gang) return "angelina_closing";
-  return "onboard_talk_razor_text";
+  return "angelina_initiation";
 }
 
 function lang() {
@@ -160,9 +177,18 @@ export function openCrawl() {
   }, { once: true });
 }
 
+export function tryFinishChapter() {
+  const player = window.me;
+  if (!player || !chapterObjectivesMet(player)) return false;
+  const st = ensureChapter1(player);
+  if (st.ended) return false;
+  showEnding();
+  return true;
+}
+
 export function showEnding() {
   const player = window.me;
-  if (!player) return;
+  if (!player || !chapterObjectivesMet(player)) return;
   const st = ensureChapter1(player);
   if (st.ended) return;
   st.ended = true;
@@ -194,6 +220,8 @@ if (typeof window !== "undefined") {
     onWorldReady,
     refreshGuide,
     showEnding,
+    tryFinishChapter,
+    chapterObjectivesMet,
     ensureCityKit,
     shouldShowCrawl,
     ensureChapter1
