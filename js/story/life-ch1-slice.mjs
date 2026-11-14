@@ -188,7 +188,7 @@ export function ensureLifeCh1(player) {
   if (st.flags == null || typeof st.flags !== "object" || Array.isArray(st.flags)) st.flags = {};
   st.claimedSteps = normalizeClaimedSteps(st.claimedSteps);
   st.angelinaSkin = normalizeSkinId(st.angelinaSkin || "A");
-  if (typeof st.playerCutout !== "boolean") st.playerCutout = st.playerCutout !== false;
+  if (typeof st.playerCutout !== "boolean") st.playerCutout = false;
   clampStepIndex(st);
   return st;
 }

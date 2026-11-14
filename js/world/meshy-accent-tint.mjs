@@ -4,6 +4,7 @@ import * as THREE from "three";
 export const ACCENT_HUES = {
   pink: 0.92,
   teal: 0.52,
+  blue: 0.58,
   green: 0.35,
   orange: 0.08
 };
@@ -95,8 +96,20 @@ export function hueShiftAccentTexture(sourceTex, accentKey) {
   return tex;
 }
 
+export function accentKeyFromHairHex(hairHex) {
+  const h = Number(hairHex) >>> 0;
+  if (h === 0x3399ff || h === 44607) return "blue";
+  if (h === 0x44ff66) return "green";
+  if (h === 0xff66ff) return "pink";
+  return "teal";
+}
+
 export function accentForActor(characterId, actorId) {
-  if (actorId === "player") return null;
+  if (actorId === "player") {
+    if (characterId === "mohawk") return "blue";
+    if (characterId === "cobalt") return "green";
+    return null;
+  }
   const byChar = {
     mohawk: "teal",
     cobalt: "green",
