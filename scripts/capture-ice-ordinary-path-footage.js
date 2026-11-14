@@ -476,7 +476,7 @@ async function completeOnboarding(page) {
   await dismissHowTo(page);
   await focusStage(page);
   logScene("onboarding_start", "fresh local save, onboarding step 0");
-  const deadline = Date.now() + 480000;
+  const deadline = Date.now() + 900000;
   let lastLoggedStep = -2;
   while (Date.now() < deadline) {
     const st = await readState(page);
@@ -606,8 +606,11 @@ async function completeOnboarding(page) {
       }
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 4, undefined, { timeout: 25000 });
     } else if (step === 5) {
+      await page.keyboard.press("Escape").catch(() => {});
+      await page.click("#gangModal .close").catch(() => {});
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
-      await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 60000 });
+      await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 90000 });
+      await dismissHowTo(page);
       await visibleUiClick(page, '#panelBottom button[onclick*="shopModal"]', "shop open");
       await page.waitForSelector("#shopModal.active");
       const buyBtn = page.locator('#shopModal button[onclick*="buyItem"]:not([disabled])').first();

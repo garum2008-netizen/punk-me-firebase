@@ -1248,7 +1248,10 @@ function previewSliceEconomyActive() {
 
 /** Preview / life-ch1 slice only — production shop prices unchanged. */
 function effectiveShopPrice(it) {
-  if (!it || !previewSliceEconomyActive()) return it?.price ?? 0;
+  if (!it) return 0;
+  const ob = window.Onboarding?.currentStep?.();
+  if (ob?.key === "shop_buy") return Math.min(it.price ?? 99, 5);
+  if (!previewSliceEconomyActive()) return it?.price ?? 0;
   if (it.id === "hat_spike") return 90;
   if (it.id === "mat_brick") return 40;
   return it.price;
