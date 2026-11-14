@@ -2,7 +2,7 @@
 
 **Chapter 1 status: PENDING** — not ready for release review as a *finished child-playable product* until the **Full playthrough** and **Re-entry** rows are green with one UNCUT recording.
 
-**Branch / tip:** `cursor/vertical-slice-ch1-d81d` @ `8990b65` (and following commits once regression + capture complete).
+**Branch / tip:** `cursor/vertical-slice-ch1-d81d` @ **`3127d3f`** (re-entry save merge + sequence test re-run in flight).
 
 **Preview deploy:** unchanged owner hold — **no** new tarball to `punk-me-preview-552740b` from this agent until owner GO. Accepted technical stage remains **`a5c305c`**.
 
@@ -12,13 +12,13 @@
 
 | Check | Requirement | Status | Evidence / defect |
 |-------|-------------|--------|-------------------|
-| **Full playthrough** | ONE continuous recording (CYBER PUNK BLUE, intro → chapter end, save/re-entry) | **NOT MET** | Partial runs: v3 (`e3eefd6`) reached `ch1_complete` ~21:06 in log then **reload timeout**. v4 hung at Character Studio boot while stale capture/ffmpeg held GPU. No validated UNCUT with SHA256 + duration at tip SHA yet. **Work:** clean capture `ORDINARY_PASS=t209-ch1-full` on `8990b65+` after regression PASS. |
-| **Story** | All stages with timecodes | **NOT MET** | Playthrough log generator ready (`scripts/generate-ch1-playthrough-log.js`). Needs metadata from **green** capture. Story slice: onboarding 7 steps + Life Ch1 move/outfit/trust/reflect (`life-ch1-slice.mjs`). Arc doc: `CHAPTER_01_STORY_ARC.md`. |
+| **Full playthrough** | ONE continuous recording (CYBER PUNK BLUE, intro → chapter end, save/re-entry) | **NOT MET** | Regression (`test-ordinary-ch1-sequence-t209.js`) reaches `ch1_complete` ~12:33 session time (see log `t209-sequence-v2.log`) but **fails on reload hydration** (fix `3127d3f` under verification). No owner-grade UNCUT WebM + SHA256 at tip yet. **Work:** green sequence proof then `ORDINARY_PASS=t209-ch1-full` with ffmpeg (`DISPLAY=:1`). |
+| **Story** | All stages with timecodes | **PARTIAL (log only)** | Ordinary scene log (no video): `+55s` onboarding; `+434s` shop step; `+508s` crypt/city; `+668s` Life Ch1; `+753s` reflect complete. Full timecode table requires **green** capture metadata + `generate-ch1-playthrough-log.js`. |
 | **Wings** | Animation + intersection checks | **MET (automated)** | `test-wing-clip-t207.js` PASS — 12 samples, `/opt/cursor/artifacts/avatar-qa-t207/wing-clip-samples-t207.json`, commit tip at run time. Jump clip **N/A** on rig (documented in JSON). |
 | **Angelina** | Present in **real** gameplay (hints + reactions) | **PARTIAL** | Text banner + `react()` on onboarding, crypt, fight, shop, Ch1 complete; 3D follow billboard when `playerCutout === false` (`syncCompanionAngelina3D`, `goLocation` sync). **Gap:** owner visual verify in 3D loop; reactions not yet on every quest failure/success path. |
 | **iPad** | Real device or **NOT TESTED** | **NOT TESTED** | No physical iPad on Cloud Agent VM. Checklist: `docs/qa/IPAD_SAFARI_OWNER_CHECKLIST.md`. |
 | **Build** | SHA-256, commit, QA matrix | **PARTIAL** | Matrix: `docs/game-design/CHAPTER_01_QA_MATRIX.md` (updated t209). Preview tarball SHA for **acceptance build** pending green capture. Emulator tests: wing PASS; preview-build mostly PASS (time-to-player median gate flaky on 1280). |
-| **Re-entry** | Saved progress works | **NOT MET** | Code + harness fix `8990b65`; v3 failed 120s wait on reload. **Proof pending:** regression `test-ordinary-ch1-sequence-t209.js` must show scene `ch1_reentry`. |
+| **Re-entry** | Saved progress works | **NOT MET** | Root cause: `lifeCh1` not always embedded in `punkme_lifech1_local_player_v1` blob → reload could not restore completed Ch1. **Fix:** `3127d3f` merges `ensureLifeCh1` into `lifeCh1LocalSavePlayer` + disk assert before reload. Prior runs: 300s wait timeout on reload. **Proof pending:** scene `ch1_reentry` in sequence test. |
 
 ---
 
@@ -27,8 +27,8 @@
 | Item | Detail |
 |------|--------|
 | **Root cause** | Documented in `docs/handover/T209_ONBOARDING_TIMEOUT_RCA.md` (shop disabled buttons, post-Ch1 map hang, move skip, reload flush). |
-| **Commits** | `7b47500`, `30ed660`, `e3eefd6`, `8990b65` (+ `goLocation` Angelina sync on tip commit after this report). |
-| **Replay proof** | `node scripts/with-emulator-env.js node scripts/test-ordinary-ch1-sequence-t209.js` — same ordinary UI path as UNCUT capture; exit 0 + `t209-onboarding-sequence-proof-*.json` with scenes through `ch1_reentry`. **Re-recording video alone does not satisfy this row without these commits.** |
+| **Commits** | `7b47500` (move skip / post-Ch1 hang), `30ed660` + `e3eefd6` (shop stall), `8990b65`/`0efa9ca`/`3127d3f` (re-entry), `d88b6ff` (RCA + regression test). |
+| **Replay proof** | `node scripts/with-emulator-env.js node scripts/test-ordinary-ch1-sequence-t209.js` — **onboarding through `onboarding_step_6` + `ch1_complete` PASSING** on runs 2026-11-14; full exit 0 blocked on `ch1_reentry` until `3127d3f` verified. |
 
 ---
 
