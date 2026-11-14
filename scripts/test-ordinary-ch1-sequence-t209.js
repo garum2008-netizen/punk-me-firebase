@@ -48,7 +48,7 @@ if (!fs.existsSync(metaPath)) {
 
 const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"));
 const rec = meta.recordings?.[0];
-const scenes = (rec?.scenes || []).map(s => s.scene || s.name || "").join(" ");
+const scenes = (rec?.scenes || []).map(s => s.id || s.scene || s.name || "").join(" ");
 
 const required = [
   ["onboarding_step_6", /onboarding_step_6/],

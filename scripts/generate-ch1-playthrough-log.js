@@ -57,9 +57,10 @@ const lines = [
 ];
 
 for (const sc of scenes) {
-  const beat = beats.find(b => b.match.test(sc.scene || sc.name || ""))?.beat || "";
-  const key = sc.scene || sc.name || sc.detail || "";
-  lines.push(`| ${fmtMs(sc.tMs ?? sc.ms ?? 0)} | ${key} | ${beat} |`);
+  const beat = beats.find(b => b.match.test(sc.id || sc.scene || sc.name || ""))?.beat || "";
+  const key = sc.id || sc.scene || sc.name || sc.note || "";
+  const tSec = sc.tSec != null ? Math.round(sc.tSec * 1000) : (sc.tMs ?? sc.ms ?? 0);
+  lines.push(`| ${fmtMs(tSec)} | ${key} | ${beat} |`);
 }
 
 const out = path.join(
