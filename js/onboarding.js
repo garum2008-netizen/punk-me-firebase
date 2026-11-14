@@ -232,5 +232,6 @@ window.Onboarding = {
   onShopBuy,
   onCityBuildPlaced,
   getGuideTarget,
-  isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done)
+  isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done),
+  currentStep
 };

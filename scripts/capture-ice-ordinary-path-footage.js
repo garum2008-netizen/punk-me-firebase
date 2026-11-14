@@ -607,9 +607,32 @@ async function completeOnboarding(page) {
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 4, undefined, { timeout: 25000 });
     } else if (step === 5) {
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
+      await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 60000 });
       await visibleUiClick(page, '#panelBottom button[onclick*="shopModal"]', "shop open");
       await page.waitForSelector("#shopModal.active");
-      await visibleUiClick(page, '#shopModal button[onclick*="buyItem"]', "shop buy");
+      const buyBtn = page.locator('#shopModal button[onclick*="buyItem"]:not([disabled])').first();
+      if (!(await buyBtn.count())) {
+        await page.evaluate(() => {
+          const tabs = document.querySelectorAll("#shopModal .tab");
+          for (const tab of tabs) {
+            tab.click();
+            const btn = document.querySelector('#shopModal button[onclick*="buyItem"]:not([disabled])');
+            if (btn) {
+              btn.click();
+              return true;
+            }
+          }
+          return false;
+        });
+        logScene("shop_buy_tab_fallback", "clicked first affordable item across tabs");
+      } else {
+        await visibleUiClick(page, buyBtn, "shop buy (affordable)");
+      }
+      await page.waitForFunction(
+        () => (window.me?.onboarding?.step || 0) > 5 || window.me?.onboarding?.done,
+        undefined,
+        { timeout: 30000 }
+      ).catch(() => {});
       await page.waitForTimeout(600);
       await page.click("#shopModal .close").catch(() => {});
     } else if (step === 6) {

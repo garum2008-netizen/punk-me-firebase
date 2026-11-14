@@ -2154,7 +2154,13 @@ function renderShop() {
 function buyItem(id) {
   const it = ALL_SHOP.find(x => x.id === id);
   if (!it) return;
-  if (it.cat !== "materials" && me.owned.includes(id)) return;
+  if (it.cat !== "materials" && me.owned.includes(id)) {
+    const ob = window.Onboarding?.currentStep?.();
+    if (ob?.key === "shop_buy") {
+      toast(typeof t === "function" ? t("onboard_shop_pick_new") : "Pick an item you do not own yet.");
+    }
+    return;
+  }
   const price = effectiveShopPrice(it);
   if (!isOwner && me.coins < price) {
     const short = price - me.coins;
