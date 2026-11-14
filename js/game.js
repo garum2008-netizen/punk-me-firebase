@@ -167,6 +167,22 @@ function lifeCh1LocalSavePlayer(payload) {
   }
 }
 
+function bootFromLocalSaveNow() {
+  const saved = lifeCh1LocalLoadPlayer();
+  if (!saved) return false;
+  applyFirebasePlayerSnapshot({
+    exists: () => true,
+    val: () => saved
+  });
+  window.LifeCh1Slice?.restoreLocalOverlay?.();
+  try {
+    document.getElementById("charSelect")?.classList?.remove("active");
+    hideLoading();
+  } catch (_) {}
+  finishLoadMeFlow();
+  return !!(window.me?.onboarding?.done && window.me?.lifeCh1?.completed);
+}
+
 function bootLifeCh1LocalSession() {
   uid = lifeCh1LocalGetDeviceId();
   window.uid = uid;
@@ -176,14 +192,12 @@ function bootLifeCh1LocalSession() {
   window.__punkFirebaseReady = Promise.resolve();
   window.dispatchEvent(new Event("punkme-firebase-ready"));
   window.__playerLoaded = false;
+  if (isLifeCh1LocalSaveBuild()) {
+    window.__punkBootLocalSave = bootFromLocalSaveNow;
+  }
   const saved = lifeCh1LocalLoadPlayer();
   if (saved) {
-    applyFirebasePlayerSnapshot({
-      exists: () => true,
-      val: () => saved
-    });
-    window.LifeCh1Slice?.restoreLocalOverlay?.();
-    finishLoadMeFlow();
+    bootFromLocalSaveNow();
     return;
   }
   hideLoading();
@@ -2538,6 +2552,7 @@ function endFight(win) {
     window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
   } else {
     toast(t("lose_fight"));
+    window.AngelinaGuide?.react?.("fight_lose");
     me.stats.hp = me.stats.maxHp;
   }
   fight = null;

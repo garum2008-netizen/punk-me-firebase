@@ -857,6 +857,15 @@ async function playLifeCh1Ordinary(page) {
   }
   await page.reload({ waitUntil: "load", timeout: 180000 });
   await dismissHowTo(page);
+  await page.waitForFunction(() => typeof window.__punkBootLocalSave === "function", undefined, {
+    timeout: 60000,
+  }).catch(() => {});
+  await page.evaluate(async () => {
+    await new Promise(r => setTimeout(r, 1500));
+    if (window.me?.lifeCh1?.completed && window.me?.onboarding?.done) return;
+    window.__punkBootLocalSave?.();
+    await new Promise(r => setTimeout(r, 800));
+  });
   await page.waitForFunction(
     () => {
       try {

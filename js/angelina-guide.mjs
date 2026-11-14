@@ -66,8 +66,11 @@ function refresh() {
 const REACT_I18N = {
   crypt_placed: "angelina_react_crypt_placed",
   fight_win: "angelina_react_fight_win",
+  fight_lose: "angelina_react_fight_lose",
   shop_buy: "angelina_react_shop_buy",
-  ch1_complete: "angelina_react_ch1_complete"
+  ch1_complete: "angelina_react_ch1_complete",
+  trust_choice: "angelina_react_trust_choice",
+  build_need_material: "angelina_react_build_need_material"
 };
 
 /** Short-lived reaction line (crypt, fight win, onboarding step, etc.). */
@@ -78,6 +81,10 @@ export function react(eventId, durationMs = 5200) {
     key = `angelina_guide_${eventId.slice("onboard_".length)}`;
   } else if (eventId.startsWith("angelina_")) {
     key = eventId;
+  } else if (eventId.startsWith("lifech1_step_")) {
+    key = "angelina_react_life_step";
+  } else if (eventId.startsWith("trust_")) {
+    key = "angelina_react_trust_choice";
   } else {
     key = REACT_I18N[eventId] || `angelina_react_${eventId}`;
   }

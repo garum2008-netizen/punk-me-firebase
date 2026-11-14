@@ -513,6 +513,7 @@ function advanceStep(extraReward = 0) {
   }
   if (extraReward) claimStepReward(st, rewardClaimKey(idx, "extra"), extraReward);
   const steps = spec?.steps || [];
+  window.AngelinaGuide?.react?.(`lifech1_step_${step?.id || st.stepIndex}_done`, 4500);
   const next = st.stepIndex + 1;
   if (next >= steps.length) {
     st.stepIndex = maxStepIndex();
@@ -886,6 +887,7 @@ function showDialogue(dlgId) {
       btn.onclick = () => {
         const ch = node.choices[+btn.dataset.idx];
         if (ch?.flag) ensureLifeCh1().flags[ch.flag] = true;
+        window.AngelinaGuide?.react?.(ch?.flag ? `trust_${ch.flag}` : "trust_choice");
         closeDialogue();
         advanceStep();
       };
