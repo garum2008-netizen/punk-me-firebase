@@ -154,7 +154,13 @@ function lifeCh1LocalLoadPlayer() {
 
 function lifeCh1LocalSavePlayer(payload) {
   try {
-    localStorage.setItem(LIFE_CH1_LOCAL_PLAYER_KEY, JSON.stringify(payload));
+    const out = payload && typeof payload === "object" ? { ...payload } : {};
+    const st = window.LifeCh1Slice?.ensureLifeCh1?.(window.me || out);
+    if (st) out.lifeCh1 = st;
+    if (window.me?.onboarding) out.onboarding = window.me.onboarding;
+    if (window.me?.avatarConfig) out.avatarConfig = window.me.avatarConfig;
+    if (window.me?.heroName) out.heroName = window.me.heroName;
+    localStorage.setItem(LIFE_CH1_LOCAL_PLAYER_KEY, JSON.stringify(out));
     return true;
   } catch (_) {
     return false;

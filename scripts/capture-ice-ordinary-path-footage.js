@@ -839,6 +839,22 @@ async function playLifeCh1Ordinary(page) {
   }));
   if (!snapshot.lifeCh1Done) throw new Error("ch1 not complete before save");
   if (!snapshot.localSave) throw new Error("local save blob missing before reload");
+  const blobDiag = await page.evaluate(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem("punkme_lifech1_local_player_v1") || "null");
+      return {
+        lifeCh1Completed: !!v?.lifeCh1?.completed,
+        onboardingDone: !!v?.onboarding?.done,
+        heroName: v?.heroName || ""
+      };
+    } catch (e) {
+      return { error: String(e) };
+    }
+  });
+  logScene("ch1_save_blob", JSON.stringify(blobDiag));
+  if (!blobDiag.lifeCh1Completed || !blobDiag.onboardingDone) {
+    throw new Error(`save blob incomplete before reload: ${JSON.stringify(blobDiag)}`);
+  }
   await page.reload({ waitUntil: "load", timeout: 180000 });
   await dismissHowTo(page);
   await page.waitForFunction(
