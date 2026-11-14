@@ -976,7 +976,7 @@ async function runOrdinarySession(browser, viewport, label) {
         "-i",
         disp,
         "-t",
-        "900",
+        "1200",
         "-c:v",
         "libvpx-vp9",
         "-b:v",
@@ -993,7 +993,9 @@ async function runOrdinarySession(browser, viewport, label) {
     isMobile: INPUT_MODE === "touch",
     recordVideo:
       viewport.width >= 1000
-        ? { dir: videoDir, size: { width: 1280, height: 720 } }
+        ? useFfmpegGrab
+          ? undefined
+          : { dir: videoDir, size: { width: 1280, height: 720 } }
         : { dir: videoDir, size: { width: 390, height: 844 } },
   });
   await ctx.addInitScript(() => {
