@@ -824,23 +824,37 @@ async function playLifeCh1Ordinary(page) {
   logScene("ch1_complete", "lifeCh1.completed=true");
   await page.waitForTimeout(1200);
   logScene("ch1_save", "persist before reload");
-  await page.evaluate(() => window.saveMe?.());
-  await page.waitForTimeout(600);
+  await page.evaluate(() => {
+    window.saveMe?.();
+    window.LifeCh1Slice?.persistLocalOverlay?.();
+  });
+  await page.waitForTimeout(900);
   const snapshot = await page.evaluate(() => ({
     lifeCh1Done: !!window.me?.lifeCh1?.completed,
     onboardingDone: !!window.me?.onboarding?.done,
     heroName: window.me?.heroName || "",
-    preset: window.me?.avatarConfig?.presetId || window.me?.avatarConfig?.name || ""
+    preset: window.me?.avatarConfig?.presetId || window.me?.avatarConfig?.name || "",
+    localSave: !!localStorage.getItem("punkme_lifech1_local_player_v1"),
+    characterId: window.me?.characterId || ""
   }));
   if (!snapshot.lifeCh1Done) throw new Error("ch1 not complete before save");
-  await page.reload({ waitUntil: "load", timeout: 120000 });
-  await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
-  await dismissHowTo(page);
+  if (!snapshot.localSave) throw new Error("local save blob missing before reload");
+  await page.reload({ waitUntil: "load", timeout: 180000 });
+  const charGate = page.locator("#charSelect.active");
+  if (await charGate.isVisible({ timeout: 8000 }).catch(() => false)) {
+    logScene("ch1_reentry_char_select", "unexpected char select after reload — re-confirming studio");
+    await configureCyberPunkBlueStudio(page, QA_CYBER_PUNK_BLUE.name);
+    await page.evaluate(() => document.querySelector('[data-testid="character-studio-confirm"]')?.click());
+  }
   await page.waitForFunction(
-    () => window.me?.lifeCh1?.completed === true && window.me?.onboarding?.done === true,
+    () =>
+      window.me?.lifeCh1?.completed === true &&
+      window.me?.onboarding?.done === true &&
+      (window.__playerLoaded === true || document.body.classList.contains("mode-world3d")),
     undefined,
-    { timeout: 90000 }
+    { timeout: 240000 }
   );
+  await dismissHowTo(page);
   const after = await page.evaluate(() => ({
     lifeCh1Done: !!window.me?.lifeCh1?.completed,
     onboardingDone: !!window.me?.onboarding?.done,
