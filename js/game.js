@@ -1815,6 +1815,8 @@ function goLocation(id, fromHash) {
   refreshLifeScene();
   renderAll();
   window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
+  window.LifeCh1Slice?.syncCompanionAngelina3D?.();
+  window.AngelinaGuide?.refresh?.();
   syncStage3D();
   toast(locTitle(id));
   if (pendingJobAction) {
