@@ -625,6 +625,11 @@ export function onBoot() {
   loadSpec().then(() => {
     if (!isLifeCh1SliceEnabled()) return;
     applySliceAngelinaPlayerChrome();
+    const st = ensureLifeCh1();
+    if (me()?.onboarding?.done && st?.completed) {
+      syncCompanionAngelina3D();
+      window.AngelinaGuide?.refresh?.();
+    }
     if (me()?.onboarding?.done && ensureLifeCh1()?.active) {
       syncBeacon();
       resyncLifeCh1RoomSpawnIfNeeded();
@@ -1044,6 +1049,7 @@ export async function initLifeCh1Slice(h) {
     ensureLifeCh1,
     lifeCh1PayloadForSave,
     persistLocalOverlay,
+    restoreLocalOverlay,
     getMusicVolumeFactor,
     getAngelinaSkin,
     setAngelinaSkin,

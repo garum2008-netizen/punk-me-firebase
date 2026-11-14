@@ -840,30 +840,54 @@ async function playLifeCh1Ordinary(page) {
   if (!snapshot.lifeCh1Done) throw new Error("ch1 not complete before save");
   if (!snapshot.localSave) throw new Error("local save blob missing before reload");
   await page.reload({ waitUntil: "load", timeout: 180000 });
-  const charGate = page.locator("#charSelect.active");
-  if (await charGate.isVisible({ timeout: 8000 }).catch(() => false)) {
-    logScene("ch1_reentry_char_select", "unexpected char select after reload — re-confirming studio");
-    await configureCyberPunkBlueStudio(page, QA_CYBER_PUNK_BLUE.name);
-    await page.evaluate(() => document.querySelector('[data-testid="character-studio-confirm"]')?.click());
-  }
-  await page.waitForFunction(
-    () =>
-      window.me?.lifeCh1?.completed === true &&
-      window.me?.onboarding?.done === true &&
-      (window.__playerLoaded === true || document.body.classList.contains("mode-world3d")),
-    undefined,
-    { timeout: 240000 }
-  );
   await dismissHowTo(page);
-  const after = await page.evaluate(() => ({
-    lifeCh1Done: !!window.me?.lifeCh1?.completed,
-    onboardingDone: !!window.me?.onboarding?.done,
-    heroName: window.me?.heroName || "",
-    preset: window.me?.avatarConfig?.presetId || window.me?.avatarConfig?.name || "",
-    guide: document.getElementById("angelinaGuideBanner")?.textContent?.slice(0, 80) || ""
-  }));
+  await page.waitForFunction(
+    () => {
+      try {
+        const raw = localStorage.getItem("punkme_lifech1_local_player_v1");
+        if (!raw) return false;
+        const v = JSON.parse(raw);
+        const diskOk = v.onboarding?.done === true && v.lifeCh1?.completed === true;
+        const liveOk = window.me?.onboarding?.done === true && window.me?.lifeCh1?.completed === true;
+        const booted = window.__playerLoaded === true || document.body.classList.contains("mode-world3d");
+        return diskOk && (liveOk || booted);
+      } catch (_) {
+        return false;
+      }
+    },
+    undefined,
+    { timeout: 300000, polling: 500 }
+  );
+  await page.waitForFunction(
+    () => window.me?.lifeCh1?.completed === true && window.me?.onboarding?.done === true,
+    undefined,
+    { timeout: 120000, polling: 500 }
+  ).catch(() => {});
+  const after = await page.evaluate(() => {
+    let disk = null;
+    try {
+      disk = JSON.parse(localStorage.getItem("punkme_lifech1_local_player_v1") || "null");
+    } catch (_) {}
+    return {
+      lifeCh1Done: !!window.me?.lifeCh1?.completed,
+      onboardingDone: !!window.me?.onboarding?.done,
+      diskLifeCh1: !!disk?.lifeCh1?.completed,
+      diskOnboarding: !!disk?.onboarding?.done,
+      heroName: window.me?.heroName || disk?.heroName || "",
+      preset: window.me?.avatarConfig?.presetId || disk?.avatarConfig?.presetId || "",
+      guide: document.getElementById("angelinaGuideBanner")?.textContent?.slice(0, 80) || ""
+    };
+  });
+  if (!after.diskLifeCh1 || !after.diskOnboarding) {
+    throw new Error(`save reload lost progress on disk: ${JSON.stringify(after)}`);
+  }
   if (!after.lifeCh1Done || !after.onboardingDone) {
-    throw new Error(`save reload lost progress: ${JSON.stringify(after)}`);
+    logScene("ch1_reentry_hydrate", "disk OK; waiting for live me sync");
+    await page.waitForFunction(
+      () => window.me?.lifeCh1?.completed === true && window.me?.onboarding?.done === true,
+      undefined,
+      { timeout: 90000 }
+    );
   }
   logScene("ch1_reentry", JSON.stringify({ snapshot, after }));
   await page.waitForTimeout(2500);

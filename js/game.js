@@ -176,6 +176,7 @@ function bootLifeCh1LocalSession() {
       exists: () => true,
       val: () => saved
     });
+    window.LifeCh1Slice?.restoreLocalOverlay?.();
     finishLoadMeFlow();
     return;
   }
@@ -825,6 +826,13 @@ function finishLoadMeFlow() {
     }
   }
   if (!me.characterId) {
+    const inferred = resolveCharacterIdForPlayer(me, { allowAvatarInfer: true });
+    if (inferred) {
+      me.characterId = inferred;
+      writeStoredCharacterId(inferred);
+    }
+  }
+  if (!me.characterId && !(me.onboarding?.done && me.lifeCh1?.completed)) {
     hideLoading();
     const openSelect = () => {
       if (window.CharSelect) CharSelect.open(pickCharacterAndContinue);
@@ -832,6 +840,10 @@ function finishLoadMeFlow() {
     };
     openSelect();
     return;
+  }
+  if (!me.characterId && me.avatarConfig) {
+    me.characterId = window.meshIdFromAvatarConfig?.(me.avatarConfig) || "mohawk";
+    writeStoredCharacterId(me.characterId);
   }
   continueGameBoot();
 }
