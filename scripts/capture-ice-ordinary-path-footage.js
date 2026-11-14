@@ -872,22 +872,19 @@ async function playLifeCh1Ordinary(page) {
         const raw = localStorage.getItem("punkme_lifech1_local_player_v1");
         if (!raw) return false;
         const v = JSON.parse(raw);
-        const diskOk = v.onboarding?.done === true && v.lifeCh1?.completed === true;
-        const liveOk = window.me?.onboarding?.done === true && window.me?.lifeCh1?.completed === true;
-        const booted = window.__playerLoaded === true || document.body.classList.contains("mode-world3d");
-        return diskOk && (liveOk || booted);
+        return v.onboarding?.done === true && v.lifeCh1?.completed === true;
       } catch (_) {
         return false;
       }
     },
     undefined,
-    { timeout: 300000, polling: 500 }
+    { timeout: 120000, polling: 400 }
   );
   await page.waitForFunction(
     () => window.me?.lifeCh1?.completed === true && window.me?.onboarding?.done === true,
     undefined,
-    { timeout: 120000, polling: 500 }
-  ).catch(() => {});
+    { timeout: 90000, polling: 400 }
+  );
   const after = await page.evaluate(() => {
     let disk = null;
     try {
@@ -1001,6 +998,8 @@ async function runOrdinarySession(browser, viewport, label) {
   });
   await ctx.addInitScript(() => {
     try {
+      if (sessionStorage.getItem("punk_ordinary_fresh_cleared") === "1") return;
+      sessionStorage.setItem("punk_ordinary_fresh_cleared", "1");
       localStorage.removeItem("punkme_lifech1_local_player_v1");
       localStorage.removeItem("punkme_lifech1_local_device_id");
       localStorage.removeItem("punkme_character_id");
