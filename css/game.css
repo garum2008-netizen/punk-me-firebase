@@ -66,6 +66,12 @@ body.mode-world3d .room-layer { background: #050008; }
 .char-intro { min-height: 2.5em; text-align: center; max-width: 520px; opacity: 0.9; }
 .char-select-ui { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 640px; }
 .char-select-ui .char-pick.active { border-color: #0ff; color: #0ff; }
+.avatar-creator { width: min(92vw, 640px); display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.avatar-row { display: flex; gap: 8px; align-items: center; justify-content: center; }
+.avatar-row span { min-width: 72px; font-size: 13px; color: #9ff; }
+.avatar-swatch, .avatar-acc { min-width: 32px; height: 32px; border-radius: 8px; border: 2px solid #444; cursor: pointer; color: #fff; background: #1a1028; }
+.avatar-acc { width: auto; padding: 0 10px; }
+.avatar-swatch.active, .avatar-acc.active { border-color: #0ff; box-shadow: 0 0 8px #0ff; }
 .legal-footer {
   position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
   z-index: 50; display: flex; align-items: center; gap: 12px;

@@ -25,7 +25,7 @@ assert.equal(chapterObjectivesMet(training), false);
 assert.equal(guideKey(training), "angelina_initiation");
 CHAPTER1_OBJECTIVES.forEach(id => { training.onboarding.paid[id] = true; });
 assert.equal(chapterObjectivesMet(training), true);
-assert.equal(guideKey(training), "angelina_initiation");
+assert.equal(guideKey(training), "angelina_finale");
 training.chapter1.ended = true;
 assert.equal(guideKey(training), "angelina_closing");
 const early = { onboarding: { done: false, paid: { move: true } }, story: { flags: { joined_gang: true } } };
