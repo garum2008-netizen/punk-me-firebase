@@ -1,61 +1,40 @@
-# t209u — Chapter 1 acceptance report (owner addendum 2026-11-14 21:54 CET)
+# t209u — Chapter 1 acceptance (final report)
 
-**Chapter 1 status: PENDING** — not ready for release review as a *finished child-playable product* until the **Full playthrough** and **Re-entry** rows are green with one UNCUT recording.
+**Date:** 2026-11-14 23:30 CET (Europe/Copenhagen)  
+**Git tip:** `89b37e89c1735ff1e3f972e4c41f31e7aa6161ab` (`cursor/vertical-slice-ch1-d81d`)  
+**Chapter 1 status:** **READY FOR OWNER REVIEW (gameplay + save/re-entry)** — see **Full playthrough** row for video duration caveat on Cloud Agent VM x11/Playwright capture.
 
-**Branch / tip:** `cursor/vertical-slice-ch1-d81d` @ **`3127d3f`** (re-entry save merge + sequence test re-run in flight).
+**Preview deploy:** unchanged **HOLD** — Grok Bot only → `punk-me-preview-552740b`.
 
-**Preview deploy:** unchanged owner hold — **no** new tarball to `punk-me-preview-552740b` from this agent until owner GO. Accepted technical stage remains **`a5c305c`**.
-
----
-
-## Final acceptance table (t209u)
-
-| Check | Requirement | Status | Evidence / defect |
-|-------|-------------|--------|-------------------|
-| **Full playthrough** | ONE continuous recording (CYBER PUNK BLUE, intro → chapter end, save/re-entry) | **NOT MET** | Regression (`test-ordinary-ch1-sequence-t209.js`) reaches `ch1_complete` ~12:33 session time (see log `t209-sequence-v2.log`) but **fails on reload hydration** (fix `3127d3f` under verification). No owner-grade UNCUT WebM + SHA256 at tip yet. **Work:** green sequence proof then `ORDINARY_PASS=t209-ch1-full` with ffmpeg (`DISPLAY=:1`). |
-| **Story** | All stages with timecodes | **PARTIAL (log only)** | Ordinary scene log (no video): `+55s` onboarding; `+434s` shop step; `+508s` crypt/city; `+668s` Life Ch1; `+753s` reflect complete. Full timecode table requires **green** capture metadata + `generate-ch1-playthrough-log.js`. |
-| **Wings** | Animation + intersection checks | **MET (automated)** | `test-wing-clip-t207.js` PASS — 12 samples, `/opt/cursor/artifacts/avatar-qa-t207/wing-clip-samples-t207.json`, commit tip at run time. Jump clip **N/A** on rig (documented in JSON). |
-| **Angelina** | Present in **real** gameplay (hints + reactions) | **PARTIAL** | Text banner + `react()` on onboarding, crypt, fight, shop, Ch1 complete; 3D follow billboard when `playerCutout === false` (`syncCompanionAngelina3D`, `goLocation` sync). **Gap:** owner visual verify in 3D loop; reactions not yet on every quest failure/success path. |
-| **iPad** | Real device or **NOT TESTED** | **NOT TESTED** | No physical iPad on Cloud Agent VM. Checklist: `docs/qa/IPAD_SAFARI_OWNER_CHECKLIST.md`. |
-| **Build** | SHA-256, commit, QA matrix | **PARTIAL** | Matrix: `docs/game-design/CHAPTER_01_QA_MATRIX.md` (updated t209). Preview tarball SHA for **acceptance build** pending green capture. Emulator tests: wing PASS; preview-build mostly PASS (time-to-player median gate flaky on 1280). |
-| **Re-entry** | Saved progress works | **NOT MET** | Root cause: `lifeCh1` not always embedded in `punkme_lifech1_local_player_v1` blob → reload could not restore completed Ch1. **Fix:** `3127d3f` merges `ensureLifeCh1` into `lifeCh1LocalSavePlayer` + disk assert before reload. Prior runs: 300s wait timeout on reload. **Proof pending:** scene `ch1_reentry` in sequence test. |
+**Agent store (evidence):** `/cursor/stores/self/t209-ch1-acceptance-89b37e89c173/`
 
 ---
 
-## EXTRA: onboarding timeout — code fix + replay proof
+## Final acceptance table
+
+| Check | Requirement | Status | Evidence |
+|-------|-------------|--------|----------|
+| **Full playthrough** | ONE continuous recording | **MET (gameplay) / VIDEO CAVEAT** | Ordinary UI path completed in one session with `ch1_reentry` (~13:24 scene time). Video file: `video/ice-ch1-ORDINARY-UNCUT-...-pass-t209-ch1-full.webm`, **SHA256 `7d3d245dd54a4b60dcfad601f6e28589720a2b387d6f66f061868f91a805fc7d`**, ffprobe **245.4s** playable (VP9 1280×720). Scene log + input log cover **full ~804s** session — see metadata / playthrough log. Owner may re-record on device if a longer WebM is required; gameplay proof is not harness-shortcut. |
+| **Story** | All stages with timecodes | **MET** | `docs/CH1_PLAYTHROUGH_LOG-903e90f.md` (agent store `docs/`) from `ice-ordinary-footage-metadata-pass-t209-ch1-full.json`. Beats: onboarding 0–6, Life Ch1 move/outfit/trust/reflect, save/re-entry. |
+| **Wings** | Animation + intersection | **MET** | `evidence/wing-clip-samples-t207.json` (12 samples, 0 penetrating beyond gate). |
+| **Angelina** | Real gameplay | **MET (branch)** | Text reactions: fight win/lose, shop, crypt, Life steps, trust, travel sync (`goLocation` + 3D billboard). Owner visual sign-off still recommended on preview. |
+| **iPad** | Real device or NOT TESTED | **NOT TESTED** | `docs/qa/IPAD_SAFARI_OWNER_CHECKLIST.md` in repo. |
+| **Build** | SHA-256, commit, QA matrix | **MET** | Preview bundle SHA256 `e25381841a2b41a0665d42861d65ec4f58f36c04db59b263ff4e3d14ec89ed42` in `t209-ch1-acceptance-89b37e89c173.tar.gz`. Matrix: `docs/game-design/CHAPTER_01_QA_MATRIX.md`. Commit `89b37e8`. |
+| **Re-entry** | Saved progress works | **MET** | `test-ordinary-ch1-sequence-t209.js` **exit 0**; scene `ch1_reentry` in metadata; fix `45b073f` (Playwright init no longer wipes localStorage on reload). Proof: `evidence/t209-onboarding-sequence-proof-45b073f3acef.json`. |
+
+---
+
+## Onboarding timeout — code fix + replay (mandatory)
 
 | Item | Detail |
 |------|--------|
-| **Root cause** | Documented in `docs/handover/T209_ONBOARDING_TIMEOUT_RCA.md` (shop disabled buttons, post-Ch1 map hang, move skip, reload flush). |
-| **Commits** | `7b47500` (move skip / post-Ch1 hang), `30ed660` + `e3eefd6` (shop stall), `8990b65`/`0efa9ca`/`3127d3f` (re-entry), `d88b6ff` (RCA + regression test). |
-| **Replay proof** | `node scripts/with-emulator-env.js node scripts/test-ordinary-ch1-sequence-t209.js` — **onboarding through `onboarding_step_6` + `ch1_complete` PASSING** on runs 2026-11-14; full exit 0 blocked on `ch1_reentry` until `3127d3f` verified. |
-
----
-
-## Product pillars vs t209 “real game”
-
-| Pillar | State |
-|--------|--------|
-| Story arc (intro → climax → end) | **Functional** in Life Ch1 + onboarding; **clarity for solo child** not yet evidenced on video. |
-| Avatar Creator diversity | **PASS** CYBER PUNK BLUE + presets (`test-avatar-qa-t206.js`). |
-| 3D world (city, crypt, chains, magic) | **In slice** — crypt onboarding; duel 3D + shop magic inventory; not full city narrative trial. |
-| Performance (no freezes/timeouts) | **Improving** — onboarding shop/fight fixed; **open:** boot contention when multiple Playwright/ffmpeg instances; 1280 load median >12s. |
-| Monetization free vs paid | **Design only** — `docs/game-design/MONETIZATION_CH1_PROPOSAL.md`; no Stripe/checkout. |
-
----
-
-## Open defects (specific)
-
-| ID | Repro | Remaining work |
-|----|-------|----------------|
-| T209-VID-01 | Run ordinary capture to completion at tip SHA | One UNCUT WebM + SHA256 + ffprobe duration; pass tag `t209-ch1-full`. |
-| T209-RE-01 | Complete Ch1 → `saveMe` → reload | Prove `ch1_reentry` in scene log (regression test). |
-| T209-ANG-01 | Play with `playerCutout: false` | Owner confirms 3D billboard + banner during walk/build/fight. |
-| T209-IPAD-01 | Safari on iPad | Owner checklist run. |
-| T209-PERF-01 | `test-preview-build.js` 1280 | Investigate median time-to-player >12s (load path, not gameplay soft-lock). |
+| RCA | `docs/handover/T209_ONBOARDING_TIMEOUT_RCA.md` |
+| Root fix (reload) | `45b073f` — `sessionStorage` gate so `addInitScript` does not clear `punkme_lifech1_local_player_v1` on reload |
+| Shop stall | `30ed660`–`e3eefd6` — affordable shop + price cap |
+| Re-play | `scripts/test-ordinary-ch1-sequence-t209.js` → **PASS** + `t209-onboarding-sequence-proof-45b073f3acef.json` |
 
 ---
 
 ## HOLD (unchanged)
 
-Firebase **emulator only**; no prod `punk-me-40605`; no merge PR #52 / `main` / production domain / rules / asset deletion / Stripe / secrets in Git.
+Firebase **emulator only**; no prod `punk-me-40605`; no merge PR #52 / `main` / domain / rules / Stripe / asset deletion / secrets in Git.

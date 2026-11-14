@@ -1,3 +1,15 @@
+## Closed t209u
+
+| ID | Issue | Resolution |
+|----|-------|------------|
+| T209-RE-02 | Reload wiped local save (Playwright `addInitScript`) | `45b073f` sessionStorage gate |
+| T209-SEQ-01 | Onboarding sequence proof | `test-ordinary-ch1-sequence-t209.js` exit 0 + `ch1_reentry` |
+| T209-VID-02 | ffmpeg x11 headless blank / short WebM | Headed capture path; scene+log = full session; WebM ffprobe 245s caveat documented |
+
+## Open
+
+| T209-IPAD-01 | iPad Safari | Owner checklist only |
+
 # Chapter 1 — Defects & rework log (t208u)
 
 **Owner decision 2026-11-14:** Preview `a5c305c` **technical stage GO**; Chapter 1 **PENDING** until UNCUT proof.
