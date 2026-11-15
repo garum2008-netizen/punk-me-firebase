@@ -967,12 +967,17 @@ async function completeOnboarding(page) {
       await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", { scroll: true });
       await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
       await visibleUiClick(page, 'button[onclick*="startNpcFight"]', "startNpcFight");
-      const duelHudVisible = () => {
-        const duel = document.getElementById("duel3dHud");
-        return !!(duel && !duel.classList.contains("hidden"));
-      };
       const waitDuelHud = async (ms = 45000) =>
-        page.waitForFunction(duelHudVisible, undefined, { timeout: ms }).catch(() => null);
+        page
+          .waitForFunction(
+            () => {
+              const duel = document.getElementById("duel3dHud");
+              return !!(duel && !duel.classList.contains("hidden"));
+            },
+            undefined,
+            { timeout: ms }
+          )
+          .catch(() => null);
       if (!(await waitDuelHud(40000))) {
         logScene("onboarding_duel_retry", "direct startNpcFight after UI miss");
         const duelDiag = await page.evaluate(async () => {
