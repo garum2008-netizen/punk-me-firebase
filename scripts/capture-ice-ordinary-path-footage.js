@@ -1034,14 +1034,33 @@ async function advanceLifeCh1MoveStep(page) {
   });
   await page.waitForTimeout(600);
   await page
-    .waitForFunction(() => document.body.classList.contains("life-ch1-active"), undefined, { timeout: 60000 })
+    .waitForFunction(
+      () =>
+        document.body.classList.contains("life-ch1-active") &&
+        window.me?.location === "room" &&
+        (window.me?.lifeCh1?.active || (window.me?.lifeCh1?.stepIndex || 0) >= 0),
+      undefined,
+      { timeout: 90000 }
+    )
     .catch(() => {});
-  const advanced = await walkKeysUntil(
+  await page.evaluate(async () => {
+    if (!window.me?.lifeCh1?.active && window.me?.onboarding?.done) {
+      await window.LifeCh1Slice?.tryStartAfterOnboarding?.();
+    }
+  });
+  let advanced = await walkKeysUntil(
     page,
     async () => ((await readState(page)).lifeCh1?.stepIndex || 0) >= 1,
-    56,
+    72,
     520
   );
+  const vp = page.viewportSize() || { width: 1280, height: 720 };
+  for (let c = 0; !advanced && c < 16; c++) {
+    await focusStage(page);
+    await page.mouse.click(vp.width * (0.48 + (c % 4) * 0.04), vp.height * (0.52 + (c % 3) * 0.05));
+    await page.waitForTimeout(850);
+    advanced = (await readState(page)).lifeCh1?.stepIndex >= 1;
+  }
   const st = await readState(page);
   if (!advanced || (st.lifeCh1?.stepIndex || 0) < 1) {
     throw new Error(`move step did not advance via UI (stepIndex=${st.lifeCh1?.stepIndex ?? "?"})`);

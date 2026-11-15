@@ -20,13 +20,20 @@ async function configureCyberPunkBlueStudio(page, heroName = QA_CYBER_PUNK_BLUE.
     await page.locator(`[data-field="${field}"][data-id="${id}"]`).scrollIntoViewIfNeeded();
     const prev = await page.evaluate(() => window.__lastStudioPreviewMs || 0);
     await page.click(`[data-field="${field}"][data-id="${id}"]`);
-    await page
-      .waitForFunction(p => (window.__lastStudioPreviewMs || 0) > p, prev, { timeout: 8000 })
-      .catch(() => {});
-    await page.waitForTimeout(60);
+    const fast = process.env.CAPTURE_STUDIO_FAST === "1";
+    if (!fast) {
+      await page
+        .waitForFunction(p => (window.__lastStudioPreviewMs || 0) > p, prev, { timeout: 5000 })
+        .catch(() => {});
+    }
+    await page.waitForTimeout(fast ? 35 : 60);
     const still = studioStillSteps.find(s => s.after[0] === field && s.after[1] === id);
-    if (still) {
+    if (still && !fast) {
       await page.waitForTimeout(120);
+      await page.locator("#charSelect3d").screenshot({ path: `/tmp/${still.tag}.png` }).catch(() => {});
+      still._captured = true;
+    } else if (still && fast) {
+      await page.waitForTimeout(80);
       await page.locator("#charSelect3d").screenshot({ path: `/tmp/${still.tag}.png` }).catch(() => {});
       still._captured = true;
     }
