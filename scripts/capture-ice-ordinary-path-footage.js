@@ -640,11 +640,14 @@ function copyFileRetry(src, dest, attempts = 6) {
   let lastErr = null;
   for (let i = 0; i < attempts; i++) {
     try {
+      try {
+        fs.unlinkSync(dest);
+      } catch (_) {}
       fs.copyFileSync(src, dest);
       return;
     } catch (e) {
       lastErr = e;
-      if (e.code !== "EAGAIN" && e.code !== "EBUSY") throw e;
+      if (e.code !== "EAGAIN" && e.code !== "EBUSY" && e.code !== "EEXIST") throw e;
       const pause = 80 * (i + 1);
       const until = Date.now() + pause;
       while (Date.now() < until) {}
