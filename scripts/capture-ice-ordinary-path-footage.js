@@ -247,6 +247,7 @@ async function postFinalizeRecordingSession(r) {
           gameplayAlignedRecording: !!r.gameplayAlignedRecording,
           studioWallMs: r.studioWallMs ?? null,
           studioMaxWallMs: 70000,
+          gameplayIgnoreBeforeSec: r.gameplayIgnoreBeforeSec ?? null,
           renderDiagSamples: r.renderDiagSamples || [],
           scenes: r.scenes || [],
         },
@@ -613,7 +614,7 @@ const { validateHeroStillsWithHairPixels } = require("./hero-hair-pixel-gate");
 
 let sessionHeroStills = [];
 
-async function pickAngelina(page) {
+async function pickAngelina(page, opts = {}) {
   await page.waitForSelector("#charSelect.active", { timeout: 120000 });
   logInput("click", "character studio CYBER PUNK BLUE (t206u)");
   await configureCyberPunkBlueStudio(page, QA_CYBER_PUNK_BLUE.name);
@@ -629,9 +630,11 @@ async function pickAngelina(page) {
   await page.evaluate(() => {
     document.querySelector('[data-testid="character-studio-confirm"]')?.click();
   });
-  await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
-  await page.waitForTimeout(400);
-  await captureHeroProof(page, "00-studio-confirm");
+  if (!opts.deferWorldReady) {
+    await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+    await page.waitForTimeout(400);
+    await captureHeroProof(page, "00-studio-confirm");
+  }
 }
 
 async function completeOnboarding(page) {
@@ -1296,11 +1299,10 @@ async function runOrdinarySession(browser, viewport, label) {
   await page.bringToFront();
   await dismissHowTo(page);
   const studioWallStart = Date.now();
-  await pickAngelina(page);
+  await pickAngelina(page, { deferWorldReady: true });
   const studioWallEndMs = Date.now() - studioWallStart;
   logScene("studio_complete", `wallMs=${studioWallEndMs}`);
   await dismissHowTo(page);
-  await page.waitForFunction(() => window.World3D?.isReady?.(), undefined, { timeout: 120000 }).catch(() => {});
 
   t0 = Date.now();
   const recordStartMs = Date.now();
@@ -1316,6 +1318,10 @@ async function runOrdinarySession(browser, viewport, label) {
         };
       });
       renderDiagSamples.push({ tSec, ...snap });
+      try {
+        const diagPath = path.join(OUT, `render-diag-live-${shaShort}-${passTag}.jsonl`);
+        fs.appendFileSync(diagPath, `${JSON.stringify({ tSec, ...snap })}\n`);
+      } catch (_) {}
     } catch (_) {}
   }, 5000);
 
@@ -1359,6 +1365,13 @@ async function runOrdinarySession(browser, viewport, label) {
     logScene("ffmpeg_x11grab", `recording ${dest} (gameplay t=0 after studio)`);
     logScene("gameplay_recording_start", `studioPreRollMs=${studioWallEndMs}`);
   }
+
+  await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 180000 });
+  await page.waitForFunction(() => window.World3D?.isReady?.(), undefined, { timeout: 120000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  await captureHeroProof(page, "00-studio-confirm");
+  const gameplayIgnoreBeforeSec = +((Date.now() - t0) / 1000).toFixed(2);
+  logScene("player_ready", `gameplayIgnoreBeforeSec=${gameplayIgnoreBeforeSec}`);
 
   const onboardingResult = await completeOnboarding(page);
   if (PORTAL_GATE_ONLY) {
@@ -1422,6 +1435,7 @@ async function runOrdinarySession(browser, viewport, label) {
     renderDiagSamples: renderDiagSamples.slice(),
     studioWallMs: studioWallEndMs,
     gameplayAlignedRecording: true,
+    gameplayIgnoreBeforeSec,
   };
 }
 

@@ -83,7 +83,8 @@ async function main() {
   const studioWallMs = timeline?.studioWallMs != null ? Number(timeline.studioWallMs) : null;
   const studioAssertOk = studioWallMs == null ? true : studioWallMs <= studioMaxWallMs;
   if (timeline?.gameplayAlignedRecording) {
-    ignoreBeforeSec = 0;
+    const boot = Number(timeline.gameplayIgnoreBeforeSec);
+    ignoreBeforeSec = Number.isFinite(boot) && boot > 0 ? boot + 1 : 0;
   }
   const duration = ffprobeDuration(video);
   const fps = 1 / sampleEvery;

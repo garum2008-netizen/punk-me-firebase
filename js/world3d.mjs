@@ -1920,6 +1920,35 @@ function spawnPrefForLoc(locId) {
   return { x: 0, z: -1.2 };
 }
 
+function guardWorldPlateAndCamera() {
+  const pl = actors.get("player");
+  if (!pl || !bounds || !camera || dialogueCameraLock) return;
+  const pad = 0.5;
+  let oob =
+    pl.wx < bounds.minX - pad ||
+    pl.wx > bounds.maxX + pad ||
+    pl.wz < bounds.minZ - pad ||
+    pl.wz > bounds.maxZ + pad;
+  if (!oob) {
+    const cx = (bounds.minX + bounds.maxX) * 0.5;
+    const cz = (bounds.minZ + bounds.maxZ) * 0.5;
+    const span = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+    oob = Math.hypot(pl.wx - cx, pl.wz - cz) > span * 0.52;
+  }
+  if (oob) {
+    snapPlayerToLocationSpawn();
+    positionCameraBehindPlayer(true);
+    return;
+  }
+  const look = new THREE.Vector3();
+  camera.getWorldDirection(look);
+  const ax = camera.position.x + look.x * 5;
+  const az = camera.position.z + look.z * 5;
+  if (ax < bounds.minX - 1.2 || ax > bounds.maxX + 1.2 || az < bounds.minZ - 1.2 || az > bounds.maxZ + 1.2) {
+    positionCameraBehindPlayer(true);
+  }
+}
+
 function snapPlayerToLocationSpawn(prep = null) {
   const player = actors.get("player");
   if (!player || !bounds) return false;
@@ -2343,6 +2372,7 @@ function loop() {
     attr.needsUpdate = true;
   }
   clearStaleDialogueCapture();
+  guardWorldPlateAndCamera();
   if (captureFrameLock) setQuestMarkersVisible(false);
   else {
     setQuestMarkersVisible(true);
