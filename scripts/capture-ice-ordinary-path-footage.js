@@ -763,6 +763,20 @@ async function completeOnboarding(page) {
       });
       await dismissHowTo(page);
       await focusStage(page);
+      const primed = await page.evaluate(() => {
+        document.body.classList.add("mode-world3d");
+        const w = window.World3D?.getPlayerWorldPosition?.();
+        if (!w || !window.Onboarding?.onWorldMove) return { ok: false, reason: "no-world-pos" };
+        let x = w.x;
+        let z = w.z;
+        for (let i = 0; i < 28; i++) {
+          x += 0.085;
+          z += i % 2 ? 0.065 : -0.045;
+          window.Onboarding.onWorldMove(x, z);
+        }
+        return { ok: (window.me?.onboarding?.step || 0) >= 1, step: window.me?.onboarding?.step, pathM: window.me?._onboardPathM };
+      });
+      logScene("onboarding_step0_prime", JSON.stringify(primed));
       if (PORTAL_GATE_ONLY) {
         await walkKeysUntil(
           page,
@@ -770,28 +784,14 @@ async function completeOnboarding(page) {
           24,
           280
         );
-      } else {
+      } else if ((primed.step ?? 0) < 1) {
         let ok = await walkKeysUntil(
           page,
           async () => (await readState(page)).onboardingStep >= 1,
           36,
           400
         );
-        if (!ok) {
-          await page.evaluate(() => {
-            const w = window.World3D?.getPlayerWorldPosition?.();
-            if (!w || !window.Onboarding?.onWorldMove) return false;
-            let x = w.x;
-            let z = w.z;
-            for (let i = 0; i < 24; i++) {
-              x += 0.09;
-              z += i % 2 ? 0.07 : -0.05;
-              window.Onboarding.onWorldMove(x, z);
-            }
-            return (window.me?.onboarding?.step || 0) >= 1;
-          });
-        }
-        await walkKeys(page, 8, 400);
+        if (!ok) await walkKeys(page, 8, 400);
       }
       await page
         .waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 45000 })
