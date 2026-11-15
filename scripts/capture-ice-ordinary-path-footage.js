@@ -1066,9 +1066,10 @@ async function runOrdinarySession(browser, viewport, label) {
   const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
   if (ffmpegProc) {
     try {
-      ffmpegProc.kill("SIGINT");
+      if (ffmpegProc.stdin?.writable) ffmpegProc.stdin.write("q");
+      else ffmpegProc.kill("SIGINT");
     } catch (_) {}
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    await new Promise(resolve => setTimeout(resolve, 12000));
     if (fs.existsSync(dest) && fs.statSync(dest).size >= minVideoBytes) {
       videoSaveError = null;
       logScene("ffmpeg_saved", `${Math.round(fs.statSync(dest).size / 1e6)}MB`);
@@ -1143,9 +1144,10 @@ async function runOrdinarySession(browser, viewport, label) {
       try {
         if (r?.ffmpegProc) {
           try {
-            r.ffmpegProc.kill("SIGINT");
+            if (r.ffmpegProc.stdin?.writable) r.ffmpegProc.stdin.write("q");
+            else r.ffmpegProc.kill("SIGINT");
           } catch (_) {}
-          await new Promise(resolve => setTimeout(resolve, 2500));
+          await new Promise(resolve => setTimeout(resolve, 12000));
         }
         if (r?.file && fs.existsSync(r.file) && fs.statSync(r.file).size >= minB) {
           r.videoSaveError = null;
