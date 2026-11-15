@@ -605,9 +605,9 @@ function flashActor(actor, dur = 0.11) {
       if (m.userData._hitFlashing) return;
       m.userData._hitFlashing = true;
       const snap = m.userData._hitSnap;
-      const base = snap?.color ?? m.color?.getHex?.() ?? 0xaaaaaa;
-      if (m.emissive) m.emissive.setHex(base);
-      m.emissiveIntensity = Math.min(1.15, (snap?.emiI ?? 0.35) + 0.55);
+      const hitTint = snap?.emissive && snap.emissive !== 0 ? snap.emissive : 0xff6688;
+      if (m.emissive) m.emissive.setHex(hitTint);
+      m.emissiveIntensity = Math.min(1.85, (snap?.emiI ?? 0.15) + 0.65);
     });
   });
   actor._hitFlash = dur;
@@ -695,7 +695,7 @@ function tickDuel(dt, ctx) {
     if (a._hitFlash > 0) {
       a._hitFlash -= dt;
       if (a._hitFlash <= 0) restoreActorMaterials(a);
-    } else if (a) restoreActorMaterials(a);
+    }
   });
   if (d.magicBolt) {
     d.magicBolt.t += dt;

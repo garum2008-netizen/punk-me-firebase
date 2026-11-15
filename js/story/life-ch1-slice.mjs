@@ -645,6 +645,8 @@ export function onLocationChanged(locId) {
   if (step?.id === "move") {
     if (locId === "room") {
       delete st._moveStepBaseline;
+      delete st._moveStepLast;
+      delete st._moveStepAccum;
       delete st._needsRoomForMove;
       try {
         window.World3D?.releaseCaptureFrame?.();
@@ -672,6 +674,8 @@ export async function tryStartAfterOnboarding() {
   st.startedAt = Date.now();
   st.stepIndex = 0;
   delete st._moveStepBaseline;
+  delete st._moveStepLast;
+  delete st._moveStepAccum;
   st._needsRoomForMove = p?.location !== "room";
   st.playerCutout = false;
   document.body.classList.add("life-ch1-active");
@@ -771,11 +775,22 @@ export function onMove() {
   const pos = playerWorldPos();
   if (st._moveStepBaseline == null) {
     st._moveStepBaseline = { x: pos.x, z: pos.z };
+    st._moveStepLast = { x: pos.x, z: pos.z };
+    st._moveStepAccum = 0;
     return;
   }
-  const dist = distWorld(pos.x, pos.z, st._moveStepBaseline.x, st._moveStepBaseline.z);
-  if (dist < 0.88) return;
+  const last = st._moveStepLast || st._moveStepBaseline;
+  const leg = distWorld(pos.x, pos.z, last.x, last.z);
+  if (leg > 0.015) {
+    st._moveStepAccum = (st._moveStepAccum || 0) + leg;
+    st._moveStepLast = { x: pos.x, z: pos.z };
+  }
+  const distFromStart = distWorld(pos.x, pos.z, st._moveStepBaseline.x, st._moveStepBaseline.z);
+  const walkedEnough = (st._moveStepAccum || 0) >= 0.72 || distFromStart >= 0.82;
+  if (!walkedEnough) return;
   delete st._moveStepBaseline;
+  delete st._moveStepLast;
+  delete st._moveStepAccum;
   advanceStep();
   setSubtitle(
     L({
@@ -965,7 +980,9 @@ async function showDialogue(dlgId) {
   const stDlg = ensureLifeCh1();
   const skin = normalizeSkinId(stDlg?.companionAngelinaSkin || stDlg?.angelinaSkin || readSelectedSkin(stDlg));
   const portrait =
-    node.speaker === "player" || node.speaker === "angelina" ? dialogPortraitHtml(skin) : "";
+    dlgId.startsWith("dlg_life_ch1_") || node.speaker === "player" || node.speaker === "angelina"
+      ? dialogPortraitHtml(skin)
+      : "";
 
   if (node.choices?.length) {
     body.innerHTML =

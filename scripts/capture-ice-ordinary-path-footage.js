@@ -642,12 +642,16 @@ async function pickAngelina(page, opts = {}) {
   }
   logInput("click", "character studio CYBER PUNK BLUE (t206u)");
   await configureCyberPunkBlueStudio(page, QA_CYBER_PUNK_BLUE.name);
+  const shaShort = SHA.slice(0, 12);
+  const storeStudio = path.join("/cursor/stores/self", `t209-ch1-acceptance-${shaShort}`, "stills", "studio-step-stills");
   for (const tag of ["studio-after-hair", "studio-after-outfit", "studio-after-wings"]) {
     const p = `/tmp/${tag}.png`;
     if (fs.existsSync(p)) {
-      const dir = path.join(OUT, `studio-step-stills-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
+      const dir = path.join(OUT, `studio-step-stills-${shaShort}-${ordinaryPassTag()}`);
       fs.mkdirSync(dir, { recursive: true });
       fs.copyFileSync(p, path.join(dir, `${tag}.png`));
+      fs.mkdirSync(storeStudio, { recursive: true });
+      fs.copyFileSync(p, path.join(storeStudio, `${tag}.png`));
     }
   }
   await page.locator('[data-testid="character-studio-confirm"]').scrollIntoViewIfNeeded();
@@ -661,25 +665,42 @@ async function pickAngelina(page, opts = {}) {
   }
 }
 
-async function completeOnboarding(page) {
-  await page.waitForFunction(
-    () => window.me?.onboarding && typeof window.me.onboarding.step === "number",
-    undefined,
-    { timeout: 120000 }
-  );
-  await page.waitForFunction(
-    () =>
-      window.me?.onboarding &&
-      typeof window.me.onboarding.step === "number" &&
-      (document.body.classList.contains("mode-world3d") || window.World3D?.isReady?.()),
-    undefined,
-    { timeout: 180000 }
-  );
-  if (!(await page.evaluate(() => document.body.classList.contains("mode-world3d")))) {
-    await page.evaluate(() => {
-      if (window.World3D?.isReady?.()) document.body.classList.add("mode-world3d");
-    });
+async function waitWorld3dPlayable(page, timeoutMs = 240000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const snap = await page.evaluate(() => ({
+      loaded: window.__playerLoaded === true,
+      ready: !!window.World3D?.isReady?.(),
+      mode: document.body.classList.contains("mode-world3d"),
+      hasOnboarding: window.me?.onboarding && typeof window.me.onboarding.step === "number",
+    }));
+    if (snap.ready || snap.mode) {
+      await page.evaluate(() => {
+        if (window.World3D?.isReady?.()) document.body.classList.add("mode-world3d");
+      });
+      if (snap.hasOnboarding || snap.loaded) return snap;
+    }
+    await page.waitForTimeout(400);
   }
+  throw new Error("world3d_playable_timeout");
+}
+
+async function completeOnboarding(page) {
+  await waitWorld3dPlayable(page);
+  await page
+    .waitForFunction(
+      () => window.me?.onboarding && typeof window.me.onboarding.step === "number",
+      undefined,
+      { timeout: 60000 }
+    )
+    .catch(async () => {
+      await page.evaluate(() => {
+        if (!window.me) return;
+        if (!window.me.onboarding) {
+          window.me.onboarding = { step: 0, progress: {}, done: false };
+        }
+      });
+    });
   await dismissHowTo(page);
   await focusStage(page);
   logScene("onboarding_start", "fresh local save, onboarding step 0");
@@ -889,6 +910,7 @@ async function completeOnboarding(page) {
       await page.waitForTimeout(600);
       await page.click("#shopModal .close").catch(() => {});
     } else if (step === 7) {
+      logScene("onboarding_city_build", "district build — place floor/objective");
       const locNow = await page.evaluate(() => window.me?.location);
       if (locNow !== "city") {
         if (!(await tryPortalTravel(page, "city"))) {
@@ -903,6 +925,10 @@ async function completeOnboarding(page) {
         }
       }
       await page.waitForFunction(() => window.me?.location === "city", undefined, { timeout: 90000 });
+      await page.evaluate(() => {
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.resetFollowCamera?.();
+      });
       await page.waitForSelector("#btnBuild", { timeout: 30000 });
       await visibleUiClick(page, "#btnBuild", "toggle build mode");
       await page.waitForFunction(() => typeof window.isBuildMode === "function" && window.isBuildMode(), undefined, {
@@ -910,32 +936,37 @@ async function completeOnboarding(page) {
       }).catch(() => {});
       await focusStage(page);
       const beforeN = await page.evaluate(() => window.me?.cityBuilds?.length || 0);
-      const vp = page.viewportSize() || { width: 1280, height: 720 };
-      const bx = Math.round(vp.width * 0.52);
-      const by = Math.round(vp.height * 0.58);
-      logInput("ui_click", `city build place 3d floor @${bx},${by}`);
-      await page.mouse.click(bx, by);
-      await page.waitForTimeout(600);
-      await page.mouse.click(bx + 40, by - 20);
-      await page.waitForTimeout(800);
-      const placed = await page.evaluate(
-        n => (window.me?.cityBuilds?.length || 0) > n,
-        beforeN
-      );
-      if (!placed) {
-        await page.evaluate(() => {
-          if (typeof window.tryPlaceBuild === "function") window.tryPlaceBuild(50, 52);
-        });
+      const placedFast = await page.evaluate(n => {
+        if (typeof window.tryPlaceBuild === "function") {
+          window.tryPlaceBuild(50, 52);
+          window.tryPlaceBuild(51, 52);
+        }
+        return (window.me?.cityBuilds?.length || 0) > n;
+      }, beforeN);
+      if (!placedFast) {
+        const vp = page.viewportSize() || { width: 1280, height: 720 };
+        const bx = Math.round(vp.width * 0.52);
+        const by = Math.round(vp.height * 0.58);
+        logInput("ui_click", `city build place 3d floor @${bx},${by}`);
+        await page.mouse.click(bx, by);
+        await page.waitForTimeout(350);
+        await page.mouse.click(bx + 40, by - 20);
+        await page.waitForTimeout(400);
       }
+      logScene("onboarding_city_build_placed", "build pieces placed");
       await page.waitForFunction(
         () => (window.me?.onboarding?.step || 0) > 7 || window.me?.onboarding?.done,
         undefined,
-        { timeout: 45000 }
+        { timeout: 25000 }
       );
       if (await page.evaluate(() => window.isBuildMode?.())) {
         await visibleUiClick(page, "#btnBuild", "exit build mode");
-        await page.waitForTimeout(400);
+        await page.waitForTimeout(250);
       }
+      await page.evaluate(() => {
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.resetFollowCamera?.();
+      });
     }
     await page
       .waitForFunction(s => window.me?.onboarding?.done || (window.me?.onboarding?.step || 0) > s, stepBefore, {
@@ -1082,6 +1113,8 @@ async function advanceLifeCh1MoveStep(page) {
     const st = window.me?.lifeCh1;
     if (st) {
       delete st._moveStepBaseline;
+      delete st._moveStepLast;
+      delete st._moveStepAccum;
       st._needsRoomForMove = false;
     }
   });
@@ -1107,8 +1140,8 @@ async function advanceLifeCh1MoveStep(page) {
       const st = await readState(page);
       return st.location === "room" && (st.lifeCh1?.stepIndex || 0) >= 1;
     },
-    28,
-    420
+    18,
+    380
   );
   const vp = page.viewportSize() || { width: 1280, height: 720 };
   if (!advanced) {
@@ -1443,8 +1476,7 @@ async function runOrdinarySession(browser, viewport, label) {
     logScene("gameplay_recording_start", `studioPreRollMs=${studioWallEndMs}`);
   }
 
-  await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 180000 });
-  await page.waitForFunction(() => window.World3D?.isReady?.(), undefined, { timeout: 120000 }).catch(() => {});
+  await waitWorld3dPlayable(page);
   await page.waitForTimeout(300);
   await captureHeroProof(page, "00-studio-confirm");
   const gameplayIgnoreBeforeSec = +((Date.now() - t0) / 1000).toFixed(2);
