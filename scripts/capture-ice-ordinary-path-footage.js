@@ -404,12 +404,12 @@ async function waitReadableDialog(page, minMs = 900) {
   await page.waitForTimeout(ms);
 }
 
-async function ensureStreetLocation(page) {
+async function ensureStreetLocation(page, { mapOnly = false } = {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     let loc = await page.evaluate(() => window.me?.location);
     if (loc === "street") return;
-    logScene("ensure_street", `travel to street from ${loc} attempt=${attempt + 1}`);
-    await tryPortalTravel(page, "street", attempt === 0 ? 22000 : 14000);
+    logScene("ensure_street", `travel to street from ${loc} attempt=${attempt + 1}${mapOnly ? " mapOnly" : ""}`);
+    if (!mapOnly) await tryPortalTravel(page, "street", attempt === 0 ? 22000 : 14000);
     loc = await page.evaluate(() => window.me?.location);
     if (loc !== "street") await uiOpenMapTravel(page, "street");
     await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 90000 });
@@ -424,9 +424,9 @@ async function ensureStreetLocation(page) {
   throw new Error(`ensureStreetLocation: still on ${bad} after portal/map travel`);
 }
 
-async function openGangWithRazor(page, detail) {
+async function openGangWithRazor(page, detail, streetOpts = {}) {
   for (let attempt = 0; attempt < 4; attempt++) {
-    await ensureStreetLocation(page);
+    await ensureStreetLocation(page, streetOpts);
     await visibleUiClick(page, '#panelBottom button[onclick*="gangModal"]', `${detail} attempt=${attempt + 1}`);
     const razor = page.locator("#gangModal.active #gangList .npc-row[data-npc='razor']");
     if (await razor.isVisible({ timeout: 12000 }).catch(() => false)) {
@@ -954,7 +954,13 @@ async function completeOnboarding(page) {
         timeout: 45000,
       });
     } else if (step === 5) {
-      await openGangWithRazor(page, "gang → razor fight");
+      await page.evaluate(() => {
+        if (window.me?.location !== "street") window.goLocation?.("street");
+      });
+      await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 45000 });
+      await page.waitForTimeout(600);
+      await ensureStreetLocation(page, { mapOnly: true });
+      await openGangWithRazor(page, "gang → razor fight", { mapOnly: true });
       await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", { scroll: true });
       await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
       await visibleUiClick(page, 'button[onclick*="startNpcFight"]', "startNpcFight");
@@ -967,11 +973,13 @@ async function completeOnboarding(page) {
       if (!(await waitDuelHud(40000))) {
         logScene("onboarding_duel_retry", "direct startNpcFight after UI miss");
         await page.evaluate(() => {
+          if (window.me?.location !== "street") window.goLocation?.("street");
           window.closeModal?.("gangModal");
           window.World3D?.releaseCaptureFrame?.();
           window.World3D?.snapPlayerToLocationSpawn?.();
           window.startNpcFight?.("razor");
         });
+        await page.waitForTimeout(800);
         if (!(await waitDuelHud(55000))) {
           throw new Error("onboarding_duel_hud_never_visible");
         }

@@ -2535,8 +2535,11 @@ function startNpcFight(nid) {
   const wantId = nid || npc.id || "razor";
   const onboardFight = window.Onboarding?.currentStep?.()?.key === "win_fight";
   const duelOpts = onboardFight ? { training: true, firstTo: 1 } : undefined;
+  const duelSyncMs = onboardFight ? 520 : 150;
   const beginDuel3D = () => {
+    if (onboardFight && me.location !== "street") goLocation("street");
     syncStage3D();
+    window.World3D?.releaseCaptureFrame?.();
     window.World3D?.snapPlayerToLocationSpawn?.();
     return window.World3D?.startDuel3D?.(wantId, duelOpts);
   };
@@ -2559,7 +2562,27 @@ function startNpcFight(nid) {
           };
           window._duel3dEnd = win => endFight(win);
         }
-      }, 150);
+      }, duelSyncMs);
+      return;
+    }
+    if (onboardFight) {
+      setTimeout(() => {
+        const ok = beginDuel3D();
+        if (!ok) toast(t("fight_try_again") || "3D duel unavailable");
+        else {
+          fight = {
+            npcName: tNpcName(wantId),
+            npcHp: 100,
+            npcMax: 100,
+            playerHp: 100,
+            playerMax: 100,
+            shield: 0,
+            log: [],
+            _duel3d: true
+          };
+          window._duel3dEnd = win => endFight(win);
+        }
+      }, duelSyncMs);
       return;
     }
     const ok = beginDuel3D();
@@ -2807,6 +2830,7 @@ function exposePreviewBuildHooks() {
   if (isPreviewBuild() || isLifeCh1LocalSaveBuild()) {
     window.tryPlaceBuild = (x, y) => placeBuildAt(x, y);
     window.tryOnboardingCryptPlace = tryOnboardingCryptPlace;
+    window.goLocation = goLocation;
   } else if ("tryPlaceBuild" in window) {
     delete window.tryPlaceBuild;
   }

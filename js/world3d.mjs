@@ -1939,6 +1939,8 @@ function checkPortals() {
   const px = player.wx ?? player.group.position.x;
   const pz = player.wz ?? player.group.position.z;
   const onboard = !!window.Onboarding?.isActive?.();
+  const stKey = window.Onboarding?.currentStep?.()?.key;
+  if (onboard && stKey === "win_fight" && currentLoc === "street") return;
   const reachMul = onboard ? 1.45 : 1;
   for (const portal of portals) {
     if (Math.hypot(px - portal.x, pz - portal.z) <= portal.r * reachMul) {
