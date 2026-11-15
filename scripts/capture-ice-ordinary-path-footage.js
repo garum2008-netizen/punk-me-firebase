@@ -1112,7 +1112,11 @@ async function runOrdinarySession(browser, viewport, label) {
   const serveChild = await serveRoot();
   const desktopFfmpeg =
     ORDINARY_DESKTOP_ONLY && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
-  const browser = await chromium.launch({ headless: !desktopFfmpeg });
+  const headedDesktop =
+    ORDINARY_DESKTOP_ONLY &&
+    process.env.DISPLAY &&
+    (desktopFfmpeg || process.env.PUNK_HEADED === "1");
+  const browser = await chromium.launch({ headless: !headedDesktop });
   const results = [];
   let err = null;
   try {
