@@ -668,10 +668,18 @@ async function completeOnboarding(page) {
     { timeout: 120000 }
   );
   await page.waitForFunction(
-    () => document.body.classList.contains("mode-world3d") && (window.World3D?.isReady?.() || window.__playerLoaded),
+    () =>
+      window.me?.onboarding &&
+      typeof window.me.onboarding.step === "number" &&
+      (document.body.classList.contains("mode-world3d") || window.World3D?.isReady?.()),
     undefined,
     { timeout: 180000 }
   );
+  if (!(await page.evaluate(() => document.body.classList.contains("mode-world3d")))) {
+    await page.evaluate(() => {
+      if (window.World3D?.isReady?.()) document.body.classList.add("mode-world3d");
+    });
+  }
   await dismissHowTo(page);
   await focusStage(page);
   logScene("onboarding_start", "fresh local save, onboarding step 0");
