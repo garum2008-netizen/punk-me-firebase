@@ -1484,7 +1484,7 @@ const LOCATION_CAMERA = {
     }
   },
   street: { dist: 6.85, height: 2.55, lookY: 1.32, yaw: 0.38 },
-  city: { dist: 7.2, height: 2.62, lookY: 1.34, yaw: 0.28 },
+  city: { dist: 5.85, height: 2.52, lookY: 1.34, yaw: 0.28 },
   cemetery: { dist: 8.85, height: 2.72, lookY: 1.44, yaw: 0.3 },
   roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
@@ -1709,6 +1709,11 @@ function positionCameraBehindPlayer(instant = false, dt = lastCameraDt) {
   let target = new THREE.Vector3(p.x + ox, height, p.z + oz);
   target = resolveCameraWallCollision(eye, target);
   target = clampCameraOrbitFromPlayer(target, p, MIN_CAMERA_DIST_FROM_PLAYER);
+  if (bounds) {
+    const edge = 0.55;
+    target.x = Math.max(bounds.minX + edge, Math.min(bounds.maxX - edge, target.x));
+    target.z = Math.max(bounds.minZ + edge, Math.min(bounds.maxZ - edge, target.z));
+  }
   if (target.y < p.y + 1.05) target.y = p.y + 1.05;
   const t = instant ? 1 : 1 - Math.exp(-14 * Math.max(dt, 0.001));
   if (instant) camera.position.copy(target);

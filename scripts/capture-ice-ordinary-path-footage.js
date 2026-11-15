@@ -615,7 +615,9 @@ const { validateHeroStillsWithHairPixels } = require("./hero-hair-pixel-gate");
 let sessionHeroStills = [];
 
 async function pickAngelina(page, opts = {}) {
-  await page.waitForSelector("#charSelect.active", { timeout: 120000 });
+  if (!opts.skipStudioWait) {
+    await page.waitForSelector("#charSelect.active", { timeout: 120000 });
+  }
   logInput("click", "character studio CYBER PUNK BLUE (t206u)");
   await configureCyberPunkBlueStudio(page, QA_CYBER_PUNK_BLUE.name);
   for (const tag of ["studio-after-hair", "studio-after-outfit", "studio-after-wings"]) {
@@ -1298,8 +1300,9 @@ async function runOrdinarySession(browser, viewport, label) {
   await page.goto(entryUrl, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.bringToFront();
   await dismissHowTo(page);
+  await page.waitForSelector("#charSelect.active", { timeout: 120000 });
   const studioWallStart = Date.now();
-  await pickAngelina(page, { deferWorldReady: true });
+  await pickAngelina(page, { deferWorldReady: true, skipStudioWait: true });
   const studioWallEndMs = Date.now() - studioWallStart;
   logScene("studio_complete", `wallMs=${studioWallEndMs}`);
   await dismissHowTo(page);
