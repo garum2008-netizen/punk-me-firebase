@@ -496,6 +496,7 @@ function finishDuel3DCleanup(win, wasTraining) {
       : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
     setTimeout(() => res.classList.add("hidden"), 3400);
   }
+  if (wasTraining && win) window.Onboarding?.onWinFight?.();
   window._duel3dEnd?.(win);
 }
 

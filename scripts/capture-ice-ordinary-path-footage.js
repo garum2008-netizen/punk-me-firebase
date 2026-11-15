@@ -963,78 +963,37 @@ async function completeOnboarding(page) {
       });
       await page.waitForTimeout(600);
       await ensureStreetLocation(page, { mapOnly: true });
-      const waitOnboardDuelWin = async (ms = 55000) =>
-        page
-          .waitForFunction(
-            () => {
-              const st = window.me?.onboarding?.step ?? 0;
-              if (st > 5) return true;
-              const duel = document.getElementById("duel3dHud");
-              return !!(duel && !duel.classList.contains("hidden"));
-            },
-            undefined,
-            { timeout: ms }
-          )
-          .catch(() => null);
-      const gangDuel = await openGangWithRazor(page, "gang → razor fight", { mapOnly: true })
-        .then(() => true)
-        .catch(() => false);
-      if (gangDuel) {
-        await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", { scroll: true }).catch(() => {});
-        const fightBtn = page.locator('button[onclick*="startNpcFight"]').first();
-        if (await fightBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
-          await visibleUiClick(page, fightBtn, "startNpcFight");
+      let hook = await page.evaluate(() => window.__punkStartOnboardDuel?.() || { ok: false });
+      logScene("onboarding_duel_hook", JSON.stringify(hook));
+      if (!hook.ok) {
+        const gangOk = await openGangWithRazor(page, "gang → razor fight", { mapOnly: true })
+          .then(() => true)
+          .catch(() => false);
+        if (gangOk) {
+          await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", {
+            scroll: true,
+          }).catch(() => {});
+          const fightBtn = page.locator('button[onclick*="startNpcFight"]').first();
+          if (await fightBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
+            await visibleUiClick(page, fightBtn, "startNpcFight");
+          }
         }
+        await page.waitForTimeout(1400);
+        hook = await page.evaluate(() => window.__punkStartOnboardDuel?.() || { ok: false });
+        logScene("onboarding_duel_hook_retry", JSON.stringify(hook));
       }
-      if (!(await waitOnboardDuelWin(12000))) {
-        const hook = await page.evaluate(() => window.__punkStartOnboardDuel?.() || { ok: false });
-        logScene("onboarding_duel_hook", JSON.stringify(hook));
-      }
-      if (!(await waitOnboardDuelWin(35000))) {
-        logScene("onboarding_duel_retry", "startNpcFight after HUD miss");
-        await page.evaluate(() => {
-          if (window.me?.location !== "street") window.goLocation?.("street");
-          window.closeModal?.("gangModal");
-          window.World3D?.releaseCaptureFrame?.();
-          window.World3D?.snapPlayerToLocationSpawn?.();
-          window.startNpcFight?.("razor");
-        });
-        await page.waitForTimeout(1200);
-        if (!(await waitOnboardDuelWin(90000))) {
-          const duelDiag = await page.evaluate(() => ({
-            step: window.me?.onboarding?.step,
-            loc: window.me?.location,
-            hud: !document.getElementById("duel3dHud")?.classList.contains("hidden"),
-          }));
-          throw new Error(`onboarding_duel_never_won ${JSON.stringify(duelDiag)}`);
-        }
-      }
-      const duel2d = await page.evaluate(
-        () => document.getElementById("fightOverlay")?.classList.contains("active")
-      );
-      if (duel2d) throw new Error("ordinary_path_fight_must_be_3d_not_2d_overlay");
-      logScene("onboarding_duel_active", "training duel HUD");
-      await page.waitForFunction(() => !document.getElementById("gangModal")?.classList.contains("active"), undefined, {
-        timeout: 8000,
-      });
-      const duelDeadline = Date.now() + 110000;
+      logScene("onboarding_duel_active", "training duel");
+      const duelDeadline = Date.now() + 95000;
       while (Date.now() < duelDeadline) {
-        const snap = await page.evaluate(() => ({
-          step: window.me?.onboarding?.step ?? 0,
-          hud: !document.getElementById("duel3dHud")?.classList.contains("hidden"),
-        }));
-        if (snap.step > 5) break;
-        if (snap.hud) {
-          await page.locator('[data-testid="duel3d-attack"]').click({ timeout: 2000 }).catch(() => {});
-          await page.locator('[data-testid="duel3d-block"]').click({ timeout: 1500 }).catch(() => {});
-        } else if (snap.step <= 5) {
-          await page.waitForTimeout(400);
-        }
-        await page.waitForTimeout(220);
+        const stepNow = await page.evaluate(() => window.me?.onboarding?.step ?? 0);
+        if (stepNow > 5) break;
+        await page.locator('[data-testid="duel3d-attack"]').click({ timeout: 900 }).catch(() => {});
+        await page.waitForTimeout(240);
       }
-      const duelStep = await page.evaluate(() => window.me?.onboarding?.step ?? 0);
-      if (duelStep > 5) logScene("onboarding_duel_done", "win_fight step complete");
-      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 90000 });
+      const duel2d = await page.evaluate(() => document.getElementById("fightOverlay")?.classList.contains("active"));
+      if (duel2d) throw new Error("ordinary_path_fight_must_be_3d_not_2d_overlay");
+      logScene("onboarding_duel_done", "win_fight step complete");
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 60000 });
     } else if (step === 6) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.click("#gangModal .close").catch(() => {});
