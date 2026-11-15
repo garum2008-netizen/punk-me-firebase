@@ -1,8 +1,9 @@
-# t209u — Chapter 1 acceptance (run #79)
+# t209u — Chapter 1 acceptance (run #80 owner feedback)
 
-**Date:** 2026-11-15 12:56 CET (Europe/Copenhagen)  
-**Evidence video SHA:** `8a6d736` (r15 full ordinary capture)  
-**Engineering tip:** `6a6ce87` (`cursor/t209-grok-review-1430`) — modal-aware canvas gate  
+**Date:** 2026-11-15 (CET, Europe/Copenhagen)  
+**Prior evidence (not owner candidate):** r15 video SHA `8a6d736` (~1230 s) — Grok review P0 progression stall + idle build + portrait + duel flash  
+**Engineering tip:** `4d4b7c5` (`cursor/t209-grok-review-1430`) — Life Ch1 walk accum, duel hit tint, capture/studio fixes  
+**Re-record:** r28+ in progress (`t209-capture-r28.log`); gameplay FFmpeg aligned after World3D ready (~5 min mesh warm-up off-video)  
 **PR:** [#74](https://github.com/garum2008-netizen/punk-me-firebase/pull/74)
 
 **Rule:** MET requires frame proof. Canvas luma gate uses **modal-aware** exclusions (gang / shop / map sheets, Angelina wardrobe, Ch1 save→reentry reload). Near-black **without** an excluded overlay still fails the gate.
@@ -11,7 +12,23 @@
 
 ---
 
-## Recording gate — **PASS** (r15 rescored, no re-capture)
+## Owner P0 fixes (code, `4d4b7c5`)
+
+| Issue | Fix |
+|-------|-----|
+| Life Ch1 step 1 stall (~10 min room walk) | Cumulative path length on `onMove` (0.72 m traveled **or** 0.82 m from spawn), not straight-line only |
+| District build idle ~1m40 | Capture: release dialogue camera, `tryPlaceBuild` first, exit build faster; scene markers |
+| Angelina portrait on trust line | Always render companion portrait for `dlg_life_ch1_*` |
+| Duel white silhouettes | Softer hit flash tint; stop per-frame material restore during duel |
+| Studio stills in Agent Store | Copy to `/cursor/stores/self/t209-ch1-acceptance-<sha>/stills/studio-step-stills/` |
+
+## Recording gate — **PASS** (r15 rescored; pending new r16+ video)
+
+| Progress gate (r16+) | Target |
+|----------------------|--------|
+| Scene gaps >30 s | **None** |
+| Life Ch1 step 1 | **&lt; ~20 s** walking |
+| Total runtime vs r15 | **~10 min shorter** |
 
 | Check | Result |
 |-------|--------|
