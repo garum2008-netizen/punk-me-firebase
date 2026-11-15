@@ -168,7 +168,7 @@ async function captureHeroProof(page, tag) {
   return row;
 }
 
-async function finalizeRecordingSession(r) {
+async function preFinalizeRecordingSession(r) {
   if (!r || r.file == null) return;
   const minB = r.minVideoBytes ?? 800_000;
   r._sessionWallSec = +(((r._sessionEndMs || Date.now()) - (r._recordStartMs || Date.now())) / 1000).toFixed(2);
@@ -190,25 +190,31 @@ async function finalizeRecordingSession(r) {
       r.videoSaveError = "ffmpeg_mkv_missing_or_small";
     }
   }
-
   haveWebm = fs.existsSync(r.file) && fs.statSync(r.file).size >= minB;
   if (!haveWebm && r._video) {
-    const pw = await finalizePlaywrightVideo(r);
+    await closePlaywrightRecordingSession(r);
+  }
+}
+
+async function postFinalizeRecordingSession(r) {
+  if (!r || r.file == null) return;
+  const minB = r.minVideoBytes ?? 800_000;
+  let haveWebm = fs.existsSync(r.file) && fs.statSync(r.file).size >= minB;
+  if (!haveWebm && r._video) {
+    const pw = await savePlaywrightVideoAfterBrowserClose(r);
     if (!pw.ok) r.videoSaveError = pw.error || r.videoSaveError || "playwright_video_failed";
     else r.videoSaveError = null;
   }
-
   if (!fs.existsSync(r.file) || fs.statSync(r.file).size < minB) {
     rescueOrdinaryRecording(r, minB);
   }
-
   if (fs.existsSync(r.file) && fs.statSync(r.file).size >= minB) {
     r.videoSaveError = null;
     Object.assign(r, ffprobeMeta(r.file));
     r.sha256 = sha256File(r.file);
   }
 
-  r.heroStills = sessionHeroStills.slice();
+  r.heroStills = r.heroStills || sessionHeroStills.slice();
   const heroGate = validateHeroStillSnapshots(r.heroStills, 6);
   const durationGate = validateDurationGate(r._sessionWallSec, r.durationSec, 0.1);
   const framesDir = path.join(OUT, `hero-frames-video-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
@@ -227,7 +233,8 @@ async function finalizeRecordingSession(r) {
       "Do not use rejected SHA 7d3d245dd54a4b60dcfad601f6e28589720a2b387d6f66f061868f91a805fc7d",
   };
   if (!r.recordingGate.ok) {
-    r.videoSaveError = r.videoSaveError || `gate_failed:${!heroGate.ok ? "hero" : ""}${!durationGate.ok ? "duration" : ""}`;
+    r.videoSaveError =
+      r.videoSaveError || `gate_failed:${!heroGate.ok ? "hero" : ""}${!durationGate.ok ? "duration" : ""}`;
   }
 }
 
@@ -533,7 +540,8 @@ const {
   ffprobeMeta: ffprobeMetaSafe,
   stopFfmpegGraceful,
   remuxMkvToWebm,
-  finalizePlaywrightVideo,
+  closePlaywrightRecordingSession,
+  savePlaywrightVideoAfterBrowserClose,
   extractFramesAtTimes,
   validateHeroStillSnapshots,
   validateDurationGate,
@@ -1233,8 +1241,17 @@ async function runOrdinarySession(browser, viewport, label) {
     } catch (_) {}
   } finally {
     for (const r of results) {
+      r.heroStills = sessionHeroStills.slice();
       try {
-        await finalizeRecordingSession(r);
+        await preFinalizeRecordingSession(r);
+      } catch (e) {
+        if (r) r.videoSaveError = String(e.message || e);
+      }
+    }
+    await browser.close();
+    for (const r of results) {
+      try {
+        await postFinalizeRecordingSession(r);
       } catch (e) {
         if (r) r.videoSaveError = String(e.message || e);
       }
@@ -1245,7 +1262,6 @@ async function runOrdinarySession(browser, viewport, label) {
         delete r.ffmpegProc;
       }
     }
-    await browser.close();
     try {
       process.kill(-serveChild.pid, "SIGTERM");
     } catch (_) {}

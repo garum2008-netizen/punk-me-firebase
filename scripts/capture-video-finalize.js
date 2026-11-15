@@ -113,9 +113,8 @@ function remuxMkvToWebm(mkvPath, webmPath) {
   return { ok: true, path: webmPath, format: "webm" };
 }
 
-async function finalizePlaywrightVideo(rec) {
-  const { page, ctx, _video: video, file: dest, minVideoBytes: minB } = rec;
-  if (!video || !dest) return { ok: false, error: "no_video_handle" };
+async function closePlaywrightRecordingSession(rec) {
+  const { page, ctx } = rec;
   try {
     if (page && typeof page.isClosed === "function" && !page.isClosed()) {
       await page.close({ runBeforeUnload: false });
@@ -128,6 +127,12 @@ async function finalizePlaywrightVideo(rec) {
   } catch (e) {
     rec._ctxCloseErr = String(e.message || e);
   }
+  return true;
+}
+
+async function savePlaywrightVideoAfterBrowserClose(rec) {
+  const { _video: video, file: dest, minVideoBytes: minB } = rec;
+  if (!video || !dest) return { ok: false, error: "no_video_handle" };
   const deadline = Date.now() + 180000;
   let lastErr = "pending_ctx_close";
   while (Date.now() < deadline) {
@@ -139,7 +144,7 @@ async function finalizePlaywrightVideo(rec) {
           fs.mkdirSync(path.dirname(dest), { recursive: true });
           try {
             await video.saveAs(dest);
-          } catch (e) {
+          } catch (_) {
             fs.copyFileSync(vp, dest);
           }
           if (fs.existsSync(dest) && fs.statSync(dest).size >= minB) {
@@ -224,7 +229,8 @@ module.exports = {
   ffprobeMeta,
   stopFfmpegGraceful,
   remuxMkvToWebm,
-  finalizePlaywrightVideo,
+  closePlaywrightRecordingSession,
+  savePlaywrightVideoAfterBrowserClose,
   extractFramesAtTimes,
   validateHeroStillSnapshots,
   validateDurationGate,
