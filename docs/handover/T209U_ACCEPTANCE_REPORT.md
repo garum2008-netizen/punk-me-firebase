@@ -1,7 +1,13 @@
-# t209u — Chapter 1 acceptance (Grok round 3, video-first)
+# t209u — Chapter 1 acceptance (Grok round 4, video-first)
 
-**Date:** 2026-11-15 06:02 CET (Europe/Copenhagen)  
-**Git tip:** `68bb5594eb17` (`cursor/t209-grok-review-1430`)  
+**Prior accepted video:** `68bb559` / SHA `835a7bc2…4c4` (824 s) — partial MET; see table below.
+
+**Round 4 tip (code):** `9f1890b` (`cursor/t209-grok-review-1430`) — district camera unfreeze, duel VFX/KO, Angelina street quest, climax narrative panel, luminance scan gate, studio preview refresh hooks.
+
+**Round 4 video:** **IN PROGRESS** — full capture `t209-ch1-full` re-run after capture harness fixes for Angelina street step (prior attempts failed: player off-street during guide walk).
+
+**Date (last packaged):** 2026-11-15 06:02 CET (Europe/Copenhagen)  
+**Last packaged SHA:** `68bb5594eb17`  
 **Agent store:** `/cursor/stores/self/t209-ch1-acceptance-68bb5594eb17/`  
 **Tarball SHA256:** `b65e00e12b2c90cce854e380340fc306e774f5599d23bc8fa05f9bfcd926a8ab`
 
