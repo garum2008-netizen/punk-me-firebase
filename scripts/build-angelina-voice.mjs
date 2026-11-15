@@ -1,0 +1,96 @@
+/**
+ * Free local speech for Angelina. espeak-ng only. No paid voice service.
+ */
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+
+const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const voices = { ru: "ru", en: "en-us", da: "da" };
+
+const lines = {
+  angelina_crawl_1: {
+    ru: "Ты новенький в доме номер тринадцать. Здесь живёт банда Ржавые Цепи.",
+    en: "You are the new kid at house thirteen. The Rusty Chains live here.",
+    da: "Du er ny i hus nummer tretten. Rusty Chains bor her."
+  },
+  angelina_crawl_2: {
+    ru: "Пройди обучение. Метка и стрелка показывают следующий шаг.",
+    en: "Finish the training. The marker and the arrow show the next step.",
+    da: "Gennemfør træningen. Mærket og pilen viser næste skridt."
+  },
+  angelina_crawl_3: {
+    ru: "Говори с людьми, бери задания, копи монеты. Я иду рядом.",
+    en: "Talk to people, take the tasks, keep the coins. I walk with you.",
+    da: "Tal med folk, tag opgaverne, behold mønterne. Jeg går med dig."
+  },
+  angelina_crawl_4: {
+    ru: "На улице Рейзор уже смотрит. Я Ангелина. Пойдём.",
+    en: "Razor is already watching the street. I am Angelina. Let's go.",
+    da: "Razor kigger allerede på gaden. Jeg er Angelina. Kom."
+  },
+  angelina_beginning: {
+    ru: "Я Ангелина. Это твоя комната. Пройдись по ней, потом выйдем на улицу.",
+    en: "I am Angelina. This is your room. Walk it, then we go to the street.",
+    da: "Jeg er Angelina. Det her er dit værelse. Gå rundt, så går vi ud på gaden."
+  },
+  angelina_conflict: {
+    ru: "Рейзор — проверка. Поговори с ним на улице. Банда не берёт чужих.",
+    en: "Razor is the test. Talk to him on the street. The gang does not take strangers.",
+    da: "Razor er prøven. Tal med ham på gaden. Banden tager ikke fremmede."
+  },
+  angelina_climax: {
+    ru: "Кладбище и дуэль на цепях — это бой. Победи. По-настоящему никто не пострадает.",
+    en: "The cemetery and the chain duel are the fight. Win it. Nobody gets hurt for real.",
+    da: "Kirkegården og kædeduellen er kampen. Vind den. Ingen kommer rigtigt til skade."
+  },
+  angelina_shop: {
+    ru: "Лавка берёт монеты, не карту. Значок бесплатный. Остальное стоит заработанные монеты.",
+    en: "The shop takes coins, not a card. The pin is free. The rest costs coins you earned.",
+    da: "Butikken tager mønter, ikke et kort. Nålen er gratis. Resten koster mønter, du har tjent."
+  },
+  angelina_room: {
+    ru: "Поставь лампу в комнате. Ты увидишь её. Это твоё место.",
+    en: "Place a lamp in the room. You will see it. This place is yours.",
+    da: "Sæt en lampe i værelset. Du kan se den. Stedet er dit."
+  },
+  angelina_plots: {
+    ru: "Тыквоград растёт, когда платишь за участок. Здание останется. Это ещё не готовый город.",
+    en: "Pumpkingrad grows when you pay for a plot. The building stays. That is not a finished city.",
+    da: "Græskarby vokser, når du betaler for en grund. Bygningen bliver. Det er ikke en færdig by."
+  },
+  angelina_finale: {
+    ru: "Рейзор говорит. Нашивка твоя. Участки в Тыквограде уже стоят.",
+    en: "Razor is speaking. The patch is yours. The Pumpkingrad plots are standing.",
+    da: "Razor taler. Mærket er dit. Grundene i Græskarby står der."
+  },
+  angelina_idle: {
+    ru: "Я рядом. Сделай следующий шаг. Метка показывает куда.",
+    en: "I am still here. Take the next step. The marker shows where.",
+    da: "Jeg er her. Tag næste skridt. Mærket viser vej."
+  },
+  angelina_mistake: {
+    ru: "Не то. Смотри задание. Я подожду.",
+    en: "Not that. Look at the mission. I will wait.",
+    da: "Ikke det. Se opgaven. Jeg venter."
+  }
+};
+
+for (const [id, pack] of Object.entries(lines)) {
+  for (const [lang, voice] of Object.entries(voices)) {
+    const dir = path.join(root, "assets", "audio", "voice", lang);
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `${id}.wav`);
+    const result = spawnSync("espeak-ng", ["-v", voice, "-s", "145", "-w", file, pack[lang]], { encoding: "utf8" });
+    if (result.status !== 0) {
+      console.error(result.stderr || result.stdout);
+      process.exit(result.status || 1);
+    }
+    const size = fs.statSync(file).size;
+    if (size < 500) {
+      console.error("too small", file, size);
+      process.exit(1);
+    }
+    console.log(lang, id, size);
+  }
+}

@@ -847,3 +847,17 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   border: 1px solid #ff6ec7; font-size: 13px; line-height: 1.35;
 }
 .angelina-guide b { display: block; color: #ff6ec7; margin-bottom: 2px; }
+.angelina-hint { display: block; margin-top: 4px; color: #ffe81f; }
+.chapter-scene {
+  position: absolute; left: 50%; top: 58px; transform: translateX(-50%);
+  z-index: 31; padding: 6px 12px; border-radius: 999px;
+  background: #1a0010; color: #ffe81f; border: 1px solid #ffe81f; font-size: 14px;
+}
+.chapter-build {
+  position: absolute; left: 12px; bottom: 16px; z-index: 32; display: flex; flex-wrap: wrap; gap: 6px;
+  max-width: min(520px, 92vw); padding: 8px; border-radius: 10px;
+  background: rgba(8, 6, 16, 0.9); border: 1px solid #66ffcc;
+}
+.chapter-build[hidden] { display: none; }
+.chapter-build b { width: 100%; color: #66ffcc; font-size: 13px; }
+.chapter-scene[hidden] { display: none; }

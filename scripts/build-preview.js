@@ -70,7 +70,7 @@ function transformIndex(html) {
 
 rmrf(OUT);
 fs.mkdirSync(OUT, { recursive: true });
-for (const dir of ["css", "js", "data", "imagine_images", "assets"]) {
+for (const dir of ["css", "js", "data", "imagine_images", "assets", "functions"]) {
   copyTree(path.join(ROOT, dir), path.join(OUT, dir));
 }
 for (const page of ["subscribe.html", "terms.html", "privacy.html"]) {

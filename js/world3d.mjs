@@ -15,6 +15,7 @@ import {
 } from "./world/locations.mjs";
 import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs";
 import { attachAvatarLook, readAvatarLook } from "./avatar-mesh.mjs";
+import { buildFurnitureMesh } from "./world/room-furniture-catalog.mjs";
 import {
   loadAllCc0Templates,
   getTemplateForCharacter,
@@ -361,6 +362,46 @@ async function loadModels() {
   modelsReady = true;
 }
 
+function plotMesh(kind) {
+  const g = new THREE.Group();
+  if (kind === "arch") {
+    const mat = new THREE.MeshStandardMaterial({ color: 0xff66cc, emissive: 0xff2288, emissiveIntensity: 0.45 });
+    const left = new THREE.Mesh(new THREE.BoxGeometry(0.28, 2.4, 0.28), mat);
+    left.position.set(-0.7, 1.2, 0);
+    const right = left.clone();
+    right.position.x = 0.7;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.28, 0.28), mat);
+    beam.position.y = 2.35;
+    g.add(left, right, beam);
+  } else if (kind === "stall") {
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 0.9, 1.1),
+      new THREE.MeshStandardMaterial({ color: 0x6a3a18, roughness: 0.6 })
+    );
+    base.position.y = 0.45;
+    const pumpkin = new THREE.Mesh(
+      new THREE.SphereGeometry(0.34, 14, 12),
+      new THREE.MeshStandardMaterial({ color: 0xff6a00, emissive: 0xaa3300, emissiveIntensity: 0.25 })
+    );
+    pumpkin.position.y = 1.15;
+    g.add(base, pumpkin);
+  } else {
+    const stone = new THREE.Mesh(
+      new THREE.BoxGeometry(0.95, 0.7, 0.95),
+      new THREE.MeshStandardMaterial({ color: 0xc9a0ff, emissive: 0x441166, roughness: 0.45 })
+    );
+    stone.position.y = 0.35;
+    const roof = new THREE.Mesh(
+      new THREE.ConeGeometry(0.72, 0.45, 4),
+      new THREE.MeshStandardMaterial({ color: 0x2a2040, emissive: 0x220033, emissiveIntensity: 0.2 })
+    );
+    roof.position.y = 0.9;
+    roof.rotation.y = Math.PI / 4;
+    g.add(stone, roof);
+  }
+  return g;
+}
+
 function placeCityStone(x, z, remember) {
   if (!locationRoot || currentLoc !== "city" || typeof THREE === "undefined") return false;
   const mesh = new THREE.Mesh(
@@ -421,6 +462,133 @@ function rebuildLocation(locId) {
   ensureMarkerRoot(scene);
   onGameplayLocationBuilt(locId, locationRoot, bounds);
   if (locId === "city") replayCityStones();
+  replayPlayerBuilds();
+}
+
+function replayPlayerBuilds() {
+  if (!locationRoot || !window.me) return;
+  if (currentLoc === "room") {
+    (window.me.roomPieces || []).forEach((piece, index) => placeRoomPiece(piece.type, piece.x, piece.z, false, index));
+  }
+  if (currentLoc === "city") {
+    const pads = window.ChapterBuild?.CITY_PLOTS || window.me.cityPlots || [];
+    ensurePlotPads(pads);
+    (window.me.cityPlots || []).forEach(plot => placeCityPlot(plot, false));
+  }
+}
+
+function ensurePlotPads(plots) {
+  if (!locationRoot || currentLoc !== "city") return false;
+  (plots || []).forEach(plot => {
+    const name = "plot-pad-" + plot.id;
+    if (locationRoot.getObjectByName(name)) return;
+    const pad = new THREE.Mesh(
+      new THREE.RingGeometry(0.7, 0.95, 24),
+      new THREE.MeshBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
+    );
+    pad.rotation.x = -Math.PI / 2;
+    pad.position.set(plot.x, 0.04, plot.z);
+    pad.name = name;
+    locationRoot.add(pad);
+  });
+  return true;
+}
+
+function placeRoomPiece(type, x, z, remember, index) {
+  if (!locationRoot || currentLoc !== "room") return false;
+  const name = "room-piece-" + (index ?? (window.me?.roomPieces || []).length);
+  if (locationRoot.getObjectByName(name)) return true;
+  const mesh = buildFurnitureMesh(type);
+  mesh.position.set(x, 0, z);
+  mesh.name = name;
+  locationRoot.add(mesh);
+  if (remember && window.me) {
+    window.me.roomPieces = Array.isArray(window.me.roomPieces) ? window.me.roomPieces : [];
+    window.me.roomPieces.push({ type, x, z });
+    mesh.name = "room-piece-" + (window.me.roomPieces.length - 1);
+  }
+  return true;
+}
+
+function placeCityPlot(plot, remember) {
+  if (!locationRoot || currentLoc !== "city" || !plot?.id) return false;
+  const name = "plot-built-" + plot.id;
+  if (locationRoot.getObjectByName(name)) return true;
+  const mesh = plotMesh(plot.kind);
+  mesh.position.set(plot.x, 0, plot.z);
+  mesh.name = name;
+  locationRoot.add(mesh);
+  if (remember && window.me) {
+    window.me.cityPlots = Array.isArray(window.me.cityPlots) ? window.me.cityPlots : [];
+    if (!window.me.cityPlots.some(row => row.id === plot.id)) {
+      window.me.cityPlots.push({ id: plot.id, kind: plot.kind, x: plot.x, z: plot.z });
+    }
+  }
+  return true;
+}
+
+function angelinaNameSprite() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 64;
+  const g = canvas.getContext("2d");
+  g.clearRect(0, 0, 256, 64);
+  g.fillStyle = "#ff6ec7";
+  g.font = "bold 42px sans-serif";
+  g.textAlign = "center";
+  g.fillText("Angelina", 128, 44);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(canvas),
+    transparent: true,
+    depthWrite: false
+  }));
+  sprite.scale.set(0.55, 0.14, 1);
+  sprite.position.y = 1.72;
+  sprite.name = "angelina-name";
+  return sprite;
+}
+
+function ensureAngelina(playerActor) {
+  let guide = actors.get("angelina");
+  if (!guide) {
+    guide = ensureActor("angelina", "angelina", false);
+    if (!guide) return null;
+    guide.isGuide = true;
+    guide.group.name = "angelina";
+    if (guide.root) guide.root.name = "angelina-mesh";
+    guide.group.add(angelinaNameSprite());
+  }
+  if (playerActor && !guide._placed) {
+    const yaw = playerActor.group.rotation.y;
+    guide.wx = playerActor.wx - Math.sin(yaw) * 1.7 + Math.cos(yaw) * 1.35;
+    guide.wz = playerActor.wz - Math.cos(yaw) * 1.7 - Math.sin(yaw) * 1.35;
+    guide.group.position.set(guide.wx, 0, guide.wz);
+    guide._placed = true;
+  }
+  return guide;
+}
+
+function updateAngelinaFollow(dt, pl) {
+  const guide = actors.get("angelina");
+  if (!guide || !pl) return;
+  const yaw = pl.group.rotation.y;
+  const tx = pl.wx - Math.sin(yaw) * 1.7 + Math.cos(yaw) * 1.35;
+  const tz = pl.wz - Math.cos(yaw) * 1.7 - Math.sin(yaw) * 1.35;
+  const tgt = clampWorld(tx, tz);
+  const lerp = Math.min(1, dt * 6.5);
+  guide.wx += (tgt.x - guide.wx) * lerp;
+  guide.wz += (tgt.z - guide.wz) * lerp;
+  guide.group.position.set(guide.wx, 0, guide.wz);
+  const move = Math.hypot(tgt.x - guide.wx, tgt.z - guide.wz);
+  const following = move > 0.08 || (pl._spd || 0) > 0.2;
+  if (following) {
+    const ty = Math.atan2(pl.wx - guide.wx, pl.wz - guide.wz);
+    let diff = ty - guide.group.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    guide.group.rotation.y += diff * Math.min(1, dt * 8);
+  }
+  fadeTo(guide, following ? "walk" : "idle");
 }
 
 function spawnParticles(locId) {
@@ -449,7 +617,7 @@ function clampWorld(x, z, radius = 0.42) {
 }
 
 function separateActors() {
-  const list = [...actors.values()].filter(a => !a.isDog);
+  const list = [...actors.values()].filter(a => !a.isDog && !a.isGuide);
   const dog = actors.get("dog");
   const pl = actors.get("player");
   if (dog && pl) {
@@ -1288,6 +1456,9 @@ function sync(data) {
     placeActorWorld(a, a.wx, a.wz, false, true);
   });
 
+  keep.add("angelina");
+  ensureAngelina(actors.get("player"));
+
   actors.forEach((a, id) => {
     if (!keep.has(id)) {
       scene.remove(a.group);
@@ -1389,6 +1560,7 @@ function loop() {
   tickNpcPatrols(dt);
   const pl = actors.get("player");
   if (pl && actors.get("dog")) updateDogFollow(dt, pl);
+  if (pl && actors.get("angelina")) updateAngelinaFollow(dt, pl);
   if (pl) {
     pl._vy = (pl._vy || 0) - 14 * dt;
     let y = (pl.group.position.y || 0) + pl._vy * dt;
@@ -1594,6 +1766,31 @@ const api = {
     if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
   },
   placeCityStone: (x, z) => placeCityStone(x, z, true),
+  placeRoomPiece: (type, x, z) => placeRoomPiece(type, x, z, true),
+  placeCityPlot: plot => placeCityPlot(plot, true),
+  ensurePlotPads,
+  angelinaMark: () => {
+    const guide = actors.get("angelina");
+    const pl = actors.get("player");
+    if (!guide?.root) return { present: false, following: false, dist: null };
+    const dist = pl ? Math.hypot(guide.wx - pl.wx, guide.wz - pl.wz) : null;
+    return {
+      present: true,
+      following: dist != null && dist < 3.2,
+      dist,
+      mesh: guide.root.name === "angelina-mesh",
+      named: !!guide.group.getObjectByName("angelina-name"),
+      plotPads: currentLoc === "city" ? (window.ChapterBuild?.CITY_PLOTS || []).filter(plot =>
+        !!locationRoot?.getObjectByName("plot-pad-" + plot.id)
+      ).length : 0,
+      roomPieces: currentLoc === "room" ? (window.me?.roomPieces || []).filter((_, index) =>
+        !!locationRoot?.getObjectByName("room-piece-" + index)
+      ).length : (window.me?.roomPieces || []).length,
+      plots: (window.me?.cityPlots || []).filter(plot =>
+        !!locationRoot?.getObjectByName("plot-built-" + plot.id)
+      ).length
+    };
+  },
   setPortalGrace: (ms = 1500) => {
     portalGraceUntil = performance.now() + ms;
   },

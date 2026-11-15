@@ -46,7 +46,12 @@ function soloMode() {
 }
 
 function isPreviewBuild() {
-  return window.__PUNK_PREVIEW__ === true;
+  if (window.__PUNK_PREVIEW__ === true) return true;
+  try {
+    return new URLSearchParams(location.search).has("solo");
+  } catch (e) {
+    return false;
+  }
 }
 
 function demoPartyMode() {
@@ -515,6 +520,8 @@ function applyFirebasePlayerSnapshot(snap) {
     if (v.chapter1 && typeof v.chapter1 === "object") me.chapter1 = v.chapter1;
     me.avatarLook = cleanAvatarLook(v.avatarLook);
     if (Array.isArray(v.cityStones)) me.cityStones = v.cityStones;
+    if (Array.isArray(v.roomPieces)) me.roomPieces = v.roomPieces;
+    if (Array.isArray(v.cityPlots)) me.cityPlots = v.cityPlots;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
     me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
@@ -530,6 +537,7 @@ function applyFirebasePlayerSnapshot(snap) {
   me.level = levelFromXp(me.xp || 0);
   me.lastSeen = Date.now();
   if (window.StoryEngine?.ensureStoryState) window.StoryEngine.ensureStoryState(me);
+  window.Chapter1?.adoptChapterSave?.(me);
   if (me.characterId) writeStoredCharacterId(me.characterId);
 }
 
@@ -966,6 +974,7 @@ function pickCharacterAndContinue(pick) {
   if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
   me.characterId = id;
   me.avatarLook = cleanAvatarLook(typeof pick === "object" ? pick.look : null);
+  window.Chapter1?.adoptChapterSave?.(me);
   writeStoredCharacterId(id);
   const def = getCharacterDef(id);
   me.avatar = def.poster;
@@ -998,6 +1007,7 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    window.ChapterBuild?.refresh?.();
     window.Chapter1?.onWorldReady?.();
   } catch (err) {
     console.error("continueGameBoot", err);
@@ -1129,10 +1139,26 @@ function sanitizePlayer(p) {
         }
       : { step: 0, progress: {}, done: false, paid: {} },
     chapter1: p.chapter1 && typeof p.chapter1 === "object"
-      ? { crawlSeen: !!p.chapter1.crawlSeen, finaleSeen: !!p.chapter1.finaleSeen, ended: !!p.chapter1.ended }
-      : { crawlSeen: false, finaleSeen: false, ended: false },
+      ? {
+          crawlSeen: !!p.chapter1.crawlSeen,
+          finaleSeen: !!p.chapter1.finaleSeen,
+          ended: !!p.chapter1.ended,
+          playId: p.chapter1.playId === "ch1-child" ? "ch1-child" : null
+        }
+      : { crawlSeen: false, finaleSeen: false, ended: false, playId: null },
     avatarLook: cleanAvatarLook(p.avatarLook),
-    cityStones: Array.isArray(p.cityStones) ? p.cityStones.slice(0, 24) : []
+    cityStones: Array.isArray(p.cityStones) ? p.cityStones.slice(0, 24) : [],
+    roomPieces: Array.isArray(p.roomPieces) ? p.roomPieces.slice(0, 12).map(piece => ({
+      type: String(piece.type || "lamp"),
+      x: Number(piece.x) || 0,
+      z: Number(piece.z) || 0
+    })) : [],
+    cityPlots: Array.isArray(p.cityPlots) ? p.cityPlots.slice(0, 8).map(plot => ({
+      id: String(plot.id || ""),
+      kind: String(plot.kind || "stall"),
+      x: Number(plot.x) || 0,
+      z: Number(plot.z) || 0
+    })) : []
   };
 }
 
@@ -1400,6 +1426,7 @@ function goLocation(id, fromHash) {
     setTimeout(() => runJobAction(act), 350);
   }
   afterLocationChange();
+  window.ChapterBuild?.refresh?.();
 }
 
 function onRoomClick(e) {
