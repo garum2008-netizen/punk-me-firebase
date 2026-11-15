@@ -1484,6 +1484,11 @@ function initMobileTravelNav() {
     if (sheet?.classList.contains("open")) {
       e.preventDefault();
       closeMobileNavSheet();
+      return;
+    }
+    const storyDlg = document.getElementById("storyDialog");
+    if (storyDlg?.classList.contains("active")) {
+      window.StoryEngine?.dismissAllStoryUi?.();
     }
   });
 }

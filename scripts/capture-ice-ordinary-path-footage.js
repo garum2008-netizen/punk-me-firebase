@@ -42,6 +42,7 @@ function ordinaryPassTag() {
 let t0 = 0;
 const inputLog = [];
 const scenes = [];
+const renderDiagSamples = [];
 
 function logInput(type, detail) {
   const row = { tMs: Date.now() - t0, type, detail };
@@ -236,15 +237,41 @@ async function postFinalizeRecordingSession(r) {
 
   let luminanceGate = { ok: true, skipped: true };
   const lumDir = path.join(OUT, `luminance-scan-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
+  const timelinePath = path.join(OUT, `recording-timeline-${SHA.slice(0, 12)}-${ordinaryPassTag()}.json`);
+  if (r.studioWallMs != null || r.renderDiagSamples) {
+    fs.writeFileSync(
+      timelinePath,
+      JSON.stringify(
+        {
+          sha: SHA,
+          gameplayAlignedRecording: !!r.gameplayAlignedRecording,
+          studioWallMs: r.studioWallMs ?? null,
+          studioMaxWallMs: 70000,
+          renderDiagSamples: r.renderDiagSamples || [],
+          scenes: r.scenes || [],
+        },
+        null,
+        2
+      )
+    );
+    r.recordingTimeline = timelinePath;
+  }
   if (r.file && fs.existsSync(r.file)) {
+    const ignoreSec =
+      r.gameplayAlignedRecording && r.studioWallMs != null && r.studioWallMs <= 70000 ? "0" : process.env.VIDEO_LUMINANCE_IGNORE_BEFORE_SEC || "70";
     const lumEnv = {
       ...process.env,
-      VIDEO_LUMINANCE_IGNORE_BEFORE_SEC: process.env.VIDEO_LUMINANCE_IGNORE_BEFORE_SEC || "70",
+      VIDEO_LUMINANCE_IGNORE_BEFORE_SEC: ignoreSec,
+      RECORDING_TIMELINE_JSON: timelinePath,
     };
-    const lum = spawnSync("node", [path.join(ROOT, "scripts/video-luminance-scan.js"), r.file, lumDir], {
+    const lum = spawnSync(
+      "node",
+      [path.join(ROOT, "scripts/video-luminance-scan.js"), r.file, lumDir, timelinePath],
+      {
       env: lumEnv,
       encoding: "utf8",
-    });
+    }
+    );
     const lumJson = path.join(lumDir, "LUMINANCE_SCAN.json");
     if (fs.existsSync(lumJson)) {
       try {
@@ -603,7 +630,7 @@ async function pickAngelina(page) {
     document.querySelector('[data-testid="character-studio-confirm"]')?.click();
   });
   await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(400);
   await captureHeroProof(page, "00-studio-confirm");
 }
 
@@ -704,6 +731,12 @@ async function completeOnboarding(page) {
         await page.keyboard.press("Escape").catch(() => {});
         await page.click("#gangModal .close").catch(() => {});
       }
+      await page.evaluate(() => {
+        window.StoryEngine?.dismissAllStoryUi?.();
+        window.StoryEngine?.clearDialogueCamera?.();
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.resetFollowCamera?.();
+      });
     } else if (step === 3) {
       await ensureStreetLocation(page);
       for (let burst = 0; burst < 42; burst++) {
@@ -1200,43 +1233,6 @@ async function runOrdinarySession(browser, viewport, label) {
     segmentDir = path.join("/tmp", `punk-seg-${shaShort}-${passTag}`);
     if (fs.existsSync(segmentDir)) fs.rmSync(segmentDir, { recursive: true, force: true });
     fs.mkdirSync(segmentDir, { recursive: true });
-    const disp = process.env.DISPLAY || ":1";
-    const ffmpegLog = path.join(OUT, `ffmpeg-x11grab-${shaShort}-${passTag}.log`);
-    const logOut = fs.openSync(ffmpegLog, "w");
-    const segPattern = path.join(segmentDir, "part-%03d.mkv");
-    ffmpegProc = spawn(
-      FFMPEG,
-      [
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "warning",
-        "-f",
-        "x11grab",
-        "-framerate",
-        "12",
-        "-video_size",
-        "1280x720",
-        "-i",
-        disp,
-        "-c:v",
-        "libx264",
-        "-preset",
-        "ultrafast",
-        "-crf",
-        "20",
-        "-pix_fmt",
-        "yuv420p",
-        "-f",
-        "segment",
-        "-segment_time",
-        "120",
-        "-reset_timestamps",
-        "1",
-        segPattern,
-      ],
-      { stdio: ["ignore", logOut, logOut] }
-    );
   }
 
   const ctx = await browser.newContext({
@@ -1270,23 +1266,80 @@ async function runOrdinarySession(browser, viewport, label) {
     return route.continue();
   });
 
-  t0 = Date.now();
-  const recordStartMs = Date.now();
   inputLog.length = 0;
   scenes.length = 0;
+  renderDiagSamples.length = 0;
   const recordingStartUtc = new Date();
   const recordingStartCet = cetTimestamp(recordingStartUtc);
-  if (useFfmpegGrab) {
-    logScene("ffmpeg_x11grab", `recording ${dest}`);
-  }
 
   logInput("navigation", entryUrl);
   await page.goto(entryUrl, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.bringToFront();
   await dismissHowTo(page);
+  const studioWallStart = Date.now();
   await pickAngelina(page);
+  const studioWallEndMs = Date.now() - studioWallStart;
+  logScene("studio_complete", `wallMs=${studioWallEndMs}`);
   await dismissHowTo(page);
   await page.waitForFunction(() => window.World3D?.isReady?.(), undefined, { timeout: 120000 }).catch(() => {});
+
+  t0 = Date.now();
+  const recordStartMs = Date.now();
+  let diagTimer = setInterval(async () => {
+    try {
+      const tSec = +((Date.now() - t0) / 1000).toFixed(2);
+      const snap = await page.evaluate(() => {
+        const st = window.me || {};
+        return {
+          loc: st.location,
+          onboardingStep: st.onboarding?.step,
+          diag: window.World3D?.getRenderDiag?.() || null,
+        };
+      });
+      renderDiagSamples.push({ tSec, ...snap });
+    } catch (_) {}
+  }, 5000);
+
+  if (useFfmpegGrab) {
+    const ffmpegLog = path.join(OUT, `ffmpeg-x11grab-${shaShort}-${passTag}.log`);
+    const logOut = fs.openSync(ffmpegLog, "w");
+    const segPattern = path.join(segmentDir, "part-%03d.mkv");
+    ffmpegProc = spawn(
+      FFMPEG,
+      [
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "warning",
+        "-f",
+        "x11grab",
+        "-framerate",
+        "12",
+        "-video_size",
+        "1280x720",
+        "-i",
+        process.env.DISPLAY || ":1",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-f",
+        "segment",
+        "-segment_time",
+        "120",
+        "-reset_timestamps",
+        "1",
+        segPattern,
+      ],
+      { stdio: ["ignore", logOut, logOut] }
+    );
+    logScene("ffmpeg_x11grab", `recording ${dest} (gameplay t=0 after studio)`);
+    logScene("gameplay_recording_start", `studioPreRollMs=${studioWallEndMs}`);
+  }
 
   const onboardingResult = await completeOnboarding(page);
   if (PORTAL_GATE_ONLY) {
@@ -1309,6 +1362,7 @@ async function runOrdinarySession(browser, viewport, label) {
     };
   }
   const completed = onboardingResult === true ? await playLifeCh1Ordinary(page) : false;
+  clearInterval(diagTimer);
   const recordingEndUtc = new Date();
   const recordingEndCet = cetTimestamp(recordingEndUtc);
   const sessionEndMs = Date.now();
@@ -1346,6 +1400,9 @@ async function runOrdinarySession(browser, viewport, label) {
     file: dest,
     inputLog: inputLog.slice(),
     scenes: scenes.slice(),
+    renderDiagSamples: renderDiagSamples.slice(),
+    studioWallMs: studioWallEndMs,
+    gameplayAlignedRecording: true,
   };
 }
 

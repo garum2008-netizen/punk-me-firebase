@@ -10,13 +10,14 @@ const sharp = require("sharp");
 
 const video = process.argv[2];
 const outDir = process.argv[3] || path.join(path.dirname(video || "."), "luminance-scan");
+const timelinePath = process.argv[4] || process.env.RECORDING_TIMELINE_JSON || "";
 const intervalSec = Number(process.env.VIDEO_LUMINANCE_INTERVAL_SEC || 5);
 const nearBlackCanvas = Number(process.env.VIDEO_LUMINANCE_CANVAS_NEAR_BLACK || 48);
 const nearBlackFull = Number(process.env.VIDEO_LUMINANCE_NEAR_BLACK || 14);
 const maxStreakSec = Number(process.env.VIDEO_LUMINANCE_MAX_STREAK_SEC || 3);
 const sampleEvery = Math.max(1, intervalSec);
 const mode = process.env.VIDEO_LUMINANCE_MODE || "canvas";
-const ignoreBeforeSec = Number(process.env.VIDEO_LUMINANCE_IGNORE_BEFORE_SEC || 70);
+let ignoreBeforeSec = Number(process.env.VIDEO_LUMINANCE_IGNORE_BEFORE_SEC || 70);
 
 if (!video || !fs.existsSync(video)) {
   console.error("usage: node scripts/video-luminance-scan.js <video> [outDir]");
@@ -72,6 +73,18 @@ async function meanLumaCanvas(pngPath) {
 
 async function main() {
   fs.mkdirSync(outDir, { recursive: true });
+  let timeline = null;
+  if (timelinePath && fs.existsSync(timelinePath)) {
+    try {
+      timeline = JSON.parse(fs.readFileSync(timelinePath, "utf8"));
+    } catch (_) {}
+  }
+  const studioMaxWallMs = Number(timeline?.studioMaxWallMs || process.env.STUDIO_MAX_WALL_MS || 70000);
+  const studioWallMs = timeline?.studioWallMs != null ? Number(timeline.studioWallMs) : null;
+  const studioAssertOk = studioWallMs == null ? true : studioWallMs <= studioMaxWallMs;
+  if (timeline?.gameplayAlignedRecording) {
+    ignoreBeforeSec = 0;
+  }
   const duration = ffprobeDuration(video);
   const fps = 1 / sampleEvery;
   const pattern = path.join(outDir, "frame-%04d.png");
@@ -124,11 +137,18 @@ async function main() {
     mode,
     nearBlackThreshold: mode === "full" ? nearBlackFull : nearBlackCanvas,
     ignoreBeforeSec,
+    studioAssert: {
+      gameplayAlignedRecording: !!timeline?.gameplayAlignedRecording,
+      studioWallMs,
+      studioMaxWallMs,
+      ok: studioAssertOk,
+    },
     maxStreakSecAllowed: maxStreakSec,
     sampleCount: samples.length,
     worstNearBlackStreak: worst,
-    ok: worst.streakSec <= maxStreakSec,
-    samples
+    ok: worst.streakSec <= maxStreakSec && studioAssertOk,
+    samples,
+    renderDiagSamples: timeline?.renderDiagSamples || [],
   };
   fs.writeFileSync(path.join(outDir, "LUMINANCE_SCAN.json"), JSON.stringify(manifest, null, 2));
   console.log(JSON.stringify({ ok: manifest.ok, mode, worst: manifest.worstNearBlackStreak }, null, 2));

@@ -152,6 +152,10 @@ function releaseCaptureFrame() {
 
 function clearStaleDialogueCapture() {
   if (isDuelActive()) return;
+  const storyDlg = document.getElementById("storyDialog");
+  if (storyDlg && !isStoryUiBlockingWorldCamera()) {
+    storyDlg.classList.remove("active", "story-dialog-cinematic", "life-ch1-dialog");
+  }
   if (typeof window.isBuildMode === "function" && window.isBuildMode()) {
     if (captureFrameLock || dialogueCameraLock) releaseCaptureFrame();
     return;
@@ -3402,7 +3406,10 @@ const api = {
   },
   getRenderDiag: () => {
     const pl = actors.get("player");
+    const look = new THREE.Vector3();
+    camera?.getWorldDirection(look);
     return {
+      activeScene: currentLoc,
       loc: currentLoc,
       sceneChildren: scene?.children?.length ?? 0,
       locationRootVisible: !!locationRoot?.visible,
@@ -3417,7 +3424,12 @@ const api = {
             x: +camera.position.x.toFixed(2),
             y: +camera.position.y.toFixed(2),
             z: +camera.position.z.toFixed(2),
-            fov: camera.fov
+            fov: camera.fov,
+            lookAt: {
+              x: +(camera.position.x + look.x * 3).toFixed(2),
+              y: +(camera.position.y + look.y * 3).toFixed(2),
+              z: +(camera.position.z + look.z * 3).toFixed(2)
+            }
           }
         : null,
       player: pl ? { wx: pl.wx, wz: pl.wz, y: pl.group?.position?.y } : null,
