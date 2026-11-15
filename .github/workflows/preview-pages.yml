@@ -8,6 +8,26 @@ on:
       - cursor/chapter1-ship-c480
 
 jobs:
+  check-github-pages-environment:
+    runs-on: ubuntu-latest
+    environment: github-pages
+    steps:
+      - name: Check environment secret names only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "MISSING secret CLOUDFLARE_API_TOKEN (environment github-pages)"
+          else
+            echo "PRESENT secret CLOUDFLARE_API_TOKEN (environment github-pages)"
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "MISSING secret CLOUDFLARE_ACCOUNT_ID (environment github-pages)"
+          else
+            echo "PRESENT secret CLOUDFLARE_ACCOUNT_ID (environment github-pages)"
+          fi
+          exit 0
   deploy:
     runs-on: ubuntu-latest
     steps:
