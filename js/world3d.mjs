@@ -1053,6 +1053,7 @@ function hideWorldLoadProgress() {
 function markRoomPlayable() {
   if (roomPlayableMarked) return;
   roomPlayableMarked = true;
+  document.body.classList.add("mode-world3d");
   const page0 = window.__punkPageLoadStart || performance.now();
   const anchor = window.__punkCharacterConfirmMs || page0;
   window.__punkTimeToRoomPlayableFromNavigationMs = Math.round(performance.now() - page0);
@@ -2550,7 +2551,6 @@ function init(h) {
   initControls3D(canvas, delta => { cameraYaw += delta; });
   initTouchControls({ onCameraOrbit: delta => { cameraYaw += delta; } });
   window.addEventListener("resize", resize);
-  document.body.classList.add("mode-world3d");
 
   onMeshyTemplateLoaded(rebuildActorsForCharacter);
 
