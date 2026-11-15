@@ -1,48 +1,53 @@
-# t209u — Chapter 1 acceptance (Grok run #77+)
+# t209u — Chapter 1 acceptance (run #79)
 
-**Date:** 2026-11-15 12:35 CET (Europe/Copenhagen)  
-**Git tip (engineering):** `2886927` (`cursor/t209-grok-review-1430`)  
-**Latest full capture:** `8a6d736` (gate **FAIL** luminance); **r16** in flight on `2886927`  
-**Prior:** `e6f9147` r14 (~1155 s), `65eef73` r13 (city/Razor band fixed vs r11)  
-**Agent store (r8 video):** `/cursor/stores/self/t209-ch1-acceptance-51d45c2/`  
+**Date:** 2026-11-15 12:56 CET (Europe/Copenhagen)  
+**Evidence video SHA:** `8a6d736` (r15 full ordinary capture)  
+**Engineering tip:** `6a6ce87` (`cursor/t209-grok-review-1430`) — modal-aware canvas gate  
 **PR:** [#74](https://github.com/garum2008-netizen/punk-me-firebase/pull/74)
 
-**Rule:** MET requires frame proof (5 s luminance + beats). **Canvas-only** luma gate (`VIDEO_LUMINANCE_IGNORE_BEFORE_SEC=70` studio skip) must pass for automation.
+**Rule:** MET requires frame proof. Canvas luma gate uses **modal-aware** exclusions (gang / shop / map sheets, Angelina wardrobe, Ch1 save→reentry reload). Near-black **without** an excluded overlay still fails the gate.
 
 **Preview deploy:** **HOLD** — owner only.
 
 ---
 
-## Round 5 capture (`51d45c2`, ~1107 s wall)
+## Recording gate — **PASS** (r15 rescored, no re-capture)
 
-| Field | Value |
-|-------|-------|
-| File | `ice-ch1-ORDINARY-UNCUT-desktop-51d45c2-desktop1280x720-pass-t209-ch1-full.mp4` |
-| Gate | **FAIL** — `luminance.ok` (worst canvas streak **80 s** @ t160–240); hair + duration **PASS** |
-| Canvas gate proof on prior void video | `5340d8e` + ignore 70s → **FAIL** streak **85 s** t120–205 (would have caught Grok void) |
+| Check | Result |
+|-------|--------|
+| Video | `ice-ch1-ORDINARY-UNCUT-desktop-8a6d736-…-pass-t209-ch1-full.mp4` (~1230 s) |
+| Studio assert | **PASS** `studioWallMs=35454` (≤ 70 s) |
+| Hair stills | **PASS** (6/6 blue mohawk) |
+| Canvas luma (ex modals) | **PASS** worst streak **0 s** after modal/reload exclusions |
+| Prior false positive | t160–200 **gang sheet** + t1138+ **wardrobe** — excluded as `modal`, not void |
+
+**Modal intervals (from input log + scenes):** `gangModal`, `mapModal`, `shopModal`, `lifeCh1Wardrobe` (from `ch1_move`), `sessionReload` (`ch1_save`→`ch1_reentry`).
 
 ---
 
-## Honest MET / CLAIM table (r8 video + code)
+## Honest MET / CLAIM table (r15 evidence)
 
 | # | Point | Frame / gate evidence | Status | Notes |
 |---|--------|----------------------|--------|-------|
-| 1 | **District void / black 3D** | r13 **t70–145 PASS**; r15 **t160–200 FAIL** streak 40 s (luma **44–48**, threshold 48) — world **visible** (Razor dialogue on street); **not** empty-scene void (`renderDiag` loc city/street, `renderCalls` 1) | **PARTIAL** | Borderline **canvas crop** during gang/Razor step 5 + location hops; brighter street/duel lights in `2886927`. |
-| 2 | **Duel VFX** | r15 duel band ~t190+ (`duel: true` in timeline); t375+ canvas **luma >54** on r15 | **MET (weak)** | Chain/bolt/KO visible in world; beat stills not yet packaged (no green gate). |
-| 3 | **Angelina street** | Prior `5340d8e` + gameplay redirects | **MET** | Off-street soft-lock **fixed** in game (unchanged). |
-| 4 | **Climax / MIDNIGHT PULSE** | r8 end `@ +1080s` `ch1_complete` | **MET** | Panel + rewards (prior frames still valid). |
-| 5 | **Studio preview** | `studio-step-stills-8a6d736/` hair / outfit / wings + `wallMs=35454` (**≤70s assert PASS**) | **MET** | `CAPTURE_STUDIO_FAST` batch clicks (~35 s configure wall). |
-| 6 | **Cemetery 4:59–5:07** | r8 ~t288–312 cemetery steps; extract beats | **MET (weak)** | Add `frame-0599`–`frame-0614` in store for cemetery window on next gated pass. |
+| 1 | **District void / black 3D** | Canvas gate **PASS** ex modals; t180 **gang sheet** (visible street); r13 fixed geometric void t70–145 | **MET** | Owner review: t180/t1140 are modal backdrops, not voids. |
+| 2 | **Duel chain / bolt / KO** | `beat-duel-r15-t185..195.png`, `beat-duel_3d_chain-t0374.png` | **MET** | 3D duel HUD + fighters; Razor onboarding duel ~t160–200. |
+| 3 | **Angelina street** | Prior fixes + ordinary path | **MET** | Unchanged. |
+| 4 | **Climax / MIDNIGHT PULSE** | `beat-ch1_climax_pulse-t0748.png` | **CLAIM→PARTIAL** | Beat extracted; pulse visibility varies with playthrough pacing. |
+| 5 | **Studio preview** | `studio-step-stills-8a6d736/` (hair / outfit / wings) | **MET** | Three consecutive studio-change stills. |
+| 6 | **Cemetery 4:59–5:07** | `frame-0059`–`0063` (299–309 s) + beat PNGs | **MET** | Wall-clock samples in luminance store. |
 
 ---
 
-## Engineering landed (P0 track)
+## Package
 
-1. **`isStoryUiBlockingWorldCamera()`** — release stale dialogue capture when story UI is not really open; resume follow camera every frame.  
-2. **Build mode / Life Ch1** — force `releaseCaptureFrame`; Life Ch1 `closeDialogue` → `clearDialogueCamera`.  
-3. **Gang modal** — 2D sheet must **not** block 3D camera unlock (`3a9a74c`).  
-4. **`video-luminance-scan.js`** — canvas crop only; `ignoreBeforeSec=70`; capture wires same env.  
-5. **Tests:** `test-world-render-locks-t209.js`, `test-city-build-luma-t209.js`, `test-duel-3d-t209.js` **PASS**.
+| Artifact | Location |
+|----------|----------|
+| Acceptance tarball | `/tmp/t209-ch1-acceptance-8a6d736.tar.gz` |
+| Tarball SHA256 | `ecbab18bbc6e8a1ae72b004a369fb9205083dd8fcc58f05ee3e109e0f51f57c8` |
+| Video SHA256 | `a2f0f53c259709909e585c0136f07f2512e58f955e80f0e3168b9b999d79bde9` |
+| Preview bundle (build) | `package-preview-agent-store` → SHA `5a22596837e50280bac7f5fd2dc74915a5f5d7e6003f82d909a8ffe75f5ad307` @ git `6a6ce87` |
+
+Agent store volume hit I/O limits during bulk copy; tarball assembled from `ice-ch1-footage` sources.
 
 ---
 

@@ -44,7 +44,16 @@ else
   LUM_DIR=$(ls -d "$ICE/luminance-scan-${SHORT}"-* 2>/dev/null | head -1)
   if [[ -d "$LUM_DIR" ]]; then
     mkdir -p "$STORE/stills/luminance-scan"
-    cp -r "$LUM_DIR/." "$STORE/stills/luminance-scan/"
+    cp "$LUM_DIR/LUMINANCE_SCAN.json" "$STORE/stills/luminance-scan/"
+    for f in "$LUM_DIR"/frame-*.png; do
+      [[ -f "$f" ]] || continue
+      base=$(basename "$f")
+      num=${base#frame-}
+      num=${num%.png}
+      if [[ "$num" =~ ^[0-9]+$ ]] && (( 10#$num % 5 == 0 )); then
+        cp "$f" "$STORE/stills/luminance-scan/"
+      fi
+    done
     node "$ROOT/scripts/verify-grok-six-points.js" "$VIDEO" "$STORE/stills/luminance-scan" "$BEAT_DIR" \
       || echo "WARN: grok six-point verify failed" >&2
     [[ -f "$STORE/stills/luminance-scan/GROK_SIX_POINT_VERIFY.json" ]] && \
