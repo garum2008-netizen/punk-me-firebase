@@ -958,6 +958,9 @@ async function completeOnboarding(page) {
         if (window.me?.location !== "street") window.goLocation?.("street");
       });
       await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 45000 });
+      await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, {
+        timeout: 60000,
+      });
       await page.waitForTimeout(600);
       await ensureStreetLocation(page, { mapOnly: true });
       await openGangWithRazor(page, "gang → razor fight", { mapOnly: true });
@@ -972,16 +975,26 @@ async function completeOnboarding(page) {
         page.waitForFunction(duelHudVisible, undefined, { timeout: ms }).catch(() => null);
       if (!(await waitDuelHud(40000))) {
         logScene("onboarding_duel_retry", "direct startNpcFight after UI miss");
-        await page.evaluate(() => {
+        const duelDiag = await page.evaluate(async () => {
           if (window.me?.location !== "street") window.goLocation?.("street");
           window.closeModal?.("gangModal");
           window.World3D?.releaseCaptureFrame?.();
           window.World3D?.snapPlayerToLocationSpawn?.();
-          window.startNpcFight?.("razor");
+          await new Promise(r => setTimeout(r, 700));
+          const snap = window.World3D?.getPlayerActorSnapshot?.() || null;
+          const okDirect = window.World3D?.startDuel3D?.("razor", { training: true, firstTo: 1 });
+          if (!okDirect) window.startNpcFight?.("razor");
+          return {
+            loc: window.me?.location,
+            mode3d: document.body.classList.contains("mode-world3d"),
+            snapMesh: snap?.meshHeroId || null,
+            okDirect,
+          };
         });
+        logScene("onboarding_duel_diag", JSON.stringify(duelDiag));
         await page.waitForTimeout(800);
         if (!(await waitDuelHud(55000))) {
-          throw new Error("onboarding_duel_hud_never_visible");
+          throw new Error(`onboarding_duel_hud_never_visible ${JSON.stringify(duelDiag)}`);
         }
       }
       const duel2d = await page.evaluate(

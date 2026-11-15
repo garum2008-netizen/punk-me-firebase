@@ -2566,22 +2566,24 @@ function startNpcFight(nid) {
       return;
     }
     if (onboardFight) {
+      const armDuel = ok => {
+        if (!ok) return false;
+        fight = {
+          npcName: tNpcName(wantId),
+          npcHp: 100,
+          npcMax: 100,
+          playerHp: 100,
+          playerMax: 100,
+          shield: 0,
+          log: [],
+          _duel3d: true
+        };
+        window._duel3dEnd = win => endFight(win);
+        return true;
+      };
+      if (armDuel(beginDuel3D())) return;
       setTimeout(() => {
-        const ok = beginDuel3D();
-        if (!ok) toast(t("fight_try_again") || "3D duel unavailable");
-        else {
-          fight = {
-            npcName: tNpcName(wantId),
-            npcHp: 100,
-            npcMax: 100,
-            playerHp: 100,
-            playerMax: 100,
-            shield: 0,
-            log: [],
-            _duel3d: true
-          };
-          window._duel3dEnd = win => endFight(win);
-        }
+        if (!armDuel(beginDuel3D())) toast(t("fight_try_again") || "3D duel unavailable");
       }, duelSyncMs);
       return;
     }
