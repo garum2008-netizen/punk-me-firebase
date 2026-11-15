@@ -1023,7 +1023,11 @@ async function ensureRoomForLifeCh1(page) {
   let loc = await page.evaluate(() => window.me?.location);
   if (loc === "room") return;
   logScene("ensure_room", `Life Ch1 move requires room, currently ${loc}`);
-  await uiOpenMapTravel(page, "room");
+  if (loc === "city" || loc === "street" || loc === "cemetery") {
+    if (!(await tryPortalTravel(page, "room", 90000))) await uiOpenMapTravel(page, "room");
+  } else {
+    await uiOpenMapTravel(page, "room");
+  }
   await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 120000 });
   await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 45000 });
   await focusStage(page);

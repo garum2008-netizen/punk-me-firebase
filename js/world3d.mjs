@@ -1075,7 +1075,8 @@ function rebuildLocation(locId) {
   scene.fog = new THREE.FogExp2(theme.fog, theme.fogD);
   scene.background = new THREE.Color(theme.bg);
   if (locFillLight) scene.remove(locFillLight);
-  locFillLight = new THREE.PointLight(theme.hemi || 0xffccff, 3.2, 28);
+  const fillPow = locId === "city" || locId === "street" || locId === "room" ? 4.6 : 3.2;
+  locFillLight = new THREE.PointLight(theme.hemi || 0xffccff, fillPow, 32);
   locFillLight.position.set(0, 4.2, 1);
   scene.add(locFillLight);
   locationProps = built.props || { showCar: false };
@@ -1089,10 +1090,14 @@ function rebuildLocation(locId) {
   onGameplayLocationBuilt(locId, locationRoot, bounds);
   if (renderer) {
     const prev = renderer.toneMappingExposure;
-    renderer.toneMappingExposure = Math.min(1.55, prev * 1.12);
-    requestAnimationFrame(() => {
-      renderer.toneMappingExposure = prev;
-    });
+    renderer.toneMappingExposure = Math.min(1.68, prev * 1.2);
+    let frames = 0;
+    const pulse = () => {
+      frames += 1;
+      if (frames < 12) requestAnimationFrame(pulse);
+      else renderer.toneMappingExposure = prev;
+    };
+    requestAnimationFrame(pulse);
   }
 }
 
