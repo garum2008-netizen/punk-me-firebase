@@ -20,7 +20,8 @@ fi
 
 VIDEO=""
 for f in "$ICE/ice-ch1-ORDINARY-UNCUT-desktop-${SHORT}"-*-"${PASS_TAG}.webm" \
-         "$ICE/ice-ch1-ORDINARY-UNCUT-desktop-${SHORT}"-*-"${PASS_TAG}.mp4"; do
+         "$ICE/ice-ch1-ORDINARY-UNCUT-desktop-${SHORT}"-*-"${PASS_TAG}.mp4" \
+         "$ICE/ice-ch1-ORDINARY-UNCUT-desktop-${SHORT}"-*-"${PASS_TAG}.mkv"; do
   if [[ -f "$f" ]]; then
     if [[ "$f" == *45b073f3acef* ]] || [[ "$f" == *7d3d245d* ]]; then
       continue

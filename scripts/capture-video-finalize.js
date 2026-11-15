@@ -80,8 +80,9 @@ async function stopFfmpegGraceful(proc, mkvDest, minBytes) {
   await new Promise(resolve => {
     if (proc.exitCode != null) return resolve();
     proc.once("close", resolve);
-    setTimeout(resolve, 8000);
+    setTimeout(resolve, 15000);
   });
+  if (fs.existsSync(mkvDest) && fs.statSync(mkvDest).size >= minBytes) return true;
   return ok && fs.existsSync(mkvDest) && fs.statSync(mkvDest).size >= minBytes;
 }
 

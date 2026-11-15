@@ -183,9 +183,9 @@ async function preFinalizeRecordingSession(r) {
         r.videoFormat = remux.format;
       } else if (remux.ok) {
         r.videoFormat = remux.format || "webm";
-      } else if (r.mkvDest.endsWith(".mp4") && fs.existsSync(r.mkvDest) && fs.statSync(r.mkvDest).size >= minB) {
+      } else if (fs.existsSync(r.mkvDest) && fs.statSync(r.mkvDest).size >= minB) {
         r.file = r.mkvDest;
-        r.videoFormat = "mp4";
+        r.videoFormat = r.mkvDest.endsWith(".mkv") ? "mkv" : "mp4";
       } else {
         r.videoSaveError = remux.error || "remux_failed";
       }
@@ -1063,14 +1063,14 @@ async function runOrdinarySession(browser, viewport, label) {
     OUT,
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
-  let captureRawDest = dest.replace(/\.webm$/i, ".mp4");
+  let captureRawDest = dest.replace(/\.webm$/i, ".mkv");
   let ffmpegProc = null;
   const useFfmpegGrab =
     viewport.width >= 1000 && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
   if (useFfmpegGrab) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     if (fs.existsSync(dest)) fs.unlinkSync(dest);
-    captureRawDest = dest.replace(/\.webm$/i, ".mp4");
+    captureRawDest = dest.replace(/\.webm$/i, ".mkv");
     if (fs.existsSync(captureRawDest)) fs.unlinkSync(captureRawDest);
     const disp = process.env.DISPLAY || ":1";
     const ffmpegLog = path.join(OUT, `ffmpeg-x11grab-${shaShort}-${passTag}.log`);
@@ -1098,10 +1098,8 @@ async function runOrdinarySession(browser, viewport, label) {
         "20",
         "-pix_fmt",
         "yuv420p",
-        "-movflags",
-        "+frag_keyframe+empty_moov+default_base_moof",
         "-f",
-        "mp4",
+        "matroska",
         captureRawDest,
       ],
       { stdio: ["ignore", logOut, logOut] }
