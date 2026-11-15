@@ -234,10 +234,31 @@ async function postFinalizeRecordingSession(r) {
     r.videoFrames = [];
   }
 
+  let luminanceGate = { ok: true, skipped: true };
+  const lumDir = path.join(OUT, `luminance-scan-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
+  if (r.file && fs.existsSync(r.file)) {
+    const lum = spawnSync("node", [path.join(ROOT, "scripts/video-luminance-scan.js"), r.file, lumDir], {
+      encoding: "utf8",
+    });
+    const lumJson = path.join(lumDir, "LUMINANCE_SCAN.json");
+    if (fs.existsSync(lumJson)) {
+      try {
+        luminanceGate = { ...JSON.parse(fs.readFileSync(lumJson, "utf8")), skipped: false };
+        luminanceGate.ok = !!luminanceGate.ok;
+      } catch (_) {
+        luminanceGate = { ok: false, skipped: false, parseError: true };
+      }
+    } else {
+      luminanceGate = { ok: lum.status === 0, skipped: false, exitCode: lum.status };
+    }
+    r.luminanceScanDir = lumDir;
+  }
+
   r.recordingGate = {
     heroStill: heroGate,
     duration: durationGate,
-    ok: heroGate.ok && durationGate.ok && !r.videoSaveError,
+    luminance: luminanceGate,
+    ok: heroGate.ok && durationGate.ok && luminanceGate.ok && !r.videoSaveError,
     rejectLegacy245s:
       "Do not use rejected SHA 7d3d245dd54a4b60dcfad601f6e28589720a2b387d6f66f061868f91a805fc7d",
   };
@@ -597,7 +618,7 @@ async function completeOnboarding(page) {
     if (step !== lastLoggedStep) {
       logScene(`onboarding_step_${step}`, `progress step ${step}`);
       lastLoggedStep = step;
-      if (step === 5 || step === 6) {
+      if (step === 6 || step === 7) {
         await page.waitForTimeout(1500);
         await captureHeroProof(page, `0${step}-onboarding-shop-build`);
       }
@@ -669,17 +690,24 @@ async function completeOnboarding(page) {
         await page.click("#gangModal .close").catch(() => {});
       }
     } else if (step === 3) {
+      await walkTowardOnboardingGuide(page, 28000);
+      await walkInteractCh1(page, -3.2, -1.4, 2.5, 35000);
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 3 || window.me?.onboarding?.done, undefined, {
+        timeout: 45000,
+      });
+    } else if (step === 4) {
       if (st.location !== "cemetery") {
         if (st.location === "street") {
+          await walkTowardOnboardingGuide(page, 20000);
           if (!(await tryPortalTravel(page, "cemetery"))) await uiOpenMapTravel(page, "cemetery");
         } else {
           await uiOpenMapTravel(page, "cemetery");
         }
       }
-      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 3 || window.me?.onboarding?.done, undefined, {
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 4 || window.me?.onboarding?.done, undefined, {
         timeout: 45000,
       });
-    } else if (step === 4) {
+    } else if (step === 5) {
       await openGangWithRazor(page, "gang → razor fight");
       await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", { scroll: true });
       await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
@@ -717,11 +745,11 @@ async function completeOnboarding(page) {
           if (b && b.width > 2) await btn.click();
         }
         await page.waitForTimeout(380);
-        if (snap.step > 4 || snap.step === undefined) break;
-        if ((await page.evaluate(() => window.me?.onboarding?.step)) > 4) break;
+        if (snap.step > 5 || snap.step === undefined) break;
+        if ((await page.evaluate(() => window.me?.onboarding?.step)) > 5) break;
       }
-      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 4, undefined, { timeout: 25000 });
-    } else if (step === 5) {
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 25000 });
+    } else if (step === 6) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.click("#gangModal .close").catch(() => {});
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
@@ -750,13 +778,13 @@ async function completeOnboarding(page) {
         await visibleUiClick(page, buyBtn, "shop buy (affordable)");
       }
       await page.waitForFunction(
-        () => (window.me?.onboarding?.step || 0) > 5 || window.me?.onboarding?.done,
+        () => (window.me?.onboarding?.step || 0) > 6 || window.me?.onboarding?.done,
         undefined,
         { timeout: 30000 }
       ).catch(() => {});
       await page.waitForTimeout(600);
       await page.click("#shopModal .close").catch(() => {});
-    } else if (step === 6) {
+    } else if (step === 7) {
       const locNow = await page.evaluate(() => window.me?.location);
       if (locNow !== "city") {
         if (!(await tryPortalTravel(page, "city"))) {
@@ -796,7 +824,7 @@ async function completeOnboarding(page) {
         });
       }
       await page.waitForFunction(
-        () => (window.me?.onboarding?.step || 0) > 6 || window.me?.onboarding?.done,
+        () => (window.me?.onboarding?.step || 0) > 7 || window.me?.onboarding?.done,
         undefined,
         { timeout: 45000 }
       );
@@ -816,6 +844,49 @@ async function completeOnboarding(page) {
   await page.screenshot({ path: failShot, fullPage: true }).catch(() => {});
   const final = await readState(page);
   throw new Error(`onboarding timeout at step=${final.onboardingStep} shot=${failShot}`);
+}
+
+async function walkTowardOnboardingGuide(page, maxMs = 24000) {
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    const nav = await page.evaluate(() => {
+      const t = window.Onboarding?.getGuideTarget?.();
+      const p = window.World3D?.getPlayerWorldPosition?.();
+      if (!t || t.wx == null || !p) return { done: true };
+      const dx = t.wx - p.x;
+      const dz = t.wz - p.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 1.85) return { done: true };
+      const ax = Math.abs(dx);
+      const az = Math.abs(dz);
+      return {
+        done: false,
+        w: az >= ax && dz > 0.2,
+        s: az >= ax && dz < -0.2,
+        d: ax > az && dx > 0.2,
+        a: ax > az && dx < -0.2
+      };
+    });
+    if (nav.done) return true;
+    const keys = ["w", "s", "a", "d"].filter(k => nav[k]);
+    if (!keys.length) {
+      await page.keyboard.down("Shift");
+      await page.keyboard.down("w");
+      await page.waitForTimeout(280);
+      await page.keyboard.up("w");
+      await page.keyboard.up("Shift");
+      continue;
+    }
+    for (const k of keys) {
+      logInput("keyboard", `guide→${k.toUpperCase()}`);
+      await page.keyboard.down("Shift");
+      await page.keyboard.down(k);
+      await page.waitForTimeout(320);
+      await page.keyboard.up(k);
+      await page.keyboard.up("Shift");
+    }
+  }
+  return false;
 }
 
 async function walkInteractCh1(page, tx, tz, radius = 2.85, maxMs = 38000) {

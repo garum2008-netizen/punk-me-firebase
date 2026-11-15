@@ -450,9 +450,8 @@ function ensureDuelOpponent(ctx, nid) {
   return npc;
 }
 
-function stopDuel3D(win) {
+function finishDuel3DCleanup(win, wasTraining) {
   const d = state.duel;
-  const wasTraining = d?.training;
   if (d?.trail) {
     d.trail.removeFromParent();
     d.trail = null;
@@ -461,18 +460,39 @@ function stopDuel3D(win) {
   document.getElementById("duel3dHud")?.classList.add("hidden");
   const ctx = ctxGet?.();
   ctx?.actors?.forEach(act => {
-    if (act.group) act.group.visible = true;
+    if (act.group) {
+      act.group.visible = true;
+      act.group.rotation.x = 0;
+    }
   });
   const reward = win ? 70 + Math.floor(Math.random() * 40) : 0;
   const res = document.getElementById("duel3dResult");
   if (res) {
     res.classList.remove("hidden");
     res.innerHTML = win
-      ? `<b>${wasTraining ? t("duel_training_win") || "Training win!" : t("win_fight")}</b><div>${wasTraining ? "" : `+${reward} coins · +25 XP`}</div>`
+      ? `<b class="duel-ko">${wasTraining ? t("duel_training_win") || "Training win!" : t("win_fight")} — KO!</b><div>${wasTraining ? "" : `+${reward} coins · +25 XP`}</div>`
       : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
-    setTimeout(() => res.classList.add("hidden"), 3200);
+    setTimeout(() => res.classList.add("hidden"), 3400);
   }
   window._duel3dEnd?.(win);
+}
+
+function stopDuel3D(win) {
+  const d = state.duel;
+  if (!d) return;
+  const wasTraining = d?.training;
+  const ctx = ctxGet?.();
+  const pl = ctx?.actors?.get("player");
+  const npc = ctx?.actors?.get("npc_" + d.nid) || ctx?.actors?.get("npc_razor");
+  if (win && pl && npc) {
+    ctx?.playOneShot?.(pl, "interact", 900);
+    npc.group.rotation.x = 0.82;
+    npc._spd = 0;
+    pl.group.rotation.y = Math.atan2(npc.wx - pl.wx, npc.wz - pl.wz);
+    setTimeout(() => finishDuel3DCleanup(true, wasTraining), 1100);
+    return;
+  }
+  finishDuel3DCleanup(win, wasTraining);
 }
 
 function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
@@ -484,13 +504,24 @@ function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
     transparent: true,
     opacity: 0.85
   });
-  for (let i = 0; i < 6; i++) {
-    const seg = new THREE.Mesh(new THREE.TorusGeometry(0.14 - i * 0.015, 0.03, 6, 12), mat);
-    const t = i / 5;
-    seg.position.set(fromX + (toX - fromX) * t, 1.1 + Math.sin(t * 6) * 0.15, fromZ + (toZ - fromZ) * t);
+  for (let i = 0; i < 8; i++) {
+    const seg = new THREE.Mesh(new THREE.TorusGeometry(0.18 - i * 0.012, 0.04, 8, 14), mat);
+    const t = i / 7;
+    seg.position.set(fromX + (toX - fromX) * t, 1.15 + Math.sin(t * 6) * 0.22, fromZ + (toZ - fromZ) * t);
     seg.rotation.y = Math.atan2(toX - fromX, toZ - fromZ);
     g.add(seg);
   }
+  const pts = [
+    new THREE.Vector3(fromX, 1.35, fromZ),
+    new THREE.Vector3((fromX + toX) * 0.5, 1.55, (fromZ + toZ) * 0.5),
+    new THREE.Vector3(toX, 1.25, toZ)
+  ];
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+  const line = new THREE.Line(
+    lineGeo,
+    new THREE.LineBasicMaterial({ color: 0x66ffff, transparent: true, opacity: 0.95, linewidth: 2 })
+  );
+  g.add(line);
   ctx.scene.add(g);
   return g;
 }
@@ -633,6 +664,19 @@ function tickDuel(dt, ctx) {
       if (a._hitFlash <= 0) restoreActorMaterials(a);
     }
   });
+  if (d.magicBolt) {
+    d.magicBolt.t += dt;
+    const u = Math.min(1, d.magicBolt.t / 0.32);
+    const orb = d.magicBolt.mesh;
+    if (orb) {
+      orb.position.lerpVectors(d.magicBolt.from, d.magicBolt.to, u);
+      orb.material.opacity = 0.95 - u * 0.35;
+    }
+    if (u >= 1) {
+      orb?.removeFromParent();
+      d.magicBolt = null;
+    }
+  }
   if (window._duelSpell && d.cd <= 0) {
     const spells = window.me?.inventory?.spells || [];
     if (spells.length) {
@@ -641,18 +685,20 @@ function tickDuel(dt, ctx) {
       else d.npcHp -= dmg;
       d.trail = spawnChainTrail(ctx, pl.wx, pl.wz, npc.wx, npc.wz);
       const orb = new THREE.Mesh(
-        new THREE.SphereGeometry(0.55, 12, 12),
+        new THREE.SphereGeometry(0.42, 14, 14),
         new THREE.MeshStandardMaterial({
           color: 0x3399ff,
           emissive: 0x2288ff,
-          emissiveIntensity: 2.2,
+          emissiveIntensity: 2.4,
           transparent: true,
-          opacity: 0.92
+          opacity: 0.95
         })
       );
-      orb.position.set(npc.wx, 1.65, npc.wz);
+      const from = new THREE.Vector3(pl.wx, 1.45, pl.wz);
+      const to = new THREE.Vector3(npc.wx, 1.55, npc.wz);
+      orb.position.copy(from);
       ctx.scene.add(orb);
-      setTimeout(() => orb.removeFromParent(), 520);
+      d.magicBolt = { mesh: orb, from, to, t: 0 };
       const burst = new THREE.PointLight(0x66ccff, 14, 8);
       burst.position.set(npc.wx, 1.8, npc.wz);
       ctx.scene.add(burst);
@@ -662,6 +708,7 @@ function tickDuel(dt, ctx) {
       npc.group.position.set(npc.wx, 0, npc.wz);
       flashActor(npc, 0.22);
       d.flashNpc = 0.22;
+      ctx.playOneShot?.(pl, "interact", 620);
       fadeEmote(pl, "interact");
       d.cd = 0.85;
       window.dispatchEvent(new CustomEvent("punk-magic-cast", { detail: { spell: spells[0] } }));
@@ -673,6 +720,8 @@ function tickDuel(dt, ctx) {
     if (d.training) d.plHits += 1;
     else d.npcHp -= dmg;
     d.plLunge = 0.32;
+    ctx.playOneShot?.(pl, "interact", 520);
+    ctx.playOneShot?.(npc, "emote", 480);
     const dx = npc.wx - pl.wx;
     const dz = npc.wz - pl.wz;
     const len = Math.hypot(dx, dz) || 1;

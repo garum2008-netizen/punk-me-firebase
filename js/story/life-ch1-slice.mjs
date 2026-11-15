@@ -501,6 +501,45 @@ function trustChoiceReflectBonus(st) {
   return 0;
 }
 
+function showCh1ClimaxNarrative(done) {
+  const panel = document.getElementById("lifeCh1ClimaxPanel");
+  const titleEl = panel?.querySelector(".life-ch1-climax-title");
+  const bodyEl = panel?.querySelector(".life-ch1-climax-body");
+  const rewardEl = panel?.querySelector(".life-ch1-climax-reward");
+  const title = L({
+    ru: "Город, забывший имя",
+    en: "The town that forgot its name",
+    da: "Byen der glemte sit navn"
+  });
+  const body = L({
+    ru: "Ночной импульс пронзает квартал — память просыпается.",
+    en: "A midnight pulse rips through the district — memory stirs.",
+    da: "En midnats-puls gennemborer kvarteret — mindet vågner."
+  });
+  const reward = L({
+    ru: "MIDNIGHT PULSE · +180 монет · +120 XP",
+    en: "MIDNIGHT PULSE · +180 coins · +120 XP",
+    da: "MIDNIGHT PULSE · +180 mønter · +120 XP"
+  });
+  if (!panel || !titleEl) {
+    window.World3D?.playLifeCh1ClimaxBeat?.(done) || done?.();
+    return;
+  }
+  titleEl.textContent = title;
+  if (bodyEl) bodyEl.textContent = body;
+  if (rewardEl) rewardEl.textContent = reward;
+  const st = ensureLifeCh1();
+  if (st) claimStepReward(st, rewardClaimKey(st.stepIndex, "midnight_pulse"), 180, 120);
+  panel.hidden = false;
+  window.AngelinaGuide?.react?.("ch1_climax_town", 9000);
+  setTimeout(() => {
+    window.World3D?.playLifeCh1ClimaxBeat?.(() => {
+      panel.hidden = true;
+      done?.();
+    });
+  }, 3800);
+}
+
 function markLifeCh1SliceComplete(st) {
   st.stepIndex = maxStepIndex();
   st.completed = true;
@@ -545,10 +584,8 @@ function advanceStep(extraReward = 0) {
         st._climaxDone = true;
         markLifeCh1SliceComplete(st);
       };
-      if (window.World3D?.playLifeCh1ClimaxBeat) {
-        window.World3D.playLifeCh1ClimaxBeat(runComplete);
-        return;
-      }
+      showCh1ClimaxNarrative(runComplete);
+      return;
       runComplete();
       return;
     }

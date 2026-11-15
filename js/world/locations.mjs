@@ -251,7 +251,7 @@ export const LOCATION_THEME = {
   cemetery: { bg: 0x142018, fog: 0x101818, fogD: 0.0105, hemi: 0x99ffbb, ground: 0x243028 },
   toilet: { bg: 0x182838, fog: 0x121828, fogD: 0.0055, hemi: 0x99ccff, ground: 0x2a3040 },
   elevator: { bg: 0x2a2a38, fog: 0x2a2a38, fogD: 0.11, hemi: 0xccccff, ground: 0x3a3a48 },
-  city: { bg: 0x221028, fog: 0x1a0c18, fogD: 0.0028, hemi: 0xff99cc, ground: 0x2a2030 },
+  city: { bg: 0x221028, fog: 0x1a0c18, fogD: 0.00175, hemi: 0xff99cc, ground: 0x2a2030 },
   parkour: { bg: 0x182040, fog: 0x121830, fogD: 0.0045, hemi: 0x99ddff, ground: 0x2a3850 },
   construction: { bg: 0x281818, fog: 0x201010, fogD: 0.0032, hemi: 0xffaa88, ground: 0x3a3028 }
 };

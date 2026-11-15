@@ -6,6 +6,8 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "room", wx: 0, wz: 5.5 }) },
   { id: "talk_razor", key: "talk_razor", goal: 1, reward: { coins: 40, xp: 25 },
     target: () => ({ loc: "street", npcId: "razor" }) },
+  { id: "angelina_street", key: "angelina_street", goal: 1, reward: { coins: 35, xp: 22 },
+    target: () => ({ loc: "street", wx: -3.2, wz: -1.4 }) },
   { id: "visit_cemetery", key: "visit_cemetery", goal: 1, reward: { coins: 50, xp: 30 },
     target: () => ({ loc: "street", wx: 10, wz: -2 }) },
   { id: "win_fight", key: "win_fight", goal: 1, reward: { coins: 80, xp: 45 },
@@ -144,7 +146,16 @@ const ONBOARD_WORLD_MOVE_DIST = 0.88;
 
 function onWorldMove(wx, wz) {
   const st = currentStep();
-  if (!st || st.key !== "moved") return;
+  if (!st) return;
+  if (st.key === "angelina_street" && window.me?.location === "street" && wx != null && wz != null) {
+    const tgt = st.target();
+    if (Math.hypot(wx - tgt.wx, wz - tgt.wz) < 2.25) {
+      window.AngelinaGuide?.react?.("street_brief_town", 6500);
+      bump("angelina_street", 1);
+      return;
+    }
+  }
+  if (st.key !== "moved") return;
   if (wx == null || wz == null) return;
   const last = window.me._onboardLastW;
   if (!last) {

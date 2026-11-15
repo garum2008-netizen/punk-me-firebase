@@ -81,6 +81,47 @@ let playerAnimState = "idle";
 let modelsReady = false;
 let pendingSyncData = null;
 let captureFrameLock = false;
+let dialogueCameraLock = false;
+
+function releaseCaptureFrame() {
+  const a = actors.get("player");
+  if (a) a.group.rotation.y = captureSavedRotY;
+  if (captureHideActors) {
+    captureHideActors.forEach(act => {
+      if (act.group) act.group.visible = true;
+    });
+    captureHideActors = null;
+  }
+  actors.forEach(act => setDialogueCaptureScale(act, 1));
+  dialogueLiveMinHead = 0;
+  setElevatorCutaway(false);
+  resetPropDimOpacity();
+  resetOccluderOpacity();
+  if (dialogueCaptureBoost) {
+    if (scene?.fog && dialogueCaptureBoost.fogD != null) scene.fog.density = dialogueCaptureBoost.fogD;
+    if (dialogueCaptureBoost.exp != null) renderer.toneMappingExposure = dialogueCaptureBoost.exp;
+    if (scene?.background?.setHex && dialogueCaptureBoost.bg != null) scene.background.setHex(dialogueCaptureBoost.bg);
+    if (dialogueCaptureBoost.hemi != null) {
+      scene.traverse(c => {
+        if (c.isHemisphereLight) c.intensity = dialogueCaptureBoost.hemi;
+      });
+    }
+    dialogueCaptureBoost = null;
+  }
+  if (locFillLight) locFillLight.intensity = 3.2;
+  if (dialogueKeyLight) dialogueKeyLight.visible = false;
+  if (dialogueRimLight) dialogueRimLight.visible = false;
+  if (dialogueNpcFill) dialogueNpcFill.visible = false;
+  if (dialogueBackdrop) dialogueBackdrop.visible = false;
+  actors.forEach(act => {
+    if (act.isPlayer || act.id?.startsWith("npc_")) {
+      boostActorCaptureLight(act, false);
+      setDialogueCaptureScale(act, 1);
+    }
+  });
+  captureFrameLock = false;
+  dialogueCameraLock = false;
+}
 let dialogueLiveMinHead = 0;
 let portalGraceUntil = 0;
 let captureSavedRotY = 0;
@@ -972,6 +1013,7 @@ function clearLocation() {
 
 function rebuildLocation(locId) {
   if (locId !== currentLoc) onGameplayLocationChanged(locId, currentLoc);
+  releaseCaptureFrame();
   clearLocation();
   disposeLifeCh1PlayerSprite();
   actors.forEach((a, id) => {
@@ -1401,7 +1443,7 @@ const LOCATION_CAMERA = {
   },
   street: { dist: 6.85, height: 2.55, lookY: 1.32, yaw: 0.38 },
   city: { dist: 7.2, height: 2.62, lookY: 1.34, yaw: 0.28 },
-  cemetery: { dist: 8.1, height: 2.68, lookY: 1.42, yaw: 0.3 },
+  cemetery: { dist: 8.85, height: 2.72, lookY: 1.44, yaw: 0.3 },
   roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: {
@@ -1858,12 +1900,10 @@ function playLifeCh1ClimaxBeat(done) {
     done?.();
     return;
   }
-  const prevLock = captureFrameLock;
-  captureFrameLock = true;
+  releaseCaptureFrame();
   const flash = document.createElement("div");
   flash.className = "life-ch1-climax-flash";
-  flash.textContent =
-    typeof window.t === "function" ? window.t("life_ch1_climax_beat") || "MIDNIGHT PULSE" : "MIDNIGHT PULSE";
+  flash.setAttribute("aria-hidden", "true");
   document.body.appendChild(flash);
   const lights = [
     new THREE.PointLight(0x00ffff, 18, 14),
@@ -1908,7 +1948,6 @@ function playLifeCh1ClimaxBeat(done) {
       pillar.removeFromParent();
       lights.forEach(l => l.removeFromParent());
       flash.remove();
-      captureFrameLock = prevLock;
       fadeTo(pl, "idle");
       done?.();
     }
@@ -2309,7 +2348,7 @@ function loop() {
   tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
   tickStory(dt);
   lastCameraDt = dt;
-  if (!captureFrameLock) updateThirdPersonCamera(dt);
+  if (!dialogueCameraLock && !isDuelActive()) updateThirdPersonCamera(dt);
   else if (captureHideActors?.length && !motionProbe) {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     checkPortals();
@@ -2335,7 +2374,7 @@ function init(h) {
   renderer.setPixelRatio(mobileQuality ? 1 : Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = !mobileQuality;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(42, 1, 0.22, 120);
+  camera = new THREE.PerspectiveCamera(42, 1, 0.22, 190);
   clock = new THREE.Clock();
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
@@ -2694,43 +2733,7 @@ const api = {
   setPortalGrace: (ms = 1500) => {
     portalGraceUntil = performance.now() + ms;
   },
-  releaseCaptureFrame: () => {
-    const a = actors.get("player");
-    if (a) a.group.rotation.y = captureSavedRotY;
-    if (captureHideActors) {
-      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
-      captureHideActors = null;
-    }
-    actors.forEach(a => setDialogueCaptureScale(a, 1));
-    dialogueLiveMinHead = 0;
-    setElevatorCutaway(false);
-    resetPropDimOpacity();
-    resetOccluderOpacity();
-    if (dialogueCaptureBoost) {
-      if (scene.fog && dialogueCaptureBoost.fogD != null) scene.fog.density = dialogueCaptureBoost.fogD;
-      if (dialogueCaptureBoost.exp != null) renderer.toneMappingExposure = dialogueCaptureBoost.exp;
-      if (scene.background?.setHex && dialogueCaptureBoost.bg != null) scene.background.setHex(dialogueCaptureBoost.bg);
-      if (dialogueCaptureBoost.hemi != null) {
-        scene.traverse(c => {
-          if (c.isHemisphereLight) c.intensity = dialogueCaptureBoost.hemi;
-        });
-      }
-      dialogueCaptureBoost = null;
-    }
-    if (locFillLight) locFillLight.intensity = 3.2;
-    if (dialogueKeyLight) dialogueKeyLight.visible = false;
-    if (dialogueRimLight) dialogueRimLight.visible = false;
-    if (dialogueNpcFill) dialogueNpcFill.visible = false;
-    if (dialogueBackdrop) dialogueBackdrop.visible = false;
-    const pl = actors.get("player");
-    actors.forEach(a => {
-      if (a.isPlayer || a.id?.startsWith("npc_")) {
-        boostActorCaptureLight(a, false);
-        setDialogueCaptureScale(a, 1);
-      }
-    });
-    captureFrameLock = false;
-  },
+  releaseCaptureFrame,
   captureDogCloseup: () => {
     const dog = actors.get("dog");
     const pl = actors.get("player");
@@ -3348,6 +3351,7 @@ const api = {
       captureHideActors.push(dogActor);
     }
     captureFrameLock = true;
+    dialogueCameraLock = true;
     captureSavedRotY = pl.group.rotation.y;
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
@@ -3628,7 +3632,7 @@ const api = {
       updateProcedural(pl, dt, null, false);
       notePlayerMotion(pl);
     }
-    if (!captureFrameLock) updateThirdPersonCamera(dt);
+    if (!dialogueCameraLock && !isDuelActive()) updateThirdPersonCamera(dt);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return motionProbe.frames.length;
   },
@@ -3782,7 +3786,8 @@ bindGameplayToWorld3D(api, () => ({
   camera,
   car,
   ensureActor,
-  placeActorWorld
+  placeActorWorld,
+  playOneShot
 }));
 api.snapDialogueNpcShot = (npcId = "mohawk") => api.engageDialogueFraming(npcId, { live: false });
 window.World3D = api;

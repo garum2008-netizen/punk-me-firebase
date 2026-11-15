@@ -41,6 +41,11 @@ else
   BEAT_DIR="$STORE/stills/video-beat-frames"
   node "$ROOT/scripts/extract-video-beat-frames.js" "$VIDEO" "$BEAT_DIR" || echo "WARN: beat frame extract failed" >&2
   [[ -f "$BEAT_DIR/BEAT_FRAMES_MANIFEST.json" ]] && cp "$BEAT_DIR/BEAT_FRAMES_MANIFEST.json" "$STORE/evidence/"
+  LUM_DIR=$(ls -d "$ICE/luminance-scan-${SHORT}"-* 2>/dev/null | head -1)
+  if [[ -d "$LUM_DIR" ]]; then
+    mkdir -p "$STORE/stills/luminance-scan"
+    cp -r "$LUM_DIR/." "$STORE/stills/luminance-scan/"
+  fi
 fi
 
 STILLS_DIR=$(ls -d "$ICE/hero-stills-${SHORT}-${PASS_TAG}" 2>/dev/null | head -1)

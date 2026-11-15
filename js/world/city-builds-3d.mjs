@@ -62,6 +62,35 @@ export function syncCityBuilds3D(group, bounds, builds) {
   }
 }
 
+export function addDistrictBoundaryWalls(root, spanX = 18, spanZ = 16) {
+  if (!root) return;
+  const h = 5.5;
+  const t = 0.55;
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x1a1428,
+    emissive: 0x220044,
+    emissiveIntensity: 0.08,
+    roughness: 0.9
+  });
+  const halfX = spanX / 2;
+  const halfZ = spanZ / 2;
+  const walls = [
+    [spanX + t, h, t, 0, h * 0.5, -halfZ - t / 2],
+    [spanX + t, h, t, 0, h * 0.5, halfZ + t / 2],
+    [t, h, spanZ + t, -halfX - t / 2, h * 0.5, 0],
+    [t, h, spanZ + t, halfX + t / 2, h * 0.5, 0]
+  ];
+  const g = new THREE.Group();
+  g.name = "district_boundary_walls";
+  walls.forEach(([w, hh, d, x, y, z]) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), mat);
+    m.position.set(x, y, z);
+    m.userData.cameraOccluder = true;
+    g.add(m);
+  });
+  root.add(g);
+}
+
 export function addDistrictGroundMarkers(root, spanX = 18, spanZ = 16) {
   if (!root) return;
   const prev = root.getObjectByName("district_ground_markers");
@@ -93,4 +122,5 @@ export function addDistrictGroundMarkers(root, spanX = 18, spanZ = 16) {
   beacon.position.set(0, 1.4, 0);
   beacon.name = "district_spawn_beacon";
   root.add(beacon);
+  addDistrictBoundaryWalls(root, spanX, spanZ);
 }

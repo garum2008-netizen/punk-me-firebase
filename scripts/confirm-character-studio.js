@@ -13,8 +13,12 @@ async function configureCyberPunkBlueStudio(page, heroName = QA_CYBER_PUNK_BLUE.
   ];
   for (const [field, id] of clicks) {
     await page.locator(`[data-field="${field}"][data-id="${id}"]`).scrollIntoViewIfNeeded();
+    const prev = await page.evaluate(() => window.__lastStudioPreviewMs || 0);
     await page.click(`[data-field="${field}"][data-id="${id}"]`);
-    await page.waitForTimeout(80);
+    await page
+      .waitForFunction(p => (window.__lastStudioPreviewMs || 0) > p, prev, { timeout: 8000 })
+      .catch(() => {});
+    await page.waitForTimeout(60);
   }
   await page.evaluate(() => {
     document.querySelector('[data-field="accessoryToggle"][data-id="wings_01"]')?.click();

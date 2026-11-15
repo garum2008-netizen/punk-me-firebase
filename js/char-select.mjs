@@ -106,6 +106,11 @@ function showCharacter(id, lookOverride) {
   const canvas = document.getElementById("charSelect3d");
   if (canvas && camera) framePreviewActor(actorRoot, camera, canvas);
   renderer?.render(scene, camera);
+  requestAnimationFrame(() => renderer?.render(scene, camera));
+  if (typeof window !== "undefined") {
+    window.__lastStudioPreviewMs = Date.now();
+    window.__studioPreviewMeshId = meshId;
+  }
   previewPhase = 0;
   const line = characterIntroLine(id);
   const el = document.getElementById("charSelectIntro");
@@ -258,6 +263,13 @@ async function openCharacterStudio(onPick) {
     clock = new THREE.Clock();
   }
   resize();
+  if (canvas && typeof ResizeObserver !== "undefined" && !canvas._charSelectObs) {
+    canvas._charSelectObs = new ResizeObserver(() => {
+      resize();
+      renderer?.render(scene, camera);
+    });
+    canvas._charSelectObs.observe(canvas);
+  }
   await loadAvatarCatalog();
   let pendingStudioPreview = null;
   await loadAllCc0Templates().then(() => {

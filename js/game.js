@@ -1879,6 +1879,9 @@ function goLocation(id, fromHash) {
   window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
   window.LifeCh1Slice?.syncCompanionAngelina3D?.();
   window.AngelinaGuide?.refresh?.();
+  try {
+    window.World3D?.releaseCaptureFrame?.();
+  } catch (_) {}
   syncStage3D();
   if (id === "city" || id === "construction") {
     try {
@@ -2130,6 +2133,7 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.remove("active");
   if (id === "mapModal") window.World3D?.resetFollowCamera?.();
+  window.World3D?.releaseCaptureFrame?.();
 }
 
 function renderGangList() {
