@@ -671,6 +671,7 @@ async function completeOnboarding(page) {
         timeout: 45000,
       });
     } else if (step === 2) {
+      await ensureStreetLocation(page);
       await openGangWithRazor(page, "gang → razor talk");
       await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row", { scroll: true });
       await page.waitForTimeout(600);
@@ -690,8 +691,9 @@ async function completeOnboarding(page) {
         await page.click("#gangModal .close").catch(() => {});
       }
     } else if (step === 3) {
-      await walkTowardOnboardingGuide(page, 28000);
-      await walkInteractCh1(page, -3.2, -1.4, 2.5, 35000);
+      await ensureStreetLocation(page);
+      await walkTowardOnboardingGuide(page, 32000);
+      await walkInteractCh1(page, -3.2, -1.4, 2.5, 45000);
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 3 || window.me?.onboarding?.done, undefined, {
         timeout: 45000,
       });
