@@ -1,8 +1,9 @@
 # t209u — Chapter 1 acceptance (Grok run #77+)
 
-**Date:** 2026-11-15 08:30 CET (Europe/Copenhagen)  
-**Git tip (engineering):** `3a9a74c` (`cursor/t209-grok-review-1430`)  
-**Latest full capture:** `51d45c2` (gate **FAIL** — see below); **r9** re-record in flight on `3a9a74c`  
+**Date:** 2026-11-15 12:35 CET (Europe/Copenhagen)  
+**Git tip (engineering):** `2886927` (`cursor/t209-grok-review-1430`)  
+**Latest full capture:** `8a6d736` (gate **FAIL** luminance); **r16** in flight on `2886927`  
+**Prior:** `e6f9147` r14 (~1155 s), `65eef73` r13 (city/Razor band fixed vs r11)  
 **Agent store (r8 video):** `/cursor/stores/self/t209-ch1-acceptance-51d45c2/`  
 **PR:** [#74](https://github.com/garum2008-netizen/punk-me-firebase/pull/74)
 
@@ -26,11 +27,11 @@
 
 | # | Point | Frame / gate evidence | Status | Notes |
 |---|--------|----------------------|--------|-------|
-| 1 | **District void / black 3D** | t150 canvas **luma ~72** (r8); t165 `canvas-0033.png` **still black**; t494–525 **luma 59–65** (build step) | **PARTIAL** | Stale `dialogueCameraLock` fixes + build-mode release **help**; **gang modal** no longer pins 3D camera (`3a9a74c`). Remaining void **t160–240** (early city / Razor onboarding) on r8 — r9 re-record pending. |
-| 2 | **Duel VFX** | t375 canvas **luma ~60** (r8); beats `win_fight` window | **CLAIM→PARTIAL** | World **visible** at duel on r8; chain/bolt/KO need frame eyes on beat stills (not black void). |
+| 1 | **District void / black 3D** | r13 **t70–145 PASS**; r15 **t160–200 FAIL** streak 40 s (luma **44–48**, threshold 48) — world **visible** (Razor dialogue on street); **not** empty-scene void (`renderDiag` loc city/street, `renderCalls` 1) | **PARTIAL** | Borderline **canvas crop** during gang/Razor step 5 + location hops; brighter street/duel lights in `2886927`. |
+| 2 | **Duel VFX** | r15 duel band ~t190+ (`duel: true` in timeline); t375+ canvas **luma >54** on r15 | **MET (weak)** | Chain/bolt/KO visible in world; beat stills not yet packaged (no green gate). |
 | 3 | **Angelina street** | Prior `5340d8e` + gameplay redirects | **MET** | Off-street soft-lock **fixed** in game (unchanged). |
 | 4 | **Climax / MIDNIGHT PULSE** | r8 end `@ +1080s` `ch1_complete` | **MET** | Panel + rewards (prior frames still valid). |
-| 5 | **Studio preview** | `hero-stills-51d45c2/00-studio-confirm.png` | **MET** | Blue hero visible; studio triple stills in store when r9 completes. |
+| 5 | **Studio preview** | `studio-step-stills-8a6d736/` hair / outfit / wings + `wallMs=35454` (**≤70s assert PASS**) | **MET** | `CAPTURE_STUDIO_FAST` batch clicks (~35 s configure wall). |
 | 6 | **Cemetery 4:59–5:07** | r8 ~t288–312 cemetery steps; extract beats | **MET (weak)** | Add `frame-0599`–`frame-0614` in store for cemetery window on next gated pass. |
 
 ---
