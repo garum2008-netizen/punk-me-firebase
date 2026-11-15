@@ -478,7 +478,6 @@ function finishDuel3DCleanup(win, wasTraining) {
     d.trail.removeFromParent();
     d.trail = null;
   }
-  const ctx = ctxGet?.();
   ctx?.actors?.forEach(act => {
     if (act.group) {
       act.group.visible = true;

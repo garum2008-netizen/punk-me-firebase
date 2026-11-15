@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   loadAllCc0Templates,
+  loadMeshyTemplateForCharacter,
   getTemplateForCharacter,
   createCc0Actor
 } from "./world/meshy-punk.mjs";
@@ -109,7 +110,7 @@ function showCharacter(id, lookOverride) {
   requestAnimationFrame(() => renderer?.render(scene, camera));
   if (typeof window !== "undefined") {
     window.__lastStudioPreviewMs = Date.now();
-    window.__studioPreviewMeshId = meshId;
+    window.__studioPreviewMeshId = id;
   }
   previewPhase = 0;
   const line = characterIntroLine(id);
