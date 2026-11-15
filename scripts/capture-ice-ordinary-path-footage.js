@@ -636,6 +636,23 @@ const { validateHeroStillsWithHairPixels } = require("./hero-hair-pixel-gate");
 
 let sessionHeroStills = [];
 
+function copyFileRetry(src, dest, attempts = 6) {
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      fs.copyFileSync(src, dest);
+      return;
+    } catch (e) {
+      lastErr = e;
+      if (e.code !== "EAGAIN" && e.code !== "EBUSY") throw e;
+      const pause = 80 * (i + 1);
+      const until = Date.now() + pause;
+      while (Date.now() < until) {}
+    }
+  }
+  throw lastErr;
+}
+
 async function pickAngelina(page, opts = {}) {
   if (!opts.skipStudioWait) {
     await page.waitForSelector("#charSelect.active", { timeout: 120000 });
@@ -649,9 +666,9 @@ async function pickAngelina(page, opts = {}) {
     if (fs.existsSync(p)) {
       const dir = path.join(OUT, `studio-step-stills-${shaShort}-${ordinaryPassTag()}`);
       fs.mkdirSync(dir, { recursive: true });
-      fs.copyFileSync(p, path.join(dir, `${tag}.png`));
+      copyFileRetry(p, path.join(dir, `${tag}.png`));
       fs.mkdirSync(storeStudio, { recursive: true });
-      fs.copyFileSync(p, path.join(storeStudio, `${tag}.png`));
+      copyFileRetry(p, path.join(storeStudio, `${tag}.png`));
     }
   }
   await page.locator('[data-testid="character-studio-confirm"]').scrollIntoViewIfNeeded();
