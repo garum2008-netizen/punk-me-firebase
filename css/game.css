@@ -54,6 +54,27 @@ body.mode-world3d .night-fx,
 body.mode-world3d #buildLayer,
 body.mode-world3d #ambients { display: none !important; }
 body.mode-world3d .room-layer { background: #050008; }
+body.mode-world3d .fight-overlay { display: none !important; }
+.life-ch1-climax-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 450;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-size: clamp(1.4rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #0ff;
+  text-shadow: 0 0 24px #f0f, 0 0 48px #0ff;
+  background: radial-gradient(circle at center, rgba(0, 255, 255, 0.35) 0%, rgba(0, 0, 0, 0.55) 70%);
+  animation: lifeCh1ClimaxPulse 0.85s ease-in-out 3;
+}
+@keyframes lifeCh1ClimaxPulse {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
 .char-select {
   display: none; position: fixed; inset: 0; z-index: 200;
   background: radial-gradient(ellipse at center, #1a0828 0%, #050008 70%);

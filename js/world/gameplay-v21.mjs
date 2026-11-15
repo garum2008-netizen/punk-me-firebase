@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { buildFurnitureMesh, FURNITURE_CATALOG } from "./room-furniture-catalog.mjs";
 import { isCemeteryShiftSuccessful } from "./cemetery-job-logic.mjs";
 import { cemeteryGhostMesh } from "./cemetery-ghost-mesh.mjs";
+import { NPC_WORLD } from "./locations.mjs";
 
 const DECOR_KEY = "punkme_room_decor_v21";
 let ctxGet = null;
@@ -385,11 +386,8 @@ function startDuel3D(nid, opts = {}) {
   const ctx = ctxGet?.();
   const pl = ctx?.actors?.get("player");
   if (!pl || !ctx.scene) return false;
-  const npc = ctx.actors?.get("npc_" + nid) || ctx.actors?.get("npc_razor");
-  if (!npc) {
-    ensureActorNpc(ctx, nid);
-  }
-  const opponent = ctx.actors.get("npc_" + nid) || ctx.actors.get("npc_razor");
+  let opponent = ctx.actors?.get("npc_" + nid) || ctx.actors?.get("npc_razor");
+  if (!opponent) opponent = ensureDuelOpponent(ctx, nid);
   if (!opponent) return false;
   snapshotActorMaterials(pl);
   snapshotActorMaterials(opponent);
@@ -436,8 +434,20 @@ function startDuel3D(nid, opts = {}) {
   return true;
 }
 
-function ensureActorNpc(ctx, nid) {
-  /* npc should exist from sync */
+function ensureDuelOpponent(ctx, nid) {
+  const key = `npc_${nid}`;
+  let npc = ctx.actors?.get(key) || ctx.actors?.get("npc_razor");
+  if (npc) return npc;
+  if (!ctx.ensureActor || !ctx.placeActorWorld) return null;
+  npc = ctx.ensureActor(key, nid, true);
+  if (!npc) return null;
+  const wp = NPC_WORLD[ctx.currentLoc]?.[nid] || NPC_WORLD.street?.[nid] || { x: 1.2, z: -1.6 };
+  ctx.placeActorWorld(npc, wp.x, wp.z, false, true);
+  npc.wx = wp.x;
+  npc.wz = wp.z;
+  npc.group.visible = true;
+  npc.root.visible = true;
+  return npc;
 }
 
 function stopDuel3D(win) {
@@ -630,14 +640,31 @@ function tickDuel(dt, ctx) {
       if (d.training) d.plHits += 1;
       else d.npcHp -= dmg;
       d.trail = spawnChainTrail(ctx, pl.wx, pl.wz, npc.wx, npc.wz);
-      const burst = new THREE.PointLight(0x3399ff, 8, 6);
+      const orb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.55, 12, 12),
+        new THREE.MeshStandardMaterial({
+          color: 0x3399ff,
+          emissive: 0x2288ff,
+          emissiveIntensity: 2.2,
+          transparent: true,
+          opacity: 0.92
+        })
+      );
+      orb.position.set(npc.wx, 1.65, npc.wz);
+      ctx.scene.add(orb);
+      setTimeout(() => orb.removeFromParent(), 520);
+      const burst = new THREE.PointLight(0x66ccff, 14, 8);
       burst.position.set(npc.wx, 1.8, npc.wz);
       ctx.scene.add(burst);
-      setTimeout(() => burst.removeFromParent(), 420);
-      flashActor(npc, 0.18);
-      d.flashNpc = 0.18;
+      setTimeout(() => burst.removeFromParent(), 520);
+      npc.wx += (npc.wx - pl.wx) * 0.08;
+      npc.wz += (npc.wz - pl.wz) * 0.08;
+      npc.group.position.set(npc.wx, 0, npc.wz);
+      flashActor(npc, 0.22);
+      d.flashNpc = 0.22;
       fadeEmote(pl, "interact");
       d.cd = 0.85;
+      window.dispatchEvent(new CustomEvent("punk-magic-cast", { detail: { spell: spells[0] } }));
     }
     window._duelSpell = false;
   }

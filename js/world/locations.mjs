@@ -28,6 +28,7 @@ import {
 import { addV21Clutter } from "./location-clutter-v21.mjs";
 import { addShowcaseProps } from "./location-showcase-props.mjs";
 import { buildHangoutVisual } from "./construction-hangout.mjs";
+import { addDistrictGroundMarkers } from "./city-builds-3d.mjs";
 
 /** Axis-aligned floor obstacles (world XZ), half-extents + padding. */
 export function pushCollider(list, cx, cz, halfW, halfD, pad = 0.22, label = "") {
@@ -250,9 +251,9 @@ export const LOCATION_THEME = {
   cemetery: { bg: 0x142018, fog: 0x101818, fogD: 0.0105, hemi: 0x99ffbb, ground: 0x243028 },
   toilet: { bg: 0x182838, fog: 0x121828, fogD: 0.0055, hemi: 0x99ccff, ground: 0x2a3040 },
   elevator: { bg: 0x2a2a38, fog: 0x2a2a38, fogD: 0.11, hemi: 0xccccff, ground: 0x3a3a48 },
-  city: { bg: 0x221028, fog: 0x1a0c18, fogD: 0.0055, hemi: 0xff99cc, ground: 0x2a2030 },
+  city: { bg: 0x221028, fog: 0x1a0c18, fogD: 0.0028, hemi: 0xff99cc, ground: 0x2a2030 },
   parkour: { bg: 0x182040, fog: 0x121830, fogD: 0.0045, hemi: 0x99ddff, ground: 0x2a3850 },
-  construction: { bg: 0x281818, fog: 0x201010, fogD: 0.006, hemi: 0xffaa88, ground: 0x3a3028 }
+  construction: { bg: 0x281818, fog: 0x201010, fogD: 0.0032, hemi: 0xffaa88, ground: 0x3a3028 }
 };
 
 function wall(w, h, d, mat) {
@@ -630,9 +631,11 @@ export function buildLocationScene(locId, texLoader) {
     root.add(trash);
     pushCollider(colliders, 3, 4, 0.35, 0.35);
     root.add(neonSign("CITY", 0xff00ff).translateY(3).translateZ(-8.5));
+    addDistrictGroundMarkers(root, 18, 16);
     addLights(root, [
-      { type: "point", color: 0xff66ff, intensity: 2.8, x: 0, y: 3.5, z: 0 },
-      { type: "point", color: 0x00ffff, intensity: 2, x: -6, y: 2.5, z: 4 }
+      { type: "point", color: 0xff66ff, intensity: 4.2, x: 0, y: 3.5, z: 0 },
+      { type: "point", color: 0x00ffff, intensity: 3.4, x: -6, y: 2.5, z: 4 },
+      { type: "point", color: 0xffffff, intensity: 2.6, x: 0, y: 2.2, z: 6 }
     ]);
   } else if (locId === "construction") {
     floor = tiledFloor(22, 20, theme.ground, false);
@@ -657,9 +660,11 @@ export function buildLocationScene(locId, texLoader) {
     root.add(blueprint);
     root.userData.hangoutStage = 0;
     buildHangoutVisual(0, root);
+    addDistrictGroundMarkers(root, 20, 18);
     addLights(root, [
-      { type: "point", color: 0xffaa66, intensity: 4.5, x: 0, y: 4, z: 0 },
-      { type: "point", color: 0xffffcc, intensity: 3.2, x: -6, y: 3, z: -3 }
+      { type: "point", color: 0xffaa66, intensity: 5.2, x: 0, y: 4, z: 0 },
+      { type: "point", color: 0xffffcc, intensity: 4, x: -6, y: 3, z: -3 },
+      { type: "point", color: 0x88ddff, intensity: 3.2, x: 5, y: 2.5, z: 5 }
     ]);
   } else if (locId === "parkour") {
     floor = tiledFloor(16, 22, theme.ground, false);

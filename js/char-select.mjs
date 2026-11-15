@@ -7,6 +7,7 @@ import {
 import { updateProcedural } from "./character-rig.mjs";
 import { loadAvatarCatalog } from "./avatar/avatar-catalog.mjs";
 import { mountCharacterStudio } from "./avatar/character-studio.mjs";
+import { clearAccentTexCache } from "./world/meshy-accent-tint.mjs";
 
 /** Vertical padding inside the canvas (hair top / boots bottom). */
 const PREVIEW_MARGIN_Y = 0.08;
@@ -67,7 +68,19 @@ function ensurePreviewLights() {
 
 function showCharacter(id, lookOverride) {
   if (!templatesReady) return;
-  if (actorRoot) scene.remove(actorRoot);
+  clearAccentTexCache();
+  if (actorRoot) {
+    scene.remove(actorRoot);
+    actorRoot.traverse?.(o => {
+      if (o.isMesh) {
+        o.geometry?.dispose?.();
+        const m = o.material;
+        if (Array.isArray(m)) m.forEach(x => x.dispose?.());
+        else m?.dispose?.();
+      }
+    });
+    actorRoot = null;
+  }
   const def = getCharacterDef(id);
   const tpl = getTemplateForCharacter(id);
   const look = lookOverride ? { ...(def.look || {}), ...lookOverride } : def.look || {};
@@ -92,6 +105,7 @@ function showCharacter(id, lookOverride) {
   );
   const canvas = document.getElementById("charSelect3d");
   if (canvas && camera) framePreviewActor(actorRoot, camera, canvas);
+  renderer?.render(scene, camera);
   previewPhase = 0;
   const line = characterIntroLine(id);
   const el = document.getElementById("charSelectIntro");

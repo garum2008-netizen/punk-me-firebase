@@ -11,6 +11,10 @@ export const ACCENT_HUES = {
 
 const accentTexCache = new Map();
 
+export function clearAccentTexCache() {
+  accentTexCache.clear();
+}
+
 function rgbToHsl(r, g, b) {
   r /= 255; g /= 255; b /= 255;
   const max = Math.max(r, g, b);

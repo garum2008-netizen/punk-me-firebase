@@ -43,6 +43,7 @@ import {
 } from "./world/quest-markers.mjs";
 import { initTouchControls } from "./touch-controls.mjs";
 import { buildHangoutVisual } from "./world/construction-hangout.mjs";
+import { createCityBuilds3DGroup, syncCityBuilds3D } from "./world/city-builds-3d.mjs";
 import { tickStory } from "./story/story-engine.mjs";
 import {
   getInputState,
@@ -65,6 +66,7 @@ let hooks = {};
 let actors = new Map();
 let car = null;
 let locationRoot = null;
+let cityBuilds3dGroup = null;
 let bounds = null;
 let furnitureColliders = [];
 let floorMesh = null;
@@ -997,7 +999,16 @@ function rebuildLocation(locId) {
   (locationProps.cats || []).forEach(c => locationRoot.add(c));
   spawnParticles(locId);
   ensureMarkerRoot(scene);
+  cityBuilds3dGroup = createCityBuilds3DGroup();
+  locationRoot.add(cityBuilds3dGroup);
+  refreshCityBuilds3DFromMe();
   onGameplayLocationBuilt(locId, locationRoot, bounds);
+}
+
+function refreshCityBuilds3DFromMe() {
+  if (!cityBuilds3dGroup || !bounds) return;
+  const builds = typeof window !== "undefined" ? window.me?.cityBuilds : null;
+  syncCityBuilds3D(cityBuilds3dGroup, bounds, builds || []);
 }
 
 function spawnParticles(locId) {
@@ -1390,7 +1401,7 @@ const LOCATION_CAMERA = {
   },
   street: { dist: 6.85, height: 2.55, lookY: 1.32, yaw: 0.38 },
   city: { dist: 7.2, height: 2.62, lookY: 1.34, yaw: 0.28 },
-  cemetery: { dist: 7.55, height: 2.62, lookY: 1.38, yaw: 0.32 },
+  cemetery: { dist: 8.1, height: 2.68, lookY: 1.42, yaw: 0.3 },
   roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: {
@@ -1849,28 +1860,59 @@ function playLifeCh1ClimaxBeat(done) {
   }
   const prevLock = captureFrameLock;
   captureFrameLock = true;
+  const flash = document.createElement("div");
+  flash.className = "life-ch1-climax-flash";
+  flash.textContent =
+    typeof window.t === "function" ? window.t("life_ch1_climax_beat") || "MIDNIGHT PULSE" : "MIDNIGHT PULSE";
+  document.body.appendChild(flash);
+  const lights = [
+    new THREE.PointLight(0x00ffff, 18, 14),
+    new THREE.PointLight(0xff66ff, 12, 10)
+  ];
+  lights[0].position.set(pl.wx, 2.5, pl.wz);
+  lights[1].position.set(pl.wx, 1.2, pl.wz + 1.2);
+  scene.add(lights[0], lights[1]);
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.35, 2.4, 36),
-    new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+    new THREE.RingGeometry(0.5, 3.8, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.95,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending
+    })
   );
   ring.rotation.x = -Math.PI / 2;
-  ring.position.set(pl.wx, 0.06, pl.wz);
+  ring.position.set(pl.wx, 0.12, pl.wz);
   scene.add(ring);
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2, 0.55, 8, 12),
+    new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.55 })
+  );
+  pillar.position.set(pl.wx, 4, pl.wz);
+  scene.add(pillar);
   fadeTo(pl, "interact");
   let pulse = 0;
   const tick = setInterval(() => {
     pulse += 1;
-    const s = 1 + pulse * 0.28;
+    const s = 1 + pulse * 0.35;
     ring.scale.set(s, s, s);
-    ring.material.opacity = Math.max(0, 0.9 - pulse * 0.12);
-    if (pulse >= 7) {
+    ring.material.opacity = Math.max(0, 0.95 - pulse * 0.11);
+    pillar.material.opacity = Math.max(0, 0.55 - pulse * 0.06);
+    lights.forEach(l => {
+      l.intensity = Math.max(0, l.intensity * 0.92);
+    });
+    if (pulse >= 12) {
       clearInterval(tick);
       ring.removeFromParent();
+      pillar.removeFromParent();
+      lights.forEach(l => l.removeFromParent());
+      flash.remove();
       captureFrameLock = prevLock;
       fadeTo(pl, "idle");
       done?.();
     }
-  }, 300);
+  }, 280);
 }
 
 function processInput(dt) {
@@ -2521,6 +2563,7 @@ const api = {
   setGuideTarget: t => { guideTarget = t; },
   snapPlayerToLocationSpawn,
   playLifeCh1ClimaxBeat,
+  refreshCityBuilds3D: refreshCityBuilds3DFromMe,
   getPlayerFloorSnapshot: () => {
     const pl = actors.get("player");
     if (!pl) return null;
@@ -3737,7 +3780,9 @@ bindGameplayToWorld3D(api, () => ({
   currentLoc,
   hooks,
   camera,
-  car
+  car,
+  ensureActor,
+  placeActorWorld
 }));
 api.snapDialogueNpcShot = (npcId = "mohawk") => api.engageDialogueFraming(npcId, { live: false });
 window.World3D = api;

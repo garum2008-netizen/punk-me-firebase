@@ -687,12 +687,15 @@ async function completeOnboarding(page) {
       await page.waitForFunction(
         () => {
           const duel = document.getElementById("duel3dHud");
-          const overlay = document.getElementById("fightOverlay");
-          return (duel && !duel.classList.contains("hidden")) || overlay?.classList.contains("active");
+          return duel && !duel.classList.contains("hidden");
         },
         undefined,
-        { timeout: 20000 }
+        { timeout: 35000 }
       );
+      const duel2d = await page.evaluate(
+        () => document.getElementById("fightOverlay")?.classList.contains("active")
+      );
+      if (duel2d) throw new Error("ordinary_path_fight_must_be_3d_not_2d_overlay");
       await page.waitForFunction(() => !document.getElementById("gangModal")?.classList.contains("active"), undefined, {
         timeout: 8000,
       });
@@ -702,12 +705,7 @@ async function completeOnboarding(page) {
           fo: document.getElementById("fightOverlay")?.classList.contains("active"),
           hud: !document.getElementById("duel3dHud")?.classList.contains("hidden")
         }));
-        if (snap.fo) {
-          const btn = page.locator('#fightOverlay.active button[onclick*="fightAttack"]').first();
-          if (await btn.isVisible().catch(() => false)) {
-            await visibleUiClick(page, btn, "fightAttack");
-          }
-        } else if (snap.hud) {
+        if (snap.hud) {
           const hasSpell = await page.evaluate(
             () => (window.me?.inventory?.spells || []).length > 0
           );
@@ -779,22 +777,23 @@ async function completeOnboarding(page) {
         timeout: 8000,
       }).catch(() => {});
       await focusStage(page);
-      const placed = await page.evaluate(() => {
-        const n = window.me?.cityBuilds?.length || 0;
-        if (typeof window.toggleBuildMode === "function" && !window.isBuildMode?.()) window.toggleBuildMode();
-        if (typeof window.tryPlaceBuild === "function") {
-          window.tryPlaceBuild(48, 55);
-          window.tryPlaceBuild(52, 58);
-        }
-        return (window.me?.cityBuilds?.length || 0) > n;
-      });
+      const beforeN = await page.evaluate(() => window.me?.cityBuilds?.length || 0);
+      const vp = page.viewportSize() || { width: 1280, height: 720 };
+      const bx = Math.round(vp.width * 0.52);
+      const by = Math.round(vp.height * 0.58);
+      logInput("ui_click", `city build place 3d floor @${bx},${by}`);
+      await page.mouse.click(bx, by);
+      await page.waitForTimeout(600);
+      await page.mouse.click(bx + 40, by - 20);
+      await page.waitForTimeout(800);
+      const placed = await page.evaluate(
+        n => (window.me?.cityBuilds?.length || 0) > n,
+        beforeN
+      );
       if (!placed) {
-        const vp = page.viewportSize() || { width: 1280, height: 720 };
-        const bx = Math.round(vp.width * 0.5);
-        const by = Math.round(vp.height * 0.62);
-        logInput("ui_click", `city build place @${bx},${by}`);
-        await page.mouse.click(bx, by);
-        await page.waitForTimeout(800);
+        await page.evaluate(() => {
+          if (typeof window.tryPlaceBuild === "function") window.tryPlaceBuild(50, 52);
+        });
       }
       await page.waitForFunction(
         () => (window.me?.onboarding?.step || 0) > 6 || window.me?.onboarding?.done,

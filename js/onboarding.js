@@ -140,7 +140,7 @@ function syncGuideTarget() {
   World3D.setGuideTarget(getGuideTarget());
 }
 
-const ONBOARD_WORLD_MOVE_DIST = 1.15;
+const ONBOARD_WORLD_MOVE_DIST = 0.88;
 
 function onWorldMove(wx, wz) {
   const st = currentStep();

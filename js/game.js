@@ -2440,6 +2440,7 @@ function placeBuildAt(x, y) {
     saveMe();
     questBump("built", 1);
     window.Onboarding?.onCityBuildPlaced?.();
+    window.World3D?.refreshCityBuilds3D?.();
     toast(t("built"));
     return;
   }
@@ -2479,7 +2480,53 @@ window.startTrainingDuelMohawk = function () {
 
 function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
-  if (window.World3D?.startDuel3D?.(nid || npc.id)) {
+  const wantId = nid || npc.id || "razor";
+  const beginDuel3D = () => {
+    syncStage3D();
+    window.World3D?.snapPlayerToLocationSpawn?.();
+    return window.World3D?.startDuel3D?.(wantId);
+  };
+  if (document.body.classList.contains("mode-world3d")) {
+    if (me.location !== "street") {
+      goLocation("street");
+      setTimeout(() => {
+        const ok = beginDuel3D();
+        if (!ok) toast(t("fight_try_again") || "3D duel unavailable");
+        else {
+          fight = {
+            npcName: tNpcName(wantId),
+            npcHp: 100,
+            npcMax: 100,
+            playerHp: 100,
+            playerMax: 100,
+            shield: 0,
+            log: [],
+            _duel3d: true
+          };
+          window._duel3dEnd = win => endFight(win);
+        }
+      }, 150);
+      return;
+    }
+    const ok = beginDuel3D();
+    if (ok) {
+      fight = {
+        npcName: tNpcName(wantId),
+        npcHp: 100,
+        npcMax: 100,
+        playerHp: 100,
+        playerMax: 100,
+        shield: 0,
+        log: [],
+        _duel3d: true
+      };
+      window._duel3dEnd = win => endFight(win);
+      return;
+    }
+    toast(t("fight_try_again") || "3D duel unavailable");
+    return;
+  }
+  if (window.World3D?.startDuel3D?.(wantId)) {
     fight = {
       npcName: tNpcName(npc.id || nid),
       npcHp: 100,
