@@ -292,11 +292,28 @@ async function postFinalizeRecordingSession(r) {
     r.luminanceScanDir = lumDir;
   }
 
+  const progressStalls = [];
+  const sceneRows = r.scenes || [];
+  for (let i = 1; i < sceneRows.length; i++) {
+    const gap = +(sceneRows[i].tSec - sceneRows[i - 1].tSec).toFixed(2);
+    if (gap > 30) {
+      progressStalls.push({
+        gapSec: gap,
+        fromId: sceneRows[i - 1].id,
+        fromSec: sceneRows[i - 1].tSec,
+        toId: sceneRows[i].id,
+        toSec: sceneRows[i].tSec,
+      });
+    }
+  }
+  const progressGate = { ok: progressStalls.length === 0, maxGapSecAllowed: 30, stalls: progressStalls };
+
   r.recordingGate = {
     heroStill: heroGate,
     duration: durationGate,
     luminance: luminanceGate,
-    ok: heroGate.ok && durationGate.ok && luminanceGate.ok && !r.videoSaveError,
+    progress: progressGate,
+    ok: heroGate.ok && durationGate.ok && luminanceGate.ok && progressGate.ok && !r.videoSaveError,
     rejectLegacy245s:
       "Do not use rejected SHA 7d3d245dd54a4b60dcfad601f6e28589720a2b387d6f66f061868f91a805fc7d",
   };
@@ -903,6 +920,10 @@ async function completeOnboarding(page) {
         undefined,
         { timeout: 45000 }
       );
+      if (await page.evaluate(() => window.isBuildMode?.())) {
+        await visibleUiClick(page, "#btnBuild", "exit build mode");
+        await page.waitForTimeout(400);
+      }
     }
     await page
       .waitForFunction(s => window.me?.onboarding?.done || (window.me?.onboarding?.step || 0) > s, stepBefore, {
@@ -1039,14 +1060,20 @@ async function ensureRoomForLifeCh1(page) {
 
 async function advanceLifeCh1MoveStep(page) {
   await ensureRoomForLifeCh1(page);
+  await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 120000 });
   await dismissHowTo(page);
   await focusStage(page);
   await page.evaluate(() => {
     window.World3D?.releaseCaptureFrame?.();
     window.World3D?.ensureThirdPersonRunCamera?.();
     window.World3D?.snapPlayerToLocationSpawn?.();
+    const st = window.me?.lifeCh1;
+    if (st) {
+      delete st._moveStepBaseline;
+      st._needsRoomForMove = false;
+    }
   });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(400);
   await page
     .waitForFunction(
       () =>
@@ -1064,12 +1091,19 @@ async function advanceLifeCh1MoveStep(page) {
   });
   let advanced = await walkKeysUntil(
     page,
-    async () => ((await readState(page)).lifeCh1?.stepIndex || 0) >= 1,
-    72,
-    520
+    async () => {
+      const st = await readState(page);
+      return st.location === "room" && (st.lifeCh1?.stepIndex || 0) >= 1;
+    },
+    28,
+    420
   );
   const vp = page.viewportSize() || { width: 1280, height: 720 };
-  for (let c = 0; !advanced && c < 16; c++) {
+  if (!advanced) {
+    await walkKeys(page, 10, 420);
+    advanced = (await readState(page)).lifeCh1?.stepIndex >= 1;
+  }
+  for (let c = 0; !advanced && c < 8; c++) {
     await focusStage(page);
     await page.mouse.click(vp.width * (0.48 + (c % 4) * 0.04), vp.height * (0.52 + (c % 3) * 0.05));
     await page.waitForTimeout(850);
@@ -1083,7 +1117,9 @@ async function advanceLifeCh1MoveStep(page) {
 }
 
 async function playLifeCh1Ordinary(page) {
-  await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 120000 });
+  await ensureRoomForLifeCh1(page);
+  await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 120000 });
+  await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 60000 });
   logScene("ch1_start", "Life Ch1 panel after onboarding");
   await captureHeroProof(page, "04-ch1-start");
   await advanceLifeCh1MoveStep(page);

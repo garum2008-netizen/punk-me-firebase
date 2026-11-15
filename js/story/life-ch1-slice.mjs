@@ -638,6 +638,28 @@ export function isCompleted() {
   return !!ensureLifeCh1(me())?.completed;
 }
 
+export function onLocationChanged(locId) {
+  if (!isLifeCh1SliceEnabled() || !isActive()) return;
+  const st = ensureLifeCh1();
+  const step = currentStep();
+  if (step?.id === "move") {
+    if (locId === "room") {
+      delete st._moveStepBaseline;
+      delete st._needsRoomForMove;
+      try {
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.snapPlayerToLocationSpawn?.();
+        window.World3D?.setPortalGrace?.(1800);
+      } catch (_) {}
+      renderObjectivePanel();
+      syncBeacon();
+    } else {
+      st._needsRoomForMove = true;
+      renderObjectivePanel();
+    }
+  }
+}
+
 export async function tryStartAfterOnboarding() {
   if (!isLifeCh1SliceEnabled()) return false;
   await loadSpec();
@@ -650,6 +672,7 @@ export async function tryStartAfterOnboarding() {
   st.startedAt = Date.now();
   st.stepIndex = 0;
   delete st._moveStepBaseline;
+  st._needsRoomForMove = p?.location !== "room";
   st.playerCutout = false;
   document.body.classList.add("life-ch1-active");
   try {
@@ -751,7 +774,7 @@ export function onMove() {
     return;
   }
   const dist = distWorld(pos.x, pos.z, st._moveStepBaseline.x, st._moveStepBaseline.z);
-  if (dist < 1.25) return;
+  if (dist < 0.88) return;
   delete st._moveStepBaseline;
   advanceStep();
   setSubtitle(
@@ -906,7 +929,8 @@ export function closeWardrobePanel() {
   if (panel) panel.hidden = true;
 }
 
-function showDialogue(dlgId) {
+async function showDialogue(dlgId) {
+  if (!skinManifest) await loadAngelinaSkinManifest();
   const dlgRoot = spec?.dialogues?.[dlgId];
   if (!dlgRoot) return;
   let node;
@@ -938,7 +962,8 @@ function showDialogue(dlgId) {
   const speakerLine = L(node.text);
   setSubtitle("", 0);
   playUiBlip();
-  const skin = readSelectedSkin(ensureLifeCh1());
+  const stDlg = ensureLifeCh1();
+  const skin = normalizeSkinId(stDlg?.companionAngelinaSkin || stDlg?.angelinaSkin || readSelectedSkin(stDlg));
   const portrait =
     node.speaker === "player" || node.speaker === "angelina" ? dialogPortraitHtml(skin) : "";
 
@@ -1033,7 +1058,14 @@ export function renderObjectivePanel() {
   }
   if (!isActive()) return false;
   const step = currentStep();
-  const objective = step ? L(step.objective) : L({ ru: "Готово", en: "Done", da: "Færdig" });
+  let objective = step ? L(step.objective) : L({ ru: "Готово", en: "Done", da: "Færdig" });
+  if (step?.id === "move" && me()?.location !== "room") {
+    objective = L({
+      ru: "Сначала карта → твоя комната, потом пройдись WASD",
+      en: "Map → your room first, then walk around (WASD)",
+      da: "Kort → dit værelse, derefter gå rundt"
+    });
+  }
   const i = (st.stepIndex || 0) + 1;
   const n = spec?.steps?.length || 4;
   box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker" data-testid="life-ch1-quest-panel">
@@ -1110,6 +1142,7 @@ export async function initLifeCh1Slice(h) {
     tryStartAfterOnboarding,
     onBoot,
     onMove,
+    onLocationChanged,
     tryInteract,
     renderObjectivePanel,
     isActive,

@@ -1887,6 +1887,7 @@ function goLocation(id, fromHash) {
   try {
     window.World3D?.releaseCaptureFrame?.();
   } catch (_) {}
+  window.LifeCh1Slice?.onLocationChanged?.(id);
   syncStage3D();
   if (id === "city" || id === "construction") {
     try {
