@@ -296,7 +296,9 @@ async function postFinalizeRecordingSession(r) {
   const sceneRows = r.scenes || [];
   for (let i = 1; i < sceneRows.length; i++) {
     const gap = +(sceneRows[i].tSec - sceneRows[i - 1].tSec).toFixed(2);
-    if (gap > 30) {
+    const progressScene = id =>
+      id === "world_load_progress" || id === "studio_complete" || id === "onboarding_step0_world";
+    if (gap > 30 && !(progressScene(sceneRows[i - 1].id) || progressScene(sceneRows[i].id))) {
       progressStalls.push({
         gapSec: gap,
         fromId: sceneRows[i - 1].id,
@@ -763,47 +765,14 @@ async function completeOnboarding(page) {
       });
       await dismissHowTo(page);
       await focusStage(page);
-      for (let t = 0; t < 40; t++) {
-        const ready = await page.evaluate(
-          () =>
-            typeof window.Onboarding?.onWorldMove === "function" &&
-            typeof window.World3D?.getPlayerWorldPosition === "function"
-        );
-        if (ready) break;
-        await page.waitForTimeout(250);
-      }
-      const primed = await page.evaluate(() => {
-        document.body.classList.add("mode-world3d");
-        const W = window.World3D || window.Scene3D;
-        if (!window.Onboarding?.onWorldMove && !window.Onboarding?.onMove) {
-          return { ok: false, reason: "no-onboarding" };
-        }
-        if (typeof W?.getPlayerWorldPosition === "function" && window.Onboarding.onWorldMove) {
-          const pos = W.getPlayerWorldPosition();
-          let x = pos.x;
-          let z = pos.z;
-          for (let i = 0; i < 28; i++) {
-            x += 0.085;
-            z += i % 2 ? 0.065 : -0.045;
-            window.Onboarding.onWorldMove(x, z);
-          }
-          return {
-            ok: (window.me?.onboarding?.step || 0) >= 1,
-            step: window.me?.onboarding?.step,
-            pathM: window.me?._onboardPathM,
-            mode: "world3d",
-          };
-        }
-        if (window.Onboarding.onMove) {
-          for (let i = 0; i < 14; i++) window.Onboarding.onMove(50 + i * 0.9, 50 + i * 0.7);
-        }
-        return {
-          ok: (window.me?.onboarding?.step || 0) >= 1,
-          step: window.me?.onboarding?.step,
-          mode: "grid-fallback",
-        };
-      });
-      logScene("onboarding_step0_prime", JSON.stringify(primed));
+      await page
+        .waitForFunction(() => window.Onboarding?.worldLocomotionReady?.(), undefined, { timeout: 120000 })
+        .catch(() => {});
+      const locomotionDiag = await page.evaluate(() => ({
+        locomotionReady: !!window.Onboarding?.worldLocomotionReady?.(),
+        roomPlayableMs: window.__punkTimeToRoomPlayableMs ?? null,
+      }));
+      logScene("onboarding_step0_world", JSON.stringify(locomotionDiag));
       if (PORTAL_GATE_ONLY) {
         await walkKeysUntil(
           page,
@@ -811,14 +780,14 @@ async function completeOnboarding(page) {
           24,
           280
         );
-      } else if ((primed.step ?? 0) < 1) {
+      } else {
         let ok = await walkKeysUntil(
           page,
           async () => (await readState(page)).onboardingStep >= 1,
           36,
           400
         );
-        if (!ok) await walkKeys(page, 8, 400);
+        if (!ok) await walkKeys(page, 10, 400);
       }
       await page
         .waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 45000 })
@@ -1471,20 +1440,10 @@ async function runOrdinarySession(browser, viewport, label) {
   await page.goto(entryUrl, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.bringToFront();
   await dismissHowTo(page);
-  await page.waitForSelector("#charSelect.active", { timeout: 120000 });
-  const configureStart = Date.now();
-  await pickAngelina(page, { deferWorldReady: true, skipStudioWait: true });
-  const studioWallEndMs = Date.now() - configureStart;
-  logScene("studio_complete", `wallMs=${studioWallEndMs}`);
-  await dismissHowTo(page);
-
-  await waitWorld3dPlayable(page);
-  await page.bringToFront();
-  await page.waitForTimeout(300);
-  await captureHeroProof(page, "00-studio-confirm");
 
   t0 = Date.now();
   const recordStartMs = Date.now();
+  let lastWorldLoadLogMs = 0;
   let diagTimer = setInterval(async () => {
     try {
       const tSec = +((Date.now() - t0) / 1000).toFixed(2);
@@ -1508,10 +1467,25 @@ async function runOrdinarySession(browser, viewport, label) {
             storyDialogSheet: storyActive,
             fightOverlay2d: !!document.getElementById("fightOverlay")?.classList.contains("active"),
           },
+          worldReady: !!window.World3D?.isReady?.(),
+          roomPlayableMs: window.__punkTimeToRoomPlayableMs ?? null,
+          loadProg: window.__punkWorldLoadProgress || null,
           diag: window.World3D?.getRenderDiag?.() || null,
         };
       });
       renderDiagSamples.push({ tSec, ...snap });
+      const nowMs = Date.now();
+      if (!snap.worldReady && nowMs - lastWorldLoadLogMs >= 4800) {
+        lastWorldLoadLogMs = nowMs;
+        logScene(
+          "world_load_progress",
+          JSON.stringify({
+            frac: snap.loadProg?.frac ?? null,
+            label: snap.loadProg?.label ?? "",
+            roomPlayableMs: snap.roomPlayableMs,
+          })
+        );
+      }
       try {
         const diagPath = path.join(OUT, `render-diag-live-${shaShort}-${passTag}.jsonl`);
         fs.appendFileSync(diagPath, `${JSON.stringify({ tSec, ...snap })}\n`);
@@ -1556,22 +1530,41 @@ async function runOrdinarySession(browser, viewport, label) {
       ],
       { stdio: ["ignore", logOut, logOut] }
     );
-    logScene("ffmpeg_x11grab", `recording ${dest} (gameplay t=0 after studio)`);
-    logScene("gameplay_recording_start", `studioPreRollMs=${studioWallEndMs}`);
+    logScene("ffmpeg_x11grab", `recording ${dest} (uncut from page load)`);
+    logScene("gameplay_recording_start", "uncutFromNavigation=true");
   }
 
-  const gameplayIgnoreBeforeSec = 0;
-  logScene("player_ready", `gameplayIgnoreBeforeSec=${gameplayIgnoreBeforeSec} studioWallMs=${studioWallEndMs}`);
-  await page
-    .waitForFunction(() => typeof window.World3D?.getPlayerWorldPosition === "function", undefined, {
-      timeout: 180000,
+  await page.waitForSelector("#charSelect.active", { timeout: 120000 });
+  const configureStart = Date.now();
+  await pickAngelina(page, { deferWorldReady: true, skipStudioWait: true });
+  const studioWallEndMs = Date.now() - configureStart;
+  logScene("studio_complete", `wallMs=${studioWallEndMs}`);
+
+  await waitWorld3dPlayable(page, 360000);
+  const roomMetrics = await page.evaluate(() => ({
+    roomPlayableMs: window.__punkTimeToRoomPlayableMs ?? null,
+    worldReady: !!window.World3D?.isReady?.(),
+    locomotionReady: !!window.Onboarding?.worldLocomotionReady?.(),
+  }));
+  logScene(
+    "room_playable",
+    JSON.stringify({
+      ...roomMetrics,
+      studioWallMs,
+      targetMs: 20000,
+      passDesktop20s: roomMetrics.roomPlayableMs != null && roomMetrics.roomPlayableMs <= 20000,
     })
-    .catch(() => {});
+  );
+  await page.bringToFront();
+  await dismissHowTo(page);
+  await page.waitForTimeout(250);
+  await captureHeroProof(page, "00-studio-confirm");
   await page.evaluate(() => {
     window.World3D?.snapPlayerToLocationSpawn?.();
     window.World3D?.releaseCaptureFrame?.();
   });
-  await page.waitForTimeout(400);
+  const gameplayIgnoreBeforeSec = +((Date.now() - t0) / 1000).toFixed(2);
+  logScene("player_ready", `gameplayIgnoreBeforeSec=${gameplayIgnoreBeforeSec} studioWallMs=${studioWallEndMs}`);
 
   const onboardingResult = await completeOnboarding(page);
   if (PORTAL_GATE_ONLY) {

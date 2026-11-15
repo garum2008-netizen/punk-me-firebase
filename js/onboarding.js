@@ -106,7 +106,10 @@ function renderOnboardingQuest() {
   const i = stepIndex() + 1;
   const title = typeof t === "function" ? t("onboard_title") : "Your mission";
   const stepTitle = typeof t === "function" ? t(`onboard_${st.id}_title`) : st.id;
-  const stepText = typeof t === "function" ? t(`onboard_${st.id}_text`) : "";
+  let stepText = typeof t === "function" ? t(`onboard_${st.id}_text`) : "";
+  if (st.key === "moved" && !worldLocomotionReady()) {
+    stepText = typeof t === "function" ? t("onboard_loading_room") : "Loading your room…";
+  }
   let offPath =
     st.key === "angelina_street" && window.me?.location && window.me.location !== "street"
       ? typeof t === "function"
@@ -165,6 +168,15 @@ function syncGuideTarget() {
 
 const ONBOARD_WORLD_MOVE_DIST = 0.88;
 
+function worldLocomotionReady() {
+  const W = window.World3D || window.Scene3D;
+  return !!(
+    document.body?.classList?.contains("mode-world3d") &&
+    W?.isReady?.() &&
+    typeof W?.getPlayerWorldPosition === "function"
+  );
+}
+
 function onWorldMove(wx, wz) {
   const st = currentStep();
   if (!st) return;
@@ -194,8 +206,14 @@ function onMove(x, y) {
   const st = currentStep();
   if (!st || st.key !== "moved") return;
   if (document.body?.classList?.contains("mode-world3d")) {
-    const w = window.World3D?.getPlayerWorldPosition?.();
-    if (w) onWorldMove(w.x, w.z);
+    if (!worldLocomotionReady()) {
+      window.me._onboardAwaitWorld = true;
+      return;
+    }
+    delete window.me._onboardAwaitWorld;
+    const W = window.World3D || window.Scene3D;
+    const w = W.getPlayerWorldPosition();
+    onWorldMove(w.x, w.z);
     return;
   }
   if (!window.me._onboardOrigin) window.me._onboardOrigin = { x, y };
@@ -254,14 +272,32 @@ function adaptSpawnLocation() {
   window.AngelinaGuide?.refresh?.();
 }
 
+function onRoomPlayableForOnboarding() {
+  if (!window.me?.onboarding || window.me.onboarding.done) return;
+  const st = currentStep();
+  if (!st || st.key !== "moved") return;
+  delete window.me._onboardAwaitWorld;
+  delete window.me._onboardLastW;
+  delete window.me._onboardOrigin;
+  delete window.me._onboardPathM;
+  renderOnboardingQuest();
+  syncGuideTarget();
+  window.AngelinaGuide?.refresh?.();
+}
+
 function initOnboarding() {
   if (!window.me) return;
   if (!window.me.onboarding) {
     window.me.onboarding = { step: 0, progress: {}, done: false };
   }
+  if (!window.__punkOnboardRoomPlayableBound) {
+    window.__punkOnboardRoomPlayableBound = true;
+    window.addEventListener("punk-room-playable", onRoomPlayableForOnboarding, { passive: true });
+  }
   renderOnboardingQuest();
   syncGuideTarget();
   window.AngelinaGuide?.refresh?.();
+  if (worldLocomotionReady()) onRoomPlayableForOnboarding();
 }
 
 window.Onboarding = {
@@ -278,6 +314,7 @@ window.Onboarding = {
   onShopBuy,
   onCityBuildPlaced,
   getGuideTarget,
+  worldLocomotionReady,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done),
   currentStep
 };

@@ -79,6 +79,8 @@ let meLastDx = 0;
 let meLastDy = 0;
 let playerAnimState = "idle";
 let modelsReady = false;
+let roomPlayableMarked = false;
+let worldBootstrappedForCharacter = false;
 let pendingSyncData = null;
 let captureFrameLock = false;
 let dialogueCameraLock = false;
@@ -1028,21 +1030,72 @@ function resolvePlayerHeroMeshId() {
   return raw;
 }
 
+function setWorldLoadProgress(frac, label) {
+  const f = Math.max(0, Math.min(1, frac));
+  window.__punkWorldLoadProgress = { frac: f, label: label || "", t: performance.now() };
+  const overlay = document.getElementById("worldLoadOverlay");
+  const bar = document.getElementById("worldLoadBar");
+  const lbl = document.getElementById("worldLoadLabel");
+  if (overlay) overlay.hidden = false;
+  if (bar) bar.style.width = `${Math.round(f * 100)}%`;
+  if (lbl) {
+    lbl.textContent =
+      label ||
+      (typeof t === "function" ? t("world_load_heroes") : "Loading heroes…");
+  }
+}
+
+function hideWorldLoadProgress() {
+  const overlay = document.getElementById("worldLoadOverlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function markRoomPlayable() {
+  if (roomPlayableMarked) return;
+  roomPlayableMarked = true;
+  const page0 = window.__punkPageLoadStart || performance.now();
+  const anchor = window.__punkCharacterConfirmMs || page0;
+  window.__punkTimeToRoomPlayableFromNavigationMs = Math.round(performance.now() - page0);
+  window.__punkTimeToRoomPlayableMs = Math.round(performance.now() - anchor);
+  setWorldLoadProgress(1, typeof t === "function" ? t("world_load_ready") : "Ready");
+  hideWorldLoadProgress();
+  window.dispatchEvent(
+    new CustomEvent("punk-room-playable", {
+      detail: {
+        ms: window.__punkTimeToRoomPlayableMs,
+        fromNavigationMs: window.__punkTimeToRoomPlayableFromNavigationMs
+      }
+    })
+  );
+}
+
+function loadDeferredWorldAssets(playerHero) {
+  const roomHeroes = ["vienna", "mohawk", "cobalt"];
+  const npcParallel = [...new Set(roomHeroes.filter(id => id !== playerHero))];
+  void (async () => {
+    setWorldLoadProgress(0.72, typeof t === "function" ? t("world_load_npc") : "Extras…");
+    await Promise.all(npcParallel.map(id => loadMeshyTemplateForCharacter(id)));
+    setWorldLoadProgress(0.86, typeof t === "function" ? t("world_load_city") : "City assets…");
+    await loadMeshyTemplateForCharacter("razor");
+    void loadAllCc0Templates();
+    void loadPunkDogTemplate().then(tpl => {
+      punkDogTemplate = tpl;
+    });
+    window.dispatchEvent(new CustomEvent("punk-world-assets-ready"));
+  })().catch(err => console.warn("deferred world assets", err));
+}
+
 async function loadModels() {
   const playerHero = resolvePlayerHeroMeshId();
-  const roomHeroes = ["vienna", "mohawk", "cobalt"];
+  setWorldLoadProgress(0.08, typeof t === "function" ? t("world_load_hero") : "Your hero…");
   if (playerHero) {
     await loadMeshyTemplateForCharacter(playerHero);
   }
-  const npcParallel = [...new Set(roomHeroes.filter(id => id !== playerHero))];
-  await Promise.all(npcParallel.map(id => loadMeshyTemplateForCharacter(id)));
+  setWorldLoadProgress(0.58, typeof t === "function" ? t("world_load_room") : "Punk room…");
   modelsReady = true;
   if (pendingSyncData) sync(pendingSyncData);
-  void loadMeshyTemplateForCharacter("razor");
-  void loadAllCc0Templates();
-  void loadPunkDogTemplate().then(t => {
-    punkDogTemplate = t;
-  });
+  markRoomPlayable();
+  loadDeferredWorldAssets(playerHero || "mohawk");
 }
 
 function clearLocation() {
@@ -2501,15 +2554,36 @@ function init(h) {
 
   onMeshyTemplateLoaded(rebuildActorsForCharacter);
 
-  return loadModels().then(() => {
-    resize();
-    loop();
+  resize();
+  loop();
+  return Promise.resolve(true);
+}
+
+async function bootstrapWorldAfterCharacter() {
+  if (worldBootstrappedForCharacter && modelsReady) {
+    await ensurePlayerHeroMesh();
+    return true;
+  }
+  worldBootstrappedForCharacter = true;
+  try {
+    await loadModels();
     hooks.onReady?.();
     return true;
-  }).catch(err => {
-    console.error("World3D load failed", err);
+  } catch (err) {
+    console.error("World3D bootstrap failed", err);
     return false;
-  });
+  }
+}
+
+async function ensurePlayerHeroMesh() {
+  const playerHero = resolvePlayerHeroMeshId();
+  if (!getTemplateForCharacter(playerHero)) {
+    setWorldLoadProgress(0.35, typeof t === "function" ? t("world_load_hero") : "Your hero…");
+    await loadMeshyTemplateForCharacter(playerHero);
+  }
+  if (pendingSyncData) sync(pendingSyncData);
+  else rebuildPlayerFromAvatar();
+  if (!roomPlayableMarked) markRoomPlayable();
 }
 
 function applyViewportCameraProfile() {
@@ -2550,6 +2624,10 @@ const api = {
     playOneShot(a, name === "sit" ? "sit" : "interact", 1500);
   },
   isReady: () => modelsReady,
+  isRoomPlayable: () => modelsReady && !!actors.get("player"),
+  getTimeToRoomPlayableMs: () => window.__punkTimeToRoomPlayableMs ?? null,
+  bootstrapWorldAfterCharacter,
+  ensurePlayerHeroMesh,
   getDebugCamera: () => {
     const pl = actors.get("player");
     const dog = actors.get("dog");

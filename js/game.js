@@ -1284,9 +1284,19 @@ function pickCharacterAndContinue(id, companionSkin, avatarBundle) {
   window.__playerLoaded = true;
   if (typeof performance !== "undefined") {
     window.__punkTimeToPlayerMs = Math.round(performance.now() - (window.__punkPageLoadStart || 0));
+    window.__punkCharacterConfirmMs = performance.now();
   }
   saveMe();
-  continueGameBoot();
+  const boot = () => continueGameBoot();
+  const bootstrap = window.World3D?.bootstrapWorldAfterCharacter;
+  if (typeof bootstrap === "function") {
+    bootstrap().then(boot).catch(err => {
+      console.error("World3D bootstrap", err);
+      boot();
+    });
+  } else {
+    boot();
+  }
 }
 
 function previewSliceEconomyActive() {
