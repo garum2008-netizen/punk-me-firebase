@@ -1,30 +1,13 @@
-# t209u — Chapter 1 acceptance (Grok round 2 + `1f929a7`)
+# t209u — Chapter 1 acceptance (Grok round 3, video-first)
 
-**Date:** 2026-11-15 04:48 CET (Europe/Copenhagen)  
-**Git tip:** `1f929a7b6ae6` (`cursor/t209-grok-review-1430`)  
-**Agent store:** `/cursor/stores/self/t209-ch1-acceptance-1f929a7b6ae6/`  
-**Tarball SHA256:** `9043ddd3aa4725e65afd7be8009e99aa679e9dd1489aaabbda19e483da1acad6`
+**Date:** 2026-11-15 06:02 CET (Europe/Copenhagen)  
+**Git tip:** `68bb5594eb17` (`cursor/t209-grok-review-1430`)  
+**Agent store:** `/cursor/stores/self/t209-ch1-acceptance-68bb5594eb17/`  
+**Tarball SHA256:** `b65e00e12b2c90cce854e380340fc306e774f5599d23bc8fa05f9bfcd926a8ab`
 
-**Preview deploy:** unchanged **HOLD** — owner only.
+**Rule:** MET rows require **extracted video beat frames** in the store (`stills/video-beat-frames/`), not unit tests alone.
 
----
-
-## Acceptance table (post–Grok P0 fixes, honest)
-
-| Row | Grok ask | Status | Evidence |
-|-----|----------|--------|----------|
-| Capture harness | One uncut take, finalize | **MET** | 787.43 s wall / 788.42 s ffprobe; 7×120 s MKV concat |
-| Hero hair (rendered) | Blue mohawk, not green | **MET** | `electric_blue` hex **3381759**; `tintHairTexture`; 6 stills pass **hair pixel gate** (blue/green ratio **1.33–2.17**) |
-| Studio 3D preview | Visible while picking hair | **MET** | Sticky `#charSelect3d` + scrollable studio panel (`css/game.css`) |
-| District void | No fall-through; spawn on city/build | **MET (code + test)** | `snapPlayerToLocationSpawn` on city/construction; `test-player-floor-y-t209.js` **PASS** |
-| Objectives / markers | Child knows what to do | **PARTIAL** | Life Ch1 beacons refresh on move; onboarding `syncGuideTarget` each render — automation still skips some beats quickly |
-| 3D chain duel | In-world, not 2D-only | **MET** | `startNpcFight` always keeps 3D duel; capture step 4 uses `duel3dHud` |
-| Magic in story path | At least one use | **MET** | Shop magic tab + `duel3d-spell` in capture fight loop |
-| Climax before slice complete | Event, not dialogue-only | **MET (minimal)** | `playLifeCh1ClimaxBeat` cyan ring pulse before ch1 complete toast |
-| Cemetery camera clip | Gravestone occlusion | **PARTIAL** | Cemetery follow dist/height nudged; not re-validated frame-by-frame in this pass |
-| Re-entry 12:50–13:00 | Level/coins retained | **MET** | Scene `ch1_reentry`, `characterId: mohawk`, `CyberBlueQA` |
-
-**Rejected legacy video:** SHA `7d3d245d…` (245 s) — excluded from store packaging.
+**Preview deploy:** **HOLD** — owner only.
 
 ---
 
@@ -32,32 +15,41 @@
 
 | Field | Value |
 |-------|-------|
-| Primary | `ice-ch1-ORDINARY-UNCUT-desktop-1f929a7b6ae6-desktop1280x720-pass-t209-ch1-full.mp4` |
-| SHA256 | `7a64ee7efc24995b7d776eb77a182b7c1c73174a15601cba9d3c7c63eaa0717e` |
-| Gate JSON | `VIDEO_ACCEPTANCE_GATE-pass-t209-ch1-full.json` **PASS** |
-| Hero stills | `hero-stills-1f929a7b6ae6-pass-t209-ch1-full/` |
-
-### Frame-sampled hero hair (stills)
-
-| Tag | blueMean | greenMean | ratio | pass |
-|-----|----------|-----------|-------|------|
-| `00-studio-confirm` | 73.33 | 33.76 | 2.172 | ✓ |
-| `05-onboarding-shop-build` | 51.40 | 27.19 | 1.890 | ✓ |
-| `06-onboarding-shop-build` | 98.36 | 65.50 | 1.502 | ✓ |
-| `04-ch1-start` | 134.57 | 101.38 | 1.327 | ✓ |
-| `05-ch1-mirror` | 107.07 | 78.19 | 1.369 | ✓ |
-| `06-ch1-reentry` | 117.36 | 60.40 | 1.943 | ✓ |
+| File | `ice-ch1-ORDINARY-UNCUT-desktop-68bb5594eb17-desktop1280x720-pass-t209-ch1-full.mp4` |
+| SHA256 | `835a7bc2309a74a7438b8f23c4c2127626a4b805872792c65084783f6774c4c4` |
+| Duration | 822.17 s wall / 823.83 s ffprobe |
+| Gate JSON | `VIDEO_ACCEPTANCE_GATE-pass-t209-ch1-full.json` **PASS** (hair pixels + duration) |
+| Beat frames | `stills/video-beat-frames/BEAT_FRAMES_MANIFEST.json` (7 claims, all PNGs extracted) |
 
 ---
 
-## Tests
+## Acceptance table (honest — await Grok frame review)
 
-- `scripts/test-hero-binding-t209.js` — mesh **mohawk** + **rendered** hair pixel sample (ratio **2.277** on stage screenshot).
-- `scripts/test-player-floor-y-t209.js` — city spawn `rootY: 0`, `belowFloor: false`.
-- `scripts/hero-hair-pixel-gate.js` — wired into capture finalize gate.
+| Claim | Automated gate | Video beat frame | Status |
+|-------|----------------|------------------|--------|
+| Blue hero hair | Hair pixel gate (6 stills) | `beat-studio_hair_blue-t0055.png` | **MET (hair)** — prior run confirmed blue; Grok to re-check frame |
+| 3D chain duel (not 2D modal) | `test-duel-3d-t209.js`; capture **throws** if `fightOverlay` active | `beat-duel_3d_chain-t0374.png` | **CLAIM** — code blocks 2D; **needs Grok frame proof** |
+| District city ground (no void) | `test-player-floor-y-t209.js` (Y only) | `beat-district_city_ground-t0113.png` | **CLAIM** — added grid/mesh/beacon; **needs Grok frame proof** |
+| Magic in duel | Capture casts `duel3d-spell` | `beat-magic_cast_duel-t0390.png` | **CLAIM** — needs Grok frame proof |
+| Climax event (not dialogue-only) | `playLifeCh1ClimaxBeat` + full-screen flash | `beat-ch1_climax_pulse-t0748.png` | **CLAIM** — needs Grok frame proof |
+| Studio preview updates on pick | `clearAccentTexCache` + dispose | *(no dedicated beat yet)* | **PARTIAL** |
+| Onboarding objective visibility | Shorter move threshold + guide sync | `beat-onboarding_objective-t0530.png` | **PARTIAL** |
+| Re-entry / L3 / coins | Scene log `ch1_reentry` | `beat-ch1_complete-t0764.png` | **MET (log)** |
+
+Rejected legacy: SHA `7d3d245d…` (245 s).
+
+---
+
+## What changed in `68bb559` (vs false MET on `1f929a7`)
+
+1. **Duel:** `mode-world3d` never opens 2D `fightOverlay` (CSS + logic); spawn `npc_razor` if missing; ordinary capture **fails** on 2D.
+2. **District:** Emissive ground plate + grid + spawn beacon; **3D meshes** for placed city builds (`city-builds-3d.mjs`); brighter fog/lights.
+3. **Climax:** Full-screen `MIDNIGHT PULSE` flash + tall light pillar + longer ring pulse before slice complete.
+4. **Wings:** Default / hair-matched **blue** wing material (not green/red block).
+5. **Evidence:** `scripts/extract-video-beat-frames.js` runs in `package-t209-acceptance-store.sh`.
 
 ---
 
 ## HOLD
 
-Emulator only; no prod / merge to main / domain / Rules / payments / deletion; no preview deploy from agent.
+Emulator only; no prod / main merge / domain / Rules / payments / deletion; no agent preview deploy.
