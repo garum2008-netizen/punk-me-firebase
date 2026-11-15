@@ -774,21 +774,34 @@ async function completeOnboarding(page) {
       }
       const primed = await page.evaluate(() => {
         document.body.classList.add("mode-world3d");
-        if (typeof window.World3D?.getPlayerWorldPosition !== "function" || !window.Onboarding?.onWorldMove) {
+        const W = window.World3D || window.Scene3D;
+        if (!window.Onboarding?.onWorldMove && !window.Onboarding?.onMove) {
+          return { ok: false, reason: "no-onboarding" };
+        }
+        if (typeof W?.getPlayerWorldPosition === "function" && window.Onboarding.onWorldMove) {
+          const pos = W.getPlayerWorldPosition();
+          let x = pos.x;
+          let z = pos.z;
+          for (let i = 0; i < 28; i++) {
+            x += 0.085;
+            z += i % 2 ? 0.065 : -0.045;
+            window.Onboarding.onWorldMove(x, z);
+          }
           return {
-            ok: false,
-            reason: !window.World3D ? "no-world3d" : !window.Onboarding ? "no-onboarding" : "no-world-pos-fn",
+            ok: (window.me?.onboarding?.step || 0) >= 1,
+            step: window.me?.onboarding?.step,
+            pathM: window.me?._onboardPathM,
+            mode: "world3d",
           };
         }
-        const w = window.World3D.getPlayerWorldPosition();
-        let x = w.x;
-        let z = w.z;
-        for (let i = 0; i < 28; i++) {
-          x += 0.085;
-          z += i % 2 ? 0.065 : -0.045;
-          window.Onboarding.onWorldMove(x, z);
+        if (window.Onboarding.onMove) {
+          for (let i = 0; i < 14; i++) window.Onboarding.onMove(50 + i * 0.9, 50 + i * 0.7);
         }
-        return { ok: (window.me?.onboarding?.step || 0) >= 1, step: window.me?.onboarding?.step, pathM: window.me?._onboardPathM };
+        return {
+          ok: (window.me?.onboarding?.step || 0) >= 1,
+          step: window.me?.onboarding?.step,
+          mode: "grid-fallback",
+        };
       });
       logScene("onboarding_step0_prime", JSON.stringify(primed));
       if (PORTAL_GATE_ONLY) {
