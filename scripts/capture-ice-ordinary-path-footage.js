@@ -1097,7 +1097,7 @@ async function runOrdinarySession(browser, viewport, label) {
         "matroska",
         mkvDest,
       ],
-      { stdio: ["pipe", logOut, logOut] }
+      { stdio: ["ignore", logOut, logOut] }
     );
   }
 

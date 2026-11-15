@@ -74,14 +74,7 @@ function waitForFileStable(filePath, timeoutMs, minBytes) {
 async function stopFfmpegGraceful(proc, mkvDest, minBytes) {
   if (!proc) return false;
   try {
-    if (proc.stdin?.writable) {
-      proc.stdin.write("q");
-      try {
-        proc.stdin.end();
-      } catch (_) {}
-    } else if (proc.kill) {
-      proc.kill("SIGINT");
-    }
+    if (proc.kill) proc.kill("SIGINT");
   } catch (_) {}
   const ok = await waitForFileStable(mkvDest, 180000, minBytes);
   await new Promise(resolve => {
