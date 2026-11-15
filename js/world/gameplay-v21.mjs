@@ -406,6 +406,18 @@ function startDuel3D(nid, opts = {}) {
   }
   opponent._anim = "idle";
   frameDuelCamera(ctx, pl, opponent);
+  const midX = (pl.wx + opponent.wx) * 0.5;
+  const midZ = (pl.wz + opponent.wz) * 0.5;
+  if (!state.duelLight) {
+    state.duelLight = new THREE.PointLight(0x99ddff, 10, 22);
+    ctx.scene.add(state.duelLight);
+  }
+  state.duelLight.position.set(midX, 3.8, midZ);
+  state.duelLight.intensity = 12;
+  if (ctx.renderer) {
+    state._duelExp = ctx.renderer.toneMappingExposure;
+    ctx.renderer.toneMappingExposure = Math.max(1.52, state._duelExp || 1.28);
+  }
   const training = !!opts.training;
   const firstTo = opts.firstTo || (training ? 3 : 0);
   state.duel = {
@@ -454,6 +466,14 @@ function ensureDuelOpponent(ctx, nid) {
 
 function finishDuel3DCleanup(win, wasTraining) {
   const d = state.duel;
+  if (state.duelLight) {
+    state.duelLight.intensity = 0;
+  }
+  const ctx = ctxGet?.();
+  if (ctx?.renderer && state._duelExp != null) {
+    ctx.renderer.toneMappingExposure = state._duelExp;
+    state._duelExp = null;
+  }
   if (d?.trail) {
     d.trail.removeFromParent();
     d.trail = null;

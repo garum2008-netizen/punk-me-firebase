@@ -2486,7 +2486,7 @@ function init(h) {
   scene.add(sun);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.28;
   atmospherePipe = createAtmospherePipeline(renderer, scene, camera, !mobileQuality);
 
   canvas.addEventListener("pointerdown", onPointer);

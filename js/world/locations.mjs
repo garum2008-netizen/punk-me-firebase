@@ -248,7 +248,7 @@ export const LOCATION_THEME = {
   room: { bg: 0x2a1838, fog: 0x221530, fogD: 0.0055, hemi: 0xffaaff, ground: 0x3a2850 },
   kitchen: { bg: 0x382018, fog: 0x2a140c, fogD: 0.005, hemi: 0xffcc88, ground: 0x4a3420 },
   roof: { bg: 0x1a2848, fog: 0x142038, fogD: 0.0045, hemi: 0xaaccff, ground: 0x2a3448 },
-  street: { bg: 0x1a1028, fog: 0x140c20, fogD: 0.0082, hemi: 0xff88ff, ground: 0x282038 },
+  street: { bg: 0x221430, fog: 0x1a1028, fogD: 0.0058, hemi: 0xff99ff, ground: 0x322840 },
   cemetery: { bg: 0x142018, fog: 0x101818, fogD: 0.0105, hemi: 0x99ffbb, ground: 0x243028 },
   toilet: { bg: 0x182838, fog: 0x121828, fogD: 0.0055, hemi: 0x99ccff, ground: 0x2a3040 },
   elevator: { bg: 0x2a2a38, fog: 0x2a2a38, fogD: 0.11, hemi: 0xccccff, ground: 0x3a3a48 },
