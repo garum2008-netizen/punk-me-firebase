@@ -1550,7 +1550,7 @@ async function runOrdinarySession(browser, viewport, label) {
     "room_playable",
     JSON.stringify({
       ...roomMetrics,
-      studioWallMs,
+      studioWallMs: studioWallEndMs,
       targetMs: 20000,
       passDesktop20s: roomMetrics.roomPlayableMs != null && roomMetrics.roomPlayableMs <= 20000,
     })
