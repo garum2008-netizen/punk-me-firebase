@@ -72,8 +72,8 @@ function showCharacter(id, lookOverride) {
   const tpl = getTemplateForCharacter(id);
   const look = lookOverride ? { ...(def.look || {}), ...lookOverride } : def.look || {};
   const built = createCc0Actor(tpl, id, look, {
-    isPlayer: false,
-    actorId: id
+    isPlayer: true,
+    actorId: "player"
   });
   actorRoot = built.root;
   actorRoot.visible = true;
@@ -245,13 +245,25 @@ async function openCharacterStudio(onPick) {
   }
   resize();
   await loadAvatarCatalog();
+  let pendingStudioPreview = null;
   await loadAllCc0Templates().then(() => {
     templatesReady = true;
     if (!raf) loop();
+    if (pendingStudioPreview) {
+      const { meshId, look } = pendingStudioPreview;
+      pendingStudioPreview = null;
+      showCharacter(meshId, look);
+    }
   });
   const studioHost = document.getElementById("charSelectUi");
   studioApi = await mountCharacterStudio(studioHost, {
-    onPreview: (meshId, look) => showCharacter(meshId, look),
+    onPreview: (meshId, look) => {
+      if (!templatesReady) {
+        pendingStudioPreview = { meshId, look };
+        return;
+      }
+      showCharacter(meshId, look);
+    },
     onConfirm: cfg => {
       close();
       onPickCb?.(cfg.meshId, cfg.companionAngelinaSkin, cfg);

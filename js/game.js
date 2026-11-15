@@ -717,7 +717,8 @@ function migratePlayerFromSave(raw) {
     typeof window !== "undefined" &&
     v.lifeCh1 &&
     typeof v.lifeCh1 === "object" &&
-    v.lifeCh1.playerCutout !== false
+    v.lifeCh1.playerCutout !== false &&
+    !v.avatarConfig
   ) {
     const proxy = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
     const playable = window.PLAYABLE_CHARACTER_IDS || [];
@@ -785,15 +786,28 @@ function showLoadingFailure(message, detail) {
 function normalizeSlicePlayerMeshCharacterId() {
   if (!window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) return;
   const proxy = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
-  const playable = window.PLAYABLE_CHARACTER_IDS || [];
   const st = me.lifeCh1;
-  if (st && st.playerCutout === false) {
-    me.characterId = proxy;
-    return;
+  if (me.avatarConfig && typeof window.meshIdFromAvatarConfig === "function") {
+    const mesh = window.meshIdFromAvatarConfig(me.avatarConfig);
+    if (mesh) {
+      me.characterId = mesh;
+      return;
+    }
   }
-  if (st && st.playerCutout !== false && playable.includes(me.characterId)) {
+  if (st && st.playerCutout !== false) {
     me.characterId = proxy;
   }
+}
+
+function resolveEffectivePlayerMeshId(playerState) {
+  const p = playerState || me;
+  if (!p) return "vienna";
+  if (p.avatarConfig && typeof window.meshIdFromAvatarConfig === "function") {
+    const mesh = window.meshIdFromAvatarConfig(p.avatarConfig);
+    if (mesh) return mesh;
+  }
+  const raw = p.characterId || "vienna";
+  return raw === "life_ch1_proxy" ? "vienna" : raw;
 }
 
 function applyFirebasePlayerSnapshot(snap) {
@@ -1031,10 +1045,11 @@ function syncStage3D() {
     x: 18 + i * 18,
     y: 58 + (i % 2) * 6
   }));
+  const meshId = resolveEffectivePlayerMeshId(me);
   Scene3D.sync({
     player: {
       x: me.x, y: me.y, avatar: me.avatar,
-      characterId: me.characterId || "vienna",
+      characterId: meshId,
       anim: me._animState || "idle"
     },
     others: othersForStage3D(),
@@ -1318,6 +1333,15 @@ function continueGameBoot() {
     applyHashRoute();
     window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
     syncStage3D();
+    import("./avatar/avatar-catalog.mjs")
+      .then(m => m.loadAvatarCatalog())
+      .then(cat => {
+        window.__punkAvatarCatalog = cat;
+        normalizeSlicePlayerMeshCharacterId();
+        window.World3D?.rebuildPlayerFromAvatar?.();
+        syncStage3D();
+      })
+      .catch(err => console.warn("avatar catalog boot", err));
     if (isPreviewBuild()) initPreviewShopModule();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
   } catch (err) {
@@ -1337,6 +1361,7 @@ function resolveCharacterIdForPlayer(v, opts = {}) {
 
 window.__punkMigratePlayer = migratePlayerFromSave;
 window.__punkInferCharacterId = inferCharacterIdFromSave;
+window.resolveEffectivePlayerMeshId = resolveEffectivePlayerMeshId;
 window.__punkResolveCharacterId = (v, allowAvatarInfer) =>
   resolveCharacterIdForPlayer(v, { allowAvatarInfer: !!allowAvatarInfer });
 window.__punkApplyFirebaseSnapshot = applyFirebasePlayerSnapshot;
@@ -2094,6 +2119,7 @@ function openModal(id) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove("active");
+  if (id === "mapModal") window.World3D?.resetFollowCamera?.();
 }
 
 function renderGangList() {

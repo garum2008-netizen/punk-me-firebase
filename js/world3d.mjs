@@ -97,6 +97,16 @@ let lifeAngelinaBillboard = {
   visible: false,
   followPlayer: false
 };
+/** In-world Angelina companion (t209) — small Meshy hero, not flat UI cutout. */
+let lifeAngelinaCompanion = {
+  group: null,
+  root: null,
+  mixer: null,
+  actions: null,
+  _meshy: false,
+  ready: false,
+  loading: false
+};
 /** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
 let lifeCh1PlayerSkin = {
   sprite: null,
@@ -367,6 +377,60 @@ function ensureLifeAngelinaBillboardSprite() {
   return sp;
 }
 
+function hideAngelinaFlatSprite() {
+  const sp = lifeAngelinaBillboard.sprite;
+  if (sp) sp.visible = false;
+}
+
+function clearAngelinaCompanionMesh() {
+  if (lifeAngelinaCompanion.group) {
+    scene?.remove(lifeAngelinaCompanion.group);
+    lifeAngelinaCompanion.mixer?.stopAllAction();
+  }
+  lifeAngelinaCompanion = {
+    group: null,
+    root: null,
+    mixer: null,
+    actions: null,
+    _meshy: false,
+    ready: false,
+    loading: false
+  };
+}
+
+async function ensureAngelinaCompanionMesh() {
+  if (lifeAngelinaCompanion.ready || lifeAngelinaCompanion.loading || !scene) return;
+  lifeAngelinaCompanion.loading = true;
+  try {
+    const tpl = await loadMeshyTemplateForCharacter("cobalt");
+    if (!tpl?.gltf) return;
+    const built = createCc0Actor(tpl, "cobalt", { scale: 0.94, wings: false }, {
+      actorId: "angelina_companion",
+      isPlayer: false
+    });
+    const group = new THREE.Group();
+    group.userData.isAngelinaCompanion = true;
+    built.root.scale.multiplyScalar(0.82);
+    group.add(built.root);
+    group.visible = false;
+    scene.add(group);
+    lifeAngelinaCompanion = {
+      group,
+      root: built.root,
+      mixer: built.mixer,
+      actions: built.actions,
+      _meshy: built._meshy,
+      ready: true,
+      loading: false
+    };
+    built.actions.idle?.reset().setEffectiveWeight(1).play();
+    built.mixer?.update(0);
+  } catch (e) {
+    console.warn("angelina companion mesh", e);
+    lifeAngelinaCompanion.loading = false;
+  }
+}
+
 function setAngelinaLifeBillboard(opts = {}) {
   lifeAngelinaBillboard.visible = !!opts.visible;
   lifeAngelinaBillboard.wx = opts.wx ?? lifeAngelinaBillboard.wx;
@@ -374,9 +438,21 @@ function setAngelinaLifeBillboard(opts = {}) {
   lifeAngelinaBillboard.loc = opts.loc ?? lifeAngelinaBillboard.loc;
   if (typeof opts.followPlayer === "boolean") lifeAngelinaBillboard.followPlayer = opts.followPlayer;
   if (opts.url) lifeAngelinaBillboard.url = opts.url;
+  const useCompanion3d = opts.companion3d !== false && lifeAngelinaBillboard.followPlayer;
+  if (!lifeAngelinaBillboard.visible) {
+    hideAngelinaFlatSprite();
+    if (lifeAngelinaCompanion.group) lifeAngelinaCompanion.group.visible = false;
+    return;
+  }
+  if (useCompanion3d) {
+    hideAngelinaFlatSprite();
+    void ensureAngelinaCompanionMesh();
+    return;
+  }
+  clearAngelinaCompanionMesh();
   const sp = ensureLifeAngelinaBillboardSprite();
   if (!sp) return;
-  if (!lifeAngelinaBillboard.visible || currentLoc !== lifeAngelinaBillboard.loc) {
+  if (currentLoc !== lifeAngelinaBillboard.loc) {
     sp.visible = false;
     return;
   }
@@ -392,7 +468,26 @@ function setAngelinaLifeBillboard(opts = {}) {
 }
 
 function tickLifeAngelinaBillboard() {
-  if (!lifeAngelinaBillboard.visible || !lifeAngelinaBillboard.sprite) return;
+  if (!lifeAngelinaBillboard.visible) return;
+  if (lifeAngelinaCompanion.ready && lifeAngelinaCompanion.group) {
+    const onLoc = currentLoc === lifeAngelinaBillboard.loc;
+    lifeAngelinaCompanion.group.visible = onLoc;
+    if (!onLoc) return;
+    const pl = actors.get("player");
+    let wx = lifeAngelinaBillboard.wx;
+    let wz = lifeAngelinaBillboard.wz;
+    let yaw = 0;
+    if (lifeAngelinaBillboard.followPlayer && pl?.wx != null) {
+      wx = pl.wx - 0.95;
+      wz = pl.wz + 0.55;
+      yaw = pl.group?.rotation?.y ?? 0;
+    }
+    lifeAngelinaCompanion.group.position.set(wx, 0, wz);
+    lifeAngelinaCompanion.group.rotation.y = yaw + 0.35;
+    lifeAngelinaCompanion.mixer?.update(1 / 60);
+    return;
+  }
+  if (!lifeAngelinaBillboard.sprite) return;
   if (currentLoc !== lifeAngelinaBillboard.loc) {
     lifeAngelinaBillboard.sprite.visible = false;
     return;
@@ -408,6 +503,20 @@ function tickLifeAngelinaBillboard() {
     }
   }
   lifeAngelinaBillboard.sprite.position.set(wx, 1.55, wz);
+}
+
+function rebuildPlayerFromAvatar() {
+  if (!modelsReady) return false;
+  const meshId = resolvePlayerHeroMeshId();
+  const pl = actors.get("player");
+  const sig = playerAvatarLookSignature();
+  if (pl && pl.characterId === meshId && pl._lookSig === sig && pl.root?.visible !== false) return false;
+  destroyActor("player");
+  if (pendingSyncData?.player) {
+    pendingSyncData.player.characterId = meshId;
+    sync(pendingSyncData);
+  }
+  return true;
 }
 let mobileQuality = false;
 let locFillLight = null;
@@ -573,6 +682,7 @@ function createActorFromCatalog(id, characterId, isNpc) {
     id, characterId: cid, group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
     _meshUrl: tpl.def.url, _meshy: built._meshy, _proc: built._proc,
+    _accent: built._accent,
     _wings: built._wings,
     _visPushX: 0, _visPushZ: 0
   };
@@ -821,12 +931,20 @@ function npcActorOnScreen(actorId) {
   return !!(head && head.x >= margin && head.x <= cw - margin && head.y >= margin && head.y <= ch - margin);
 }
 
-async function loadModels() {
-  const rawPlayer =
+function resolvePlayerHeroMeshId() {
+  if (window.me?.avatarConfig && typeof window.meshIdFromAvatarConfig === "function") {
+    const mesh = window.meshIdFromAvatarConfig(window.me.avatarConfig);
+    if (mesh) return mesh;
+  }
+  const raw =
     window.me?.characterId ||
     (typeof window.LIFE_CH1_PLAYER_MESH_ID === "string" ? window.LIFE_CH1_PLAYER_MESH_ID : null);
-  const playerHero =
-    rawPlayer === "life_ch1_proxy" ? "vienna" : rawPlayer || null;
+  if (!raw || raw === "life_ch1_proxy") return "vienna";
+  return raw;
+}
+
+async function loadModels() {
+  const playerHero = resolvePlayerHeroMeshId();
   const roomHeroes = ["vienna", "mohawk", "cobalt"];
   if (playerHero) {
     await loadMeshyTemplateForCharacter(playerHero);
@@ -1410,6 +1528,21 @@ function collectCameraOccluders() {
   return list;
 }
 
+const MIN_CAMERA_DIST_FROM_PLAYER = 4.1;
+const MIN_CAMERA_WALL_PULLBACK = 0.85;
+
+function clampCameraOrbitFromPlayer(target, playerPos, minHoriz = MIN_CAMERA_DIST_FROM_PLAYER) {
+  if (!playerPos || !target) return target;
+  const dx = target.x - playerPos.x;
+  const dz = target.z - playerPos.z;
+  const d = Math.hypot(dx, dz);
+  if (d >= minHoriz) return target;
+  const ang = d > 0.02 ? Math.atan2(dx, dz) : cameraYaw;
+  target.x = playerPos.x + Math.sin(ang) * minHoriz;
+  target.z = playerPos.z + Math.cos(ang) * minHoriz;
+  return target;
+}
+
 function resolveCameraWallCollision(eye, desired) {
   const occluders = collectCameraOccluders();
   if (!occluders.length || !raycaster) return desired;
@@ -1420,7 +1553,7 @@ function resolveCameraWallCollision(eye, desired) {
   raycaster.set(eye, dir);
   const hits = raycaster.intersectObjects(occluders, false);
   if (hits.length && hits[0].distance < dist - 0.08) {
-    return eye.clone().add(dir.multiplyScalar(Math.max(0.45, hits[0].distance - 0.42)));
+    return eye.clone().add(dir.multiplyScalar(Math.max(MIN_CAMERA_WALL_PULLBACK, hits[0].distance - 0.42)));
   }
   return desired;
 }
@@ -1480,6 +1613,8 @@ function positionCameraBehindPlayer(instant = false, dt = lastCameraDt) {
   const eye = p.clone().add(new THREE.Vector3(0, lookY - 0.15, 0));
   let target = new THREE.Vector3(p.x + ox, height, p.z + oz);
   target = resolveCameraWallCollision(eye, target);
+  target = clampCameraOrbitFromPlayer(target, p, MIN_CAMERA_DIST_FROM_PLAYER);
+  if (target.y < p.y + 1.05) target.y = p.y + 1.05;
   const t = instant ? 1 : 1 - Math.exp(-14 * Math.max(dt, 0.001));
   if (instant) camera.position.copy(target);
   else camera.position.lerp(target, t);
@@ -2110,7 +2245,7 @@ function init(h) {
   renderer.setPixelRatio(mobileQuality ? 1 : Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = !mobileQuality;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
+  camera = new THREE.PerspectiveCamera(42, 1, 0.22, 120);
   clock = new THREE.Clock();
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
@@ -2343,20 +2478,36 @@ const api = {
     visible: lifeAngelinaBillboard.visible,
     followPlayer: lifeAngelinaBillboard.followPlayer,
     loc: lifeAngelinaBillboard.loc,
-    hasSprite: !!lifeAngelinaBillboard.sprite
+    hasSprite: !!lifeAngelinaBillboard.sprite,
+    companion3d: !!lifeAngelinaCompanion.ready,
+    companionVisible: !!lifeAngelinaCompanion.group?.visible
   }),
+  rebuildPlayerFromAvatar,
+  resetFollowCamera: resetCameraForLocation,
   setPlayerLifeCh1Skin,
   getPlayerLifeCh1SkinRenderState,
   getPlayerActorSnapshot: () => {
     const a = actors.get("player");
     if (!a) return null;
+    const meshId = resolvePlayerHeroMeshId();
+    const look =
+      typeof window !== "undefined" && typeof window.getPlayerAvatarLook === "function"
+        ? window.getPlayerAvatarLook()
+        : null;
     return {
       characterId: a.characterId,
+      meshHeroId: meshId,
+      meshUrl: a._meshUrl || "",
+      usesPinkFallback: (a._meshUrl || "").includes("punk_pink"),
+      accent: a._accent || null,
+      hairHex: look?.hair ?? null,
       hasWings: !!a._wings,
       wingAttachBone: a._wings?.attachBone || null,
       wingFeathers: a._wings?.feathers?.length || 0,
       current: a.current,
       visible: a.root?.visible !== false,
+      meshVisible: a.root?.visible !== false,
+      cutoutSpriteVisible: !!lifeCh1PlayerSkin.sprite?.visible,
       actionKeys: a.actions ? Object.keys(a.actions) : []
     };
   },

@@ -134,26 +134,116 @@ function rescueOrdinaryRecording(rec, minBytes = 400_000) {
 }
 
 function ffprobeMeta(filePath) {
-  try {
-    const r = spawnSync(
-      "ffprobe",
-      ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", filePath],
-      { encoding: "utf8" }
-    );
-    if (r.status !== 0) return { error: r.stderr || "ffprobe failed", path: filePath };
-    const j = JSON.parse(r.stdout);
-    const v = (j.streams || []).find(s => s.codec_type === "video");
-    const a = (j.streams || []).find(s => s.codec_type === "audio");
+  return ffprobeMetaSafe(filePath);
+}
+
+async function captureHeroProof(page, tag) {
+  const dir = path.join(OUT, `hero-stills-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const fp = path.join(dir, `${tag}.png`);
+  await page
+    .waitForFunction(() => window.World3D?.getPlayerActorSnapshot?.()?.meshHeroId === "mohawk", undefined, {
+      timeout: 45000,
+    })
+    .catch(() => {});
+  await page.screenshot({ path: fp, type: "png" });
+  const snap = await page.evaluate(() => {
+    const pl = window.World3D?.getPlayerActorSnapshot?.() || {};
+    const ang = window.World3D?.getAngelinaLifeBillboardSnapshot?.() || {};
     return {
-      path: filePath,
-      durationSec: j.format?.duration ? +j.format.duration : null,
-      sizeBytes: fs.existsSync(filePath) ? fs.statSync(filePath).size : null,
-      video: v ? { codec: v.codec_name, width: v.width, height: v.height, fps: v.avg_frame_rate } : null,
-      audio: a ? { codec: a.codec_name, channels: a.channels } : null,
-      audioStatus: a ? "HAS_AUDIO_TRACK" : "SILENT_NO_AUDIO_TRACK",
+      pl,
+      ang,
+      meshId: window.resolveEffectivePlayerMeshId?.(window.me) || window.me?.characterId,
+      location: window.me?.location,
     };
-  } catch (e) {
-    return { path: filePath, error: String(e.message || e) };
+  });
+  const row = { tag, tSec: +((Date.now() - t0) / 1000).toFixed(2), fp, snap };
+  sessionHeroStills.push(row);
+  logScene(`hero_still_${tag}`, JSON.stringify({
+    meshId: snap.meshId,
+    accent: snap.pl?.accent,
+    wings: snap.pl?.hasWings,
+    companion3d: snap.ang?.companion3d,
+  }));
+  return row;
+}
+
+async function preFinalizeRecordingSession(r) {
+  if (!r || r.file == null) return;
+  const minB = r.minVideoBytes ?? 800_000;
+  r._sessionWallSec = +(((r._sessionEndMs || Date.now()) - (r._recordStartMs || Date.now())) / 1000).toFixed(2);
+
+  let haveWebm = fs.existsSync(r.file) && fs.statSync(r.file).size >= minB;
+  if (!haveWebm && r.ffmpegProc && (r.mkvDest || r.segmentDir)) {
+    await stopFfmpegGraceful(r.ffmpegProc, r.segmentDir ? null : r.mkvDest, minB);
+    if (r.segmentDir) {
+      const concat = concatFfmpegSegments(r.segmentDir, r.mkvDest);
+      if (!concat.ok) r.videoSaveError = concat.error || "segment_concat_failed";
+      else logScene("ffmpeg_segments_concat", `${concat.segments} parts → ${r.mkvDest}`);
+    }
+    const mkvOk = fs.existsSync(r.mkvDest) && fs.statSync(r.mkvDest).size >= minB;
+    if (mkvOk) {
+      const remux = remuxMkvToWebm(r.mkvDest, r.file);
+      if (remux.ok && remux.path !== r.file) {
+        r.file = remux.path;
+        r.videoFormat = remux.format;
+      } else if (remux.ok) {
+        r.videoFormat = remux.format || "webm";
+      } else if (fs.existsSync(r.mkvDest) && fs.statSync(r.mkvDest).size >= minB) {
+        r.file = r.mkvDest;
+        r.videoFormat = r.mkvDest.endsWith(".mkv") ? "mkv" : "mp4";
+      } else {
+        r.videoSaveError = remux.error || "remux_failed";
+      }
+    } else {
+      r.videoSaveError = "ffmpeg_mkv_missing_or_small";
+    }
+  }
+  haveWebm = fs.existsSync(r.file) && fs.statSync(r.file).size >= minB;
+  if (!haveWebm && r._video) {
+    await closePlaywrightRecordingSession(r);
+  }
+}
+
+async function postFinalizeRecordingSession(r) {
+  if (!r || r.file == null) return;
+  const minB = r.minVideoBytes ?? 800_000;
+  let haveWebm = fs.existsSync(r.file) && fs.statSync(r.file).size >= minB;
+  if (!haveWebm && r._video) {
+    const pw = await savePlaywrightVideoAfterBrowserClose(r);
+    if (!pw.ok) r.videoSaveError = pw.error || r.videoSaveError || "playwright_video_failed";
+    else r.videoSaveError = null;
+  }
+  if (!fs.existsSync(r.file) || fs.statSync(r.file).size < minB) {
+    rescueOrdinaryRecording(r, minB);
+  }
+  if (fs.existsSync(r.file) && fs.statSync(r.file).size >= minB) {
+    r.videoSaveError = null;
+    Object.assign(r, ffprobeMeta(r.file));
+    r.sha256 = sha256File(r.file);
+  }
+
+  r.heroStills = r.heroStills || sessionHeroStills.slice();
+  const heroGate = validateHeroStillSnapshots(r.heroStills, 6);
+  const durationGate = validateDurationGate(r._sessionWallSec, r.durationSec, 0.1);
+  const framesDir = path.join(OUT, `hero-frames-video-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
+  const frameTimes = r.heroStills.filter(s => heroGate.tags.includes(s.tag)).map(s => s.tSec).slice(0, 8);
+  if (r.file && fs.existsSync(r.file) && frameTimes.length) {
+    r.videoFrames = extractFramesAtTimes(r.file, frameTimes, framesDir);
+  } else {
+    r.videoFrames = [];
+  }
+
+  r.recordingGate = {
+    heroStill: heroGate,
+    duration: durationGate,
+    ok: heroGate.ok && durationGate.ok && !r.videoSaveError,
+    rejectLegacy245s:
+      "Do not use rejected SHA 7d3d245dd54a4b60dcfad601f6e28589720a2b387d6f66f061868f91a805fc7d",
+  };
+  if (!r.recordingGate.ok) {
+    r.videoSaveError =
+      r.videoSaveError || `gate_failed:${!heroGate.ok ? "hero" : ""}${!durationGate.ok ? "duration" : ""}`;
   }
 }
 
@@ -454,6 +544,21 @@ async function uiOpenMapTravel(page, locId) {
 }
 
 const { configureCyberPunkBlueStudio, QA_CYBER_PUNK_BLUE } = require("./confirm-character-studio");
+const {
+  sha256File,
+  ffprobeMeta: ffprobeMetaSafe,
+  stopFfmpegGraceful,
+  concatFfmpegSegments,
+  remuxMkvToWebm,
+  closePlaywrightRecordingSession,
+  savePlaywrightVideoAfterBrowserClose,
+  extractFramesAtTimes,
+  validateHeroStillSnapshots,
+  validateDurationGate,
+  FFMPEG,
+} = require("./capture-video-finalize");
+
+let sessionHeroStills = [];
 
 async function pickAngelina(page) {
   await page.waitForSelector("#charSelect.active", { timeout: 120000 });
@@ -464,6 +569,8 @@ async function pickAngelina(page) {
     document.querySelector('[data-testid="character-studio-confirm"]')?.click();
   });
   await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+  await page.waitForTimeout(1200);
+  await captureHeroProof(page, "00-studio-confirm");
 }
 
 async function completeOnboarding(page) {
@@ -482,6 +589,7 @@ async function completeOnboarding(page) {
     const st = await readState(page);
     if (st.onboardingDone) {
       logScene("onboarding_done", "UI onboarding complete");
+      await captureHeroProof(page, "03-onboarding-done");
       return true;
     }
     let step = st.onboardingStep;
@@ -489,6 +597,10 @@ async function completeOnboarding(page) {
     if (step !== lastLoggedStep) {
       logScene(`onboarding_step_${step}`, `progress step ${step}`);
       lastLoggedStep = step;
+      if (step === 5 || step === 6) {
+        await page.waitForTimeout(1500);
+        await captureHeroProof(page, `0${step}-onboarding-shop-build`);
+      }
     }
     const stepBefore = step;
     if (PORTAL_GATE_ONLY && step > 1) {
@@ -792,10 +904,12 @@ async function advanceLifeCh1MoveStep(page) {
 async function playLifeCh1Ordinary(page) {
   await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 120000 });
   logScene("ch1_start", "Life Ch1 panel after onboarding");
+  await captureHeroProof(page, "04-ch1-start");
   await advanceLifeCh1MoveStep(page);
 
   await walkInteractCh1(page, -3.2, 2.5);
   logScene("ch1_mirror", "wardrobe interact");
+  await captureHeroProof(page, "05-ch1-mirror");
   await page.waitForSelector("#lifeCh1Wardrobe:not([hidden])", { timeout: 15000 });
   await waitReadableDialog(page, 1800);
   await visibleUiClick(page, '[data-testid="life-ch1-skin-B"]', "skin B");
@@ -913,6 +1027,7 @@ async function playLifeCh1Ordinary(page) {
   }
   logScene("ch1_reentry", JSON.stringify({ snapshot, after }));
   await page.waitForTimeout(2500);
+  await captureHeroProof(page, "06-ch1-reentry");
   if (INPUT_MODE === "touch") {
     const perf = await page.evaluate(() => {
       return new Promise(resolve => {
@@ -939,6 +1054,7 @@ async function playLifeCh1Ordinary(page) {
 }
 
 async function runOrdinarySession(browser, viewport, label) {
+  sessionHeroStills = [];
   const prodHits = { n: 0, urls: [] };
   const qs = firebaseEmulatorQueryString();
   const baseUrl = `http://127.0.0.1:${PORT}`;
@@ -954,20 +1070,32 @@ async function runOrdinarySession(browser, viewport, label) {
     OUT,
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
+  const captureRawDest = path.join(
+    "/tmp",
+    `punk-uncut-${shaShort}-${passTag}.mkv`
+  );
+  let segmentDir = null;
   let ffmpegProc = null;
   const useFfmpegGrab =
     viewport.width >= 1000 && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
   if (useFfmpegGrab) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     if (fs.existsSync(dest)) fs.unlinkSync(dest);
+    if (fs.existsSync(captureRawDest)) fs.unlinkSync(captureRawDest);
+    segmentDir = path.join("/tmp", `punk-seg-${shaShort}-${passTag}`);
+    if (fs.existsSync(segmentDir)) fs.rmSync(segmentDir, { recursive: true, force: true });
+    fs.mkdirSync(segmentDir, { recursive: true });
     const disp = process.env.DISPLAY || ":1";
+    const ffmpegLog = path.join(OUT, `ffmpeg-x11grab-${shaShort}-${passTag}.log`);
+    const logOut = fs.openSync(ffmpegLog, "w");
+    const segPattern = path.join(segmentDir, "part-%03d.mkv");
     ffmpegProc = spawn(
-      "ffmpeg",
+      FFMPEG,
       [
         "-y",
         "-hide_banner",
         "-loglevel",
-        "error",
+        "warning",
         "-f",
         "x11grab",
         "-framerate",
@@ -976,15 +1104,23 @@ async function runOrdinarySession(browser, viewport, label) {
         "1280x720",
         "-i",
         disp,
-        "-t",
-        "1200",
         "-c:v",
-        "libvpx-vp9",
-        "-b:v",
-        "1.5M",
-        dest,
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-f",
+        "segment",
+        "-segment_time",
+        "120",
+        "-reset_timestamps",
+        "1",
+        segPattern,
       ],
-      { stdio: "ignore" }
+      { stdio: ["ignore", logOut, logOut] }
     );
   }
 
@@ -992,11 +1128,10 @@ async function runOrdinarySession(browser, viewport, label) {
     viewport,
     hasTouch: INPUT_MODE === "touch",
     isMobile: INPUT_MODE === "touch",
-    recordVideo:
-      viewport.width >= 1000
-        ? useFfmpegGrab
-          ? undefined
-          : { dir: videoDir, size: { width: 1280, height: 720 } }
+    recordVideo: useFfmpegGrab
+      ? undefined
+      : viewport.width >= 1000
+        ? { dir: videoDir, size: { width: 1280, height: 720 } }
         : { dir: videoDir, size: { width: 390, height: 844 } },
   });
   await ctx.addInitScript(() => {
@@ -1061,21 +1196,11 @@ async function runOrdinarySession(browser, viewport, label) {
   const completed = onboardingResult === true ? await playLifeCh1Ordinary(page) : false;
   const recordingEndUtc = new Date();
   const recordingEndCet = cetTimestamp(recordingEndUtc);
+  const sessionEndMs = Date.now();
 
   const video = page.video();
-  let videoSaveError = useFfmpegGrab ? "ffmpeg_primary" : null;
+  const videoSaveError = useFfmpegGrab ? "ffmpeg_mkv_pending_finalize" : "playwright_pending_finalize";
   const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
-  if (ffmpegProc) {
-    try {
-      ffmpegProc.kill("SIGINT");
-    } catch (_) {}
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    if (fs.existsSync(dest) && fs.statSync(dest).size >= minVideoBytes) {
-      videoSaveError = null;
-      logScene("ffmpeg_saved", `${Math.round(fs.statSync(dest).size / 1e6)}MB`);
-    }
-  }
-  await page.close().catch(() => {});
 
   return {
     label,
@@ -1094,14 +1219,18 @@ async function runOrdinarySession(browser, viewport, label) {
     videoSaveError: videoSaveError || (video ? "pending_ctx_close" : null),
     videoDir,
     ctx,
+    page,
     _video: video,
     ffmpegProc,
+    mkvDest: captureRawDest,
+    segmentDir,
+    useFfmpegGrab,
     minVideoBytes,
     _recordStartMs: recordStartMs,
+    _sessionEndMs: sessionEndMs,
     file: dest,
     inputLog: inputLog.slice(),
     scenes: scenes.slice(),
-    ...ffprobeMeta(dest),
   };
 }
 
@@ -1110,7 +1239,14 @@ async function runOrdinarySession(browser, viewport, label) {
   const serveChild = await serveRoot();
   const desktopFfmpeg =
     ORDINARY_DESKTOP_ONLY && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
-  const browser = await chromium.launch({ headless: !desktopFfmpeg });
+  const headedDesktop =
+    ORDINARY_DESKTOP_ONLY &&
+    process.env.DISPLAY &&
+    (desktopFfmpeg || process.env.PUNK_HEADED === "1");
+  console.error(
+    `[capture] headedDesktop=${headedDesktop} ffmpeg=${desktopFfmpeg} DISPLAY=${process.env.DISPLAY || ""}`
+  );
+  const browser = await chromium.launch({ headless: !headedDesktop });
   const results = [];
   let err = null;
   try {
@@ -1133,63 +1269,27 @@ async function runOrdinarySession(browser, viewport, label) {
     } catch (_) {}
   } finally {
     for (const r of results) {
-      const minB = r?.minVideoBytes ?? (ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
+      r.heroStills = sessionHeroStills.slice();
       try {
-        if (r?.ffmpegProc) {
-          try {
-            r.ffmpegProc.kill("SIGINT");
-          } catch (_) {}
-          await new Promise(resolve => setTimeout(resolve, 2500));
-        }
-        if (r?.file && fs.existsSync(r.file) && fs.statSync(r.file).size >= minB) {
-          r.videoSaveError = null;
-          Object.assign(r, ffprobeMeta(r.file));
-        }
-        if (r?.ctx) await r.ctx.close();
-        if (r?._video && r.file) {
-          fs.mkdirSync(path.dirname(r.file), { recursive: true });
-          for (let attempt = 0; attempt < 25; attempt++) {
-            try {
-              const vp = await r._video.path();
-              if (!vp || !fs.existsSync(vp)) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                continue;
-              }
-              const sz = fs.statSync(vp).size;
-              if (sz < minB) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                continue;
-              }
-              const buf = fs.readFileSync(vp);
-              if (buf.length >= minB) {
-                fs.writeFileSync(r.file, buf);
-                r.videoSaveError = null;
-                break;
-              }
-            } catch (e) {
-              r.videoSaveError = String(e.message || e);
-              await new Promise(resolve => setTimeout(resolve, 200));
-            }
-          }
-          if (!fs.existsSync(r.file) || fs.statSync(r.file).size < minB) {
-            try {
-              await r._video.saveAs(r.file);
-              r.videoSaveError = null;
-            } catch (e) {
-              if (!r.videoSaveError) r.videoSaveError = String(e.message || e);
-            }
-          }
-        }
-        if (!r?.videoSaveError) Object.assign(r, ffprobeMeta(r.file));
-        else rescueOrdinaryRecording(r, minB);
-      } catch (_) {}
+        await preFinalizeRecordingSession(r);
+      } catch (e) {
+        if (r) r.videoSaveError = String(e.message || e);
+      }
+    }
+    await browser.close();
+    for (const r of results) {
+      try {
+        await postFinalizeRecordingSession(r);
+      } catch (e) {
+        if (r) r.videoSaveError = String(e.message || e);
+      }
       if (r) {
         delete r.ctx;
+        delete r.page;
         delete r._video;
         delete r.ffmpegProc;
       }
     }
-    await browser.close();
     try {
       process.kill(-serveChild.pid, "SIGTERM");
     } catch (_) {}
@@ -1245,5 +1345,31 @@ async function runOrdinarySession(browser, viewport, label) {
     console.log("PORTAL_GATE_ONLY", JSON.stringify({ pass, endLocation: row.endLocation, portalEntered: row.portalEntered }));
     process.exit(pass ? 0 : 1);
   }
+  const gateFail = results.some(r => r?.recordingGate && !r.recordingGate.ok);
+  const gatePath = path.join(OUT, `VIDEO_ACCEPTANCE_GATE-${passTag}.json`);
+  fs.writeFileSync(
+    gatePath,
+    JSON.stringify(
+      {
+        repoSha: SHA,
+        passTag,
+        recordings: results.map(r => ({
+          file: r.file,
+          sha256: r.sha256,
+          durationSec: r.durationSec,
+          sessionWallSec: r._sessionWallSec,
+          recordingGate: r.recordingGate,
+          videoSaveError: r.videoSaveError,
+        })),
+      },
+      null,
+      2
+    )
+  );
+  try {
+    spawnSync("node", [path.join(__dirname, "generate-ch1-playthrough-log.js"), metaPass], { stdio: "inherit" });
+  } catch (_) {}
   console.log("ORDINARY capture done:", JSON.stringify(report, null, 2));
+  console.log("VIDEO_ACCEPTANCE_GATE", gatePath, gateFail ? "FAIL" : "PASS");
+  if (gateFail) process.exit(1);
 })();

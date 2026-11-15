@@ -135,7 +135,7 @@ async function runVisualQa(base) {
     }, QA_CYBER_PUNK_BLUE);
     if (!cfg.match) throw new Error("avatarConfig mismatch after confirm: " + JSON.stringify(cfg));
     if (cfg.playerCutout !== false) throw new Error("playerCutout must be false (companion Angelina)");
-    if (cfg.characterId !== "life_ch1_proxy") throw new Error("expected life_ch1_proxy player id");
+    if (cfg.characterId !== "mohawk") throw new Error("expected mohawk mesh hero, got " + cfg.characterId);
 
     await page.waitForTimeout(1200);
     await page.screenshot({ path: path.join(OUT, "t206-gameplay-room-cyber-punk-blue.png") });

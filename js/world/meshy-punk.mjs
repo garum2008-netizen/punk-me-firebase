@@ -4,7 +4,7 @@ import { MeshoptDecoder } from "../vendor/meshopt_decoder.module.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { buildIdleStandClip } from "./meshy-idle-clip.mjs";
 // PlayerWave builder kept in meshy-wave-clip.mjs (disabled for release — see WAVE_EMOTE_ENABLED).
-import { accentForActor, hueShiftAccentTexture } from "./meshy-accent-tint.mjs";
+import { accentForActor, accentKeyFromHairHex, hueShiftAccentTexture } from "./meshy-accent-tint.mjs";
 import { attachSkeletonWings } from "./cosmetic-wings.mjs";
 
 /** Inna-approved merge: wave emote off; clip file remains for future use. */
@@ -339,16 +339,22 @@ export function bindProceduralBones(root) {
   };
 }
 
-function accentForMeshyActor(characterId, templateEntry, opts) {
+function accentForMeshyActor(characterId, templateEntry, opts, look) {
   if (!meshyUsesTint(characterId, templateEntry)) return null;
   const actorId = opts.actorId || "player";
+  if (opts.isPlayer && look?.hair != null) {
+    return accentKeyFromHairHex(look.hair);
+  }
   const accentKey = actorId === "player" ? characterId : actorId;
   return accentForActor(characterId, accentKey);
 }
 
 export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
   const { gltf, foot, def } = templateEntry;
-  const accent = accentForMeshyActor(characterId, templateEntry, opts);
+  let accent = accentForMeshyActor(characterId, templateEntry, opts, look);
+  if (opts.isPlayer && look?.hair != null) {
+    accent = accentKeyFromHairHex(look.hair);
+  }
 
   const root = cloneSkinned(gltf.scene);
   const scl = def.scale * (look.scale || 1);
@@ -387,7 +393,7 @@ export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
     meshUrl: def.url,
     _meshy: true,
     _proc: proc,
-    _accent: accent,
+    _accent: accent || null,
     _wings: wings
   };
 }
