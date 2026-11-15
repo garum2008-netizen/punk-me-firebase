@@ -667,7 +667,11 @@ async function completeOnboarding(page) {
     undefined,
     { timeout: 120000 }
   );
-  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 120000 });
+  await page.waitForFunction(
+    () => document.body.classList.contains("mode-world3d") && (window.World3D?.isReady?.() || window.__playerLoaded),
+    undefined,
+    { timeout: 180000 }
+  );
   await dismissHowTo(page);
   await focusStage(page);
   logScene("onboarding_start", "fresh local save, onboarding step 0");
