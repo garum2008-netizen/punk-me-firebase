@@ -2530,6 +2530,37 @@ window.startTrainingDuelMohawk = function () {
   }
 };
 
+function punkStartOnboardDuel() {
+  const st = window.Onboarding?.currentStep?.();
+  if (st?.key !== "win_fight") return { ok: false, reason: "not_win_fight_step" };
+  closeModal("gangModal");
+  if (me.location !== "street") goLocation("street");
+  syncStage3D();
+  window.World3D?.releaseCaptureFrame?.();
+  window.World3D?.snapPlayerToLocationSpawn?.();
+  const duelOpts = { training: true, firstTo: 1 };
+  const started = !!window.World3D?.startDuel3D?.("razor", duelOpts);
+  if (started) {
+    fight = {
+      npcName: tNpcName("razor"),
+      npcHp: 100,
+      npcMax: 100,
+      playerHp: 100,
+      playerMax: 100,
+      shield: 0,
+      log: [],
+      _duel3d: true
+    };
+    window._duel3dEnd = win => endFight(win);
+  }
+  return {
+    ok: started,
+    hud: !document.getElementById("duel3dHud")?.classList.contains("hidden"),
+    loc: me.location,
+    mode3d: document.body.classList.contains("mode-world3d"),
+  };
+}
+
 function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
   const wantId = nid || npc.id || "razor";
@@ -2839,6 +2870,7 @@ function exposePreviewBuildHooks() {
     window.tryPlaceBuild = (x, y) => placeBuildAt(x, y);
     window.tryOnboardingCryptPlace = tryOnboardingCryptPlace;
     window.goLocation = goLocation;
+    window.__punkStartOnboardDuel = punkStartOnboardDuel;
   } else if ("tryPlaceBuild" in window) {
     delete window.tryPlaceBuild;
   }

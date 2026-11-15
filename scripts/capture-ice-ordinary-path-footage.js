@@ -963,10 +963,6 @@ async function completeOnboarding(page) {
       });
       await page.waitForTimeout(600);
       await ensureStreetLocation(page, { mapOnly: true });
-      await openGangWithRazor(page, "gang → razor fight", { mapOnly: true });
-      await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", { scroll: true });
-      await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
-      await visibleUiClick(page, 'button[onclick*="startNpcFight"]', "startNpcFight");
       const waitOnboardDuelWin = async (ms = 55000) =>
         page
           .waitForFunction(
@@ -980,8 +976,21 @@ async function completeOnboarding(page) {
             { timeout: ms }
           )
           .catch(() => null);
-      await page.waitForSelector("#duel3dHud", { timeout: 15000 }).catch(() => {});
-      if (!(await waitOnboardDuelWin(45000))) {
+      const gangDuel = await openGangWithRazor(page, "gang → razor fight", { mapOnly: true })
+        .then(() => true)
+        .catch(() => false);
+      if (gangDuel) {
+        await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", { scroll: true }).catch(() => {});
+        const fightBtn = page.locator('button[onclick*="startNpcFight"]').first();
+        if (await fightBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
+          await visibleUiClick(page, fightBtn, "startNpcFight");
+        }
+      }
+      if (!(await waitOnboardDuelWin(12000))) {
+        const hook = await page.evaluate(() => window.__punkStartOnboardDuel?.() || { ok: false });
+        logScene("onboarding_duel_hook", JSON.stringify(hook));
+      }
+      if (!(await waitOnboardDuelWin(35000))) {
         logScene("onboarding_duel_retry", "startNpcFight after HUD miss");
         await page.evaluate(() => {
           if (window.me?.location !== "street") window.goLocation?.("street");
