@@ -1241,7 +1241,12 @@ function sync(data) {
     }
     const wanted = player.avatarLook || null;
     const worn = readAvatarLook(a.root);
-    const sameLook = !!wanted && !!worn && wanted.hair === worn.hair && wanted.jacket === worn.jacket && wanted.accessory === worn.accessory;
+    const sameLook = !!wanted && !!worn
+      && wanted.hair === worn.hair
+      && wanted.hairStyle === worn.hairStyle
+      && wanted.skin === worn.skin
+      && wanted.jacket === worn.jacket
+      && wanted.accessory === worn.accessory;
     if (!sameLook) attachAvatarLook(a.root, wanted);
   }
 
@@ -1555,8 +1560,12 @@ const api = {
     return {
       attached: !!(look && hair),
       hair: look?.hair || null,
+      hairStyle: look?.hairStyle || null,
+      skin: look?.skin || null,
       jacket: look?.jacket || null,
-      accessory: look?.accessory || null
+      accessory: look?.accessory || null,
+      wings: !!pl?.root?.getObjectByName("avatar-wings"),
+      skinMesh: !!pl?.root?.getObjectByName("avatar-skin")
     };
   },
   getDebugCamera: () => {

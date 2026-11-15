@@ -43,16 +43,18 @@ async function boot(page) {
   });
   if (await page.locator("#charSelectUi .char-pick").count()) {
     await page.click('.char-pick[data-id="cobalt"]');
-    await page.click('[data-avatar-hair="pink"]');
-    await page.click('[data-avatar-jacket="magenta"]');
-    await page.click('[data-avatar-accessory="chain"]');
+    await page.click('[data-avatar-hairstyle="mohawk"]');
+    await page.click('[data-avatar-skin="tan"]');
+    await page.click("#avatarCyberBlue");
     await shot(page, "ch1-avatar-creator.png");
     await page.click("#charSelectConfirm");
   }
   await page.waitForFunction(() => window.__playerLoaded === true && window.me?.characterId === "cobalt");
   await page.waitForFunction(() => {
     const mark = window.World3D?.playerAvatarMark?.();
-    return mark?.attached === true && mark.hair === "pink" && mark.jacket === "magenta" && mark.accessory === "chain";
+    return mark?.attached === true && mark.wings === true && mark.skinMesh === true
+      && mark.hair === "cyan" && mark.hairStyle === "spikes" && mark.skin === "cyber"
+      && mark.jacket === "cyber" && mark.accessory === "wings";
   }, { timeout: 20000 });
   const skip = page.locator("#chapterCrawlSkip");
   if (await skip.isVisible().catch(() => false)) await skip.click();
@@ -116,7 +118,7 @@ async function main() {
   }));
   log(
     "avatar-create",
-    created.id === "cobalt" && created.look?.hair === "pink" && created.look?.jacket === "magenta" && created.look?.accessory === "chain" && created.mark?.attached === true,
+    created.id === "cobalt" && created.look?.accessory === "wings" && created.look?.skin === "cyber" && created.look?.jacket === "cyber" && created.mark?.wings === true,
     JSON.stringify(created)
   );
   log("not-owner", await page.evaluate(() => window.isOwner === false), "anonymous is not owner");
@@ -128,6 +130,27 @@ async function main() {
     return style.display !== "none" && box.textContent.trim().length > 0;
   });
   log("quest-visible", questVisible, await page.locator("#questBox").innerText().catch(() => ""));
+
+  await page.evaluate(() => setLanguage("ru", true));
+  await page.waitForFunction(() => (document.getElementById("angelinaGuide")?.textContent || "").includes("Я Ангелина"));
+  await page.evaluate(() => setLanguage("da", true));
+  await page.waitForFunction(() => (document.getElementById("angelinaGuide")?.textContent || "").includes("Jeg er Angelina"));
+  await page.evaluate(() => setLanguage("en", true));
+  await page.waitForFunction(() => (document.getElementById("angelinaGuide")?.textContent || "").includes("I'm Angelina"));
+  log("angelina-languages", true, "ru da en beginning");
+
+  await page.click("button[onclick=\"openModal('shopModal')\"]");
+  await page.click("#shopModal .tab[data-tab='materials']");
+  const coinsBeforeFree = await page.evaluate(() => window.me.coins);
+  await page.click("button[onclick=\"buyItem('mat_sticker')\"]");
+  await page.waitForFunction(() => (window.me.inventory?.materials?.sticker || 0) >= 1);
+  const freeShop = await page.evaluate(() => ({
+    coins: window.me.coins,
+    sticker: window.me.inventory?.materials?.sticker || 0,
+    card: !!document.querySelector("iframe[src*='stripe'], [data-stripe], #checkout")
+  }));
+  log("shop-free", freeShop.sticker >= 1 && freeShop.coins === coinsBeforeFree && freeShop.card === false, JSON.stringify(freeShop));
+  await page.locator("#shopModal .close").click();
 
   await walkUntilMoved(page);
   const afterMove = await page.evaluate(() => ({
@@ -152,14 +175,15 @@ async function main() {
   }));
   log(
     "save-reload-move",
-    reloaded.characterId === "cobalt" && reloaded.step >= 1 && reloaded.coins === 120 && reloaded.paid === true && reloaded.look?.hair === "pink" && reloaded.look?.jacket === "magenta" && reloaded.mark?.accessory === "chain",
+    reloaded.characterId === "cobalt" && reloaded.step >= 1 && reloaded.coins === 120 && reloaded.paid === true && reloaded.look?.accessory === "wings" && reloaded.mark?.wings === true,
     JSON.stringify(reloaded)
   );
   await shot(page, "ch1-after-reload.png");
 
   await go(page, "street");
   await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 2, { timeout: 15000 });
-  log("tutorial-street", true, "step " + await page.evaluate(() => window.me.onboarding.step));
+  const conflict = await page.locator("#angelinaGuide").innerText();
+  log("angelina-conflict", /Razor is the test/i.test(conflict), conflict);
 
   await talkRazor(page);
   await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 3, { timeout: 15000 });
@@ -168,7 +192,8 @@ async function main() {
 
   await go(page, "cemetery");
   await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 4, { timeout: 15000 });
-  log("tutorial-cemetery", true, "cemetery");
+  const climax = await page.locator("#angelinaGuide").innerText();
+  log("angelina-climax", /chain duel/i.test(climax), climax);
 
   const coinsBeforeFight = await page.evaluate(() => window.me.coins);
   await page.locator("#btnFight").click();
@@ -183,6 +208,8 @@ async function main() {
     coins: window.me.coins,
     shack: window.me.inventory?.materials?.shack || 0
   }));
+  const shopLine = await page.locator("#angelinaGuide").innerText();
+  log("angelina-shop", /coins, not a card/i.test(shopLine), shopLine);
   await page.click("button[onclick=\"buyItem('mat_brick')\"]");
   await page.waitForFunction(prev => (window.me.inventory?.materials?.shack || 0) > prev, beforeBuy.shack, { timeout: 10000 });
   const afterBuy = await page.evaluate(() => ({
@@ -202,6 +229,8 @@ async function main() {
   await page.waitForFunction(() => window.World3D?.isReady?.() === true, { timeout: 40000 });
   const crypt = await page.evaluate(() => window.me.inventory?.materials?.crypt || 0);
   if (crypt < 1) await page.evaluate(() => window.Chapter1.ensureCityKit(window.me));
+  const cityLine = await page.locator("#angelinaGuide").innerText();
+  log("angelina-city", /not a finished city/i.test(cityLine), cityLine);
   await page.click("#btnBuild");
   const cityCanvas = await page.locator("#stage3d").boundingBox();
   await page.mouse.click(cityCanvas.x + cityCanvas.width * 0.5, cityCanvas.y + cityCanvas.height * 0.55);
@@ -309,7 +338,7 @@ async function main() {
   await page.goto("about:blank");
   await page.goto(`${base}/?solo=1&v=ch1-reentry`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__playerLoaded === true && window.me?.characterId === "cobalt");
-  await page.waitForFunction(() => window.World3D?.playerAvatarMark?.()?.hair === "pink", { timeout: 20000 });
+  await page.waitForFunction(() => window.World3D?.playerAvatarMark?.()?.wings === true, undefined, { timeout: 30000 });
   await dismissHowTo(page);
   const joinPersist = await page.evaluate(() => ({
     joined: !!window.me?.story?.flags?.joined_gang,
@@ -335,7 +364,7 @@ async function main() {
   fs.writeFileSync(path.join(outDir, "ch1-objectives.json"), JSON.stringify(objectives, null, 2));
   log(
     "initiation-persists",
-    joinPersist.joined === true && joinPersist.characterId === "cobalt" && joinPersist.ended === true && joinPersist.stones >= 1 && objectives.training.length === 7 && objectives.finaleSeen === true && objectives.look?.hair === "pink" && objectives.mark?.attached === true,
+    joinPersist.joined === true && joinPersist.characterId === "cobalt" && joinPersist.ended === true && joinPersist.stones >= 1 && objectives.training.length === 7 && objectives.finaleSeen === true && objectives.look?.accessory === "wings" && objectives.mark?.wings === true,
     JSON.stringify({ joinPersist, objectives })
   );
 

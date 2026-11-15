@@ -57,8 +57,8 @@ body.mode-world3d .room-layer { background: #050008; }
 .char-select {
   display: none; position: fixed; inset: 0; z-index: 200;
   background: radial-gradient(ellipse at center, #1a0828 0%, #050008 70%);
-  flex-direction: column; align-items: center; justify-content: center;
-  padding: 16px; gap: 12px;
+  flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 16px; gap: 12px; overflow-y: auto;
 }
 .char-select.active { display: flex; }
 .char-select h2 { color: #0ff; text-shadow: 0 0 12px #f0f; }
