@@ -41,9 +41,12 @@ else
 fi
 
 STILLS_DIR=$(ls -d "$ICE/hero-stills-${SHORT}-${PASS_TAG}" 2>/dev/null | head -1)
-[[ -d "$STILLS_DIR" ]] && cp -a "$STILLS_DIR/." "$STORE/stills/"
+[[ -d "$STILLS_DIR" ]] && cp -r "$STILLS_DIR/." "$STORE/stills/"
 FRAMES_DIR=$(ls -d "$ICE/hero-frames-video-${SHORT}-${PASS_TAG}" 2>/dev/null | head -1)
-[[ -d "$FRAMES_DIR" ]] && cp -a "$FRAMES_DIR/." "$STORE/stills/video-frames/"
+if [[ -d "$FRAMES_DIR" ]]; then
+  mkdir -p "$STORE/stills/video-frames"
+  cp -r "$FRAMES_DIR/." "$STORE/stills/video-frames/"
+fi
 
 for f in "$ICE/ice-ordinary-footage-metadata-${PASS_TAG}.json" "$ICE/t209-onboarding-sequence-proof-${SHORT}.json"; do
   [[ -f "$f" ]] && cp "$f" "$STORE/evidence/"

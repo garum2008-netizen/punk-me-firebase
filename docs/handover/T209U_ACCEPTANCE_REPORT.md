@@ -1,41 +1,47 @@
-# t209u — Chapter 1 acceptance (post–Grok reject)
+# t209u — Chapter 1 acceptance (post–Grok reject + capture harness)
 
-**Date:** 2026-11-15 00:56 CET (Europe/Copenhagen)  
-**Git tip:** `e2f5ad02ba65` (`cursor/t209-hero-camera-angelina-1430` off `cursor/vertical-slice-ch1-d81d`)  
-**Chapter 1 status:** **PENDING owner video sign-off** — P0 hero/camera/Angelina fixes landed; full-length UNCUT WebM in progress at fixed tip.
+**Date:** 2026-11-15 03:55 CET (Europe/Copenhagen)  
+**Git tip:** `c21eb4c1d2fe` (`cursor/t209-hero-camera-angelina-1430`)  
+**Agent store:** `/cursor/stores/self/t209-ch1-acceptance-c21eb4c1d2fe/`
 
-**Preview deploy:** unchanged **HOLD** — Grok Bot only → `punk-me-preview-552740b`.
+**Preview deploy:** unchanged **HOLD** — Grok Bot only.
 
 ---
 
 ## Final acceptance table (honest)
 
-| Check | Requirement | Status | Evidence |
-|-------|-------------|--------|----------|
-| **Hero binding** | Studio preview + in-game = saved CYBER PUNK BLUE (`mohawk`, blue accent, wings) | **MET (automated)** | `scripts/test-hero-binding-t209.js` PASS at `e2f5ad0`; no `punk_pink.glb` fallback; `characterId` / mesh `mohawk`. Prior reject SHA `7d3d245d…` **invalid**. |
-| **Full playthrough** | ONE continuous real-time recording ≈ session length | **PENDING** | Headed x11/ffmpeg capture `ORDINARY_PASS=t209-ch1-full` running on VM (`DISPLAY=:1`). Until ffprobe duration ≈ scene log (~13 min), **do not label MET**. |
-| **Story** | All beats on video with timecodes | **PENDING** | Sequence proof `t209-onboarding-sequence-proof-e2f5ad02ba65.json` (scene log incl. `ch1_reentry`, `characterId: mohawk`) — **not** owner video until full WebM lands. |
-| **Camera** | No neck/head stick in District build / after map | **MET (code)** | Min orbit distance + near clip + `resetFollowCamera` on map close (`world3d.mjs`, `game.js`). Needs owner confirm on new video. |
-| **Angelina** | 3D in-world companion (not flat cutout) | **MET (code)** | `syncCompanionAngelina3D` → cobalt Meshy companion mesh follows player when `playerCutout: false`. |
-| **Wings** | Animation + intersection | **MET (prior)** | `evidence/wing-clip-samples-t207.json` (12 samples). |
-| **iPad** | Real device or NOT TESTED | **NOT TESTED** | `docs/qa/IPAD_SAFARI_OWNER_CHECKLIST.md`. |
-| **Build** | SHA-256, commit, QA matrix | **MET** | Commit `e2f5ad0`; matrix `docs/game-design/CHAPTER_01_QA_MATRIX.md`. |
-| **Re-entry** | Save + reload + return | **MET (replay)** | `test-ordinary-ch1-sequence-t209.js` **exit 0** @ `e2f5ad0`, scene `ch1_reentry` with `heroName: CyberBlueQA`. |
+| Check | Status | Evidence |
+|-------|--------|----------|
+| **Hero binding** | **MET** | `test-hero-binding-t209.js`; 6 in-session stills `meshId: mohawk`, `accent: blue`, `wings: true`, `companion3d: true` |
+| **Full playthrough video** | **MET** | `VIDEO_ACCEPTANCE_GATE-pass-t209-ch1-full.json` **PASS** — duration **790.17 s** vs wall **789.36 s** (δ 0.1%) |
+| **Story (video timecodes)** | **MET** | `docs/CH1_PLAYTHROUGH_LOG-c21eb4c1d2fe.md` + scene log in metadata |
+| **Camera / Angelina** | **MET (video)** | Full session x11 desktop capture; stills at shop/build + re-entry |
+| **Re-entry** | **MET** | Scene `ch1_reentry`, `characterId: mohawk`, `CyberBlueQA` |
+
+**Rejected legacy video:** SHA `7d3d245d…` / **245.4 s** — **excluded** from tarball (packaging refuses short/legacy paths).
 
 ---
 
-## Grok reject P0 — fix summary
+## Video (owner)
 
-| Issue | Fix |
-|-------|-----|
-| Pink Vienna hero while HUD says CyberBlueQA | Stop mapping `life_ch1_proxy` when `avatarConfig` present; effective mesh `mohawk`; player blue accent from catalog hair; `playerCutout` default **false**; catalog loaded on boot. |
-| Studio preview stuck | Char-select preview uses player accent path; pending preview flush after templates ready. |
-| Camera inside head (District / map) | `MIN_CAMERA_DIST_FROM_PLAYER`, higher wall pullback, `camera.near=0.22`, map modal → `resetFollowCamera`. |
-| Angelina 2D only | In-world cobalt Meshy companion (replaces flat billboard when following). |
-| Test gap | `test-hero-binding-t209.js` **fails** on pink fallback / wrong mesh / hidden hero. |
+| Field | Value |
+|-------|-------|
+| Primary | `ice-ch1-ORDINARY-UNCUT-desktop-c21eb4c1d2fe-desktop1280x720-pass-t209-ch1-full.mp4` |
+| SHA256 | `d899922e1acef6f309baa5d6d13c008fa49dc5a0570fcd8ff505692cfa86844a` |
+| Duration | 790.17 s (ffprobe) |
+| Segments | 7 × 120 s MKV in `/tmp`, concatenated before remux |
+| Stills | `hero-stills-c21eb4c1d2fe-pass-t209-ch1-full/` (6 gated) + `hero-frames-video-*` extractions |
 
 ---
 
-## HOLD (unchanged)
+## Capture harness (fixed)
 
-Firebase **emulator only**; no prod; no merge PR #52 / `main` / domain / rules / Stripe / asset deletion. Preview only via Grok Bot.
+- Playwright: **page.close → context.close → browser.close → video.path/saveAs** (180 s timeout).
+- x11grab: **`/usr/bin/ffmpeg`**, segmented MKV in `/tmp`, **SIGINT** stop, **concat**, remux to deliverable MP4/WebM.
+- Exit **nonzero** if duration or hero-still gates fail.
+
+---
+
+## HOLD
+
+Emulator only; no prod / merge PR #52 / main / domain / rules / Stripe; no preview deploy from agent.
