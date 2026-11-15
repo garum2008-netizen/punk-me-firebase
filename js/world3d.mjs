@@ -94,8 +94,6 @@ function isStoryUiBlockingWorldCamera() {
   if (document.getElementById("lifeCh1Wardrobe") && !document.getElementById("lifeCh1Wardrobe").hasAttribute("hidden")) {
     return true;
   }
-  if (document.getElementById("gangModal")?.classList.contains("active")) return true;
-  if (document.getElementById("fightOverlay")?.classList.contains("active")) return true;
   return false;
 }
 

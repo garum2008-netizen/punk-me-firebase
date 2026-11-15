@@ -82,7 +82,8 @@ async function main() {
     await page.waitForTimeout(400);
     await page.evaluate(() => {
       document.getElementById("storyDialog")?.classList.remove("active");
-      /* simulate stale UI close without clearDialogueCamera */
+      document.getElementById("gangModal")?.classList.add("active");
+      /* stale locks while gang sheet open (2D overlay must not pin 3D dialogue camera) */
     });
     await page.waitForTimeout(800);
     const afterStale = await canvasMeanLuma(page);
