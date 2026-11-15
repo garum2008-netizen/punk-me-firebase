@@ -473,8 +473,35 @@ async function nearWorldPoint(page, tx, tz, radius = 2.85) {
   );
 }
 
+async function dismissBlockingModals(page) {
+  const closers = [
+    "#gangModal.active .close",
+    "#shopModal.active .close",
+    "#mapModal.active .close",
+    "#storyDialog.active .story-dialog-close",
+  ];
+  for (const sel of closers) {
+    const el = page.locator(sel).first();
+    if (await el.isVisible().catch(() => false)) {
+      logInput("click", `dismiss modal ${sel}`);
+      await el.click({ timeout: 2000 }).catch(() => {});
+    }
+  }
+  await page
+    .waitForFunction(
+      () =>
+        !document.getElementById("gangModal")?.classList.contains("active") &&
+        !document.getElementById("shopModal")?.classList.contains("active") &&
+        !document.getElementById("mapModal")?.classList.contains("active"),
+      undefined,
+      { timeout: 3000 }
+    )
+    .catch(() => {});
+}
+
 async function focusStage(page) {
   logInput("click", "#stage3d focus");
+  await dismissBlockingModals(page);
   const wardrobeOpen = await page.locator("#lifeCh1Wardrobe:not([hidden])").isVisible().catch(() => false);
   if (wardrobeOpen) {
     logInput("click", "lifeCh1WardrobeClose");
@@ -485,7 +512,10 @@ async function focusStage(page) {
   const fx = Math.min(vp.width - 24, Math.round(vp.width * 0.56));
   const fy = Math.min(vp.height - 120, Math.round(vp.height * 0.42));
   logInput("ui_click", `#stage3d focus @${fx},${fy} vp=${vp.width}x${vp.height}`);
-  await stage.click({ position: { x: fx, y: fy } });
+  await stage.click({ position: { x: fx, y: fy }, force: true }).catch(async () => {
+    await dismissBlockingModals(page);
+    await stage.click({ position: { x: fx, y: fy }, timeout: 15000 });
+  });
 }
 
 async function touchJoystickBurst(page, holdMs = 520) {
