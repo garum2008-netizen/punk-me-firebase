@@ -967,10 +967,12 @@ async function completeOnboarding(page) {
       await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", { scroll: true });
       await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
       await visibleUiClick(page, 'button[onclick*="startNpcFight"]', "startNpcFight");
-      const waitDuelHud = async (ms = 45000) =>
+      const waitOnboardDuelWin = async (ms = 55000) =>
         page
           .waitForFunction(
             () => {
+              const st = window.me?.onboarding?.step ?? 0;
+              if (st > 5) return true;
               const duel = document.getElementById("duel3dHud");
               return !!(duel && !duel.classList.contains("hidden"));
             },
@@ -978,28 +980,23 @@ async function completeOnboarding(page) {
             { timeout: ms }
           )
           .catch(() => null);
-      if (!(await waitDuelHud(40000))) {
-        logScene("onboarding_duel_retry", "direct startNpcFight after UI miss");
-        const duelDiag = await page.evaluate(async () => {
+      await page.waitForSelector("#duel3dHud", { timeout: 15000 }).catch(() => {});
+      if (!(await waitOnboardDuelWin(45000))) {
+        logScene("onboarding_duel_retry", "startNpcFight after HUD miss");
+        await page.evaluate(() => {
           if (window.me?.location !== "street") window.goLocation?.("street");
           window.closeModal?.("gangModal");
           window.World3D?.releaseCaptureFrame?.();
           window.World3D?.snapPlayerToLocationSpawn?.();
-          await new Promise(r => setTimeout(r, 700));
-          const snap = window.World3D?.getPlayerActorSnapshot?.() || null;
-          const okDirect = window.World3D?.startDuel3D?.("razor", { training: true, firstTo: 1 });
-          if (!okDirect) window.startNpcFight?.("razor");
-          return {
-            loc: window.me?.location,
-            mode3d: document.body.classList.contains("mode-world3d"),
-            snapMesh: snap?.meshHeroId || null,
-            okDirect,
-          };
+          window.startNpcFight?.("razor");
         });
-        logScene("onboarding_duel_diag", JSON.stringify(duelDiag));
-        await page.waitForTimeout(800);
-        if (!(await waitDuelHud(55000))) {
-          throw new Error(`onboarding_duel_hud_never_visible ${JSON.stringify(duelDiag)}`);
+        if (!(await waitOnboardDuelWin(90000))) {
+          const duelDiag = await page.evaluate(() => ({
+            step: window.me?.onboarding?.step,
+            loc: window.me?.location,
+            hud: !document.getElementById("duel3dHud")?.classList.contains("hidden"),
+          }));
+          throw new Error(`onboarding_duel_never_won ${JSON.stringify(duelDiag)}`);
         }
       }
       const duel2d = await page.evaluate(
