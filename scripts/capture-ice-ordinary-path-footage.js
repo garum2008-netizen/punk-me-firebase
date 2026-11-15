@@ -670,6 +670,7 @@ async function completeOnboarding(page) {
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 1 || window.me?.onboarding?.done, undefined, {
         timeout: 45000,
       });
+      await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 120000 });
     } else if (step === 2) {
       await ensureStreetLocation(page);
       await openGangWithRazor(page, "gang → razor talk");
@@ -692,10 +693,23 @@ async function completeOnboarding(page) {
       }
     } else if (step === 3) {
       await ensureStreetLocation(page);
-      await walkTowardOnboardingGuide(page, 32000);
-      await walkInteractCh1(page, -3.2, -1.4, 2.5, 45000);
+      for (let burst = 0; burst < 42; burst++) {
+        const cur = await readState(page);
+        if (cur.location !== "street") await ensureStreetLocation(page);
+        if ((cur.onboardingStep ?? 0) > 3 || cur.onboardingDone) break;
+        await walkTowardOnboardingGuide(page, 5000);
+        const near = await page.evaluate(() => {
+          const p = window.World3D?.getPlayerWorldPosition?.();
+          if (!p) return false;
+          return Math.hypot(p.x + 3.2, p.z + 1.4) < 2.6;
+        });
+        if (near) {
+          await page.waitForTimeout(800);
+          if ((await readState(page)).onboardingStep > 3) break;
+        }
+      }
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 3 || window.me?.onboarding?.done, undefined, {
-        timeout: 45000,
+        timeout: 60000,
       });
     } else if (step === 4) {
       if (st.location !== "cemetery") {
