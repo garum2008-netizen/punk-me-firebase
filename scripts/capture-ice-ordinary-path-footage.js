@@ -405,18 +405,23 @@ async function waitReadableDialog(page, minMs = 900) {
 }
 
 async function ensureStreetLocation(page) {
-  let loc = await page.evaluate(() => window.me?.location);
-  if (loc === "street") return;
-  logScene("ensure_street", `travel to street from ${loc}`);
-  if (!(await tryPortalTravel(page, "street", 75000))) {
-    await uiOpenMapTravel(page, "street");
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let loc = await page.evaluate(() => window.me?.location);
+    if (loc === "street") return;
+    logScene("ensure_street", `travel to street from ${loc} attempt=${attempt + 1}`);
+    await tryPortalTravel(page, "street", attempt === 0 ? 22000 : 14000);
+    loc = await page.evaluate(() => window.me?.location);
+    if (loc !== "street") await uiOpenMapTravel(page, "street");
+    await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 90000 });
+    loc = await page.evaluate(() => window.me?.location);
+    if (loc === "street") {
+      logScene("ensure_street_done", "at street");
+      return;
+    }
+    await page.waitForTimeout(400);
   }
-  await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 120000 });
-  logScene("ensure_street_done", "at street");
-  loc = await page.evaluate(() => window.me?.location);
-  if (loc !== "street") {
-    throw new Error(`ensureStreetLocation: still on ${loc} after portal/map travel`);
-  }
+  const bad = await page.evaluate(() => window.me?.location);
+  throw new Error(`ensureStreetLocation: still on ${bad} after portal/map travel`);
 }
 
 async function openGangWithRazor(page, detail) {
@@ -657,7 +662,8 @@ async function tryPortalTravel(page, destLoc, maxMs = 55000) {
       logScene(`travel_map_fallback_${destLoc}`, "portal slow — map travel");
       await uiOpenMapTravel(page, destLoc);
       const ok = await page.waitForFunction(l => window.me?.location === l, destLoc, { timeout: 45000 }).catch(() => null);
-      if (ok) {
+      const locAfterMap = await page.evaluate(() => window.me?.location);
+      if (ok && locAfterMap === destLoc) {
         logScene(`travel_portal_${destLoc}_done`, "map");
         return true;
       }
