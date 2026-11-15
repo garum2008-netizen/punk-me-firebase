@@ -1087,6 +1087,13 @@ function rebuildLocation(locId) {
   locationRoot.add(cityBuilds3dGroup);
   refreshCityBuilds3DFromMe();
   onGameplayLocationBuilt(locId, locationRoot, bounds);
+  if (renderer) {
+    const prev = renderer.toneMappingExposure;
+    renderer.toneMappingExposure = Math.min(1.55, prev * 1.12);
+    requestAnimationFrame(() => {
+      renderer.toneMappingExposure = prev;
+    });
+  }
 }
 
 function refreshCityBuilds3DFromMe() {

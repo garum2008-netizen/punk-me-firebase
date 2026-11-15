@@ -25,8 +25,10 @@ async function configureCyberPunkBlueStudio(page, heroName = QA_CYBER_PUNK_BLUE.
       await page
         .waitForFunction(p => (window.__lastStudioPreviewMs || 0) > p, prev, { timeout: 5000 })
         .catch(() => {});
+      await page.waitForTimeout(60);
+    } else {
+      await page.waitForTimeout(45);
     }
-    await page.waitForTimeout(fast ? 35 : 60);
     const still = studioStillSteps.find(s => s.after[0] === field && s.after[1] === id);
     if (still && !fast) {
       await page.waitForTimeout(120);

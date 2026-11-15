@@ -249,7 +249,10 @@ async function postFinalizeRecordingSession(r) {
           studioMaxWallMs: 70000,
           gameplayIgnoreBeforeSec: r.gameplayIgnoreBeforeSec ?? null,
           renderDiagSamples: r.renderDiagSamples || [],
-          scenes: r.scenes || [],
+          scenes: (r.scenes || []).map(s => ({
+            ...s,
+            tSec: typeof s.tSec === "number" && s.tSec > 1000000 ? 0 : s.tSec,
+          })),
         },
         null,
         2
@@ -1293,6 +1296,8 @@ async function runOrdinarySession(browser, viewport, label) {
   inputLog.length = 0;
   scenes.length = 0;
   renderDiagSamples.length = 0;
+  const sessionT0 = Date.now();
+  t0 = sessionT0;
   const recordingStartUtc = new Date();
   const recordingStartCet = cetTimestamp(recordingStartUtc);
 
@@ -1301,9 +1306,9 @@ async function runOrdinarySession(browser, viewport, label) {
   await page.bringToFront();
   await dismissHowTo(page);
   await page.waitForSelector("#charSelect.active", { timeout: 120000 });
-  const studioWallStart = Date.now();
+  const configureStart = Date.now();
   await pickAngelina(page, { deferWorldReady: true, skipStudioWait: true });
-  const studioWallEndMs = Date.now() - studioWallStart;
+  const studioWallEndMs = Date.now() - configureStart;
   logScene("studio_complete", `wallMs=${studioWallEndMs}`);
   await dismissHowTo(page);
 
