@@ -503,9 +503,9 @@ function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
   const mat = new THREE.MeshStandardMaterial({
     color: 0x00ffff,
     emissive: 0x00ffff,
-    emissiveIntensity: 2.4,
+    emissiveIntensity: 3.2,
     transparent: true,
-    opacity: 0.95
+    opacity: 1
   });
   for (let i = 0; i < 8; i++) {
     const seg = new THREE.Mesh(new THREE.TorusGeometry(0.18 - i * 0.012, 0.04, 8, 14), mat);
@@ -710,7 +710,7 @@ function tickDuel(dt, ctx) {
       orb.position.copy(from);
       ctx.scene.add(orb);
       d.magicBolt = { mesh: orb, from, to, t: 0 };
-      const burst = new THREE.PointLight(0x66ccff, 14, 8);
+      const burst = new THREE.PointLight(0x66ccff, 24, 12);
       burst.position.set(npc.wx, 1.8, npc.wz);
       ctx.scene.add(burst);
       setTimeout(() => burst.removeFromParent(), 520);
