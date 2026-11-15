@@ -272,23 +272,28 @@ async function openCharacterStudio(onPick) {
   }
   await loadAvatarCatalog();
   let pendingStudioPreview = null;
-  await loadAllCc0Templates().then(() => {
+  let previewLoadGen = 0;
+  async function ensurePreviewTemplate(meshId, look) {
+    const id = meshId || "vienna";
+    const gen = ++previewLoadGen;
+    await loadMeshyTemplateForCharacter(id);
+    if (gen !== previewLoadGen) return;
     templatesReady = true;
     if (!raf) loop();
-    if (pendingStudioPreview) {
-      const { meshId, look } = pendingStudioPreview;
-      pendingStudioPreview = null;
-      showCharacter(meshId, look);
-    }
-  });
+    if (look) showCharacter(id, look);
+    else showCharacter(id);
+  }
+  void ensurePreviewTemplate("vienna");
+  void loadMeshyTemplateForCharacter("mohawk");
   const studioHost = document.getElementById("charSelectUi");
   studioApi = await mountCharacterStudio(studioHost, {
     onPreview: (meshId, look) => {
       if (!templatesReady) {
         pendingStudioPreview = { meshId, look };
-        return;
       }
-      showCharacter(meshId, look);
+      void ensurePreviewTemplate(meshId, look).then(() => {
+        if (pendingStudioPreview?.meshId === meshId) pendingStudioPreview = null;
+      });
     },
     onConfirm: cfg => {
       close();
@@ -329,11 +334,13 @@ function open(onPick) {
     clock = new THREE.Clock();
   }
   resize();
-  loadAllCc0Templates().then(() => {
+  const pickId = PLAYABLE_CHARACTER_IDS[selectedIdx] || "vienna";
+  loadMeshyTemplateForCharacter(pickId).then(() => {
     templatesReady = true;
     buildUi();
-    showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
+    showCharacter(pickId);
     if (!raf) loop();
+    void loadAllCc0Templates();
   });
 }
 

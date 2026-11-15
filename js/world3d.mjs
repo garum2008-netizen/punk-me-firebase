@@ -81,6 +81,7 @@ let playerAnimState = "idle";
 let modelsReady = false;
 let roomPlayableMarked = false;
 let worldBootstrappedForCharacter = false;
+let bootstrapWorldPromise = null;
 let pendingSyncData = null;
 let captureFrameLock = false;
 let dialogueCameraLock = false;
@@ -1050,6 +1051,13 @@ function hideWorldLoadProgress() {
   if (overlay) overlay.hidden = true;
 }
 
+function tryMarkRoomPlayable() {
+  if (roomPlayableMarked) return;
+  if (!modelsReady) return;
+  if (!actors.get("player")) return;
+  markRoomPlayable();
+}
+
 function markRoomPlayable() {
   if (roomPlayableMarked) return;
   roomPlayableMarked = true;
@@ -1095,7 +1103,7 @@ async function loadModels() {
   setWorldLoadProgress(0.58, typeof t === "function" ? t("world_load_room") : "Punk room…");
   modelsReady = true;
   if (pendingSyncData) sync(pendingSyncData);
-  markRoomPlayable();
+  tryMarkRoomPlayable();
   loadDeferredWorldAssets(playerHero || "mohawk");
 }
 
@@ -2267,6 +2275,7 @@ function sync(data) {
       applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
     }
     window.dispatchEvent(new CustomEvent("punk-player-actor-ready", { detail: { characterId: player.characterId } }));
+    tryMarkRoomPlayable();
   }
 
   const hideCrowd = isDuelActive() || captureFrameLock;
@@ -2560,19 +2569,29 @@ function init(h) {
 }
 
 async function bootstrapWorldAfterCharacter() {
-  if (worldBootstrappedForCharacter && modelsReady) {
+  if (modelsReady) {
     await ensurePlayerHeroMesh();
+    tryMarkRoomPlayable();
     return true;
   }
+  if (bootstrapWorldPromise) return bootstrapWorldPromise;
+  if (!renderer) init(hooks);
   worldBootstrappedForCharacter = true;
-  try {
-    await loadModels();
-    hooks.onReady?.();
-    return true;
-  } catch (err) {
-    console.error("World3D bootstrap failed", err);
-    return false;
-  }
+  setWorldLoadProgress(0.02, typeof t === "function" ? t("world_load_heroes") : "Loading heroes…");
+  bootstrapWorldPromise = (async () => {
+    try {
+      await loadModels();
+      hooks.onReady?.();
+      tryMarkRoomPlayable();
+      return true;
+    } catch (err) {
+      console.error("World3D bootstrap failed", err);
+      bootstrapWorldPromise = null;
+      throw err;
+    }
+  })();
+  window.__punkWorldBootstrapPromise = bootstrapWorldPromise;
+  return bootstrapWorldPromise;
 }
 
 async function ensurePlayerHeroMesh() {
@@ -2583,7 +2602,7 @@ async function ensurePlayerHeroMesh() {
   }
   if (pendingSyncData) sync(pendingSyncData);
   else rebuildPlayerFromAvatar();
-  if (!roomPlayableMarked) markRoomPlayable();
+  tryMarkRoomPlayable();
 }
 
 function applyViewportCameraProfile() {

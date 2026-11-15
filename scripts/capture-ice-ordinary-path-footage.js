@@ -680,19 +680,13 @@ async function pickAngelina(page, opts = {}) {
   await page.locator('[data-testid="character-studio-confirm"]').click({ timeout: 30000 });
   await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
   await page
-    .waitForFunction(
-      () =>
-        window.World3D?.isRoomPlayable?.() ||
-        (window.World3D?.isReady?.() && window.World3D?.getPlayerWorldPosition),
-      undefined,
-      { timeout: 120000 }
-    )
+    .waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, { timeout: 180000 })
     .catch(async () => {
       await page.evaluate(async () => {
         const b = window.World3D?.bootstrapWorldAfterCharacter;
         if (typeof b === "function") await b();
       });
-      await page.waitForFunction(() => window.World3D?.isReady?.(), undefined, { timeout: 120000 });
+      await page.waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, { timeout: 180000 });
     });
   if (!opts.deferWorldReady) {
     await page.waitForTimeout(400);
@@ -702,17 +696,23 @@ async function pickAngelina(page, opts = {}) {
 
 async function waitWorld3dPlayable(page, timeoutMs = 360000) {
   await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: timeoutMs });
-  const deadline = Date.now() + Math.min(timeoutMs, 240000);
-  while (Date.now() < deadline) {
-    const snap = await page.evaluate(() => ({
-      ready: !!window.World3D?.isReady?.(),
-      mode: document.body.classList.contains("mode-world3d"),
-      hasOnboarding: window.me?.onboarding && typeof window.me.onboarding.step === "number",
-    }));
-    if (snap.ready) return snap;
-    await page.waitForTimeout(500);
-  }
-  throw new Error("world3d_playable_timeout");
+  await page
+    .waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, {
+      timeout: Math.min(timeoutMs, 240000),
+    })
+    .catch(async () => {
+      await page.evaluate(async () => {
+        await window.World3D?.bootstrapWorldAfterCharacter?.();
+      });
+      await page.waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, {
+        timeout: Math.min(timeoutMs, 180000),
+      });
+    });
+  return page.evaluate(() => ({
+    ready: !!window.World3D?.isRoomPlayable?.(),
+    mode: document.body.classList.contains("mode-world3d"),
+    hasOnboarding: window.me?.onboarding && typeof window.me.onboarding.step === "number",
+  }));
 }
 
 async function completeOnboarding(page) {

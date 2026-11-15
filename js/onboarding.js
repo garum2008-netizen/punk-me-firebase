@@ -170,11 +170,17 @@ const ONBOARD_WORLD_MOVE_DIST = 0.88;
 
 function worldLocomotionReady() {
   const W = window.World3D || window.Scene3D;
-  return !!(
-    document.body?.classList?.contains("mode-world3d") &&
-    W?.isReady?.() &&
-    typeof W?.getPlayerWorldPosition === "function"
-  );
+  if (!document.body?.classList?.contains("mode-world3d")) return false;
+  if (typeof W?.isRoomPlayable === "function") return !!W.isRoomPlayable();
+  return !!(W?.isReady?.() && actorsPlayerReady(W));
+}
+
+function actorsPlayerReady(W) {
+  try {
+    return typeof W.getPlayerWorldPosition === "function" && !!W.getDebugCamera?.()?.player;
+  } catch (_) {
+    return false;
+  }
 }
 
 function onWorldMove(wx, wz) {

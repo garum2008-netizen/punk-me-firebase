@@ -42,6 +42,7 @@ const MESHY_DIRECT_URL = {
 };
 
 const templateByCharacter = new Map();
+const templateLoadInflight = new Map();
 const templateLoadedListeners = new Set();
 
 export function onMeshyTemplateLoaded(fn) {
@@ -173,14 +174,8 @@ function markTemplateLoadFailed(id, url) {
   notifyTemplateLoaded(id);
 }
 
-export async function loadMeshyTemplateForCharacter(characterId) {
+async function loadMeshyTemplateForCharacterInner(characterId) {
   const id = characterId || DEFAULT_MESHY_CHARACTER;
-  const existing = templateByCharacter.get(id);
-  if (existing) {
-    if (existing.loadFailed) return null;
-    return existing;
-  }
-
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   const shipped = await getShippedMeshyIds();
@@ -227,6 +222,23 @@ export async function loadMeshyTemplateForCharacter(characterId) {
       return null;
     }
   }
+}
+
+export async function loadMeshyTemplateForCharacter(characterId) {
+  const id = characterId || DEFAULT_MESHY_CHARACTER;
+  const existing = templateByCharacter.get(id);
+  if (existing) {
+    if (existing.loadFailed) return null;
+    return existing;
+  }
+  let inflight = templateLoadInflight.get(id);
+  if (!inflight) {
+    inflight = loadMeshyTemplateForCharacterInner(id).finally(() => {
+      if (templateLoadInflight.get(id) === inflight) templateLoadInflight.delete(id);
+    });
+    templateLoadInflight.set(id, inflight);
+  }
+  return inflight;
 }
 
 /** @deprecated use loadMeshyTemplateForCharacter("vienna") */
