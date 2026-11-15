@@ -224,7 +224,7 @@ async function postFinalizeRecordingSession(r) {
   }
 
   r.heroStills = r.heroStills || sessionHeroStills.slice();
-  const heroGate = validateHeroStillSnapshots(r.heroStills, 6);
+  const heroGate = await validateHeroStillsWithHairPixels(r.heroStills, 6);
   const durationGate = validateDurationGate(r._sessionWallSec, r.durationSec, 0.1);
   const framesDir = path.join(OUT, `hero-frames-video-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
   const frameTimes = r.heroStills.filter(s => heroGate.tags.includes(s.tag)).map(s => s.tSec).slice(0, 8);
@@ -553,10 +553,10 @@ const {
   closePlaywrightRecordingSession,
   savePlaywrightVideoAfterBrowserClose,
   extractFramesAtTimes,
-  validateHeroStillSnapshots,
   validateDurationGate,
   FFMPEG,
 } = require("./capture-video-finalize");
+const { validateHeroStillsWithHairPixels } = require("./hero-hair-pixel-gate");
 
 let sessionHeroStills = [];
 
@@ -708,6 +708,12 @@ async function completeOnboarding(page) {
             await visibleUiClick(page, btn, "fightAttack");
           }
         } else if (snap.hud) {
+          const hasSpell = await page.evaluate(
+            () => (window.me?.inventory?.spells || []).length > 0
+          );
+          if (hasSpell && i === 2) {
+            await page.locator('[data-testid="duel3d-spell"]').click({ timeout: 3000 }).catch(() => {});
+          }
           const btn = page.locator('[data-testid="duel3d-attack"]');
           const b = await btn.boundingBox();
           if (b && b.width > 2) await btn.click();
@@ -725,6 +731,8 @@ async function completeOnboarding(page) {
       await dismissHowTo(page);
       await visibleUiClick(page, '#panelBottom button[onclick*="shopModal"]', "shop open");
       await page.waitForSelector("#shopModal.active");
+      await page.locator('#shopModal .tab[data-tab="magic"]').click().catch(() => {});
+      await page.waitForTimeout(400);
       const buyBtn = page.locator('#shopModal button[onclick*="buyItem"]:not([disabled])').first();
       if (!(await buyBtn.count())) {
         await page.evaluate(() => {

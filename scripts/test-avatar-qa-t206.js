@@ -64,7 +64,7 @@ async function assertCatalogAndDiversity() {
   }
   assertDiversityDistinct(DIVERSITY_QA_CONFIGS);
   const look = mod.buildLookFromConfig(QA_CYBER_PUNK_BLUE, cat);
-  if (look.hair !== 44607) throw new Error(`hair hex expected electric_blue 44607 got ${look.hair}`);
+  if (look.hair !== 3381759) throw new Error(`hair hex expected electric_blue 3381759 got ${look.hair}`);
   if (look.tint !== 16755234) throw new Error(`skin tint expected tone_02 got ${look.tint}`);
   if (!look.wings) throw new Error("wings flag missing on QA look");
   if (look.jacket !== 2752872) throw new Error("cyber punk jacket color mismatch");

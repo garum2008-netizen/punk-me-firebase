@@ -623,6 +623,24 @@ function tickDuel(dt, ctx) {
       if (a._hitFlash <= 0) restoreActorMaterials(a);
     }
   });
+  if (window._duelSpell && d.cd <= 0) {
+    const spells = window.me?.inventory?.spells || [];
+    if (spells.length) {
+      const dmg = 16 + Math.floor(Math.random() * 10);
+      if (d.training) d.plHits += 1;
+      else d.npcHp -= dmg;
+      d.trail = spawnChainTrail(ctx, pl.wx, pl.wz, npc.wx, npc.wz);
+      const burst = new THREE.PointLight(0x3399ff, 8, 6);
+      burst.position.set(npc.wx, 1.8, npc.wz);
+      ctx.scene.add(burst);
+      setTimeout(() => burst.removeFromParent(), 420);
+      flashActor(npc, 0.18);
+      d.flashNpc = 0.18;
+      fadeEmote(pl, "interact");
+      d.cd = 0.85;
+    }
+    window._duelSpell = false;
+  }
   if (window._duelAttack && d.cd <= 0) {
     const dmg = 12 + Math.floor(Math.random() * 8);
     if (d.training) d.plHits += 1;

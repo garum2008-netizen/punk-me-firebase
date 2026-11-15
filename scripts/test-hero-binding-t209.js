@@ -9,6 +9,8 @@ const fs = require("fs");
 const http = require("http");
 const { assertFirebaseEmulatorTestEnv, installProdFirebaseRouteBlock } = require("./firebase-test-emulator-guard");
 const { configureCyberPunkBlueStudio, QA_CYBER_PUNK_BLUE } = require("./confirm-character-studio");
+const { scoreHairColorRegion } = require("./hero-hair-pixel-gate");
+const os = require("os");
 
 assertFirebaseEmulatorTestEnv();
 
@@ -103,10 +105,17 @@ async function assertHeroBinding(base) {
     if (!hero.snap.meshVisible) {
       throw new Error("hero mesh root not visible");
     }
-    if (hero.lookHair !== 0x3399ff && hero.lookHair !== 44607) {
+    if (hero.lookHair !== 0x3399ff && hero.lookHair !== 3381759) {
       throw new Error(`look hair hex mismatch: ${hero.lookHair}`);
     }
+    const shotPath = path.join(os.tmpdir(), `t209-hero-hair-${Date.now()}.png`);
+    await page.locator("#stage3d").screenshot({ path: shotPath, type: "png" });
+    const hairPx = await scoreHairColorRegion(shotPath);
+    if (!hairPx.ok) {
+      throw new Error(`rendered hair not blue-dominant: ${JSON.stringify(hairPx)}`);
+    }
     console.log("t209-hero-binding: PASS", {
+      hairPixel: { ratio: hairPx.ratio, blueMean: hairPx.blueMean, greenMean: hairPx.greenMean },
       meshId: hero.meshId,
       accent: hero.snap.accent,
       meshUrl: hero.snap.meshUrl.split("/").pop()

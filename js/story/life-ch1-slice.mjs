@@ -501,6 +501,30 @@ function trustChoiceReflectBonus(st) {
   return 0;
 }
 
+function markLifeCh1SliceComplete(st) {
+  st.stepIndex = maxStepIndex();
+  st.completed = true;
+  st.active = false;
+  document.body.classList.remove("life-ch1-active");
+  hooks.toast?.(
+    L({
+      ru: "Глава жизни 1 — фрагмент завершён!",
+      en: "Life chapter 1 slice complete!",
+      da: "Liv kapitel 1 færdig!"
+    })
+  );
+  window.AngelinaGuide?.react?.("ch1_complete", 7000);
+  syncCompanionAngelina3D();
+  clampStepIndex(st);
+  persistLocalOverlay();
+  hooks.save?.();
+  renderObjectivePanel();
+  syncBeacon();
+  updateChatPresetMode();
+  applyMusicSceneClass();
+  syncPlayerLifeCh1Skin();
+}
+
 function advanceStep(extraReward = 0) {
   const st = ensureLifeCh1();
   if (!st || st.completed) return;
@@ -516,19 +540,20 @@ function advanceStep(extraReward = 0) {
   window.AngelinaGuide?.react?.(`lifech1_step_${step?.id || st.stepIndex}_done`, 4500);
   const next = st.stepIndex + 1;
   if (next >= steps.length) {
-    st.stepIndex = maxStepIndex();
-    st.completed = true;
-    st.active = false;
-    document.body.classList.remove("life-ch1-active");
-    hooks.toast?.(
-      L({
-        ru: "Глава жизни 1 — фрагмент завершён!",
-        en: "Life chapter 1 slice complete!",
-        da: "Liv kapitel 1 færdig!"
-      })
-    );
-    window.AngelinaGuide?.react?.("ch1_complete", 7000);
-    syncCompanionAngelina3D();
+    if (step?.id === "reflect" && !st._climaxDone) {
+      const runComplete = () => {
+        st._climaxDone = true;
+        markLifeCh1SliceComplete(st);
+      };
+      if (window.World3D?.playLifeCh1ClimaxBeat) {
+        window.World3D.playLifeCh1ClimaxBeat(runComplete);
+        return;
+      }
+      runComplete();
+      return;
+    }
+    markLifeCh1SliceComplete(st);
+    return;
   } else {
     st.stepIndex = next;
     const upcoming = steps[next];
@@ -664,12 +689,18 @@ export function onBoot() {
 }
 
 let lastRoomWedgeResyncMs = 0;
+let lastBeaconSyncMs = 0;
 
 export function onMove() {
   if (!isActive() && !ensureLifeCh1()?.completed) return;
   if (Date.now() - lastRoomWedgeResyncMs > 500) {
     lastRoomWedgeResyncMs = Date.now();
     resyncLifeCh1RoomSpawnIfNeeded();
+  }
+  if (isActive() && Date.now() - lastBeaconSyncMs > 1200) {
+    lastBeaconSyncMs = Date.now();
+    syncBeacon();
+    renderObjectivePanel();
   }
   if (!isActive()) return;
   const step = currentStep();

@@ -1390,7 +1390,7 @@ const LOCATION_CAMERA = {
   },
   street: { dist: 6.85, height: 2.55, lookY: 1.32, yaw: 0.38 },
   city: { dist: 7.2, height: 2.62, lookY: 1.34, yaw: 0.28 },
-  cemetery: { dist: 7.0, height: 2.5, lookY: 1.3, yaw: 0.32 },
+  cemetery: { dist: 7.55, height: 2.62, lookY: 1.38, yaw: 0.32 },
   roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: {
@@ -1821,6 +1821,7 @@ function lifeCh1SteerCameraWhileMoving(input) {
 function spawnPrefForLoc(locId) {
   if (locId === "kitchen") return { x: -0.12, z: 0.36 };
   if (locId === "elevator") return { x: 0, z: 0.02 };
+  if (locId === "city" || locId === "construction") return { x: 0, z: 0 };
   return { x: 0, z: -1.2 };
 }
 
@@ -1832,9 +1833,44 @@ function snapPlayerToLocationSpawn(prep = null) {
   player.wx = clear.x;
   player.wz = clear.z;
   placeActorWorld(player, clear.x, clear.z, true);
+  player.group.position.y = 0;
+  player._vy = 0;
+  player._onGround = true;
   const g = worldToGameLoc(clear.x, clear.z, bounds);
   hooks.onMove?.(g.x, g.y, { sync3d: false, skipLifeCh1Move: true });
   return true;
+}
+
+function playLifeCh1ClimaxBeat(done) {
+  const pl = actors.get("player");
+  if (!pl?.group || !scene) {
+    done?.();
+    return;
+  }
+  const prevLock = captureFrameLock;
+  captureFrameLock = true;
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.35, 2.4, 36),
+    new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(pl.wx, 0.06, pl.wz);
+  scene.add(ring);
+  fadeTo(pl, "interact");
+  let pulse = 0;
+  const tick = setInterval(() => {
+    pulse += 1;
+    const s = 1 + pulse * 0.28;
+    ring.scale.set(s, s, s);
+    ring.material.opacity = Math.max(0, 0.9 - pulse * 0.12);
+    if (pulse >= 7) {
+      clearInterval(tick);
+      ring.removeFromParent();
+      captureFrameLock = prevLock;
+      fadeTo(pl, "idle");
+      done?.();
+    }
+  }, 300);
 }
 
 function processInput(dt) {
@@ -1988,6 +2024,9 @@ function sync(data) {
     const wz = shot?.player?.z ?? 0.36;
     const g = worldToGameLoc(wx, wz, bounds);
     hooks.onMove?.(g.x, g.y);
+  }
+  if (justChangedLoc && (location === "city" || location === "construction") && player && bounds) {
+    snapPlayerToLocationSpawn();
   }
 
   const keep = new Set(["player"]);
@@ -2156,9 +2195,18 @@ function loop() {
   if (pl) {
     pl._vy = (pl._vy || 0) - 14 * dt;
     let y = (pl.group.position.y || 0) + pl._vy * dt;
-    if (y <= 0) { y = 0; pl._vy = 0; pl._onGround = true; }
-    else pl._onGround = false;
+    if (y <= 0) {
+      y = 0;
+      pl._vy = 0;
+      pl._onGround = true;
+    } else pl._onGround = false;
     pl.group.position.y = y;
+    if (y < -0.02) {
+      pl.group.position.y = 0;
+      pl._vy = 0;
+      pl._onGround = true;
+      snapPlayerToLocationSpawn();
+    }
   }
   separateActors();
   if (locationRoot) pulseScene(locationRoot, sceneTime);
@@ -2472,6 +2520,20 @@ const api = {
   },
   setGuideTarget: t => { guideTarget = t; },
   snapPlayerToLocationSpawn,
+  playLifeCh1ClimaxBeat,
+  getPlayerFloorSnapshot: () => {
+    const pl = actors.get("player");
+    if (!pl) return null;
+    const rootY = pl.group?.position?.y ?? 0;
+    return {
+      loc: currentLoc,
+      wx: pl.wx,
+      wz: pl.wz,
+      rootY,
+      vy: pl._vy || 0,
+      belowFloor: rootY < -0.05
+    };
+  },
   setAngelinaLifeBillboard: setAngelinaLifeBillboard,
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
   getAngelinaLifeBillboardSnapshot: () => ({

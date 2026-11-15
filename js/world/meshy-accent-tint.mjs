@@ -60,6 +60,57 @@ function isAccentPixel(r, g, b) {
   return isMagenta || hotPink;
 }
 
+/** Mohawk albedo is baked green/yellow — shift those pixels to the configured hair hex. */
+function isHairPixel(r, g, b) {
+  const { h, s, l } = rgbToHsl(r, g, b);
+  if (s < 0.28 || l < 0.1 || l > 0.9) return false;
+  if (h > 0.14 && h < 0.48) return true;
+  if (g > r * 1.08 && g > b * 0.92 && s > 0.32) return true;
+  return false;
+}
+
+export function tintHairTexture(sourceTex, hairHex) {
+  const target = new THREE.Color(hairHex);
+  const { h: targetH, s: targetS } = rgbToHsl(
+    Math.round(target.r * 255),
+    Math.round(target.g * 255),
+    Math.round(target.b * 255)
+  );
+  const cacheKey = `${sourceTex.uuid}:hair:${hairHex >>> 0}`;
+  if (accentTexCache.has(cacheKey)) return accentTexCache.get(cacheKey);
+
+  const img = sourceTex.image;
+  if (!img?.width) return sourceTex;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < data.data.length; i += 4) {
+    const r = data.data[i];
+    const g = data.data[i + 1];
+    const b = data.data[i + 2];
+    if (!isHairPixel(r, g, b)) continue;
+    const { s, l } = rgbToHsl(r, g, b);
+    const mixS = Math.min(1, Math.max(s, targetS) * 0.92 + 0.08);
+    const [nr, ng, nb] = hslToRgb(targetH, mixS, l);
+    data.data[i] = nr;
+    data.data[i + 1] = ng;
+    data.data[i + 2] = nb;
+  }
+  ctx.putImageData(data, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.flipY = sourceTex.flipY ?? false;
+  tex.needsUpdate = true;
+  if (sourceTex.wrapS) tex.wrapS = sourceTex.wrapS;
+  if (sourceTex.wrapT) tex.wrapT = sourceTex.wrapT;
+  accentTexCache.set(cacheKey, tex);
+  return tex;
+}
+
 export function hueShiftAccentTexture(sourceTex, accentKey) {
   const hue = ACCENT_HUES[accentKey] ?? ACCENT_HUES.pink;
   const cacheKey = `${sourceTex.uuid}:${accentKey}`;
@@ -98,7 +149,7 @@ export function hueShiftAccentTexture(sourceTex, accentKey) {
 
 export function accentKeyFromHairHex(hairHex) {
   const h = Number(hairHex) >>> 0;
-  if (h === 0x3399ff || h === 44607) return "blue";
+  if (h === 0x3399ff || h === 3381759) return "blue";
   if (h === 0x44ff66) return "green";
   if (h === 0xff66ff) return "pink";
   return "teal";

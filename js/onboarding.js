@@ -83,6 +83,7 @@ function saveMeQuiet() {
 }
 
 function renderOnboardingQuest() {
+  syncGuideTarget();
   const box = document.getElementById("questBox");
   if (!box) return;
   if (window.me?.onboarding?.done) {

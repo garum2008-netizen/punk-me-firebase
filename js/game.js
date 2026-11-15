@@ -1856,8 +1856,13 @@ function goLocation(id, fromHash) {
   if (!isPreviewBuild() && !isLifeCh1LocalSaveBuild() && presenceOk && presenceRef && db)
     db.ref("presence/" + me.location + "/" + uid).remove().catch(() => {});
   me.location = id;
-  me.x = 45;
-  me.y = 60;
+  if (id === "city" || id === "construction") {
+    me.x = 50;
+    me.y = 50;
+  } else {
+    me.x = 45;
+    me.y = 60;
+  }
   portalCooldown = Date.now() + 1600;
   window.World3D?.setPortalGrace?.(1600);
   saveMe();
@@ -1875,6 +1880,11 @@ function goLocation(id, fromHash) {
   window.LifeCh1Slice?.syncCompanionAngelina3D?.();
   window.AngelinaGuide?.refresh?.();
   syncStage3D();
+  if (id === "city" || id === "construction") {
+    try {
+      window.World3D?.snapPlayerToLocationSpawn?.();
+    } catch (_) {}
+  }
   toast(locTitle(id));
   if (pendingJobAction) {
     const act = pendingJobAction;
@@ -2385,6 +2395,12 @@ function travelJob(action, loc) {
 
 function toggleBuildMode() {
   buildMode = !buildMode;
+  if (buildMode && me.location === "city") {
+    try {
+      window.World3D?.snapPlayerToLocationSpawn?.();
+      window.World3D?.setPortalGrace?.(1200);
+    } catch (_) {}
+  }
   toast(buildMode ? t("build_mode_on") : t("build_mode_off"));
 }
 
@@ -2464,24 +2480,18 @@ window.startTrainingDuelMohawk = function () {
 function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
   if (window.World3D?.startDuel3D?.(nid || npc.id)) {
-    const atk = document.querySelector('[data-testid="duel3d-attack"]');
-    const r = atk?.getBoundingClientRect?.();
-    if (r && r.width > 2 && r.height > 2) {
-      fight = {
-        npcName: tNpcName(npc.id || nid),
-        npcHp: 100,
-        npcMax: 100,
-        playerHp: 100,
-        playerMax: 100,
-        shield: 0,
-        log: [],
-        _duel3d: true
-      };
-      window._duel3dEnd = win => endFight(win);
-      return;
-    }
-    document.getElementById("duel3dHud")?.classList.add("hidden");
-    window.PlayV21?.stopDuel3D?.(false);
+    fight = {
+      npcName: tNpcName(npc.id || nid),
+      npcHp: 100,
+      npcMax: 100,
+      playerHp: 100,
+      playerMax: 100,
+      shield: 0,
+      log: [],
+      _duel3d: true
+    };
+    window._duel3dEnd = win => endFight(win);
+    return;
   }
   fight = {
     npcName: tNpcName(npc.id || nid),
@@ -2497,6 +2507,14 @@ function startNpcFight(nid) {
 }
 
 function duel3dAttack() { window._duelAttack = true; }
+function duel3dSpell() {
+  const spells = me.inventory?.spells || [];
+  if (!spells.length) {
+    toast(t("no_scrolls"));
+    return;
+  }
+  window._duelSpell = true;
+}
 function duel3dDodge() { window._duelDodge = true; }
 function duel3dBlock() {
   window._duelBlock = true;
@@ -2663,6 +2681,7 @@ window.startFightUi = startFightUi;
 window.fightAttack = fightAttack;
 window.fightDodge = fightDodge;
 window.duel3dAttack = duel3dAttack;
+window.duel3dSpell = duel3dSpell;
 window.duel3dDodge = duel3dDodge;
 window.duel3dBlock = duel3dBlock;
 window.decorPlaceAtWorld = decorPlaceAtWorld;

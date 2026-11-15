@@ -4,7 +4,12 @@ import { MeshoptDecoder } from "../vendor/meshopt_decoder.module.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { buildIdleStandClip } from "./meshy-idle-clip.mjs";
 // PlayerWave builder kept in meshy-wave-clip.mjs (disabled for release — see WAVE_EMOTE_ENABLED).
-import { accentForActor, accentKeyFromHairHex, hueShiftAccentTexture } from "./meshy-accent-tint.mjs";
+import {
+  accentForActor,
+  accentKeyFromHairHex,
+  hueShiftAccentTexture,
+  tintHairTexture
+} from "./meshy-accent-tint.mjs";
 import { attachSkeletonWings } from "./cosmetic-wings.mjs";
 
 /** Inna-approved merge: wave emote off; clip file remains for future use. */
@@ -276,20 +281,20 @@ export function findHeadBone(root) {
   return findBone(root, "Head");
 }
 
-export function applyPunkMaterials(root, _look = {}, opts = {}) {
+export function applyPunkMaterials(root, look = {}, opts = {}) {
   const { accent = null } = opts;
+  const hairHex = look?.hair != null ? Number(look.hair) >>> 0 : null;
   root.traverse(o => {
     if (!o.isMesh || !o.material) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     mats.forEach((m, i) => {
       const mat = m.clone();
       if (mat.map) {
-        if (accent) {
-          mat.map = hueShiftAccentTexture(mat.map, accent);
-        } else {
-          mat.map = mat.map.clone();
-          mat.map.needsUpdate = true;
-        }
+        let tex = mat.map;
+        if (accent) tex = hueShiftAccentTexture(tex, accent);
+        if (hairHex != null) tex = tintHairTexture(tex, hairHex);
+        mat.map = tex;
+        mat.map.needsUpdate = true;
       }
       mat.metalness = Math.min(0.4, mat.metalness ?? 0.25);
       mat.roughness = Math.max(0.42, mat.roughness ?? 0.55);
