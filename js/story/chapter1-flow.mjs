@@ -118,6 +118,25 @@ function t(key) {
   return typeof window.t === "function" ? window.t(key) : key;
 }
 
+function markToken(player) {
+  const kinds = (player?.cityPlots || []).map(plot => plot.kind || plot.id);
+  const key = kinds.includes("stall") ? "mark_stall"
+    : kinds.includes("arch") ? "mark_arch"
+    : kinds.includes("crypt") ? "mark_crypt"
+    : "mark_plot";
+  return t(key);
+}
+
+function lineText(key, player) {
+  const mark = markToken(player || window.me);
+  const raw = String(t(key));
+  const text = raw.replaceAll("{mark}", mark);
+  if (raw.startsWith("{mark}") && mark) {
+    return mark.charAt(0).toUpperCase() + mark.slice(1) + text.slice(mark.length);
+  }
+  return text;
+}
+
 function playClip(id) {
   playAngelina(id);
 }
@@ -144,7 +163,7 @@ export function refreshGuide() {
   }
   const tag = el.querySelector("b");
   if (tag) tag.textContent = t("angelina_tag");
-  line.textContent = t(key);
+  line.textContent = lineText(key, player);
   const sceneFor = {
     angelina_conflict: "conflict",
     angelina_climax: "climax",
@@ -248,7 +267,7 @@ export function playFinale() {
   const showLine = () => {
     const body = el.querySelector(".story-dialog-body");
     if (!body) return;
-    body.innerHTML = `<p class="story-line" id="chapterFinaleLine">${t(FINALE_LINES[idx])}</p>
+    body.innerHTML = `<p class="story-line" id="chapterFinaleLine">${lineText(FINALE_LINES[idx])}</p>
       <button type="button" class="btn" id="storyDlgNext">${t("chapter1_finale_next")}</button>`;
     el.querySelector("#storyDlgNext").onclick = () => {
       idx += 1;
@@ -298,7 +317,7 @@ export function showEnding() {
   const root = document.getElementById("chapterEnding");
   if (!root) return;
   root.querySelector(".chapter-ending-title").textContent = t("chapter1_end_title");
-  root.querySelector(".chapter-ending-body").textContent = t("chapter1_end_body");
+  root.querySelector(".chapter-ending-body").textContent = lineText("chapter1_end_body", player);
   const btn = root.querySelector(".chapter-ending-ok");
   btn.textContent = t("howto_gotit");
   btn.onclick = () => {

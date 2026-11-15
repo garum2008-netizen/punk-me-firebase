@@ -3,7 +3,7 @@
  */
 
 const ROOM_ITEMS = [
-  { id: "lamp", type: "lamp", cost: 15, x: -2.2, z: 1.1 },
+  { id: "lamp", type: "lamp", cost: 15, x: 2.35, z: -1.6 },
   { id: "poster", type: "poster", cost: 20, x: 2.1, z: -1.4 },
   { id: "neon_arch", type: "neon_sign", cost: 500, x: 0, z: 1.6 }
 ];

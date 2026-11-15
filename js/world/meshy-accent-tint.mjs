@@ -5,7 +5,8 @@ export const ACCENT_HUES = {
   pink: 0.92,
   teal: 0.52,
   green: 0.35,
-  orange: 0.08
+  orange: 0.08,
+  blue: 0.56
 };
 
 const accentTexCache = new Map();

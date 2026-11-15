@@ -13,7 +13,7 @@ const ONBOARDING_STEPS = [
   { id: "shop_buy", key: "shop_buy", goal: 1, reward: { coins: 25, xp: 35 },
     target: () => ({ loc: "room", wx: -1, wz: 0, ui: "shop" }) },
   { id: "room_decor", key: "room_decor", goal: 1, reward: { coins: 20, xp: 20 },
-    target: () => ({ loc: "room", wx: -2.2, wz: 1.1, ui: "decor" }) },
+    target: () => ({ loc: "room", wx: 2.35, wz: -1.6, ui: "decor" }) },
   { id: "city_build", key: "city_build", goal: 1, reward: { coins: 55, xp: 40 },
     target: () => ({ loc: "city", wx: 0.2, wz: 3.1, ui: "build" }) }
 ];
@@ -160,9 +160,19 @@ function waypointToReach(destLoc) {
   return map?.[here] || null;
 }
 
+function awaitingRazorDuel() {
+  const p = window.me;
+  return !!(p?.onboarding?.done && !p.chapter1?.ended && !p.story?.flags?.joined_gang);
+}
+
 function getGuideTarget() {
+  const p = window.me;
+  if (awaitingRazorDuel()) {
+    if (p.location !== "street") return waypointToReach("street");
+    return { npcId: "razor" };
+  }
   const st = currentStep();
-  if (!st || !window.me) return null;
+  if (!st || !p) return null;
   const tgt = st.target();
   if (tgt.ui === "shop" || tgt.ui === "build") {
     if (window.me.location === tgt.loc) return { wx: tgt.wx, wz: tgt.wz };
@@ -193,9 +203,9 @@ function onMove(x, y) {
 
 function onEnterLocation(loc) {
   const st = currentStep();
-  if (!st) return;
-  if (st.key === "visit_street" && loc === "street") bump("visit_street", 1);
-  if (st.key === "visit_cemetery" && loc === "cemetery") bump("visit_cemetery", 1);
+  if (st?.key === "visit_street" && loc === "street") bump("visit_street", 1);
+  if (st?.key === "visit_cemetery" && loc === "cemetery") bump("visit_cemetery", 1);
+  syncGuideTarget();
   window.Chapter1?.refreshGuide?.();
 }
 

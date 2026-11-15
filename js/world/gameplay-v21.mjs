@@ -473,11 +473,12 @@ function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
 }
 
 function ensureHitMaterialSnap(mat) {
-  if (!mat || mat.userData._hitSnap || mat.userData._hitFlashing) return;
+  if (!mat || mat.userData._hitSnap) return;
   mat.userData._hitSnap = {
     color: mat.color?.getHex?.() ?? 0xffffff,
     emissive: mat.emissive?.getHex?.() ?? 0x000000,
-    emiI: mat.emissiveIntensity ?? 0
+    emiI: mat.emissiveIntensity ?? 0,
+    map: mat.map || null
   };
 }
 
@@ -500,6 +501,7 @@ function restoreActorMaterials(actor) {
       const snap = m.userData._hitSnap;
       if (!snap) return;
       if (m.color) m.color.setHex(snap.color);
+      if (snap.map) m.map = snap.map;
       if (m.emissive) {
         m.emissive.setHex(snap.emissive);
         m.emissiveIntensity = snap.emiI;
@@ -519,8 +521,8 @@ function flashActor(actor, dur = 0.11) {
       ensureHitMaterialSnap(m);
       if (m.userData._hitFlashing) return;
       m.userData._hitFlashing = true;
-      m.emissive.set(0xffffff);
-      m.emissiveIntensity = 0.72;
+      m.emissive.set(0x66ddff);
+      m.emissiveIntensity = Math.min(0.28, (m.userData._hitSnap?.emiI || 0) + 0.18);
     });
   });
   actor._hitFlash = dur;

@@ -8,6 +8,8 @@ const heard = [];
 let idleTimer = 0;
 let lastIdlePlay = 0;
 let watchStarted = false;
+let lastId = "";
+let hintKey = "";
 
 function lang() {
   const code = typeof window.getLanguage === "function" ? window.getLanguage() : "ru";
@@ -24,6 +26,7 @@ export function clipUrl(id) {
 
 export function playAngelina(id) {
   if (!id) return;
+  lastId = id;
   try {
     if (localStorage.getItem("punkme_voice_mute") === "1") return;
   } catch (_) {}
@@ -43,8 +46,17 @@ export function playAngelina(id) {
 }
 
 function setHint(key) {
+  hintKey = key || "";
   const hint = document.getElementById("angelinaHint");
   if (hint) hint.textContent = t(key);
+}
+
+export function refreshHint() {
+  if (hintKey) setHint(hintKey);
+}
+
+export function replayCurrent() {
+  if (lastId) playAngelina(lastId);
 }
 
 export function pokeAngelina() {
@@ -76,5 +88,5 @@ export function startIdleWatch() {
 }
 
 if (typeof window !== "undefined") {
-  window.AngelinaVoice = { playAngelina, mistake, pokeAngelina, startIdleWatch, clipUrl };
+  window.AngelinaVoice = { playAngelina, mistake, pokeAngelina, startIdleWatch, clipUrl, refreshHint, replayCurrent };
 }

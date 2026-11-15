@@ -42,6 +42,7 @@ let loaded = false;
 let idleSec = 0;
 let lastMoveT = Date.now();
 let activeDlg = null;
+let initiationReopen = 0;
 let audioCtx = null;
 
 function lang() {
@@ -300,11 +301,19 @@ function applyEffects(effects) {
         st.materials[id] = (st.materials[id] || 0) + (e.value || 1);
         break;
       }
-      case "start_duel":
-        if (!ensureStoryState(me()).flags.joined_gang) {
-          window.startNpcFight?.(e.id === "razor" ? "razor" : e.id);
+      case "start_duel": {
+        const id = e.id === "razor" ? "razor" : (e.id || "razor");
+        clearTimeout(initiationReopen);
+        dismissAllStoryUi();
+        document.querySelectorAll(".modal.active").forEach(el => el.classList.remove("active"));
+        const dlg = document.getElementById("storyDialog");
+        if (dlg) {
+          dlg.classList.remove("active");
+          dlg.setAttribute("aria-hidden", "true");
         }
+        window.startNpcFight?.(id);
         break;
+      }
       case "authority":
         Authority.addAuthority(e.value, p);
         break;
@@ -348,6 +357,7 @@ export function startQuest(qid) {
   st.quest.step = 0;
   st.idleHintLevel = 0;
   idleSec = 0;
+  if (qid === "q_initiation_duel") delete st.events.duel_razor_win;
   const step = q.steps[0];
   if (step?.beacon) setBeacon(step.beacon);
   renderObjectivePanel();
@@ -652,6 +662,14 @@ export function renderObjectivePanel() {
         da: `Mangler ${st.earn.shortfall || need} mønter. Arbejd →`
       });
     }
+  } else if (p.onboarding?.done && !st.flags.joined_gang && !p.chapter1?.ended) {
+    title = L({ ru: "Дуэль с Рейзором", en: "Duel with Razor", da: "Duel med Razor" });
+    objective = L({
+      ru: "Улица: подойди к Рейзору, нажми E и выиграй цепную дуэль",
+      en: "Street: walk up to Razor, press E, and win the chain duel",
+      da: "Gade: gå hen til Razor, tryk E, og vind kædeduellen"
+    });
+    setBeacon("npc_razor");
   } else {
     const authObj = !st.flags.joined_gang ? Authority.getAuthorityObjective(p) : null;
     if (authObj) {
@@ -805,7 +823,11 @@ function triggerCalloutDialogue(d) {
   }
   const stFlags = ensureStoryState(me()).flags;
   if (d.id === "dlg_razor_initiation" && !stFlags.joined_gang) {
-    setTimeout(() => openDialogueTree(d), 800);
+    clearTimeout(initiationReopen);
+    initiationReopen = setTimeout(() => {
+      if (document.getElementById("duel3dHud") && !document.getElementById("duel3dHud").classList.contains("hidden")) return;
+      openDialogueTree(d);
+    }, 800);
   }
 }
 
@@ -994,10 +1016,8 @@ export function initStoryEngine(h) {
 }
 
 export function onOnboardingComplete() {
-  Authority.startAuthorityPath(me());
-  pickNextObjective();
   renderObjectivePanel();
-  Authority.renderAuthorityHud();
+  syncBeacon();
 }
 
 const api = {

@@ -248,6 +248,7 @@ export function bindProceduralBones(root) {
 }
 
 function accentForMeshyActor(characterId, templateEntry, opts) {
+  if (opts.forceAccent) return opts.forceAccent;
   if (!meshyUsesTint(characterId, templateEntry)) return null;
   const actorId = opts.actorId || "player";
   const accentKey = actorId === "player" ? characterId : actorId;

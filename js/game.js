@@ -781,6 +781,7 @@ function bootPreviewSession() {
 }
 
 function init() {
+  paintRazorPortrait();
   me = defaultPlayer();
   window.me = me;
   window.__playerLoaded = false;
@@ -789,6 +790,10 @@ function init() {
     renderAll();
     applyI18nDom();
     window.Chapter1?.refreshGuide?.();
+    window.ChapterBuild?.refresh?.();
+    window.StoryEngine?.renderObjectivePanel?.();
+    window.AngelinaVoice?.refreshHint?.();
+    window.AngelinaVoice?.replayCurrent?.();
   };
   initLanguage();
   document.querySelectorAll(".lang-btn").forEach(btn => {
@@ -858,10 +863,13 @@ function init() {
       onInteract: () => {
         const playCtx = { toast, save: saveMe, hasDog };
         const nid = window.World3D?.getNearestNpc?.() || null;
+        const preferredNpcId = chapterWantsRazor() ? "razor" : null;
         const primary = window.PunkInteract?.resolvePrimaryInteract?.({
           location: me.location,
           nearestNpcId: nid,
-          onboarding: me.onboarding
+          onboarding: me.onboarding,
+          preferredNpcId,
+          preferredInRange: !!(preferredNpcId && window.World3D?.npcWithin?.(preferredNpcId, 7))
         });
         if (primary?.type === "npc") {
           openNpcDialog(primary.npcId);
@@ -1158,6 +1166,14 @@ function sanitizePlayer(p) {
       kind: String(plot.kind || "stall"),
       x: Number(plot.x) || 0,
       z: Number(plot.z) || 0
+    })) : [],
+    dailyDay: typeof p.dailyDay === "string" ? p.dailyDay : "",
+    dailyQuests: Array.isArray(p.dailyQuests) ? p.dailyQuests.slice(0, 6).map(q => ({
+      id: String(q.id || ""),
+      key: String(q.key || ""),
+      need: Number(q.need) || 1,
+      prog: Number(q.prog) || 0,
+      reward: Number(q.reward) || 0
     })) : []
   };
 }
@@ -1667,7 +1683,47 @@ function renderGangList() {
   });
 }
 
+function chapterWantsRazor() {
+  if (!me) return false;
+  const step = window.Onboarding?.stepId?.();
+  if (step === "talk_razor" || step === "win_fight") return true;
+  return !!(me.onboarding?.done && !me.chapter1?.ended && !me.story?.flags?.joined_gang);
+}
+
+function paintRazorPortrait() {
+  if (typeof document === "undefined" || !NPCS.razor) return;
+  const c = document.createElement("canvas");
+  c.width = 160;
+  c.height = 160;
+  const g = c.getContext("2d");
+  if (!g) return;
+  g.fillStyle = "#140e18";
+  g.fillRect(0, 0, 160, 160);
+  g.fillStyle = "#1a120c";
+  g.fillRect(28, 108, 104, 52);
+  g.fillStyle = "#e8c56b";
+  g.fillRect(58, 112, 44, 7);
+  g.fillStyle = "#f0d2c0";
+  g.beginPath();
+  g.arc(80, 78, 32, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#ff7a18";
+  [[46, 18, 62, 70], [70, 8, 90, 64], [96, 16, 116, 72]].forEach(([x1, y1, x2, y2]) => {
+    g.beginPath();
+    g.moveTo((x1 + x2) / 2, y1);
+    g.lineTo(x2, y2);
+    g.lineTo(x1, y2);
+    g.closePath();
+    g.fill();
+  });
+  g.fillStyle = "#1a120c";
+  g.fillRect(62, 74, 10, 6);
+  g.fillRect(88, 74, 10, 6);
+  NPCS.razor.img = c.toDataURL("image/png");
+}
+
 function openNpcDialog(nid) {
+  if (nid === "razor") window.Onboarding?.onTalkRazor?.();
   if (window.StoryEngine?.tryStoryNpc?.(nid)) {
     closeModal("gangModal");
     return;
@@ -1683,10 +1739,7 @@ function openNpcDialog(nid) {
   openModal("gangModal");
   if (window.Voice) Voice.speakCharacter(nid, line);
   if (window.World3D?.setTalking) World3D.setTalking(nid, true);
-  if (nid === "razor") {
-    questBump("talk_razor");
-    window.Onboarding?.onTalkRazor?.();
-  }
+  if (nid === "razor") questBump("talk_razor");
 }
 
 window.changeCharacter = function () {
@@ -1955,10 +2008,11 @@ window.startTrainingDuelMohawk = function () {
 };
 
 function startNpcFight(nid) {
-  const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
-  if (window.World3D?.startDuel3D?.(nid || npc.id)) {
+  const id = nid || "razor";
+  if (window.World3D?.startDuel3D?.(id)) {
     fight = {
-      npcName: tNpcName(npc.id || nid),
+      opp: id,
+      npcName: tNpcName(id),
       npcHp: 100,
       npcMax: 100,
       playerHp: 100,
@@ -1971,7 +2025,8 @@ function startNpcFight(nid) {
     return;
   }
   fight = {
-    npcName: tNpcName(npc.id || nid),
+    opp: id,
+    npcName: tNpcName(id),
     npcHp: 55 + Math.floor(Math.random() * 30),
     npcMax: 85,
     playerHp: me.stats.hp,
@@ -2062,7 +2117,10 @@ function endFight(win) {
     questBump("win_fight");
     window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
     window.Onboarding?.onWinFight?.();
-    window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
+    const initiation = window.StoryEngine?.ensureStoryState?.(me)?.quest?.activeId === "q_initiation_duel";
+    if (fight?.opp === "razor" && initiation) {
+      window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
+    }
   } else {
     toast(t("lose_fight"));
     me.stats.hp = me.stats.maxHp;

@@ -56,13 +56,18 @@ export function buildFurnitureMesh(type) {
       break;
     }
     case "lamp": {
-      const base = box(0.22, 0.06, 0.22, mat(0x333344));
-      base.position.y = 0.03;
-      const pole = box(0.05, 0.9, 0.05, mat(0x888899));
-      pole.position.y = 0.48;
-      const shade = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.28, 10), mat(0xffffcc, 0xffcc88));
-      shade.position.y = 0.98;
-      g.add(base, pole, shade);
+      const base = box(0.28, 0.08, 0.28, mat(0x2a2a33));
+      base.position.y = 0.04;
+      const pole = box(0.06, 1.45, 0.06, mat(0xc8c4b8));
+      pole.position.y = 0.76;
+      const shade = new THREE.Mesh(new THREE.ConeGeometry(0.36, 0.42, 14), mat(0xfff1c2, 0xffcc66));
+      shade.position.y = 1.62;
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 10, 8),
+        mat(0xfff6d0, 0xffe08a)
+      );
+      bulb.position.y = 1.42;
+      g.add(base, pole, shade, bulb);
       break;
     }
     case "poster": {

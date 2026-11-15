@@ -17,18 +17,18 @@ export function ensureMarkerRoot(scene) {
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.04;
   const pillar = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.22, 2.2, 12),
-    new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.55 })
+    new THREE.CylinderGeometry(0.1, 0.28, 3.2, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.72 })
   );
-  pillar.position.y = 1.1;
+  pillar.position.y = 1.6;
   beacon = new THREE.Group();
   beacon.add(ring, pillar);
   arrow = new THREE.Mesh(
-    new THREE.ConeGeometry(0.28, 0.55, 8),
+    new THREE.ConeGeometry(0.42, 0.9, 8),
     new THREE.MeshBasicMaterial({ color: 0xffff66 })
   );
   arrow.rotation.x = Math.PI;
-  arrow.position.y = 2.6;
+  arrow.position.y = 3.35;
   beacon.add(arrow);
   markerRoot.add(beacon);
 
@@ -45,8 +45,8 @@ export function ensureMarkerRoot(scene) {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   npcBadge = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-  npcBadge.scale.set(0.68, 0.68, 1);
-  npcBadge.position.y = 2.1;
+  npcBadge.scale.set(1.05, 1.05, 1);
+  npcBadge.position.y = 2.4;
   markerRoot.add(npcBadge);
   scene.add(markerRoot);
   return markerRoot;

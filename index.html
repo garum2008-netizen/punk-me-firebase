@@ -51,6 +51,11 @@
     <div id="entities"></div>
   </div>
   <div class="loc-name" id="locTitle" data-i18n-loc="room">Комната панка</div>
+  <div class="lang-switch" id="langSwitch">
+    <button type="button" class="lang-btn" data-lang="ru">RU</button>
+    <button type="button" class="lang-btn" data-lang="en">EN</button>
+    <button type="button" class="lang-btn" data-lang="da">DA</button>
+  </div>
   <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
   <div id="contextHint" class="context-hint" aria-live="polite"></div>
   <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
@@ -88,11 +93,6 @@
       <div class="badge badge-stat badge-stat-rep" title="Rep"><span class="stat-icon" aria-hidden="true">◆</span><span class="stat-label" data-i18n="rep">Репутация</span><strong id="rep">0</strong></div>
       <div class="badge badge-stat badge-stat-chain" title="Chain"><span class="stat-icon" aria-hidden="true">⛓</span><span class="stat-label" data-i18n="chain">Цепь</span><strong id="chainStat">10</strong></div>
       <div class="badge hud-online-combined"><span data-i18n="online">Здесь</span>: <strong id="onlineCount">0</strong> · <span data-i18n="onlineGlobal">Всего</span>: <strong id="onlineGlobal">0</strong></div>
-      <div class="lang-switch hud-desktop-only" id="langSwitch">
-        <button type="button" class="lang-btn" data-lang="ru">RU</button>
-        <button type="button" class="lang-btn" data-lang="en">EN</button>
-        <button type="button" class="lang-btn" data-lang="da">DA</button>
-      </div>
       <button type="button" class="lang-btn hud-desktop-only" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
     </div>
     <div class="account-hud-wrap hud-account-row">
@@ -263,6 +263,7 @@
   </div>
 </div>
 <div id="angelinaGuide" class="angelina-guide" hidden></div>
+<div id="guideArrow" class="guide-arrow" hidden><span id="guideArrowName"></span></div>
 <div id="chapterScene" class="chapter-scene" hidden></div>
 <div id="chapterBuild" class="chapter-build" hidden></div>
 <div class="toast" id="toast"></div>

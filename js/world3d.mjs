@@ -15,11 +15,13 @@ import {
 } from "./world/locations.mjs";
 import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs";
 import { attachAvatarLook, readAvatarLook } from "./avatar-mesh.mjs";
+import { isCyberBlue } from "./avatar-look.mjs";
 import { buildFurnitureMesh } from "./world/room-furniture-catalog.mjs";
 import {
   loadAllCc0Templates,
   getTemplateForCharacter,
   createCc0Actor,
+  applyPunkMaterials,
   updateLocomotionTimeScale,
   WAVE_EMOTE_ENABLED,
 } from "./world/meshy-punk.mjs";
@@ -374,30 +376,60 @@ function plotMesh(kind) {
     beam.position.y = 2.35;
     g.add(left, right, beam);
   } else if (kind === "stall") {
-    const base = new THREE.Mesh(
-      new THREE.BoxGeometry(1.6, 0.9, 1.1),
-      new THREE.MeshStandardMaterial({ color: 0x6a3a18, roughness: 0.6 })
-    );
-    base.position.y = 0.45;
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8a4b24, roughness: 0.72 });
+    const cloth = new THREE.MeshStandardMaterial({ color: 0xff7a18, roughness: 0.5 });
+    const cream = new THREE.MeshStandardMaterial({ color: 0xffe1a8, roughness: 0.5 });
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.16, 0.72), wood);
+    counter.position.y = 0.86;
+    const front = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.7, 0.08), wood);
+    front.position.set(0, 0.42, 0.32);
+    g.add(counter, front);
+    [[-0.75, 0.28], [0.75, 0.28], [-0.75, -0.28], [0.75, -0.28]].forEach(([x, z]) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.78, 0.08), wood);
+      leg.position.set(x, 0.39, z);
+      g.add(leg);
+    });
+    [-0.6, -0.2, 0.2, 0.6].forEach((x, i) => {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.06, 0.95), i % 2 ? cloth : cream);
+      stripe.position.set(x, 1.58, 0);
+      g.add(stripe);
+    });
+    const poleL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.15, 0.07), wood);
+    poleL.position.set(-0.82, 1.15, -0.42);
+    const poleR = poleL.clone();
+    poleR.position.x = 0.82;
+    g.add(poleL, poleR);
     const pumpkin = new THREE.Mesh(
-      new THREE.SphereGeometry(0.34, 14, 12),
-      new THREE.MeshStandardMaterial({ color: 0xff6a00, emissive: 0xaa3300, emissiveIntensity: 0.25 })
+      new THREE.SphereGeometry(0.22, 16, 12),
+      new THREE.MeshStandardMaterial({ color: 0xff6a00, emissive: 0x662200, emissiveIntensity: 0.18, roughness: 0.6 })
     );
-    pumpkin.position.y = 1.15;
-    g.add(base, pumpkin);
+    pumpkin.scale.set(1.15, 0.82, 1.15);
+    pumpkin.position.set(0.15, 1.08, 0);
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.045, 0.14, 6),
+      new THREE.MeshStandardMaterial({ color: 0x2f7a32 })
+    );
+    stem.position.set(0.15, 1.28, 0);
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.28, 0.34), wood);
+    crate.position.set(-1.05, 0.14, 0.15);
+    g.add(pumpkin, stem, crate);
   } else {
     const stone = new THREE.Mesh(
-      new THREE.BoxGeometry(0.95, 0.7, 0.95),
-      new THREE.MeshStandardMaterial({ color: 0xc9a0ff, emissive: 0x441166, roughness: 0.45 })
+      new THREE.BoxGeometry(1.15, 0.95, 0.85),
+      new THREE.MeshStandardMaterial({ color: 0xb7b1c4, roughness: 0.82 })
     );
-    stone.position.y = 0.35;
+    stone.position.y = 0.48;
     const roof = new THREE.Mesh(
-      new THREE.ConeGeometry(0.72, 0.45, 4),
-      new THREE.MeshStandardMaterial({ color: 0x2a2040, emissive: 0x220033, emissiveIntensity: 0.2 })
+      new THREE.BoxGeometry(1.25, 0.16, 0.98),
+      new THREE.MeshStandardMaterial({ color: 0x6e6878, roughness: 0.7 })
     );
-    roof.position.y = 0.9;
-    roof.rotation.y = Math.PI / 4;
-    g.add(stone, roof);
+    roof.position.y = 1.02;
+    const door = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.52, 0.06),
+      new THREE.MeshStandardMaterial({ color: 0x2a2433, roughness: 0.6 })
+    );
+    door.position.set(0, 0.34, 0.42);
+    g.add(stone, roof, door);
   }
   return g;
 }
@@ -1342,6 +1374,76 @@ function getNearestDogId() {
   return d < 2.15;
 }
 
+function tintCyberBody(actor) {
+  if (!actor?.root || actor._cyberBody) return;
+  let ready = false;
+  actor.root.traverse(o => {
+    const mats = o.isMesh && o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    if (mats.some(m => m?.map?.image?.width)) ready = true;
+  });
+  if (!ready) return;
+  applyPunkMaterials(actor.root, {}, { accent: "blue" });
+  actor._cyberBody = true;
+}
+
+function npcWithin(nid, range = 7) {
+  const pl = actors.get("player");
+  const npc = actors.get("npc_" + nid);
+  if (!pl || !npc) return false;
+  return Math.hypot(pl.wx - npc.wx, pl.wz - npc.wz) <= range;
+}
+
+function updateGuideArrow() {
+  const el = document.getElementById("guideArrow");
+  const nameEl = document.getElementById("guideArrowName");
+  if (!el) return;
+  if (!guideTarget) {
+    el.hidden = true;
+    return;
+  }
+  let wx;
+  let wz;
+  let label = "";
+  if (guideTarget.npcId) {
+    const act = actors.get("npc_" + guideTarget.npcId);
+    if (!act) {
+      el.hidden = true;
+      return;
+    }
+    wx = act.wx;
+    wz = act.wz;
+    label = typeof window.t === "function" ? window.t("npc_" + guideTarget.npcId) : guideTarget.npcId;
+  } else if (guideTarget.wx != null) {
+    wx = guideTarget.wx;
+    wz = guideTarget.wz;
+  } else {
+    el.hidden = true;
+    return;
+  }
+  const p = projectWorldToScreen(wx, 2.6, wz);
+  const canvas = document.getElementById("stage3d");
+  if (!p || !canvas) {
+    el.hidden = true;
+    return;
+  }
+  const w = canvas.clientWidth || 1;
+  const h = canvas.clientHeight || 1;
+  const margin = 56;
+  const off = p.x < margin || p.y < margin || p.x > w - margin || p.y > h - margin;
+  const x = Math.min(w - margin, Math.max(margin, p.x));
+  const y = Math.min(h - margin, Math.max(margin, p.y));
+  el.hidden = false;
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  if (nameEl) nameEl.textContent = label || "";
+  if (off) {
+    const ang = Math.atan2(p.y - h / 2, p.x - w / 2);
+    el.style.transform = `translate(-50%, -50%) rotate(${ang + Math.PI / 2}rad)`;
+  } else {
+    el.style.transform = "translate(-50%, -140%)";
+  }
+}
+
 function getNearestNpcId() {
   const pl = actors.get("player");
   if (!pl) return null;
@@ -1416,6 +1518,7 @@ function sync(data) {
       && wanted.jacket === worn.jacket
       && wanted.accessory === worn.accessory;
     if (!sameLook) attachAvatarLook(a.root, wanted);
+    if (isCyberBlue(wanted)) tintCyberBody(a);
   }
 
   const hideCrowd = isDuelActive() || captureFrameLock;
@@ -1579,10 +1682,14 @@ function loop() {
     }
     attr.needsUpdate = true;
   }
-  if (captureFrameLock) setQuestMarkersVisible(false);
-  else {
+  if (captureFrameLock) {
+    setQuestMarkersVisible(false);
+    const arrowEl = document.getElementById("guideArrow");
+    if (arrowEl) arrowEl.hidden = true;
+  } else {
     setQuestMarkersVisible(true);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    updateGuideArrow();
   }
   const nearNpc = getNearestNpcId();
   const nearPortal = getNearPortal();
@@ -1759,6 +1866,7 @@ const api = {
   },
   getLocation: () => currentLoc,
   getNearestNpc: getNearestNpcId,
+  npcWithin,
   getNearestDog: getNearestDogId,
   getNearPortal,
   setGuideTarget: t => { guideTarget = t; },

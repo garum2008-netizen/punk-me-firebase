@@ -34,13 +34,24 @@ async function attackUntil(page, pred, timeoutMs) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (await page.evaluate(pred)) return true;
-    await page.evaluate(() => {
-      if (typeof window.duel3dAttack === "function") window.duel3dAttack();
-      document.querySelector("#fightOverlay.active button.btn.danger")?.click();
-    });
-    await page.waitForTimeout(200);
+    const chain = page.locator("#duel3dHud:not(.hidden) button.btn.danger");
+    if (await chain.count()) await chain.click({ force: true });
+    else await page.locator("#fightOverlay.active button.btn.danger").click({ force: true }).catch(() => {});
+    await page.waitForTimeout(180);
   }
   return page.evaluate(pred);
+}
+
+async function clickLanguage(page, code) {
+  const btn = page.locator(`#langSwitch button[data-lang="${code}"]`);
+  const box = await btn.boundingBox();
+  if (!box) throw new Error("language button missing: " + code);
+  const hit = await page.evaluate(({ x, y }) => {
+    const el = document.elementFromPoint(x, y);
+    return el?.closest?.("button[data-lang]")?.dataset?.lang || "";
+  }, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
+  if (hit !== code) throw new Error(`language button ${code} covered by ${hit}`);
+  await btn.click();
 }
 
 function previewCredentials() {
@@ -161,13 +172,17 @@ async function main() {
   }
   log("tutorial-move", true, "moved");
 
-  await page.evaluate(() => setLanguage("ru", true));
+  await clickLanguage(page, "ru");
   await page.waitForFunction(() => (document.querySelector("#angelinaGuide b")?.textContent || "").includes("Ангелина") && (document.querySelector("#angelinaGuide .angelina-line")?.textContent || "").includes("Рейзор"));
-  await page.evaluate(() => setLanguage("da", true));
-  await page.waitForFunction(() => (document.querySelector("#angelinaGuide .angelina-line")?.textContent || "").includes("Razor er prøven"));
-  await page.evaluate(() => setLanguage("en", true));
+  await clickLanguage(page, "da");
+  await page.waitForFunction(() => {
+    const line = document.querySelector("#angelinaGuide .angelina-line")?.textContent || "";
+    const heard = window.__angelinaHeard || [];
+    return line.includes("Razor er prøven") && heard.some(id => String(id).startsWith("da/"));
+  });
+  await clickLanguage(page, "en");
   await page.waitForFunction(() => (document.querySelector("#angelinaGuide .angelina-line")?.textContent || "").includes("Razor is the test"));
-  log("voice-languages", true, "ru da en conflict lines");
+  log("voice-languages", true, "clicked ru da en, danish voice heard");
 
   await go(page, "street");
   await page.waitForFunction(() => /Conflict/i.test(document.getElementById("chapterScene")?.textContent || ""));
@@ -228,11 +243,14 @@ async function main() {
     plots: window.me.cityPlots.length,
     pieces: (window.me.roomPieces || []).length,
     playId: window.me.chapter1.playId,
-    crawl: document.getElementById("chapterCrawl")?.classList.contains("active") === true
+    crawl: document.getElementById("chapterCrawl")?.classList.contains("active") === true,
+    daily: (window.me.dailyQuests || []).find(q => q.id === "win_duel")?.prog || 0
   }));
-  log("save-keeps-progress", saved.plots >= 1 && saved.pieces >= 1 && saved.playId === "ch1-child" && saved.crawl === false, JSON.stringify(saved));
+  log("save-keeps-progress", saved.plots >= 1 && saved.pieces >= 1 && saved.playId === "ch1-child" && saved.crawl === false && saved.daily >= 1, JSON.stringify(saved));
 
   await go(page, "street");
+  const chain = await page.locator("#questBox").innerText();
+  log("one-quest-chain", /Razor/i.test(chain) && !/pizza/i.test(chain), chain.slice(0, 180));
   await page.locator("#panelBottom button[onclick*=\"gangModal\"]").click();
   await page.click('#gangList .npc-row[data-npc="razor"]');
   await page.waitForSelector("#storyDialog.active", { timeout: 15000 });
@@ -247,6 +265,11 @@ async function main() {
     else break;
     await page.waitForTimeout(200);
   }
+  await page.waitForFunction(() => {
+    const hud = document.getElementById("duel3dHud");
+    return hud && !hud.classList.contains("hidden") && window.me?.story?.flags?.joined_gang !== true;
+  }, { timeout: 10000 });
+  log("finale-duel-starts", true, "3d chain duel before the patch");
   const initiated = await attackUntil(page, () => window.me?.story?.flags?.joined_gang === true, 60000);
   await page.waitForFunction(() => (document.querySelector("#chapterFinaleLine")?.textContent || "").includes("The patch is yours"), { timeout: 15000 });
   log("finale", initiated === true, "patch line visible");
@@ -254,7 +277,7 @@ async function main() {
   for (let i = 0; i < 3; i++) await page.locator("#storyDialog.chapter-finale #storyDlgNext").click();
   await page.waitForFunction(() => document.getElementById("chapterEnding")?.classList.contains("active") === true);
   const ending = await page.locator(".chapter-ending-body").innerText();
-  log("ending-card", /first mark, not a finished city/i.test(ending), ending.slice(0, 180));
+  log("ending-card", /stall you built/i.test(ending) && /not a finished city/i.test(ending) && !/crypt stone/i.test(ending), ending.slice(0, 180));
 
   const serious = errors.filter(e => !/WebGL|GL Driver/i.test(e));
   log("no-pageerror", serious.length === 0, serious.join(" | ") || "none");

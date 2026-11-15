@@ -115,11 +115,11 @@ export function attachAvatarLook(root, look) {
   skin.userData.swatch = spec.skin;
 
   const jacket = new THREE.Mesh(
-    new THREE.BoxGeometry(0.46, 0.16, 0.1),
+    new THREE.BoxGeometry(0.52, 0.46, 0.14),
     glow(swatchColor(JACKETS, spec.jacket), 1.05)
   );
   jacket.name = "avatar-jacket";
-  jacket.position.set(0, 0.05, -0.2);
+  jacket.position.set(0, -0.04, -0.18);
   jacket.userData.swatch = spec.jacket;
 
   const accessory = accessoryMesh(spec.accessory);

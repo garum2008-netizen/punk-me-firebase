@@ -351,6 +351,7 @@ export function onAuthStoryEvent(name, p = me()) {
 }
 
 export function tryAuthorityNpc(npcId, p = me()) {
+  if (!p?.chapter1?.ended && !p?.story?.flags?.joined_gang) return false;
   const st = ensureAuthority(p);
   if (st.flags?.joined_gang) {
     if (npcId === "razor" && st.gang_rank === "gang_member") return false;

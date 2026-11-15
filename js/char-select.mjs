@@ -6,7 +6,7 @@ import {
 } from "./world/meshy-punk.mjs";
 import { updateProcedural } from "./character-rig.mjs";
 import { attachAvatarLook } from "./avatar-mesh.mjs";
-import { presetFor, HAIR, HAIR_STYLES, SKINS, JACKETS, ACCESSORIES, CYBER_BLUE } from "./avatar-look.mjs";
+import { presetFor, HAIR, HAIR_STYLES, SKINS, JACKETS, ACCESSORIES, CYBER_BLUE, isCyberBlue } from "./avatar-look.mjs";
 
 /** Vertical padding inside the canvas (hair top / boots bottom). */
 const PREVIEW_MARGIN_Y = 0.08;
@@ -22,6 +22,7 @@ let onPickCb = null;
 let templatesReady = false;
 let previewPhase = 0;
 let previewLights = null;
+let previewRim = null;
 let draftLook = presetFor("vienna");
 
 function framePreviewActor(root, cam, canvas) {
@@ -59,9 +60,9 @@ function ensurePreviewLights() {
   key.position.set(2.2, 4.5, 3.8);
   const fill = new THREE.DirectionalLight(0x99ddff, 1.05);
   fill.position.set(-3, 2.5, 2.5);
-  const rim = new THREE.DirectionalLight(0xff66ff, 1.35);
-  rim.position.set(-0.5, 3.2, -4.2);
-  previewLights.add(key, fill, rim);
+  previewRim = new THREE.DirectionalLight(0xff66ff, 1.35);
+  previewRim.position.set(-0.5, 3.2, -4.2);
+  previewLights.add(key, fill, previewRim);
   scene.add(previewLights);
 }
 
@@ -70,9 +71,15 @@ function showCharacter(id) {
   if (actorRoot) scene.remove(actorRoot);
   const def = getCharacterDef(id);
   const tpl = getTemplateForCharacter(id);
+  const cyber = isCyberBlue(draftLook);
+  if (previewRim) {
+    previewRim.color.set(cyber ? 0x33bbff : 0xff66ff);
+    previewRim.intensity = cyber ? 0.55 : 1.35;
+  }
   const built = createCc0Actor(tpl, id, def.look || {}, {
     isPlayer: false,
-    actorId: id
+    actorId: id,
+    forceAccent: cyber ? "blue" : ""
   });
   actorRoot = built.root;
   actorRoot.visible = true;
