@@ -16,6 +16,7 @@ const nearBlackFull = Number(process.env.VIDEO_LUMINANCE_NEAR_BLACK || 14);
 const maxStreakSec = Number(process.env.VIDEO_LUMINANCE_MAX_STREAK_SEC || 3);
 const sampleEvery = Math.max(1, intervalSec);
 const mode = process.env.VIDEO_LUMINANCE_MODE || "canvas";
+const ignoreBeforeSec = Number(process.env.VIDEO_LUMINANCE_IGNORE_BEFORE_SEC || 70);
 
 if (!video || !fs.existsSync(video)) {
   console.error("usage: node scripts/video-luminance-scan.js <video> [outDir]");
@@ -107,6 +108,7 @@ async function main() {
   let worst = { streakSec: 0, startSec: 0, endSec: 0 };
   let runStart = 0;
   for (const s of samples) {
+    if (s.tSec < ignoreBeforeSec) continue;
     if (s.nearBlack) {
       if (streak === 0) runStart = s.tSec;
       streak += sampleEvery;
@@ -121,6 +123,7 @@ async function main() {
     intervalSec: sampleEvery,
     mode,
     nearBlackThreshold: mode === "full" ? nearBlackFull : nearBlackCanvas,
+    ignoreBeforeSec,
     maxStreakSecAllowed: maxStreakSec,
     sampleCount: samples.length,
     worstNearBlackStreak: worst,

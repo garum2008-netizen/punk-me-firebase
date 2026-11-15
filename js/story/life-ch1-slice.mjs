@@ -973,6 +973,7 @@ export function closeDialogue() {
   activeDlg = null;
   const panel = document.getElementById("storyDialog");
   panel?.classList.remove("active", "life-ch1-dialog", "story-dialog-cinematic");
+  window.StoryEngine?.clearDialogueCamera?.();
 }
 
 function outfitInteractTarget() {

@@ -237,7 +237,12 @@ async function postFinalizeRecordingSession(r) {
   let luminanceGate = { ok: true, skipped: true };
   const lumDir = path.join(OUT, `luminance-scan-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
   if (r.file && fs.existsSync(r.file)) {
+    const lumEnv = {
+      ...process.env,
+      VIDEO_LUMINANCE_IGNORE_BEFORE_SEC: process.env.VIDEO_LUMINANCE_IGNORE_BEFORE_SEC || "70",
+    };
     const lum = spawnSync("node", [path.join(ROOT, "scripts/video-luminance-scan.js"), r.file, lumDir], {
+      env: lumEnv,
       encoding: "utf8",
     });
     const lumJson = path.join(lumDir, "LUMINANCE_SCAN.json");

@@ -83,6 +83,22 @@ let pendingSyncData = null;
 let captureFrameLock = false;
 let dialogueCameraLock = false;
 
+function isStoryUiBlockingWorldCamera() {
+  const storyDlg = document.getElementById("storyDialog");
+  if (storyDlg?.classList.contains("active")) {
+    if (storyDlg.classList.contains("life-ch1-dialog")) return true;
+    const body = storyDlg.querySelector(".story-dialog-body");
+    if (body?.textContent?.trim() || body?.querySelector(".story-choice, .life-ch1-choice, button")) return true;
+  }
+  if (document.querySelector(".life-ch1-dialog-overlay.active")) return true;
+  if (document.getElementById("lifeCh1Wardrobe") && !document.getElementById("lifeCh1Wardrobe").hasAttribute("hidden")) {
+    return true;
+  }
+  if (document.getElementById("gangModal")?.classList.contains("active")) return true;
+  if (document.getElementById("fightOverlay")?.classList.contains("active")) return true;
+  return false;
+}
+
 function releaseCaptureFrame() {
   const a = actors.get("player");
   if (a) a.group.rotation.y = captureSavedRotY;
@@ -129,19 +145,21 @@ function releaseCaptureFrame() {
   dialogueCameraLock = false;
   if (camera && actors.get("player") && !isDuelActive()) {
     positionCameraBehindPlayer(true);
+    if (currentLoc === "city" || currentLoc === "construction") {
+      snapPlayerToLocationSpawn();
+      refreshCityBuilds3DFromMe();
+    }
   }
 }
 
 function clearStaleDialogueCapture() {
-  if (!captureFrameLock && !dialogueCameraLock) return;
   if (isDuelActive()) return;
-  const storyDlg = document.getElementById("storyDialog");
-  const storyActive =
-    storyDlg && storyDlg.classList.contains("active") && !storyDlg.hasAttribute("hidden");
-  const lifeDlg = document.querySelector(".life-ch1-dialog-overlay.active, #lifeCh1Wardrobe:not([hidden])");
-  const gangOpen = document.getElementById("gangModal")?.classList.contains("active");
-  const fight2d = document.getElementById("fightOverlay")?.classList.contains("active");
-  if (storyActive || lifeDlg || gangOpen || fight2d) return;
+  if (typeof window.isBuildMode === "function" && window.isBuildMode()) {
+    if (captureFrameLock || dialogueCameraLock) releaseCaptureFrame();
+    return;
+  }
+  if (!captureFrameLock && !dialogueCameraLock) return;
+  if (isStoryUiBlockingWorldCamera()) return;
   releaseCaptureFrame();
 }
 let dialogueLiveMinHead = 0;
@@ -2373,7 +2391,8 @@ function loop() {
   lastCameraDt = dt;
   if (isDuelActive() && window.PlayV21?.frameDuelCamera) {
     window.PlayV21.frameDuelCamera();
-  } else if (!dialogueCameraLock) {
+  } else if (!dialogueCameraLock || !isStoryUiBlockingWorldCamera()) {
+    if (dialogueCameraLock && !isStoryUiBlockingWorldCamera()) releaseCaptureFrame();
     updateThirdPersonCamera(dt);
   } else if (captureHideActors?.length && !motionProbe) {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
