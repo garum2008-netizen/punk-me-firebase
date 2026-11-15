@@ -183,6 +183,9 @@ async function preFinalizeRecordingSession(r) {
         r.videoFormat = remux.format;
       } else if (remux.ok) {
         r.videoFormat = remux.format || "webm";
+      } else if (r.mkvDest.endsWith(".mp4") && fs.existsSync(r.mkvDest) && fs.statSync(r.mkvDest).size >= minB) {
+        r.file = r.mkvDest;
+        r.videoFormat = "mp4";
       } else {
         r.videoSaveError = remux.error || "remux_failed";
       }
@@ -545,6 +548,7 @@ const {
   extractFramesAtTimes,
   validateHeroStillSnapshots,
   validateDurationGate,
+  FFMPEG,
 } = require("./capture-video-finalize");
 
 let sessionHeroStills = [];
@@ -1059,19 +1063,20 @@ async function runOrdinarySession(browser, viewport, label) {
     OUT,
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
-  const mkvDest = dest.replace(/\.webm$/i, ".mkv");
+  let captureRawDest = dest.replace(/\.webm$/i, ".mp4");
   let ffmpegProc = null;
   const useFfmpegGrab =
     viewport.width >= 1000 && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
   if (useFfmpegGrab) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     if (fs.existsSync(dest)) fs.unlinkSync(dest);
-    if (fs.existsSync(mkvDest)) fs.unlinkSync(mkvDest);
+    captureRawDest = dest.replace(/\.webm$/i, ".mp4");
+    if (fs.existsSync(captureRawDest)) fs.unlinkSync(captureRawDest);
     const disp = process.env.DISPLAY || ":1";
     const ffmpegLog = path.join(OUT, `ffmpeg-x11grab-${shaShort}-${passTag}.log`);
     const logOut = fs.openSync(ffmpegLog, "w");
     ffmpegProc = spawn(
-      process.env.FFMPEG_PATH || "ffmpeg",
+      FFMPEG,
       [
         "-y",
         "-hide_banner",
@@ -1085,17 +1090,19 @@ async function runOrdinarySession(browser, viewport, label) {
         "1280x720",
         "-i",
         disp,
-        "-t",
-        "1200",
         "-c:v",
         "libx264",
         "-preset",
         "ultrafast",
         "-crf",
         "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+frag_keyframe+empty_moov+default_base_moof",
         "-f",
-        "matroska",
-        mkvDest,
+        "mp4",
+        captureRawDest,
       ],
       { stdio: ["ignore", logOut, logOut] }
     );
@@ -1199,7 +1206,7 @@ async function runOrdinarySession(browser, viewport, label) {
     page,
     _video: video,
     ffmpegProc,
-    mkvDest,
+    mkvDest: captureRawDest,
     useFfmpegGrab,
     minVideoBytes,
     _recordStartMs: recordStartMs,

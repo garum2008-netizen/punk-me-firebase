@@ -217,6 +217,8 @@ function validateDurationGate(sessionWallSec, durationSec, tolerance = 0.1) {
 }
 
 module.exports = {
+  FFMPEG,
+  FFPROBE,
   sleep,
   sha256File,
   ffprobeMeta,
