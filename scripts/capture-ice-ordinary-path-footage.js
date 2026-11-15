@@ -1535,6 +1535,18 @@ async function runOrdinarySession(browser, viewport, label) {
 
   const gameplayIgnoreBeforeSec = 0;
   logScene("player_ready", `gameplayIgnoreBeforeSec=${gameplayIgnoreBeforeSec} studioWallMs=${studioWallEndMs}`);
+  await page.waitForFunction(
+    () =>
+      typeof window.World3D?.getPlayerWorldPosition === "function" &&
+      typeof window.Onboarding?.onWorldMove === "function",
+    undefined,
+    { timeout: 120000 }
+  );
+  await page.evaluate(() => {
+    window.World3D?.snapPlayerToLocationSpawn?.();
+    window.World3D?.releaseCaptureFrame?.();
+  });
+  await page.waitForTimeout(400);
 
   const onboardingResult = await completeOnboarding(page);
   if (PORTAL_GATE_ONLY) {
