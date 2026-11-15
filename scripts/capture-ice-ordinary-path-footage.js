@@ -763,10 +763,24 @@ async function completeOnboarding(page) {
       });
       await dismissHowTo(page);
       await focusStage(page);
+      for (let t = 0; t < 40; t++) {
+        const ready = await page.evaluate(
+          () =>
+            typeof window.Onboarding?.onWorldMove === "function" &&
+            typeof window.World3D?.getPlayerWorldPosition === "function"
+        );
+        if (ready) break;
+        await page.waitForTimeout(250);
+      }
       const primed = await page.evaluate(() => {
         document.body.classList.add("mode-world3d");
-        const w = window.World3D?.getPlayerWorldPosition?.();
-        if (!w || !window.Onboarding?.onWorldMove) return { ok: false, reason: "no-world-pos" };
+        if (typeof window.World3D?.getPlayerWorldPosition !== "function" || !window.Onboarding?.onWorldMove) {
+          return {
+            ok: false,
+            reason: !window.World3D ? "no-world3d" : !window.Onboarding ? "no-onboarding" : "no-world-pos-fn",
+          };
+        }
+        const w = window.World3D.getPlayerWorldPosition();
         let x = w.x;
         let z = w.z;
         for (let i = 0; i < 28; i++) {
@@ -1535,13 +1549,11 @@ async function runOrdinarySession(browser, viewport, label) {
 
   const gameplayIgnoreBeforeSec = 0;
   logScene("player_ready", `gameplayIgnoreBeforeSec=${gameplayIgnoreBeforeSec} studioWallMs=${studioWallEndMs}`);
-  await page.waitForFunction(
-    () =>
-      typeof window.World3D?.getPlayerWorldPosition === "function" &&
-      typeof window.Onboarding?.onWorldMove === "function",
-    undefined,
-    { timeout: 120000 }
-  );
+  await page
+    .waitForFunction(() => typeof window.World3D?.getPlayerWorldPosition === "function", undefined, {
+      timeout: 180000,
+    })
+    .catch(() => {});
   await page.evaluate(() => {
     window.World3D?.snapPlayerToLocationSpawn?.();
     window.World3D?.releaseCaptureFrame?.();
