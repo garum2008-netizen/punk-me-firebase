@@ -238,6 +238,7 @@ async function postFinalizeRecordingSession(r) {
   let luminanceGate = { ok: true, skipped: true };
   const lumDir = path.join(OUT, `luminance-scan-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
   const timelinePath = path.join(OUT, `recording-timeline-${SHA.slice(0, 12)}-${ordinaryPassTag()}.json`);
+  const inputLogPath = path.join(OUT, `ice-ordinary-input-log-${SHA.slice(0, 12)}-${ordinaryPassTag()}.json`);
   if (r.studioWallMs != null || r.renderDiagSamples) {
     fs.writeFileSync(
       timelinePath,
@@ -249,6 +250,7 @@ async function postFinalizeRecordingSession(r) {
           studioMaxWallMs: 70000,
           gameplayIgnoreBeforeSec: r.gameplayIgnoreBeforeSec ?? null,
           renderDiagSamples: r.renderDiagSamples || [],
+          inputLogPath: fs.existsSync(inputLogPath) ? inputLogPath : null,
           scenes: (r.scenes || []).map(s => ({
             ...s,
             tSec: typeof s.tSec === "number" && s.tSec > 1000000 ? 0 : s.tSec,
@@ -1323,9 +1325,24 @@ async function runOrdinarySession(browser, viewport, label) {
       const tSec = +((Date.now() - t0) / 1000).toFixed(2);
       const snap = await page.evaluate(() => {
         const st = window.me || {};
+        const storyDlg = document.getElementById("storyDialog");
+        const storyActive =
+          !!storyDlg?.classList.contains("active") &&
+          (storyDlg.classList.contains("life-ch1-dialog") ||
+            !!storyDlg.querySelector(".story-dialog-body")?.textContent?.trim());
         return {
           loc: st.location,
           onboardingStep: st.onboarding?.step,
+          ui: {
+            gangModal: !!document.getElementById("gangModal")?.classList.contains("active"),
+            shopModal: !!document.getElementById("shopModal")?.classList.contains("active"),
+            mapModal: !!document.getElementById("mapModal")?.classList.contains("active"),
+            lifeCh1Wardrobe:
+              !!document.getElementById("lifeCh1Wardrobe") &&
+              !document.getElementById("lifeCh1Wardrobe").hasAttribute("hidden"),
+            storyDialogSheet: storyActive,
+            fightOverlay2d: !!document.getElementById("fightOverlay")?.classList.contains("active"),
+          },
           diag: window.World3D?.getRenderDiag?.() || null,
         };
       });

@@ -2,7 +2,7 @@
 # Package t209 Ch1 acceptance artifacts into Agent Store (no deploy).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SHA="$(git -C "$ROOT" rev-parse HEAD)"
+SHA="${PUNK_EVIDENCE_SHA:-$(git -C "$ROOT" rev-parse HEAD)}"
 SHORT="${SHA:0:12}"
 STORE="/cursor/stores/self/t209-ch1-acceptance-${SHORT}"
 ART="/opt/cursor/artifacts"

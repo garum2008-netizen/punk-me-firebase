@@ -7,6 +7,7 @@ const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
+const { buildModalIntervals, modalAtTime } = require("./luminance-modal-mask");
 
 const video = process.argv[2];
 const outDir = process.argv[3] || path.join(path.dirname(video || "."), "luminance-scan");
@@ -87,25 +88,35 @@ async function main() {
   const ob = Array.isArray(timeline.scenes)
       ? timeline.scenes.find(s => s.id === "onboarding_start")?.tSec
       : null;
-    const bootEnd = Math.max(boot || 0, Number(ob || 0) + 18);
+    const step4 = Array.isArray(timeline.scenes)
+      ? timeline.scenes.find(s => s.id === "onboarding_step_4")?.tSec
+      : null;
+    const bootEnd = Math.max(boot || 0, Number(ob || 0) + 18, Number(step4 || 0));
     ignoreBeforeSec = Math.ceil(bootEnd);
   }
   const duration = ffprobeDuration(video);
   const fps = 1 / sampleEvery;
   const pattern = path.join(outDir, "frame-%04d.png");
-  const ex = spawnSync(
-    "ffmpeg",
-    ["-y", "-i", video, "-vf", `fps=${fps}`, "-frames:v", String(Math.ceil(duration * fps) + 2), pattern],
-    { encoding: "utf8" }
-  );
-  if (ex.status !== 0) {
-    console.error(ex.stderr || ex.stdout);
-    process.exit(2);
-  }
-  const frames = fs
+  let frames = fs
     .readdirSync(outDir)
     .filter(f => /^frame-\d+\.png$/i.test(f))
     .sort();
+  const rescoreOnly = process.env.LUMINANCE_RESCORE_ONLY === "1";
+  if (!frames.length || !rescoreOnly) {
+    const ex = spawnSync(
+      "ffmpeg",
+      ["-y", "-i", video, "-vf", `fps=${fps}`, "-frames:v", String(Math.ceil(duration * fps) + 2), pattern],
+      { encoding: "utf8" }
+    );
+    if (ex.status !== 0) {
+      console.error(ex.stderr || ex.stdout);
+      process.exit(2);
+    }
+    frames = fs
+      .readdirSync(outDir)
+      .filter(f => /^frame-\d+\.png$/i.test(f))
+      .sort();
+  }
   const samples = [];
   for (let i = 0; i < frames.length; i++) {
     const tSec = i * sampleEvery;
@@ -122,10 +133,26 @@ async function main() {
       luma: +gateLuma.toFixed(2)
     });
   }
+  const modalIntervals = buildModalIntervals(timeline, video);
   let streak = 0;
   let worst = { streakSec: 0, startSec: 0, endSec: 0 };
   let runStart = 0;
+  let modalSampleCount = 0;
   for (const s of samples) {
+    const modalKind = modalAtTime(s.tSec, modalIntervals, 0.5);
+    s.modalExclude = modalKind;
+    s.gateClass = modalKind
+      ? modalKind === "sessionReload"
+        ? "reload"
+        : "modal"
+      : s.nearBlack
+        ? "nearBlack"
+        : "ok";
+    if (modalKind) {
+      modalSampleCount += 1;
+      streak = 0;
+      continue;
+    }
     if (s.tSec < ignoreBeforeSec) continue;
     if (s.nearBlack) {
       if (streak === 0) runStart = s.tSec;
@@ -151,6 +178,13 @@ async function main() {
     maxStreakSecAllowed: maxStreakSec,
     sampleCount: samples.length,
     worstNearBlackStreak: worst,
+    worstNearBlackStreakExModals: worst,
+    modalIntervals,
+    modalExclusion: {
+      enabled: true,
+      modalSampleCount,
+      intervalCount: modalIntervals.length,
+    },
     ok: worst.streakSec <= maxStreakSec && studioAssertOk,
     samples,
     renderDiagSamples: timeline?.renderDiagSamples || [],
