@@ -990,6 +990,7 @@ async function completeOnboarding(page) {
           window.World3D?.snapPlayerToLocationSpawn?.();
           window.startNpcFight?.("razor");
         });
+        await page.waitForTimeout(1200);
         if (!(await waitOnboardDuelWin(90000))) {
           const duelDiag = await page.evaluate(() => ({
             step: window.me?.onboarding?.step,

@@ -2581,10 +2581,16 @@ function startNpcFight(nid) {
         window._duel3dEnd = win => endFight(win);
         return true;
       };
-      if (armDuel(beginDuel3D())) return;
-      setTimeout(() => {
-        if (!armDuel(beginDuel3D())) toast(t("fight_try_again") || "3D duel unavailable");
-      }, duelSyncMs);
+      const tryOnboardDuel = () => {
+        if (armDuel(beginDuel3D())) return;
+        setTimeout(() => {
+          if (!armDuel(beginDuel3D())) toast(t("fight_try_again") || "3D duel unavailable");
+        }, duelSyncMs);
+      };
+      const boot = window.World3D?.bootstrapWorldAfterCharacter;
+      if (typeof boot === "function") {
+        boot().then(tryOnboardDuel).catch(tryOnboardDuel);
+      } else tryOnboardDuel();
       return;
     }
     const ok = beginDuel3D();
