@@ -1,10 +1,37 @@
-# t209u — Chapter 1 acceptance (run #80 owner feedback)
+# t209u — Chapter 1 acceptance (run #81 — uncut load + packaging)
 
 **Date:** 2026-11-15 (CET, Europe/Copenhagen)  
-**Prior evidence (not owner candidate):** r15 video SHA `8a6d736` (~1230 s) — Grok review P0 progression stall + idle build + portrait + duel flash  
-**Engineering tip:** `4d4b7c5` (`cursor/t209-grok-review-1430`) — Life Ch1 walk accum, duel hit tint, capture/studio fixes  
-**Re-record:** r28+ in progress (`t209-capture-r28.log`); gameplay FFmpeg aligned after World3D ready (~5 min mesh warm-up off-video)  
+**Capture git:** `1762705` (`cursor/t209-grok-review-1430`) — r35 headed FFmpeg **uncut from page load** (`t209-capture-r35.log`)  
+**Prior evidence (not owner candidate):** r15 video SHA `8a6d736` (~1230 s)  
 **PR:** [#74](https://github.com/garum2008-netizen/punk-me-firebase/pull/74)
+
+### Run #81 owner P0 — Punk Room load (desktop)
+
+| Metric | Target | **Measured (r35)** |
+|--------|--------|---------------------|
+| Time to room playable (after studio confirm) | &lt; 20 s | **253 ms** (`room_playable`, `passDesktop20s=true`) |
+| World3D bootstrap | Must load | Fixed duplicate `const ctx` in `gameplay-v21.mjs` (module parse fail → `World3D` missing → infinite “load”) |
+| Hero preload | Non-blocking | Studio mounts before mesh preload; single in-flight GLB fetch; deferred city/NPC meshes post-playable |
+| Step 0 world readiness | Game, not harness | `worldLocomotionReady()` → `isRoomPlayable()`; `mode-world3d` only after player actor spawns |
+
+### Recording gate — **PARTIAL** (r35 `1762705`)
+
+| Check | Result |
+|-------|--------|
+| Video | `ice-ch1-ORDINARY-UNCUT-desktop-1762705-…-pass-t209-ch1-full.mp4` (**909.7 s**, was ~1230 s on r15) |
+| SHA256 | `5d8c05f4091418f19d09c0743fc888676e4d2e28ef6afef71c8c8e88b6b6f898` |
+| Canvas luma (modal-aware) | **PASS** — worst near-black streak **0 s** ex modals |
+| Scene progress gate (&gt;30 s) | **FAIL** — 8 stalls (max **200.1 s** during city build / travel) |
+| Hair hero stills | **FAIL** — 5/6 (`06-ch1-reentry` companion not in frame) |
+| Ch1 completed in session | **yes** (`ch1_complete` @ +845 s scene time) |
+
+**Agent store:** `/cursor/stores/self/t209-ch1-acceptance-1762705/` (acceptance tarball + preview bundle `punk-me-preview-176270552338.tar.gz`, beat frames every ~5 s, luminance scan).
+
+---
+
+# t209u — Chapter 1 acceptance (run #80 owner feedback)
+
+**Engineering tip (prior):** `4d4b7c5` — Life Ch1 walk accum, duel hit tint, capture/studio fixes  
 
 **Rule:** MET requires frame proof. Canvas luma gate uses **modal-aware** exclusions (gang / shop / map sheets, Angelina wardrobe, Ch1 save→reentry reload). Near-black **without** an excluded overlay still fails the gate.
 
