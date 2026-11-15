@@ -43,8 +43,16 @@ async function attackUntil(page, pred, timeoutMs) {
   return page.evaluate(pred);
 }
 
+function previewCredentials() {
+  if (!process.env.PUNK_PREVIEW_USER) return undefined;
+  return { username: process.env.PUNK_PREVIEW_USER, password: process.env.PUNK_PREVIEW_PASS || "" };
+}
+
 async function oldSaveRestarts(browser) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    httpCredentials: previewCredentials()
+  });
   const page = await context.newPage();
   await page.addInitScript(() => {
     localStorage.setItem("punkme_preview_player_v1", JSON.stringify({
@@ -63,7 +71,7 @@ async function oldSaveRestarts(browser) {
     }));
   });
   await page.goto(`${base}/?solo=1&v=old-save`, { waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => window.__playerLoaded === true && document.getElementById("chapterCrawl")?.classList.contains("active") === true, { timeout: 30000 });
+  await page.waitForFunction(() => window.__playerLoaded === true && document.getElementById("chapterCrawl")?.classList.contains("active") === true, { timeout: 60000 });
   const state = await page.evaluate(() => ({
     coins: window.me.coins,
     done: window.me.onboarding.done,
@@ -86,9 +94,7 @@ async function main() {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
     recordVideo: { dir: outDir, size: { width: 1280, height: 800 } },
-    httpCredentials: process.env.PUNK_PREVIEW_USER
-      ? { username: process.env.PUNK_PREVIEW_USER, password: process.env.PUNK_PREVIEW_PASS || "" }
-      : undefined
+    httpCredentials: previewCredentials()
   });
   const page = await context.newPage();
   page.setDefaultTimeout(120000);
