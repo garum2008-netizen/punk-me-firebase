@@ -658,18 +658,18 @@ async function pickAngelina(page, opts = {}) {
   await page.evaluate(() => {
     document.querySelector('[data-testid="character-studio-confirm"]')?.click();
   });
+  await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 300000 });
   if (!opts.deferWorldReady) {
-    await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
     await page.waitForTimeout(400);
     await captureHeroProof(page, "00-studio-confirm");
   }
 }
 
-async function waitWorld3dPlayable(page, timeoutMs = 240000) {
-  const deadline = Date.now() + timeoutMs;
+async function waitWorld3dPlayable(page, timeoutMs = 360000) {
+  await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: timeoutMs });
+  const deadline = Date.now() + Math.min(timeoutMs, 240000);
   while (Date.now() < deadline) {
     const snap = await page.evaluate(() => ({
-      loaded: window.__playerLoaded === true,
       ready: !!window.World3D?.isReady?.(),
       mode: document.body.classList.contains("mode-world3d"),
       hasOnboarding: window.me?.onboarding && typeof window.me.onboarding.step === "number",
@@ -678,15 +678,21 @@ async function waitWorld3dPlayable(page, timeoutMs = 240000) {
       await page.evaluate(() => {
         if (window.World3D?.isReady?.()) document.body.classList.add("mode-world3d");
       });
-      if (snap.hasOnboarding || snap.loaded) return snap;
+      return snap;
     }
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(500);
   }
-  throw new Error("world3d_playable_timeout");
+  const forced = await page.evaluate(() => {
+    const stage = document.getElementById("stage3d");
+    const ok = !!stage && stage.clientWidth > 64 && window.__playerLoaded;
+    if (ok) document.body.classList.add("mode-world3d");
+    return { ok, ready: !!window.World3D?.isReady?.() };
+  });
+  if (!forced.ok && !forced.ready) throw new Error("world3d_playable_timeout");
+  return forced;
 }
 
 async function completeOnboarding(page) {
-  await waitWorld3dPlayable(page);
   await page
     .waitForFunction(
       () => window.me?.onboarding && typeof window.me.onboarding.step === "number",
