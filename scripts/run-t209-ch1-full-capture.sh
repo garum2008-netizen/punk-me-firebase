@@ -6,5 +6,5 @@ eval "$(node -e "const e=require('./scripts/firebase-emulator-env.js'); e.applyF
 export ORDINARY_PASS=t209-ch1-full
 export ORDINARY_DESKTOP_ONLY=1
 export PUNK_HEADED="${PUNK_HEADED:-1}"
-export PUNK_FFMPEG_RECORD="${PUNK_FFMPEG_RECORD:-0}"
+export PUNK_FFMPEG_RECORD="${PUNK_FFMPEG_RECORD:-1}"
 exec node scripts/capture-ice-ordinary-path-footage.js

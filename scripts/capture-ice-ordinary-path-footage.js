@@ -1105,8 +1105,9 @@ async function runOrdinarySession(browser, viewport, label) {
     viewport,
     hasTouch: INPUT_MODE === "touch",
     isMobile: INPUT_MODE === "touch",
-    recordVideo:
-      viewport.width >= 1000
+    recordVideo: useFfmpegGrab
+      ? undefined
+      : viewport.width >= 1000
         ? { dir: videoDir, size: { width: 1280, height: 720 } }
         : { dir: videoDir, size: { width: 390, height: 844 } },
   });
@@ -1218,6 +1219,9 @@ async function runOrdinarySession(browser, viewport, label) {
     ORDINARY_DESKTOP_ONLY &&
     process.env.DISPLAY &&
     (desktopFfmpeg || process.env.PUNK_HEADED === "1");
+  console.error(
+    `[capture] headedDesktop=${headedDesktop} ffmpeg=${desktopFfmpeg} DISPLAY=${process.env.DISPLAY || ""}`
+  );
   const browser = await chromium.launch({ headless: !headedDesktop });
   const results = [];
   let err = null;
