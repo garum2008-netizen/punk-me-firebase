@@ -17,7 +17,7 @@ globalThis.window = {
   Onboarding: { stepId: () => "city_build" }
 };
 const training = { onboarding: { done: false, step: 6 }, chapter1: { ended: false } };
-assert.equal(guideKey(training), "onboard_city_build_text");
+assert.equal(guideKey(training), "angelina_city");
 training.onboarding.done = true;
 training.story = { flags: { joined_gang: true } };
 training.onboarding.paid = {};

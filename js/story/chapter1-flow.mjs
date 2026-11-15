@@ -63,12 +63,22 @@ export function chapterObjectivesMet(player) {
   return CHAPTER1_OBJECTIVES.every(id => paid[id] === true);
 }
 
+const ANGELINA_BEAT = {
+  move: "angelina_beginning",
+  go_street: "angelina_conflict",
+  talk_razor: "angelina_conflict",
+  visit_cemetery: "angelina_climax",
+  win_fight: "angelina_climax",
+  shop_buy: "angelina_shop",
+  city_build: "angelina_city"
+};
+
 export function guideKey(player) {
   if (!player) return "";
   if (player.chapter1?.ended) return "angelina_closing";
   if (player.onboarding && !player.onboarding.done) {
-    const steps = window.Onboarding?.stepId?.();
-    return steps ? `onboard_${steps}_text` : "onboard_move_text";
+    const step = window.Onboarding?.stepId?.();
+    return ANGELINA_BEAT[step] || "angelina_beginning";
   }
   if (chapterObjectivesMet(player)) return "angelina_finale";
   return "angelina_initiation";

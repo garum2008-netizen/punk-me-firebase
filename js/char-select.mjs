@@ -6,7 +6,7 @@ import {
 } from "./world/meshy-punk.mjs";
 import { updateProcedural } from "./character-rig.mjs";
 import { attachAvatarLook } from "./avatar-mesh.mjs";
-import { presetFor, HAIR, JACKETS, ACCESSORIES } from "./avatar-look.mjs";
+import { presetFor, HAIR, HAIR_STYLES, SKINS, JACKETS, ACCESSORIES, CYBER_BLUE } from "./avatar-look.mjs";
 
 /** Vertical padding inside the canvas (hair top / boots bottom). */
 const PREVIEW_MARGIN_Y = 0.08;
@@ -120,21 +120,27 @@ function label(key, fallback) {
   return typeof t === "function" ? t(key) : fallback;
 }
 
-function creatorHtml() {
-  const hair = HAIR.map(sw =>
-    `<button type="button" class="avatar-swatch ${draftLook.hair === sw.id ? "active" : ""}" data-avatar-hair="${sw.id}" style="background:#${sw.color.toString(16).padStart(6, "0")}" aria-label="${sw.id}"></button>`
+function swatchButtons(list, key, current) {
+  return list.map(sw =>
+    `<button type="button" class="avatar-swatch ${current === sw.id ? "active" : ""}" data-avatar-${key}="${sw.id}" style="background:#${sw.color.toString(16).padStart(6, "0")}" aria-label="${sw.id}"></button>`
   ).join("");
-  const jacket = JACKETS.map(sw =>
-    `<button type="button" class="avatar-swatch ${draftLook.jacket === sw.id ? "active" : ""}" data-avatar-jacket="${sw.id}" style="background:#${sw.color.toString(16).padStart(6, "0")}" aria-label="${sw.id}"></button>`
+}
+
+function creatorHtml() {
+  const styles = HAIR_STYLES.map(id =>
+    `<button type="button" class="avatar-acc ${draftLook.hairStyle === id ? "active" : ""}" data-avatar-hairstyle="${id}">${label("avatar_style_" + id, id)}</button>`
   ).join("");
   const accessory = ACCESSORIES.map(id =>
     `<button type="button" class="avatar-acc ${draftLook.accessory === id ? "active" : ""}" data-avatar-accessory="${id}">${label("avatar_" + id, id)}</button>`
   ).join("");
   return `<div id="avatarCreator" class="avatar-creator">
     <p>${label("avatar_creator", "Make your look")}</p>
-    <div class="avatar-row"><span>${label("avatar_hair", "Hair")}</span>${hair}</div>
-    <div class="avatar-row"><span>${label("avatar_jacket", "Jacket")}</span>${jacket}</div>
+    <div class="avatar-row"><span>${label("avatar_hair", "Hair")}</span>${swatchButtons(HAIR, "hair", draftLook.hair)}</div>
+    <div class="avatar-row"><span>${label("avatar_style", "Style")}</span>${styles}</div>
+    <div class="avatar-row"><span>${label("avatar_skin", "Skin")}</span>${swatchButtons(SKINS, "skin", draftLook.skin)}</div>
+    <div class="avatar-row"><span>${label("avatar_jacket", "Jacket")}</span>${swatchButtons(JACKETS, "jacket", draftLook.jacket)}</div>
     <div class="avatar-row"><span>${label("avatar_accessory", "Detail")}</span>${accessory}</div>
+    <button type="button" class="btn" id="avatarCyberBlue" data-avatar-preset="cyber-blue">${label("avatar_cyber", "Cyber punk blue")}</button>
   </div>`;
 }
 
@@ -173,6 +179,28 @@ function buildUi() {
       showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
     };
   });
+  ui.querySelectorAll("[data-avatar-hairstyle]").forEach(btn => {
+    btn.onclick = () => {
+      draftLook = { ...draftLook, hairStyle: btn.dataset.avatarHairstyle };
+      buildUi();
+      showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
+    };
+  });
+  ui.querySelectorAll("[data-avatar-skin]").forEach(btn => {
+    btn.onclick = () => {
+      draftLook = { ...draftLook, skin: btn.dataset.avatarSkin };
+      buildUi();
+      showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
+    };
+  });
+  const cyber = document.getElementById("avatarCyberBlue");
+  if (cyber) {
+    cyber.onclick = () => {
+      draftLook = { ...CYBER_BLUE };
+      buildUi();
+      showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
+    };
+  }
   const confirmBtn = document.getElementById("charSelectConfirm");
   if (confirmBtn) {
     const id = PLAYABLE_CHARACTER_IDS[selectedIdx];

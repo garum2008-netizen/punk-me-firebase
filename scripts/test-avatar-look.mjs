@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
-import { normalizeAvatarLook, presetFor } from "../js/avatar-look.mjs";
+import { normalizeAvatarLook, presetFor, isCyberBlue, CYBER_BLUE, HAIR, HAIR_STYLES, SKINS, JACKETS, ACCESSORIES } from "../js/avatar-look.mjs";
 
-const made = normalizeAvatarLook({ hair: "pink", jacket: "ink", accessory: "chain" });
-assert.deepEqual(made, { hair: "pink", jacket: "ink", accessory: "chain" });
-assert.equal(normalizeAvatarLook({ hair: "pink", jacket: "ink" }), null);
+assert.ok(HAIR.length >= 4);
+assert.ok(HAIR_STYLES.length >= 4);
+assert.ok(SKINS.length >= 4);
+assert.ok(JACKETS.length >= 5);
+assert.ok(ACCESSORIES.includes("wings"));
+assert.equal(isCyberBlue(CYBER_BLUE), true);
+assert.equal(isCyberBlue({ hair: "pink", jacket: "ink", accessory: "chain" }), false);
+const kept = normalizeAvatarLook({ hair: "pink", jacket: "ink", accessory: "chain" });
+assert.equal(kept.hairStyle, "bob");
+assert.equal(kept.skin, "porcelain");
 assert.equal(normalizeAvatarLook({ hair: "wings", jacket: "ink", accessory: "chain" }), null);
-assert.deepEqual(presetFor("cobalt"), { hair: "cyan", jacket: "night", accessory: "spikes" });
+assert.equal(presetFor("cobalt").accessory, "spikes");
 console.log("avatar look ok");

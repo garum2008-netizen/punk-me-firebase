@@ -285,7 +285,8 @@ const SHOP = {
   materials: [
     { id: "mat_crypt", cat: "materials", name: "Камень склепа", price: 80, img: "imagine_images/DBvDX.jpg", build: "crypt" },
     { id: "mat_neon", cat: "materials", name: "Неоновая панель", price: 60, img: "imagine_images/cV5Em.jpg", build: "neon_sign" },
-    { id: "mat_brick", cat: "materials", name: "Кирпич из мусора", price: 45, img: "imagine_images/BtmE4.jpg", build: "shack" }
+    { id: "mat_brick", cat: "materials", name: "Кирпич из мусора", price: 45, img: "imagine_images/BtmE4.jpg", build: "shack" },
+    { id: "mat_sticker", cat: "materials", name: "Значок банды", price: 0, img: "imagine_images/C34xz.jpg", build: "sticker" }
   ]
 };
 
@@ -776,7 +777,11 @@ function init() {
   window.me = me;
   window.__playerLoaded = false;
   window.saveMe = saveMe;
-  window.onLanguageChanged = () => { renderAll(); applyI18nDom(); };
+  window.onLanguageChanged = () => {
+    renderAll();
+    applyI18nDom();
+    window.Chapter1?.refreshGuide?.();
+  };
   initLanguage();
   document.querySelectorAll(".lang-btn").forEach(btn => {
     btn.onclick = () => setLanguage(btn.dataset.lang, true);
@@ -939,13 +944,21 @@ function loadMe() {
 }
 
 function cleanAvatarLook(raw) {
-  const hair = ["cyan", "pink", "lime", "violet"];
-  const jacket = ["night", "magenta", "olive", "ink"];
-  const accessory = ["chain", "choker", "spikes"];
   if (window.AvatarLook?.normalizeAvatarLook) return window.AvatarLook.normalizeAvatarLook(raw);
+  const hair = ["cyan", "pink", "lime", "violet"];
+  const styles = ["bob", "mohawk", "pigtails", "spikes"];
+  const skin = ["porcelain", "tan", "brown", "cyber"];
+  const jacket = ["night", "magenta", "olive", "ink", "cyber"];
+  const accessory = ["chain", "choker", "spikes", "wings"];
   if (!raw || typeof raw !== "object") return null;
   if (!hair.includes(raw.hair) || !jacket.includes(raw.jacket) || !accessory.includes(raw.accessory)) return null;
-  return { hair: raw.hair, jacket: raw.jacket, accessory: raw.accessory };
+  return {
+    hair: raw.hair,
+    hairStyle: styles.includes(raw.hairStyle) ? raw.hairStyle : "bob",
+    skin: skin.includes(raw.skin) ? raw.skin : "porcelain",
+    jacket: raw.jacket,
+    accessory: raw.accessory
+  };
 }
 
 function pickCharacterAndContinue(pick) {
@@ -1688,7 +1701,7 @@ function renderShop() {
     return `<div class="card">
       <img src="${it.img}" alt="">
       <div><b>${escapeHtml(tShop(it.id))}</b></div>
-      <div class="price">${isOwner ? t("free") : it.price + " " + t("coins_word")}</div>
+      <div class="price">${it.price === 0 || isOwner ? t("free") : it.price + " " + t("coins_word")}</div>
       <button class="btn" ${own && it.cat !== "materials" ? "disabled" : ""} onclick="buyItem('${it.id}')">
         ${own && it.cat !== "materials" ? t("owned") : t("buy")}
       </button></div>`;
