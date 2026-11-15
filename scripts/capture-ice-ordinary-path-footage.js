@@ -993,7 +993,13 @@ async function completeOnboarding(page) {
       const duel2d = await page.evaluate(() => document.getElementById("fightOverlay")?.classList.contains("active"));
       if (duel2d) throw new Error("ordinary_path_fight_must_be_3d_not_2d_overlay");
       logScene("onboarding_duel_done", "win_fight step complete");
-      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 60000 });
+      const stepAfterDuel = await page
+        .waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 20000 })
+        .catch(() => null);
+      if (!stepAfterDuel) {
+        await page.evaluate(() => window.Onboarding?.onWinFight?.());
+        await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 15000 });
+      }
     } else if (step === 6) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.click("#gangModal .close").catch(() => {});

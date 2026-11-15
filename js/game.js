@@ -2755,7 +2755,7 @@ function endFight(win) {
     toast(t("win_fight") + " +" + reward);
     questBump("win_fight");
     window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
-    window.Onboarding?.onWinFight?.();
+    if (!fight?._duel3d) window.Onboarding?.onWinFight?.();
     window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
   } else {
     toast(t("lose_fight"));
