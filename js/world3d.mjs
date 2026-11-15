@@ -1889,7 +1889,17 @@ function tickNpcPatrols(dt) {
 }
 
 function onboardingPortalForStep(step, locId) {
-  if (step === 1 && locId === "room") return (PORTALS.room || []).find(p => p.to === "street") || null;
+  const st = window.Onboarding?.currentStep?.();
+  const key = st?.key;
+  if ((step === 1 || key === "visit_street") && locId === "room") {
+    return (PORTALS.room || []).find(p => p.to === "street") || null;
+  }
+  if ((key === "visit_cemetery" || step === 4) && locId === "street") {
+    return (PORTALS.street || []).find(p => p.to === "cemetery") || null;
+  }
+  if (key === "city_build" && locId === "street") {
+    return (PORTALS.street || []).find(p => p.to === "city") || null;
+  }
   if (step === 3 && locId === "street") return (PORTALS.street || []).find(p => p.to === "cemetery") || null;
   return null;
 }
@@ -1928,8 +1938,10 @@ function checkPortals() {
   const portals = PORTALS[currentLoc] || [];
   const px = player.wx ?? player.group.position.x;
   const pz = player.wz ?? player.group.position.z;
+  const onboard = !!window.Onboarding?.isActive?.();
+  const reachMul = onboard ? 1.45 : 1;
   for (const portal of portals) {
-    if (Math.hypot(px - portal.x, pz - portal.z) <= portal.r) {
+    if (Math.hypot(px - portal.x, pz - portal.z) <= portal.r * reachMul) {
       hooks.onPortal?.(portal.to);
       break;
     }
@@ -2818,6 +2830,24 @@ const api = {
     companionVisible: !!lifeAngelinaCompanion.group?.visible
   }),
   rebuildPlayerFromAvatar,
+  frameHeroAcceptanceShot: () => {
+    releaseCaptureFrame();
+    snapPlayerToLocationSpawn();
+    const pl = actors.get("player");
+    if (!pl?.group || !camera) return false;
+    cameraYaw = pl.group.rotation.y + 0.42;
+    if (camera) {
+      camera.fov = 46;
+      camera.updateProjectionMatrix();
+    }
+    positionCameraBehindPlayer(true);
+    const wx = pl.wx ?? pl.group.position.x;
+    const wz = pl.wz ?? pl.group.position.z;
+    camera.position.y = Math.max(camera.position.y, 1.72);
+    camera.lookAt(wx, 1.38, wz);
+    if (renderer && scene) renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
   resetFollowCamera: resetCameraForLocation,
   setPlayerLifeCh1Skin,
   getPlayerLifeCh1SkinRenderState,

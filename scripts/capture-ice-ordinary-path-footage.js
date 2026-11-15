@@ -138,6 +138,30 @@ function ffprobeMeta(filePath) {
   return ffprobeMetaSafe(filePath);
 }
 
+async function prepareHeroReentryShot(page) {
+  logScene("ch1_reentry_world", "bootstrap 3D + hero framing");
+  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, {
+    timeout: 120000,
+  }).catch(() => {});
+  await page
+    .waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, { timeout: 90000 })
+    .catch(async () => {
+      await page.evaluate(async () => {
+        await window.World3D?.bootstrapWorldAfterCharacter?.();
+      });
+      await page.waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, { timeout: 90000 });
+    });
+  await page.evaluate(() => {
+    window.World3D?.frameHeroAcceptanceShot?.();
+  });
+  await page
+    .waitForFunction(() => window.World3D?.getPlayerActorSnapshot?.()?.meshHeroId === "mohawk", undefined, {
+      timeout: 60000,
+    })
+    .catch(() => {});
+  await page.waitForTimeout(900);
+}
+
 async function captureHeroProof(page, tag) {
   const dir = path.join(OUT, `hero-stills-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
   fs.mkdirSync(dir, { recursive: true });
@@ -388,6 +412,7 @@ async function ensureStreetLocation(page) {
     await uiOpenMapTravel(page, "street");
   }
   await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 120000 });
+  logScene("ensure_street_done", "at street");
   loc = await page.evaluate(() => window.me?.location);
   if (loc !== "street") {
     throw new Error(`ensureStreetLocation: still on ${loc} after portal/map travel`);
@@ -612,7 +637,9 @@ async function tryPortalTravel(page, destLoc, maxMs = 55000) {
   const startLoc = await page.evaluate(() => window.me?.location);
   if (startLoc === destLoc) return true;
   logInput("portal_attempt", `walk portal toward ${destLoc} from ${startLoc}`);
+  logScene(`travel_portal_${destLoc}`, `portal walk from ${startLoc}`);
   const start = Date.now();
+  const mapFallbackMs = Math.min(18000, Math.max(8000, maxMs - 5000));
   while (Date.now() - start < maxMs) {
     const loc = await page.evaluate(() => window.me?.location);
     if (loc === destLoc) {
@@ -626,6 +653,15 @@ async function tryPortalTravel(page, destLoc, maxMs = 55000) {
     await page.keyboard.up("w");
     await page.keyboard.up("Shift");
     await page.waitForTimeout(90);
+    if (Date.now() - start >= mapFallbackMs) {
+      logScene(`travel_map_fallback_${destLoc}`, "portal slow — map travel");
+      await uiOpenMapTravel(page, destLoc);
+      const ok = await page.waitForFunction(l => window.me?.location === l, destLoc, { timeout: 45000 }).catch(() => null);
+      if (ok) {
+        logScene(`travel_portal_${destLoc}_done`, "map");
+        return true;
+      }
+    }
   }
   logInput("portal_attempt", `timeout — still at ${await page.evaluate(() => window.me?.location)}`);
   return false;
@@ -928,10 +964,11 @@ async function completeOnboarding(page) {
         () => document.getElementById("fightOverlay")?.classList.contains("active")
       );
       if (duel2d) throw new Error("ordinary_path_fight_must_be_3d_not_2d_overlay");
+      logScene("onboarding_duel_active", "training duel HUD");
       await page.waitForFunction(() => !document.getElementById("gangModal")?.classList.contains("active"), undefined, {
         timeout: 8000,
       });
-      for (let i = 0; i < 28; i++) {
+      for (let i = 0; i < 36; i++) {
         const snap = await page.evaluate(() => ({
           step: window.me?.onboarding?.step,
           fo: document.getElementById("fightOverlay")?.classList.contains("active"),
@@ -948,16 +985,18 @@ async function completeOnboarding(page) {
           const b = await btn.boundingBox();
           if (b && b.width > 2) await btn.click();
         }
-        await page.waitForTimeout(380);
+        await page.waitForTimeout(260);
         if (snap.step > 5 || snap.step === undefined) break;
         if ((await page.evaluate(() => window.me?.onboarding?.step)) > 5) break;
       }
+      logScene("onboarding_duel_done", "win_fight step complete");
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 25000 });
     } else if (step === 6) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.click("#gangModal .close").catch(() => {});
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
       await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 90000 });
+      logScene("onboarding_shop_open", "shop spell purchase");
       await dismissHowTo(page);
       await visibleUiClick(page, '#panelBottom button[onclick*="shopModal"]', "shop open");
       await page.waitForSelector("#shopModal.active");
@@ -1016,6 +1055,9 @@ async function completeOnboarding(page) {
       await focusStage(page);
       const beforeN = await page.evaluate(() => window.me?.cityBuilds?.length || 0);
       const placedFast = await page.evaluate(n => {
+        if (typeof window.tryOnboardingCryptPlace === "function" && window.tryOnboardingCryptPlace()) {
+          return (window.me?.cityBuilds?.length || 0) > n;
+        }
         if (typeof window.tryPlaceBuild === "function") {
           window.tryPlaceBuild(50, 52);
           window.tryPlaceBuild(51, 52);
@@ -1174,6 +1216,7 @@ async function ensureRoomForLifeCh1(page) {
     await uiOpenMapTravel(page, "room");
   }
   await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 120000 });
+  logScene("ensure_room_done", "at room");
   await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 45000 });
   await focusStage(page);
   await page.evaluate(() => window.World3D?.snapPlayerToLocationSpawn?.()).catch(() => {});
@@ -1367,7 +1410,7 @@ async function playLifeCh1Ordinary(page) {
     );
   }
   logScene("ch1_reentry", JSON.stringify({ snapshot, after }));
-  await page.waitForTimeout(2500);
+  await prepareHeroReentryShot(page);
   await captureHeroProof(page, "06-ch1-reentry");
   if (INPUT_MODE === "touch") {
     const perf = await page.evaluate(() => {

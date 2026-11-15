@@ -879,7 +879,18 @@ function finishLoadMeFlow() {
     me.characterId = window.meshIdFromAvatarConfig?.(me.avatarConfig) || "mohawk";
     writeStoredCharacterId(me.characterId);
   }
-  continueGameBoot();
+  const boot = () => continueGameBoot();
+  const bootstrap = window.World3D?.bootstrapWorldAfterCharacter;
+  if (me.characterId && typeof bootstrap === "function") {
+    bootstrap()
+      .then(boot)
+      .catch(err => {
+        console.error("World3D bootstrap on load", err);
+        boot();
+      });
+    return;
+  }
+  boot();
 }
 
 function startFreshPlayerKeepAccount() {
@@ -1290,10 +1301,12 @@ function pickCharacterAndContinue(id, companionSkin, avatarBundle) {
   const boot = () => continueGameBoot();
   const bootstrap = window.World3D?.bootstrapWorldAfterCharacter;
   if (typeof bootstrap === "function") {
-    bootstrap().then(boot).catch(err => {
-      console.error("World3D bootstrap", err);
-      boot();
-    });
+    bootstrap()
+      .then(boot)
+      .catch(err => {
+        console.error("World3D bootstrap", err);
+        boot();
+      });
   } else {
     boot();
   }
@@ -2479,6 +2492,21 @@ function placeBuildAt(x, y) {
   toast(t("built"));
 }
 
+function tryOnboardingCryptPlace() {
+  const st = window.Onboarding?.currentStep?.();
+  if (st?.key !== "city_build" || me.location !== "city") return false;
+  me.inventory = me.inventory || { materials: {}, spells: [] };
+  me.inventory.materials = me.inventory.materials || {};
+  const mats = me.inventory.materials;
+  if ((mats.floor || 0) < 1) mats.floor = 2;
+  if ((mats.crypt || 0) < 1) mats.crypt = 1;
+  selectedBuild = "floor";
+  placeBuildAt(50, 52);
+  selectedBuild = "crypt";
+  placeBuildAt(51, 52);
+  return true;
+}
+
 function tryDecorPlace() {
   if (me.location !== "room") return;
   window.toggleRoomDecor?.();
@@ -2505,10 +2533,12 @@ window.startTrainingDuelMohawk = function () {
 function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
   const wantId = nid || npc.id || "razor";
+  const onboardFight = window.Onboarding?.currentStep?.()?.key === "win_fight";
+  const duelOpts = onboardFight ? { training: true, firstTo: 2 } : undefined;
   const beginDuel3D = () => {
     syncStage3D();
     window.World3D?.snapPlayerToLocationSpawn?.();
-    return window.World3D?.startDuel3D?.(wantId);
+    return window.World3D?.startDuel3D?.(wantId, duelOpts);
   };
   if (document.body.classList.contains("mode-world3d")) {
     if (me.location !== "street") {
@@ -2550,7 +2580,7 @@ function startNpcFight(nid) {
     toast(t("fight_try_again") || "3D duel unavailable");
     return;
   }
-  if (window.World3D?.startDuel3D?.(wantId)) {
+  if (window.World3D?.startDuel3D?.(wantId, duelOpts)) {
     fight = {
       npcName: tNpcName(npc.id || nid),
       npcHp: 100,
@@ -2776,6 +2806,7 @@ window.runJobAction = runJobAction;
 function exposePreviewBuildHooks() {
   if (isPreviewBuild() || isLifeCh1LocalSaveBuild()) {
     window.tryPlaceBuild = (x, y) => placeBuildAt(x, y);
+    window.tryOnboardingCryptPlace = tryOnboardingCryptPlace;
   } else if ("tryPlaceBuild" in window) {
     delete window.tryPlaceBuild;
   }

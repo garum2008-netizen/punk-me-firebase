@@ -188,7 +188,7 @@ function onWorldMove(wx, wz) {
   if (!st) return;
   if (st.key === "angelina_street" && window.me?.location === "street" && wx != null && wz != null) {
     const tgt = st.target();
-    if (Math.hypot(wx - tgt.wx, wz - tgt.wz) < 2.25) {
+    if (Math.hypot(wx - tgt.wx, wz - tgt.wz) < 2.85) {
       window.AngelinaGuide?.react?.("street_brief_town", 6500);
       bump("angelina_street", 1);
       return;
