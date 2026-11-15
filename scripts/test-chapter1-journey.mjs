@@ -104,7 +104,10 @@ async function main() {
   const browser = await chromium.launch({ headless: true, args: ["--use-gl=angle", "--use-angle=swiftshader"] });
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
-    recordVideo: { dir: outDir, size: { width: 1280, height: 800 } }
+    recordVideo: { dir: outDir, size: { width: 1280, height: 800 } },
+    httpCredentials: process.env.PUNK_PREVIEW_USER
+      ? { username: process.env.PUNK_PREVIEW_USER, password: process.env.PUNK_PREVIEW_PASS || "" }
+      : undefined
   });
   const page = await context.newPage();
   activePage = page;
