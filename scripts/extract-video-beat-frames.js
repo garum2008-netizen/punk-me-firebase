@@ -12,8 +12,12 @@ const ROOT = path.join(__dirname, "..");
 const DEFAULT_BEATS = [
   { id: "studio_hair_blue", t: 55, claim: "Character studio blue hair visible on preview" },
   { id: "district_city_ground", t: 113, claim: "City district ground + markers visible (no void)" },
-  { id: "duel_3d_chain", t: 374, claim: "3D duel HUD (not 2D Chain duel modal)" },
-  { id: "magic_cast_duel", t: 390, claim: "Magic orb/light in 3D duel" },
+  { id: "district_build_live", t: 150, claim: "City build mode 3D plate visible" },
+  { id: "duel_3d_chain", t: 374, claim: "3D duel HUD + fighters visible" },
+  { id: "magic_cast_duel", t: 390, claim: "Magic orb/chain in 3D duel" },
+  { id: "cemetery_cam_459", t: 299, claim: "Cemetery ~4:59 no tombstone clip" },
+  { id: "cemetery_cam_504", t: 304, claim: "Cemetery ~5:04" },
+  { id: "cemetery_cam_509", t: 309, claim: "Cemetery ~5:09" },
   { id: "onboarding_objective", t: 530, claim: "Quest marker during onboarding" },
   { id: "ch1_climax_pulse", t: 748, claim: "Life Ch1 climax ring + MIDNIGHT PULSE" },
   { id: "ch1_complete", t: 764, claim: "Chapter complete after climax" }

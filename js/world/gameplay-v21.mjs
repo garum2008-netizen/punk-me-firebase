@@ -383,9 +383,11 @@ function layoutDuelFighters(ctx, pl, npc) {
 }
 
 function startDuel3D(nid, opts = {}) {
+  window.World3D?.releaseCaptureFrame?.();
   const ctx = ctxGet?.();
   const pl = ctx?.actors?.get("player");
   if (!pl || !ctx.scene) return false;
+  if (ctx.locationRoot) ctx.locationRoot.visible = true;
   let opponent = ctx.actors?.get("npc_" + nid) || ctx.actors?.get("npc_razor");
   if (!opponent) opponent = ensureDuelOpponent(ctx, nid);
   if (!opponent) return false;
@@ -456,8 +458,6 @@ function finishDuel3DCleanup(win, wasTraining) {
     d.trail.removeFromParent();
     d.trail = null;
   }
-  state.duel = null;
-  document.getElementById("duel3dHud")?.classList.add("hidden");
   const ctx = ctxGet?.();
   ctx?.actors?.forEach(act => {
     if (act.group) {
@@ -465,6 +465,9 @@ function finishDuel3DCleanup(win, wasTraining) {
       act.group.rotation.x = 0;
     }
   });
+  window.World3D?.releaseCaptureFrame?.();
+  state.duel = null;
+  document.getElementById("duel3dHud")?.classList.add("hidden");
   const reward = win ? 70 + Math.floor(Math.random() * 40) : 0;
   const res = document.getElementById("duel3dResult");
   if (res) {
@@ -500,9 +503,9 @@ function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
   const mat = new THREE.MeshStandardMaterial({
     color: 0x00ffff,
     emissive: 0x00ffff,
-    emissiveIntensity: 1.2,
+    emissiveIntensity: 2.4,
     transparent: true,
-    opacity: 0.85
+    opacity: 0.95
   });
   for (let i = 0; i < 8; i++) {
     const seg = new THREE.Mesh(new THREE.TorusGeometry(0.18 - i * 0.012, 0.04, 8, 14), mat);
@@ -519,9 +522,17 @@ function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
   const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
   const line = new THREE.Line(
     lineGeo,
-    new THREE.LineBasicMaterial({ color: 0x66ffff, transparent: true, opacity: 0.95, linewidth: 2 })
+    new THREE.LineBasicMaterial({ color: 0x88ffff, transparent: true, opacity: 1 })
   );
   g.add(line);
+  const tube = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.06, Math.hypot(toX - fromX, toZ - fromZ) || 0.5, 8),
+    new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.9 })
+  );
+  tube.position.set((fromX + toX) * 0.5, 1.4, (fromZ + toZ) * 0.5);
+  tube.lookAt(toX, 1.4, toZ);
+  tube.rotateX(Math.PI / 2);
+  g.add(tube);
   ctx.scene.add(g);
   return g;
 }
@@ -781,6 +792,8 @@ function tickDuel(dt, ctx) {
     if (d.plHp <= 0) stopDuel3D(false);
     if (d.npcHp <= 0) stopDuel3D(true);
   }
+  frameDuelCamera(ctx, pl, npc);
+  updateDuelHpBars(ctx);
 }
 
 function fadeEmote(actor, name) {

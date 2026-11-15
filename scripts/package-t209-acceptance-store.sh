@@ -54,6 +54,11 @@ fi
 
 STILLS_DIR=$(ls -d "$ICE/hero-stills-${SHORT}-${PASS_TAG}" 2>/dev/null | head -1)
 [[ -d "$STILLS_DIR" ]] && cp -r "$STILLS_DIR/." "$STORE/stills/"
+STUDIO_DIR=$(ls -d "$ICE/studio-step-stills-${SHORT}-${PASS_TAG}" 2>/dev/null | head -1)
+if [[ -d "$STUDIO_DIR" ]]; then
+  mkdir -p "$STORE/stills/studio-step-stills"
+  cp -r "$STUDIO_DIR/." "$STORE/stills/studio-step-stills/"
+fi
 FRAMES_DIR=$(ls -d "$ICE/hero-frames-video-${SHORT}-${PASS_TAG}" 2>/dev/null | head -1)
 if [[ -d "$FRAMES_DIR" ]]; then
   mkdir -p "$STORE/stills/video-frames"

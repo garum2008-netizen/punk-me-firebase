@@ -26,10 +26,13 @@ async function lumaPng(p) {
   return s / data.length;
 }
 
-function frameAtT(lumDir, t) {
+function frameAtT(lumDir, t, canvas = true) {
   const idx = Math.round(t / 5);
-  const name = `frame-${String(idx + 1).padStart(4, "0")}.png`;
-  return path.join(lumDir, name);
+  const name = canvas
+    ? `canvas-${String(idx + 1).padStart(4, "0")}.png`
+  : `frame-${String(idx + 1).padStart(4, "0")}.png`;
+  const sub = canvas ? "canvas-crops" : ".";
+  return path.join(lumDir, sub, name);
 }
 
 async function main() {
@@ -47,7 +50,8 @@ async function main() {
     out.luminanceFail = lumJson.worstNearBlackStreak;
   }
   for (const g of GROK) {
-    const fp = frameAtT(lumDir, g.t);
+    let fp = frameAtT(lumDir, g.t, true);
+    if (!fs.existsSync(fp)) fp = frameAtT(lumDir, g.t, false);
     let luma = null;
     let met = false;
     if (fs.existsSync(fp)) {

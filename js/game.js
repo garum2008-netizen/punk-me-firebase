@@ -2132,7 +2132,7 @@ function openModal(id) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove("active");
-  if (id === "mapModal") window.World3D?.resetFollowCamera?.();
+  if (id === "mapModal" || id === "gangModal") window.World3D?.resetFollowCamera?.();
   window.World3D?.releaseCaptureFrame?.();
 }
 
@@ -2399,6 +2399,10 @@ function travelJob(action, loc) {
 
 function toggleBuildMode() {
   buildMode = !buildMode;
+  try {
+    window.World3D?.releaseCaptureFrame?.();
+    window.World3D?.resetFollowCamera?.();
+  } catch (_) {}
   if (buildMode && me.location === "city") {
     try {
       window.World3D?.snapPlayerToLocationSpawn?.();

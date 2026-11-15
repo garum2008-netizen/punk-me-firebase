@@ -92,7 +92,13 @@ function releaseCaptureFrame() {
     });
     captureHideActors = null;
   }
-  actors.forEach(act => setDialogueCaptureScale(act, 1));
+  actors.forEach((act, id) => {
+    if (act.group) act.group.visible = true;
+    setDialogueCaptureScale(act, 1);
+  });
+  if (car?.group) car.group.visible = currentLoc === "street" && !isDuelActive();
+  if (locationRoot) locationRoot.visible = true;
+  document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
   dialogueLiveMinHead = 0;
   setElevatorCutaway(false);
   resetPropDimOpacity();
@@ -121,6 +127,22 @@ function releaseCaptureFrame() {
   });
   captureFrameLock = false;
   dialogueCameraLock = false;
+  if (camera && actors.get("player") && !isDuelActive()) {
+    positionCameraBehindPlayer(true);
+  }
+}
+
+function clearStaleDialogueCapture() {
+  if (!captureFrameLock && !dialogueCameraLock) return;
+  if (isDuelActive()) return;
+  const storyDlg = document.getElementById("storyDialog");
+  const storyActive =
+    storyDlg && storyDlg.classList.contains("active") && !storyDlg.hasAttribute("hidden");
+  const lifeDlg = document.querySelector(".life-ch1-dialog-overlay.active, #lifeCh1Wardrobe:not([hidden])");
+  const gangOpen = document.getElementById("gangModal")?.classList.contains("active");
+  const fight2d = document.getElementById("fightOverlay")?.classList.contains("active");
+  if (storyActive || lifeDlg || gangOpen || fight2d) return;
+  releaseCaptureFrame();
 }
 let dialogueLiveMinHead = 0;
 let portalGraceUntil = 0;
@@ -2300,6 +2322,7 @@ function loop() {
     }
     attr.needsUpdate = true;
   }
+  clearStaleDialogueCapture();
   if (captureFrameLock) setQuestMarkersVisible(false);
   else {
     setQuestMarkersVisible(true);
@@ -2348,8 +2371,11 @@ function loop() {
   tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
   tickStory(dt);
   lastCameraDt = dt;
-  if (!dialogueCameraLock && !isDuelActive()) updateThirdPersonCamera(dt);
-  else if (captureHideActors?.length && !motionProbe) {
+  if (isDuelActive() && window.PlayV21?.frameDuelCamera) {
+    window.PlayV21.frameDuelCamera();
+  } else if (!dialogueCameraLock) {
+    updateThirdPersonCamera(dt);
+  } else if (captureHideActors?.length && !motionProbe) {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     checkPortals();
     return;
@@ -3350,12 +3376,37 @@ const api = {
       dogActor.group.visible = false;
       captureHideActors.push(dogActor);
     }
-    captureFrameLock = true;
     dialogueCameraLock = true;
+    if (!live) captureFrameLock = true;
     captureSavedRotY = pl.group.rotation.y;
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
+  },
+  getRenderDiag: () => {
+    const pl = actors.get("player");
+    return {
+      loc: currentLoc,
+      sceneChildren: scene?.children?.length ?? 0,
+      locationRootVisible: !!locationRoot?.visible,
+      locationRootChildren: locationRoot?.children?.length ?? 0,
+      captureFrameLock,
+      dialogueCameraLock,
+      duel: isDuelActive(),
+      hideActors: captureHideActors?.length ?? 0,
+      renderCalls: renderer?.info?.render?.calls ?? null,
+      camera: camera
+        ? {
+            x: +camera.position.x.toFixed(2),
+            y: +camera.position.y.toFixed(2),
+            z: +camera.position.z.toFixed(2),
+            fov: camera.fov
+          }
+        : null,
+      player: pl ? { wx: pl.wx, wz: pl.wz, y: pl.group?.position?.y } : null,
+      fogD: scene?.fog?.density,
+      bg: scene?.background?.getHex?.()
+    };
   },
   snapScreenshotView: () => {
     const a = actors.get("player");

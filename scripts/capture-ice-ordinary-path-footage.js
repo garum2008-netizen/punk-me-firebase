@@ -585,6 +585,14 @@ async function pickAngelina(page) {
   await page.waitForSelector("#charSelect.active", { timeout: 120000 });
   logInput("click", "character studio CYBER PUNK BLUE (t206u)");
   await configureCyberPunkBlueStudio(page, QA_CYBER_PUNK_BLUE.name);
+  for (const tag of ["studio-after-hair", "studio-after-outfit", "studio-after-wings"]) {
+    const p = `/tmp/${tag}.png`;
+    if (fs.existsSync(p)) {
+      const dir = path.join(OUT, `studio-step-stills-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(p, path.join(dir, `${tag}.png`));
+    }
+  }
   await page.locator('[data-testid="character-studio-confirm"]').scrollIntoViewIfNeeded();
   await page.evaluate(() => {
     document.querySelector('[data-testid="character-studio-confirm"]')?.click();

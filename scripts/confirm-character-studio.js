@@ -11,6 +11,11 @@ async function configureCyberPunkBlueStudio(page, heroName = QA_CYBER_PUNK_BLUE.
     ["outfitStyle", QA_CYBER_PUNK_BLUE.outfitStyle],
     ["accessoryToggle", "wings_01"]
   ];
+  const studioStillSteps = [
+    { after: ["hairColor", QA_CYBER_PUNK_BLUE.hairColor], tag: "studio-after-hair" },
+    { after: ["outfitStyle", QA_CYBER_PUNK_BLUE.outfitStyle], tag: "studio-after-outfit" },
+    { after: ["accessoryToggle", "wings_01"], tag: "studio-after-wings" }
+  ];
   for (const [field, id] of clicks) {
     await page.locator(`[data-field="${field}"][data-id="${id}"]`).scrollIntoViewIfNeeded();
     const prev = await page.evaluate(() => window.__lastStudioPreviewMs || 0);
@@ -19,6 +24,12 @@ async function configureCyberPunkBlueStudio(page, heroName = QA_CYBER_PUNK_BLUE.
       .waitForFunction(p => (window.__lastStudioPreviewMs || 0) > p, prev, { timeout: 8000 })
       .catch(() => {});
     await page.waitForTimeout(60);
+    const still = studioStillSteps.find(s => s.after[0] === field && s.after[1] === id);
+    if (still) {
+      await page.waitForTimeout(120);
+      await page.locator("#charSelect3d").screenshot({ path: `/tmp/${still.tag}.png` }).catch(() => {});
+      still._captured = true;
+    }
   }
   await page.evaluate(() => {
     document.querySelector('[data-field="accessoryToggle"][data-id="wings_01"]')?.click();
