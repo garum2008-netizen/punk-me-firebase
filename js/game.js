@@ -2534,7 +2534,7 @@ function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
   const wantId = nid || npc.id || "razor";
   const onboardFight = window.Onboarding?.currentStep?.()?.key === "win_fight";
-  const duelOpts = onboardFight ? { training: true, firstTo: 2 } : undefined;
+  const duelOpts = onboardFight ? { training: true, firstTo: 1 } : undefined;
   const beginDuel3D = () => {
     syncStage3D();
     window.World3D?.snapPlayerToLocationSpawn?.();

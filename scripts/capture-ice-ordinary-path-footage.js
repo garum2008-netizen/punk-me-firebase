@@ -974,29 +974,24 @@ async function completeOnboarding(page) {
       await page.waitForFunction(() => !document.getElementById("gangModal")?.classList.contains("active"), undefined, {
         timeout: 8000,
       });
-      for (let i = 0; i < 36; i++) {
+      const duelDeadline = Date.now() + 110000;
+      while (Date.now() < duelDeadline) {
         const snap = await page.evaluate(() => ({
-          step: window.me?.onboarding?.step,
-          fo: document.getElementById("fightOverlay")?.classList.contains("active"),
-          hud: !document.getElementById("duel3dHud")?.classList.contains("hidden")
+          step: window.me?.onboarding?.step ?? 0,
+          hud: !document.getElementById("duel3dHud")?.classList.contains("hidden"),
         }));
+        if (snap.step > 5) break;
         if (snap.hud) {
-          const hasSpell = await page.evaluate(
-            () => (window.me?.inventory?.spells || []).length > 0
-          );
-          if (hasSpell && i === 2) {
-            await page.locator('[data-testid="duel3d-spell"]').click({ timeout: 3000 }).catch(() => {});
-          }
-          const btn = page.locator('[data-testid="duel3d-attack"]');
-          const b = await btn.boundingBox();
-          if (b && b.width > 2) await btn.click();
+          await page.locator('[data-testid="duel3d-attack"]').click({ timeout: 2000 }).catch(() => {});
+          await page.locator('[data-testid="duel3d-block"]').click({ timeout: 1500 }).catch(() => {});
+        } else if (snap.step <= 5) {
+          await page.waitForTimeout(400);
         }
-        await page.waitForTimeout(260);
-        if (snap.step > 5 || snap.step === undefined) break;
-        if ((await page.evaluate(() => window.me?.onboarding?.step)) > 5) break;
+        await page.waitForTimeout(220);
       }
-      logScene("onboarding_duel_done", "win_fight step complete");
-      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 25000 });
+      const duelStep = await page.evaluate(() => window.me?.onboarding?.step ?? 0);
+      if (duelStep > 5) logScene("onboarding_duel_done", "win_fight step complete");
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 90000 });
     } else if (step === 6) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.click("#gangModal .close").catch(() => {});
