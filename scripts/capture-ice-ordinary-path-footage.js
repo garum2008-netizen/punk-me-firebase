@@ -994,6 +994,12 @@ async function advanceLifeCh1MoveStep(page) {
   await ensureRoomForLifeCh1(page);
   await dismissHowTo(page);
   await focusStage(page);
+  await page.evaluate(() => {
+    window.World3D?.releaseCaptureFrame?.();
+    window.World3D?.ensureThirdPersonRunCamera?.();
+    window.World3D?.snapPlayerToLocationSpawn?.();
+  });
+  await page.waitForTimeout(600);
   const deadline = Date.now() + 150000;
   while (Date.now() < deadline) {
     const st = await readState(page);
@@ -1001,8 +1007,14 @@ async function advanceLifeCh1MoveStep(page) {
       logScene("ch1_move", `stepIndex=${st.lifeCh1.stepIndex}`);
       return;
     }
-    await walkKeys(page, 6, 420);
-    await page.waitForTimeout(120);
+    await walkKeys(page, 12, 520);
+    logInput("keyboard", "ch1 move burst Shift+WASD");
+    await page.keyboard.down("Shift");
+    await page.keyboard.down("w");
+    await page.waitForTimeout(650);
+    await page.keyboard.up("w");
+    await page.keyboard.up("Shift");
+    await page.waitForTimeout(200);
   }
   const st = await readState(page);
   if ((st.lifeCh1?.stepIndex || 0) < 1) {
