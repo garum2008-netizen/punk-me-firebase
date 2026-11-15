@@ -270,7 +270,6 @@ async function openCharacterStudio(onPick) {
     });
     canvas._charSelectObs.observe(canvas);
   }
-  await loadAvatarCatalog();
   let pendingStudioPreview = null;
   let previewLoadGen = 0;
   async function ensurePreviewTemplate(meshId, look) {
@@ -283,8 +282,6 @@ async function openCharacterStudio(onPick) {
     if (look) showCharacter(id, look);
     else showCharacter(id);
   }
-  void ensurePreviewTemplate("vienna");
-  void loadMeshyTemplateForCharacter("mohawk");
   const studioHost = document.getElementById("charSelectUi");
   studioApi = await mountCharacterStudio(studioHost, {
     onPreview: (meshId, look) => {
@@ -300,6 +297,8 @@ async function openCharacterStudio(onPick) {
       onPickCb?.(cfg.meshId, cfg.companionAngelinaSkin, cfg);
     }
   });
+  void ensurePreviewTemplate("vienna");
+  void loadMeshyTemplateForCharacter("mohawk");
 }
 
 function open(onPick) {

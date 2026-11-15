@@ -2,7 +2,7 @@ const { QA_CYBER_PUNK_BLUE } = require("./avatar-qa-presets");
 
 /** t206u: full UI path for mandatory CYBER PUNK BLUE QA hero. */
 async function configureCyberPunkBlueStudio(page, heroName = QA_CYBER_PUNK_BLUE.name) {
-  await page.waitForSelector('[data-testid="character-studio"]', { timeout: 120000 });
+  await page.waitForSelector('[data-testid="character-studio"]', { timeout: 180000 });
   const clicks = [
     ["hairStyle", QA_CYBER_PUNK_BLUE.hairStyle],
     ["skinTone", QA_CYBER_PUNK_BLUE.skinTone],

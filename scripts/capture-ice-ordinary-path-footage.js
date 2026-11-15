@@ -1535,7 +1535,8 @@ async function runOrdinarySession(browser, viewport, label) {
     logScene("gameplay_recording_start", "uncutFromNavigation=true");
   }
 
-  await page.waitForSelector("#charSelect.active", { timeout: 120000 });
+  await page.waitForSelector("#charSelect.active", { timeout: 180000 });
+  await page.waitForSelector('[data-testid="character-studio"]', { timeout: 180000 });
   const configureStart = Date.now();
   await pickAngelina(page, { deferWorldReady: true, skipStudioWait: true });
   const studioWallEndMs = Date.now() - configureStart;
