@@ -1000,24 +1000,17 @@ async function advanceLifeCh1MoveStep(page) {
     window.World3D?.snapPlayerToLocationSpawn?.();
   });
   await page.waitForTimeout(600);
-  const deadline = Date.now() + 150000;
-  while (Date.now() < deadline) {
-    const st = await readState(page);
-    if ((st.lifeCh1?.stepIndex || 0) >= 1) {
-      logScene("ch1_move", `stepIndex=${st.lifeCh1.stepIndex}`);
-      return;
-    }
-    await walkKeys(page, 12, 520);
-    logInput("keyboard", "ch1 move burst Shift+WASD");
-    await page.keyboard.down("Shift");
-    await page.keyboard.down("w");
-    await page.waitForTimeout(650);
-    await page.keyboard.up("w");
-    await page.keyboard.up("Shift");
-    await page.waitForTimeout(200);
-  }
+  await page
+    .waitForFunction(() => document.body.classList.contains("life-ch1-active"), undefined, { timeout: 60000 })
+    .catch(() => {});
+  const advanced = await walkKeysUntil(
+    page,
+    async () => ((await readState(page)).lifeCh1?.stepIndex || 0) >= 1,
+    56,
+    520
+  );
   const st = await readState(page);
-  if ((st.lifeCh1?.stepIndex || 0) < 1) {
+  if (!advanced || (st.lifeCh1?.stepIndex || 0) < 1) {
     throw new Error(`move step did not advance via UI (stepIndex=${st.lifeCh1?.stepIndex ?? "?"})`);
   }
   logScene("ch1_move", `stepIndex=${st.lifeCh1.stepIndex}`);
