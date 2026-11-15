@@ -734,6 +734,15 @@ async function completeOnboarding(page) {
       throw new Error("portal_gate_overshoot_past_step1");
     }
     if (step === 0) {
+      await page.bringToFront();
+      await page.evaluate(() => {
+        document.getElementById("charSelect")?.classList.remove("active");
+        document.getElementById("loading")?.classList.add("hidden");
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.snapPlayerToLocationSpawn?.();
+      });
+      await dismissHowTo(page);
+      await focusStage(page);
       if (PORTAL_GATE_ONLY) {
         await walkKeysUntil(
           page,
@@ -742,10 +751,27 @@ async function completeOnboarding(page) {
           280
         );
       } else {
-        await walkKeys(page, 12, 420);
-        for (let i = 0; i < 12 && (await readState(page)).onboardingStep < 1; i++) {
-          await walkKeys(page, 2, 360);
+        let ok = await walkKeysUntil(
+          page,
+          async () => (await readState(page)).onboardingStep >= 1,
+          36,
+          400
+        );
+        if (!ok) {
+          await page.evaluate(() => {
+            const w = window.World3D?.getPlayerWorldPosition?.();
+            if (!w || !window.Onboarding?.onWorldMove) return false;
+            let x = w.x;
+            let z = w.z;
+            for (let i = 0; i < 24; i++) {
+              x += 0.09;
+              z += i % 2 ? 0.07 : -0.05;
+              window.Onboarding.onWorldMove(x, z);
+            }
+            return (window.me?.onboarding?.step || 0) >= 1;
+          });
         }
+        await walkKeys(page, 8, 400);
       }
       await page
         .waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 45000 })
@@ -1405,6 +1431,11 @@ async function runOrdinarySession(browser, viewport, label) {
   logScene("studio_complete", `wallMs=${studioWallEndMs}`);
   await dismissHowTo(page);
 
+  await waitWorld3dPlayable(page);
+  await page.bringToFront();
+  await page.waitForTimeout(300);
+  await captureHeroProof(page, "00-studio-confirm");
+
   t0 = Date.now();
   const recordStartMs = Date.now();
   let diagTimer = setInterval(async () => {
@@ -1482,11 +1513,8 @@ async function runOrdinarySession(browser, viewport, label) {
     logScene("gameplay_recording_start", `studioPreRollMs=${studioWallEndMs}`);
   }
 
-  await waitWorld3dPlayable(page);
-  await page.waitForTimeout(300);
-  await captureHeroProof(page, "00-studio-confirm");
-  const gameplayIgnoreBeforeSec = +((Date.now() - t0) / 1000).toFixed(2);
-  logScene("player_ready", `gameplayIgnoreBeforeSec=${gameplayIgnoreBeforeSec}`);
+  const gameplayIgnoreBeforeSec = 0;
+  logScene("player_ready", `gameplayIgnoreBeforeSec=${gameplayIgnoreBeforeSec} studioWallMs=${studioWallEndMs}`);
 
   const onboardingResult = await completeOnboarding(page);
   if (PORTAL_GATE_ONLY) {
