@@ -79,6 +79,8 @@ const REACT_I18N = {
   shop_buy: "angelina_react_shop_buy",
   ch1_complete: "angelina_react_ch1_complete",
   street_brief_town: "angelina_react_street_brief_town",
+  angelina_street_wrong_loc: "angelina_react_angelina_street_wrong_loc",
+  angelina_street_back: "angelina_react_angelina_street_back",
   ch1_climax_town: "angelina_react_ch1_climax_town",
   trust_choice: "angelina_react_trust_choice",
   build_need_material: "angelina_react_build_need_material"

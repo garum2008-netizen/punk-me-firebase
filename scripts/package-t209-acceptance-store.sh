@@ -45,6 +45,10 @@ else
   if [[ -d "$LUM_DIR" ]]; then
     mkdir -p "$STORE/stills/luminance-scan"
     cp -r "$LUM_DIR/." "$STORE/stills/luminance-scan/"
+    node "$ROOT/scripts/verify-grok-six-points.js" "$VIDEO" "$STORE/stills/luminance-scan" "$BEAT_DIR" \
+      || echo "WARN: grok six-point verify failed" >&2
+    [[ -f "$STORE/stills/luminance-scan/GROK_SIX_POINT_VERIFY.json" ]] && \
+      cp "$STORE/stills/luminance-scan/GROK_SIX_POINT_VERIFY.json" "$STORE/evidence/"
   fi
 fi
 

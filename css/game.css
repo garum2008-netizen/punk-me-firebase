@@ -158,6 +158,7 @@ body.mode-world3d .fight-overlay { display: none !important; }
   padding-top: max(12px, env(safe-area-inset-top));
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
+.quest-step-offpath { color: #ffaa66; font-size: 12px; margin-top: 6px; font-weight: 600; }
 .char-select h2 { color: #0ff; text-shadow: 0 0 12px #f0f; }
 #charSelect3d {
   flex: 0 0 auto;

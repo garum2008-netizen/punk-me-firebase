@@ -20,7 +20,16 @@ const ONBOARDING_STEPS = [
 
 /** Portal waypoints when the player is not yet in the step's target location. */
 const PORTAL_WAYPOINTS = {
-  street: { room: { wx: 0, wz: 5.5 } },
+  street: {
+    room: { wx: 0, wz: 5.5 },
+    city: { wx: -8, wz: 7 },
+    cemetery: { wx: 0, wz: 7.5 },
+    construction: { wx: 0, wz: 8.5 },
+    kitchen: { wx: 0, wz: 5.5 },
+    toilet: { wx: 0, wz: 5.5 },
+    elevator: { wx: 0.85, wz: -0.45 },
+    roof: { wx: 0, wz: 5.5 }
+  },
   cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.5 } },
   city: { street: { wx: 45, wz: 70 }, room: { wx: 0, wz: 5.5 } }
 };
@@ -98,11 +107,18 @@ function renderOnboardingQuest() {
   const title = typeof t === "function" ? t("onboard_title") : "Your mission";
   const stepTitle = typeof t === "function" ? t(`onboard_${st.id}_title`) : st.id;
   const stepText = typeof t === "function" ? t(`onboard_${st.id}_text`) : "";
+  let offPath =
+    st.key === "angelina_street" && window.me?.location && window.me.location !== "street"
+      ? typeof t === "function"
+        ? t("onboard_angelina_street_offpath")
+        : ""
+      : "";
   const prog = progress()[st.key] || 0;
   box.innerHTML = `<div class="quest-tracker">
     <b>${escapeHtml(title)}</b> <span class="quest-step-num">${i}/${ONBOARDING_STEPS.length}</span>
     <div class="quest-step-title">${escapeHtml(stepTitle)}</div>
     <div class="quest-step-text">${escapeHtml(stepText)}</div>
+    ${offPath ? `<div class="quest-step-offpath">${escapeHtml(offPath)}</div>` : ""}
     <div class="quest-progress">${prog}/${st.goal}</div>
   </div>`;
 }
@@ -127,10 +143,15 @@ function getGuideTarget() {
     return waypointToReach("city") || null;
   }
   const here = window.me.location;
+  if (st.key === "angelina_street" && tgt.loc === "street" && here !== "street") {
+    const wp = waypointToReach("street");
+    if (wp) return { wx: wp.wx, wz: wp.wz, loc: here, returnTo: "street" };
+    return { wx: 0, wz: 0, loc: here, returnTo: "street", useMap: true };
+  }
   if (tgt.loc && here !== tgt.loc) {
     const wp = waypointToReach(tgt.loc);
     if (wp) return { wx: wp.wx, wz: wp.wz, loc: here };
-    return null;
+    return { wx: 0, wz: 0, loc: here, useMap: true };
   }
   if (tgt.npcId) return { npcId: tgt.npcId };
   if (tgt.wx != null && tgt.wz != null) return { wx: tgt.wx, wz: tgt.wz, loc: here };
@@ -185,9 +206,22 @@ function onMove(x, y) {
 function onEnterLocation(loc) {
   const st = currentStep();
   if (!st) return;
+  if (st.key === "angelina_street") {
+    syncGuideTarget();
+    if (loc === "street") {
+      if (window.me?._onboardLeftStreetDuringAngelina) {
+        window.AngelinaGuide?.react?.("angelina_street_back", 6200);
+        window.me._onboardLeftStreetDuringAngelina = false;
+      }
+    } else {
+      window.me._onboardLeftStreetDuringAngelina = true;
+      window.AngelinaGuide?.react?.("angelina_street_wrong_loc", 7800);
+    }
+  }
   if (st.key === "visit_street" && loc === "street") bump("visit_street", 1);
   if (st.key === "visit_cemetery" && loc === "cemetery") bump("visit_cemetery", 1);
   if (st.key === "city_build" && loc === "city") syncGuideTarget();
+  syncGuideTarget();
 }
 
 function onTalkRazor() { bump("talk_razor", 1); }

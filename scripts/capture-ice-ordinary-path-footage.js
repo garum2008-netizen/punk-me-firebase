@@ -695,7 +695,10 @@ async function completeOnboarding(page) {
       await ensureStreetLocation(page);
       for (let burst = 0; burst < 42; burst++) {
         const cur = await readState(page);
-        if (cur.location !== "street") await ensureStreetLocation(page);
+        if (cur.location !== "street") {
+          if (!(await tryPortalTravel(page, "street", 45000))) await uiOpenMapTravel(page, "street");
+          await ensureStreetLocation(page);
+        }
         if ((cur.onboardingStep ?? 0) > 3 || cur.onboardingDone) break;
         await walkTowardOnboardingGuide(page, 5000);
         const near = await page.evaluate(() => {
