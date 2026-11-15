@@ -174,8 +174,14 @@ async function preFinalizeRecordingSession(r) {
   r._sessionWallSec = +(((r._sessionEndMs || Date.now()) - (r._recordStartMs || Date.now())) / 1000).toFixed(2);
 
   let haveWebm = fs.existsSync(r.file) && fs.statSync(r.file).size >= minB;
-  if (!haveWebm && r.ffmpegProc && r.mkvDest) {
-    const mkvOk = await stopFfmpegGraceful(r.ffmpegProc, r.mkvDest, minB);
+  if (!haveWebm && r.ffmpegProc && (r.mkvDest || r.segmentDir)) {
+    await stopFfmpegGraceful(r.ffmpegProc, r.segmentDir ? null : r.mkvDest, minB);
+    if (r.segmentDir) {
+      const concat = concatFfmpegSegments(r.segmentDir, r.mkvDest);
+      if (!concat.ok) r.videoSaveError = concat.error || "segment_concat_failed";
+      else logScene("ffmpeg_segments_concat", `${concat.segments} parts → ${r.mkvDest}`);
+    }
+    const mkvOk = fs.existsSync(r.mkvDest) && fs.statSync(r.mkvDest).size >= minB;
     if (mkvOk) {
       const remux = remuxMkvToWebm(r.mkvDest, r.file);
       if (remux.ok && remux.path !== r.file) {
@@ -542,6 +548,7 @@ const {
   sha256File,
   ffprobeMeta: ffprobeMetaSafe,
   stopFfmpegGraceful,
+  concatFfmpegSegments,
   remuxMkvToWebm,
   closePlaywrightRecordingSession,
   savePlaywrightVideoAfterBrowserClose,
@@ -1063,18 +1070,25 @@ async function runOrdinarySession(browser, viewport, label) {
     OUT,
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
-  let captureRawDest = dest.replace(/\.webm$/i, ".mkv");
+  const captureRawDest = path.join(
+    "/tmp",
+    `punk-uncut-${shaShort}-${passTag}.mkv`
+  );
+  let segmentDir = null;
   let ffmpegProc = null;
   const useFfmpegGrab =
     viewport.width >= 1000 && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
   if (useFfmpegGrab) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     if (fs.existsSync(dest)) fs.unlinkSync(dest);
-    captureRawDest = dest.replace(/\.webm$/i, ".mkv");
     if (fs.existsSync(captureRawDest)) fs.unlinkSync(captureRawDest);
+    segmentDir = path.join("/tmp", `punk-seg-${shaShort}-${passTag}`);
+    if (fs.existsSync(segmentDir)) fs.rmSync(segmentDir, { recursive: true, force: true });
+    fs.mkdirSync(segmentDir, { recursive: true });
     const disp = process.env.DISPLAY || ":1";
     const ffmpegLog = path.join(OUT, `ffmpeg-x11grab-${shaShort}-${passTag}.log`);
     const logOut = fs.openSync(ffmpegLog, "w");
+    const segPattern = path.join(segmentDir, "part-%03d.mkv");
     ffmpegProc = spawn(
       FFMPEG,
       [
@@ -1099,8 +1113,12 @@ async function runOrdinarySession(browser, viewport, label) {
         "-pix_fmt",
         "yuv420p",
         "-f",
-        "matroska",
-        captureRawDest,
+        "segment",
+        "-segment_time",
+        "120",
+        "-reset_timestamps",
+        "1",
+        segPattern,
       ],
       { stdio: ["ignore", logOut, logOut] }
     );
@@ -1205,6 +1223,7 @@ async function runOrdinarySession(browser, viewport, label) {
     _video: video,
     ffmpegProc,
     mkvDest: captureRawDest,
+    segmentDir,
     useFfmpegGrab,
     minVideoBytes,
     _recordStartMs: recordStartMs,

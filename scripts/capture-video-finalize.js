@@ -76,14 +76,43 @@ async function stopFfmpegGraceful(proc, mkvDest, minBytes) {
   try {
     if (proc.kill) proc.kill("SIGINT");
   } catch (_) {}
-  const ok = await waitForFileStable(mkvDest, 180000, minBytes);
   await new Promise(resolve => {
     if (proc.exitCode != null) return resolve();
     proc.once("close", resolve);
-    setTimeout(resolve, 15000);
+    setTimeout(resolve, 20000);
   });
-  if (fs.existsSync(mkvDest) && fs.statSync(mkvDest).size >= minBytes) return true;
-  return ok && fs.existsSync(mkvDest) && fs.statSync(mkvDest).size >= minBytes;
+  if (mkvDest && fs.existsSync(mkvDest) && fs.statSync(mkvDest).size >= minBytes) return true;
+  if (mkvDest) {
+    const ok = await waitForFileStable(mkvDest, 60000, minBytes);
+    if (fs.existsSync(mkvDest) && fs.statSync(mkvDest).size >= minBytes) return true;
+    return ok;
+  }
+  return true;
+}
+
+function concatFfmpegSegments(segDir, outPath) {
+  if (!fs.existsSync(segDir)) return { ok: false, error: "seg_dir_missing" };
+  const parts = fs
+    .readdirSync(segDir)
+    .filter(f => /^part-\d+\.mkv$/i.test(f))
+    .sort();
+  if (!parts.length) return { ok: false, error: "no_segments" };
+  const listPath = path.join(segDir, "concat.txt");
+  const lines = parts.map(p => {
+    const abs = path.resolve(segDir, p).replace(/'/g, "'\\''");
+    return `file '${abs}'`;
+  });
+  fs.writeFileSync(listPath, lines.join("\n") + "\n");
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  const r = spawnSync(
+    FFMPEG,
+    ["-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", outPath],
+    { encoding: "utf8" }
+  );
+  if (r.status !== 0 || !fs.existsSync(outPath)) {
+    return { ok: false, error: r.stderr || "concat_failed", segments: parts.length };
+  }
+  return { ok: true, path: outPath, segments: parts.length };
 }
 
 function remuxMkvToWebm(mkvPath, webmPath) {
@@ -224,6 +253,7 @@ module.exports = {
   sha256File,
   ffprobeMeta,
   stopFfmpegGraceful,
+  concatFfmpegSegments,
   remuxMkvToWebm,
   closePlaywrightRecordingSession,
   savePlaywrightVideoAfterBrowserClose,
