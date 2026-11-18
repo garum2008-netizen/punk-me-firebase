@@ -17,6 +17,7 @@ from ice.publishing_queue import (
     fingerprint,
     new_job_id,
     view,
+    wire_payload,
 )
 from ice.quality import text_hash
 
@@ -210,10 +211,12 @@ class Pipeline:
         valid = (
             result.get("id") and result.get("status") == "draft" and not result.get("dueAt")
             and result.get("channelId") == payload["channelId"]
-            and text_hash(result.get("text") or "") == text_hash(payload["text"])
+            and wire_payload({"text": result.get("text") or ""})["text"].strip() == wire_payload(payload)["text"].strip()
         )
         if valid and payload["visualRequired"]:
-            valid = self.validation.confirm_buffer_attachment(result, draft["asset"]["kind"])["ok"]
+            asset = draft["asset"]
+            attachment = self.validation.confirm_buffer_attachment(result, asset["kind"])
+            valid = attachment["ok"] and attachment["source"] == asset["url"]
         if not valid:
             # An unknown or unrelated readback must never replace the known Buffer ID.
             return self._finish(job, "NEEDS_RECONCILE", "needs_reconcile", "Buffer draft or media not confirmed", external_id=created_id)

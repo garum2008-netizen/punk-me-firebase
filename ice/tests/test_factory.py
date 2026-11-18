@@ -323,12 +323,15 @@ class FactoryTest(unittest.TestCase):
                 self.assertEqual(api.call_count, 2)
                 self.assertEqual(api.call_args_list[0].args, (CREATE_DRAFT, {"input": wire}))
             with patch.object(BufferAPI, "_request", side_effect=[
-                {"post": {**post, "assets": []}}, {"post": post},
+                {"post": {**post, "assets": []}},
+                {"post": {**post, "assets": [{"source": "https://cdn.example.test/wrong.jpg", "mimeType": "image/jpeg"}]}},
+                {"post": post},
             ]) as api, contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(verify, probe=probe_ok), 1)
                 self.assertEqual(main(verify, probe=probe_ok), 1)
                 self.assertEqual(main(verify, probe=probe_ok), 0)
                 self.assertEqual(main(send, probe=probe_ok), 0)
-                self.assertEqual(api.call_count, 2)
+                self.assertEqual(api.call_count, 3)
                 self.assertTrue(all(call.args == (GET_DRAFT, {"input": {"id": post["id"]}}) for call in api.call_args_list))
 
 
