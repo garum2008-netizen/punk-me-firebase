@@ -37,7 +37,7 @@ class MediaValidation:
         asset["content_type"] = ctype
         return {"ok": True, "status": "media_verified", "asset": asset}
 
-    def confirm_buffer_attachment(self, post: dict) -> dict:
+    def confirm_buffer_attachment(self, post: dict, kind: str = "image") -> dict:
         """After a draft exists, Buffer itself must still show the asset."""
         assets = post.get("assets") or []
         if post.get("status") != "draft":
@@ -47,9 +47,12 @@ class MediaValidation:
         if not assets:
             return self._block("blocked_unconfirmed_media", "Buffer returned no assets")
         first = assets[0]
-        source = first.get("source") or (first.get("image") or {}).get("url") or ""
+        source = first.get("source") or (first.get(kind) or {}).get("url") or ""
         if not str(source).startswith("https://"):
             return self._block("blocked_unconfirmed_media", "Buffer asset is not a public URL")
+        mime_type = first.get("mimeType")
+        if mime_type is not None and not mime_type.startswith(kind + "/"):
+            return self._block("blocked_unconfirmed_media", "Buffer asset kind does not match")
         return {"ok": True, "status": "media_confirmed", "assets": len(assets), "source": source}
 
     @staticmethod
