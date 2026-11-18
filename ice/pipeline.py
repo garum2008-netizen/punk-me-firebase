@@ -11,11 +11,13 @@ from ice.media_validation import MediaValidation
 from ice.policy import AuthBlocked, known_drafts, load_policy, require_assignment
 from ice.publishing_queue import (
     BufferError,
+    OutboxBuffer,
     QueueStore,
     build_payload,
     fingerprint,
     new_job_id,
     view,
+    wire_payload,
 )
 from ice.quality import text_hash
 
@@ -42,7 +44,7 @@ class Pipeline:
             return {**view(existing), "duplicate": True}
         job_id = new_job_id(self.clock)
         now = self._now()
-        self.store.insert_job(
+        inserted = self.store.insert_job(
             {
                 "id": job_id,
                 "fingerprint": digest,
@@ -62,15 +64,17 @@ class Pipeline:
                 "updated_at": now,
             }
         )
+        if not inserted:
+            return {**view(self.store.find_fingerprint(digest)), "duplicate": True}
         self._log(job_id, "PENDING", "enqueued")
         return {**view(self.store.get(job_id)), "duplicate": False}
 
     def recover(self) -> int:
         moved = 0
         for job in self.store.failed_retryable():
-            self._save(job["id"], status="PENDING", retryable=0, last_error=None)
-            self._log(job["id"], "PENDING", "retry")
-            moved += 1
+            if self.store.claim(job["id"], "FAILED", "PENDING", self._now()):
+                self._log(job["id"], "PENDING", "retry")
+                moved += 1
         return moved
 
     def run(self) -> list[dict]:
@@ -81,16 +85,23 @@ class Pipeline:
         job = self.store.get(job_id)
         if job is None:
             raise KeyError(job_id)
+        if job["status"] == "READY":
+            return self.send_draft(job_id)
         if job["status"] != "PENDING":
             return view(job)
         payload = json.loads(job["payload"] or "{}")
+        if payload.get("buffer"):
+            if self.store.claim(job_id, "PENDING", "READY", self._now()):
+                return self.send_draft(job_id)
+            return view(self._require(job_id))
         supplied_media = payload.get("supplied_media")
         try:
             campaign, channel = require_assignment(self.policy, job["campaign"], job["channel_key"])
         except AuthBlocked as exc:
             return self._finish(job, "BLOCKED", "channel_blocked", str(exc))
 
-        self._save(job_id, status="GENERATING")
+        if not self.store.claim(job_id, "PENDING", "GENERATING", self._now()):
+            return view(self._require(job_id))
         self._log(job_id, "GENERATING", "content_production")
         try:
             piece, candidate = self.production.produce(
@@ -111,11 +122,9 @@ class Pipeline:
             return self._finish(job, "FAILED", "production_failed", str(exc), retryable=False)
 
         digest = text_hash(piece["text"])
-        clash = self.store.text_in_use(digest)
-        if clash is not None and clash["id"] != job_id:
+        if not self.store.reserve_text(job_id, digest, self._now()):
             return self._finish(job, "BLOCKED", "duplicate_copy", "text already in the queue", text_hash=digest)
 
-        self._save(job_id, status="VALIDATING", text_hash=digest)
         self._log(job_id, "VALIDATING", "media_validation")
         verdict = self.validation.validate(candidate, channel, piece["topics"])
         if not verdict["ok"]:
@@ -146,25 +155,72 @@ class Pipeline:
             payload=json.dumps({"piece": piece, "asset": asset, "buffer": buffer_payload, "campaign": campaign}),
         )
         self._log(job_id, "READY", "ready_for_draft")
+        return self.send_draft(job_id, revalidate=False)
+
+    def send_draft(self, job_id: str, *, revalidate: bool = True) -> dict:
+        job = self._require(job_id)
+        if job["status"] == "FAILED" and job["retryable"] and job["attempts"] < job["max_attempts"]:
+            self.store.claim(job_id, "FAILED", "READY", self._now())
+            job = self._require(job_id)
+        if job["status"] != "READY":
+            return view(job)
+        draft = json.loads(job["payload"])
+        buffer_payload = draft["buffer"]
+        if isinstance(self.buffer, OutboxBuffer):
+            self.buffer.create(buffer_payload)
+            return view(job)
+        if not self.store.claim(job_id, "READY", "SUBMITTING", self._now()):
+            return view(self._require(job_id))
+        try:
+            _, channel = require_assignment(self.policy, job["campaign"], job["channel_key"])
+        except AuthBlocked as exc:
+            return self._finish(job, "BLOCKED", "channel_blocked", str(exc))
+        if channel["id"] != buffer_payload["channelId"]:
+            return self._finish(job, "BLOCKED", "channel_changed", "saved draft belongs to a different channel")
+        if revalidate:
+            verdict = self.validation.validate(draft["asset"], channel, draft["piece"]["topics"])
+            if not verdict["ok"]:
+                return self._finish(job, "BLOCKED", verdict["status"], verdict.get("reason"))
         try:
             result = self.buffer.create(buffer_payload)
         except BufferError as exc:
             attempts = int(job["attempts"]) + 1
             if exc.ambiguous:
-                return self._finish(job, "FAILED", "needs_reconcile", str(exc), attempts=attempts, retryable=False, text_hash=digest)
+                return self._finish(job, "NEEDS_RECONCILE", "needs_reconcile", str(exc), attempts=attempts, external_id=exc.post_id)
             retryable = bool(exc.retryable) and attempts < int(job["max_attempts"])
-            return self._finish(job, "FAILED", "buffer_error", str(exc), attempts=attempts, retryable=retryable, text_hash=digest)
-        if result.get("held"):
-            return self._finish(job, "READY", "draft_held", None, text_hash=digest)
-        return self._finish(
-            job,
-            "DRAFT",
-            "buffer_draft_created",
-            None,
-            text_hash=digest,
-            external_id=result.get("id"),
-            payload_extra={"piece": piece, "asset": asset, "buffer": buffer_payload, "result": result, "campaign": campaign},
+            return self._finish(job, "FAILED", "buffer_error", str(exc), attempts=attempts, retryable=retryable)
+        return self._confirm_draft(job, draft, result, created_id=result.get("id"))
+
+    def verify_draft(self, job_id: str, post_id: str | None) -> dict:
+        job = self._require(job_id)
+        if job["status"] not in {"SUBMITTING", "NEEDS_RECONCILE"}:
+            return view(job)
+        known_id = job["external_id"]
+        if known_id and post_id and known_id != post_id:
+            raise ValueError("Buffer ID does not match the one saved with this job")
+        post_id = known_id or post_id
+        if not post_id:
+            raise ValueError("an existing Buffer draft ID is required")
+        result = self.buffer.get_post(post_id)
+        if result.get("id") != post_id:
+            raise ValueError("Buffer did not return the requested draft")
+        return self._confirm_draft(job, json.loads(job["payload"]), result)
+
+    def _confirm_draft(self, job, draft: dict, result: dict, *, created_id: str | None = None) -> dict:
+        payload = draft["buffer"]
+        valid = (
+            result.get("id") and result.get("status") == "draft" and not result.get("dueAt")
+            and result.get("channelId") == payload["channelId"]
+            and wire_payload({"text": result.get("text") or ""})["text"].strip() == wire_payload(payload)["text"].strip()
         )
+        if valid and payload["visualRequired"]:
+            asset = draft["asset"]
+            attachment = self.validation.confirm_buffer_attachment(result, asset["kind"])
+            valid = attachment["ok"] and attachment["source"] == asset["url"]
+        if not valid:
+            # An unknown or unrelated readback must never replace the known Buffer ID.
+            return self._finish(job, "NEEDS_RECONCILE", "needs_reconcile", "Buffer draft or media not confirmed", external_id=created_id)
+        return self._finish(job, "DRAFT", "buffer_draft_created", None, external_id=result["id"], payload_extra={**draft, "result": result})
 
     def approve(self, job_id: str, *, permission: bool) -> dict:
         job = self._require(job_id)
@@ -197,15 +253,8 @@ class Pipeline:
         if not execute:
             self._log(job_id, "APPROVED", "schedule_not_executed", "permission noted; live scheduling stays closed")
             return view(job)
-        payload = json.loads(job["payload"] or "{}")
-        buffer_payload = dict(payload.get("buffer") or {})
-        buffer_payload["saveToDraft"] = False
-        buffer_payload["mode"] = "addToQueue"
-        buffer_payload.pop("dueAt", None)
-        result = self.buffer.create(buffer_payload)
-        self._save(job_id, status="SCHEDULED", external_id=job["external_id"] or result.get("id"), last_error=None)
-        self._log(job_id, "SCHEDULED", "scheduled", None)
-        return view(self.store.get(job_id))
+        self._log(job_id, "APPROVED", "schedule_refused", "scheduling an existing Buffer draft is not available in this runner")
+        return view(job)
 
     def health(self) -> dict:
         counts = self.store.counts()

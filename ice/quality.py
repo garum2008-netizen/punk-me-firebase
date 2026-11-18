@@ -6,7 +6,7 @@ import hashlib
 import re
 from typing import Iterable, Mapping
 
-BANNED_PHRASES = ("contractbot.eu", "contractbot scan")
+BANNED_PHRASES = ("contractbot.eu", "contractbot scan", "concrete client pain", "selling detail", "ice-ref:")
 ALLOWED_EMAIL = "legal@contractbot.dk"
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}")
 HASHTAG_RE = re.compile(r"#[\w]+", re.UNICODE)

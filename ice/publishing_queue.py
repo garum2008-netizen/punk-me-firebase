@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
 import uuid
 from datetime import datetime
@@ -16,6 +17,8 @@ STATES = (
     "GENERATING",
     "VALIDATING",
     "READY",
+    "SUBMITTING",
+    "NEEDS_RECONCILE",
     "DRAFT",
     "APPROVED",
     "SCHEDULED",
@@ -64,10 +67,11 @@ CREATE TABLE IF NOT EXISTS costs (
 
 
 class BufferError(Exception):
-    def __init__(self, message: str, *, retryable: bool = True, ambiguous: bool = False):
+    def __init__(self, message: str, *, retryable: bool = True, ambiguous: bool = False, post_id: str | None = None):
         super().__init__(message)
         self.retryable = retryable
         self.ambiguous = ambiguous
+        self.post_id = post_id
 
 
 class MemoryBuffer:
@@ -99,6 +103,13 @@ class MemoryBuffer:
         result = {
             "id": post_id,
             "status": "draft" if payload.get("saveToDraft") else "scheduled",
+            "channelId": payload["channelId"],
+            "text": payload["text"],
+            "dueAt": None,
+            "assets": [
+                {"source": media["url"], "mimeType": kind + "/test"}
+                for asset in payload["assets"] for kind, media in asset.items()
+            ],
             "duplicate": False,
         }
         self._done[key] = result
@@ -128,13 +139,14 @@ class QueueStore:
     def close(self) -> None:
         self.conn.close()
 
-    def insert_job(self, row: dict) -> None:
+    def insert_job(self, row: dict) -> bool:
         columns = list(row)
         sql = "INSERT INTO jobs ({}) VALUES ({})".format(
             ", ".join(columns), ", ".join("?" for _ in columns)
         )
-        self.conn.execute(sql, [row[name] for name in columns])
+        cursor = self.conn.execute(sql + " ON CONFLICT(fingerprint) DO NOTHING", [row[name] for name in columns])
         self.conn.commit()
+        return cursor.rowcount == 1
 
     def find_fingerprint(self, fingerprint: str):
         return self.conn.execute("SELECT * FROM jobs WHERE fingerprint = ?", (fingerprint,)).fetchone()
@@ -150,6 +162,14 @@ class QueueStore:
         )
         self.conn.commit()
 
+    def claim(self, job_id: str, previous: str, status: str, when: str) -> bool:
+        cursor = self.conn.execute(
+            "UPDATE jobs SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
+            (status, when, job_id, previous),
+        )
+        self.conn.commit()
+        return cursor.rowcount == 1
+
     def pending(self) -> list:
         return list(self.conn.execute("SELECT * FROM jobs WHERE status = 'PENDING' ORDER BY created_at, id"))
 
@@ -164,15 +184,19 @@ class QueueStore:
             )
         )
 
-    def text_in_use(self, digest: str):
-        return self.conn.execute(
+    def reserve_text(self, job_id: str, digest: str, when: str) -> bool:
+        cursor = self.conn.execute(
             """
-            SELECT * FROM jobs
-            WHERE text_hash = ?
-              AND status NOT IN ('FAILED', 'BLOCKED')
+            UPDATE jobs SET text_hash = ?, status = 'VALIDATING', updated_at = ?
+            WHERE id = ? AND status = 'GENERATING' AND NOT EXISTS (
+                SELECT 1 FROM jobs WHERE text_hash = ? AND id <> ? AND status <> 'BLOCKED'
+                  AND (status <> 'FAILED' OR retryable = 1 OR external_id IS NOT NULL)
+            )
             """,
-            (digest,),
-        ).fetchone()
+            (digest, when, job_id, digest, job_id),
+        )
+        self.conn.commit()
+        return cursor.rowcount == 1
 
     def counts(self) -> dict[str, int]:
         rows = self.conn.execute("SELECT status, COUNT(*) AS n FROM jobs GROUP BY status").fetchall()
@@ -224,7 +248,7 @@ def build_payload(*, job_id: str, text: str, channel: dict, asset: dict | None, 
     payload = {
         "channelId": channel["id"],
         "schedulingType": "automatic",
-        "text": text if "ICE-REF:" in text else text.rstrip() + "\n\nICE-REF:" + job_id,
+        "text": text.rstrip(),
         "mode": "addToQueue",
         "saveToDraft": delivery == "draft",
         "idempotencyKey": job_id,
@@ -260,7 +284,10 @@ def build_payload(*, job_id: str, text: str, channel: dict, asset: dict | None, 
 
 def wire_payload(payload: dict) -> dict:
     hidden = {"visualRequired", "idempotencyKey"}
-    return {key: value for key, value in payload.items() if key not in hidden}
+    wire = {key: value for key, value in payload.items() if key not in hidden}
+    # Older persisted jobs appended an internal reference to the public copy.
+    wire["text"] = re.sub(r"\n\nICE-REF:[^\s]+\s*$", "", wire["text"])
+    return wire
 
 
 def view(job) -> dict:

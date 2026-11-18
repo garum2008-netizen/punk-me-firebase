@@ -9,12 +9,14 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
+from ice.buffer_api import BufferAPI, CREATE_DRAFT, GET_DRAFT
 from ice.content_production import ContentProduction, CostLedger
 from ice.media_validation import MediaValidation
 from ice.pipeline import HAPPY_PATH, Pipeline, checkpoint_hashes, open_pipeline
 from ice.policy import AuthBlocked, channel_profile, known_drafts, load_policy, retirement_plan
-from ice.publishing_queue import MemoryBuffer, QueueStore
+from ice.publishing_queue import BufferError, MemoryBuffer, QueueStore
 from ice.quality import quality_errors, schedule_changed
 from ice.__main__ import main
 
@@ -203,7 +205,7 @@ class FactoryTest(unittest.TestCase):
         noted = pipe.schedule(job["id"], permission=True, execute=False)
         self.assertEqual(noted["status"], "APPROVED")
         scheduled = pipe.schedule(job["id"], permission=True, execute=True)
-        self.assertEqual(scheduled["status"], "SCHEDULED")
+        self.assertEqual(scheduled["status"], "APPROVED")
         self.assertEqual(scheduled["external_id"], drafted["external_id"])
         self.assertEqual(len([call for call in buffer.calls if call["ok"]]), 1)
 
@@ -220,7 +222,7 @@ class FactoryTest(unittest.TestCase):
         other = self.pipeline(ambiguous, hashes=set())
         stuck = other.enqueue(campaign="contractbot_eu", channel="facebook_legal", brief="eu-caption", kind="caption")
         failed = other.process(stuck["id"])
-        self.assertEqual(failed["status"], "FAILED")
+        self.assertEqual(failed["status"], "NEEDS_RECONCILE")
         self.assertFalse(failed["retryable"])
         self.assertEqual(other.recover(), 0)
         self.assertEqual(other.run(), [])
@@ -294,6 +296,43 @@ class FactoryTest(unittest.TestCase):
         job = pipe.enqueue(campaign="contractbot_dk", channel="facebook_legal", brief="dk-inspection-en")
         pipe.process(job["id"])
         self.assertNotIn("Pipeline check only", buffer.calls[-1]["payload"]["text"])
+
+    def test_draft_export_and_buffer_readback_survive_restart(self):
+        state = Path(self.tmp.name) / "persistent.db"
+        out = Path(self.tmp.name) / "intent.json"
+        prepare = ["prepare-draft", "--db", str(state), "--campaign", "contractbot_eu",
+                   "--channel", "linkedin_inna", "--brief", "eu-law-venue", "--out", str(out)]
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(prepare, probe=probe_ok), 0)
+            original = out.read_bytes()
+            out.unlink()
+            self.assertEqual(main(prepare, probe=probe_ok), 0)
+        self.assertEqual(out.read_bytes(), original)
+        intent = json.loads(original)
+        wire = intent["createPost"]
+        post = {"id": "buffer-existing", "channelId": wire["channelId"], "status": "draft", "dueAt": None,
+                "text": wire["text"], "assets": [{"source": wire["assets"][0]["image"]["url"], "mimeType": "image/jpeg"}]}
+        send = ["send-draft", "--db", str(state), "--job-id", intent["jobId"]]
+        verify = ["verify-draft", "--db", str(state), "--job-id", intent["jobId"]]
+        with patch.dict("os.environ", {"ICE_BUFFER_API_KEY": "fake-test-key"}):
+            with patch.object(BufferAPI, "_request", side_effect=[
+                {"createPost": {"post": {"id": post["id"]}}}, BufferError("test lost response"),
+            ]) as api, contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(send, probe=probe_ok), 1)
+                self.assertEqual(main(send, probe=probe_ok), 1)
+                self.assertEqual(api.call_count, 2)
+                self.assertEqual(api.call_args_list[0].args, (CREATE_DRAFT, {"input": wire}))
+            with patch.object(BufferAPI, "_request", side_effect=[
+                {"post": {**post, "assets": []}},
+                {"post": {**post, "assets": [{"source": "https://cdn.example.test/wrong.jpg", "mimeType": "image/jpeg"}]}},
+                {"post": post},
+            ]) as api, contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(verify, probe=probe_ok), 1)
+                self.assertEqual(main(verify, probe=probe_ok), 1)
+                self.assertEqual(main(verify, probe=probe_ok), 0)
+                self.assertEqual(main(send, probe=probe_ok), 0)
+                self.assertEqual(api.call_count, 3)
+                self.assertTrue(all(call.args == (GET_DRAFT, {"input": {"id": post["id"]}}) for call in api.call_args_list))
 
 
 if __name__ == "__main__":

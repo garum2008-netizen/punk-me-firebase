@@ -35,7 +35,7 @@ class DraftCycleTests(unittest.TestCase):
             self.assertNotEqual(payload["mode"], "shareNow")
             self.assertEqual(len(payload["assets"]), 1)
             self.assertTrue(payload["assets"][0]["image"]["url"].startswith("https://"))
-            self.assertIn("ICE-REF:" + item["job_id"], payload["text"])
+            self.assertNotIn("ICE-REF:", payload["text"])
             self.assertNotIn("Undervisning", payload["text"])
             self.assertIn(payload["channelId"], allowed)
             if payload["channelId"] == "6a9d9398cd8b9c702c1981cd":
