@@ -819,8 +819,8 @@ async function completeOnboarding(page) {
     if (step !== lastLoggedStep) {
       logScene(`onboarding_step_${step}`, `progress step ${step}`);
       lastLoggedStep = step;
-      if (step === 6 || step === 7) {
-        await page.waitForTimeout(1500);
+      if (step === 7) {
+        await page.waitForTimeout(1200);
         await captureHeroProof(page, `0${step}-onboarding-shop-build`);
       }
     }
@@ -1006,6 +1006,7 @@ async function completeOnboarding(page) {
     } else if (step === 6) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.click("#gangModal .close").catch(() => {});
+      logScene("onboarding_shop_travel", "map → room for spell shop");
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
       await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 90000 });
       logScene("onboarding_shop_open", "shop spell purchase");
@@ -1037,8 +1038,9 @@ async function completeOnboarding(page) {
         undefined,
         { timeout: 30000 }
       ).catch(() => {});
-      await page.waitForTimeout(600);
+      await page.waitForTimeout(400);
       await page.click("#shopModal .close").catch(() => {});
+      await captureHeroProof(page, "06-onboarding-shop-build");
     } else if (step === 7) {
       logScene("onboarding_city_build", "district build — place floor/objective");
       const locNow = await page.evaluate(() => window.me?.location);
@@ -1307,28 +1309,31 @@ async function playLifeCh1Ordinary(page) {
   logScene("ch1_mirror", "wardrobe interact");
   await captureHeroProof(page, "05-ch1-mirror");
   await page.waitForSelector("#lifeCh1Wardrobe:not([hidden])", { timeout: 15000 });
-  await waitReadableDialog(page, 1800);
+  await waitReadableDialog(page, 1000);
   await visibleUiClick(page, '[data-testid="life-ch1-skin-B"]', "skin B");
   await visibleUiClick(page, ".life-ch1-outfit-pick >> nth=0", "outfit first visible");
-  await waitReadableDialog(page, 900);
+  await waitReadableDialog(page, 600);
   await visibleUiClick(page, "#lifeCh1WardrobeConfirm", "wardrobe confirm");
+  logScene("ch1_wardrobe_done", "skin/outfit confirmed");
   await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 2, undefined, { timeout: 20000 });
 
   await walkInteractCh1(page, 2.5, -1.8, 2.85, 55000);
   await page.waitForSelector("#storyDialog.active .life-ch1-choice, .life-ch1-dialog .life-ch1-choice", {
     timeout: 60000,
   });
-  await waitReadableDialog(page, 1100);
+  await waitReadableDialog(page, 800);
   const trust2 = page.locator(".life-ch1-choice >> nth=1");
   if (await trust2.isVisible().catch(() => false)) {
     await visibleUiClick(page, trust2, "life-ch1 choice (trust/mira branch 2)");
   } else {
     await pickVisibleLifeCh1Choice(page);
   }
+  logScene("ch1_trust_choice", "branch 2 picked");
   await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 3, undefined, { timeout: 25000 });
   await walkInteractCh1(page, 2.5, -1.8, 2.85, 65000);
   await page.waitForSelector("#storyDialog.active #lifeCh1DlgOk, #lifeCh1DlgOk:not([hidden])", { timeout: 60000 });
-  await waitReadableDialog(page, 1200);
+  logScene("ch1_reflect_dialog", "reflect OK visible");
+  await waitReadableDialog(page, 700);
   await visibleUiClick(page, "#lifeCh1DlgOk", "reflect OK");
   await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, { timeout: 25000 });
   logScene("ch1_complete", "lifeCh1.completed=true");

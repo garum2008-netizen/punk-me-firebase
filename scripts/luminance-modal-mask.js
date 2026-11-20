@@ -77,7 +77,7 @@ function buildIntervalsFromInputLog(inputLog = [], scenes = []) {
     }
     if (/openModal\(['"]shopModal['"]\)|shop open/i.test(d)) shopOpen = c.tSec;
     if (shopOpen != null && (/shop buy|#shopModal .close|closeModal\(['"]shopModal/i.test(d))) {
-      intervals.push({ start: shopOpen, end: c.tSec + 4, kind: "shopModal" });
+      intervals.push({ start: Math.max(0, shopOpen - 12), end: c.tSec + 4, kind: "shopModal" });
       shopOpen = null;
     }
     if (/openModal\(['"]mapModal['"]\)|map open/i.test(d)) mapOpen = c.tSec;
