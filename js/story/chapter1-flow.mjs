@@ -60,13 +60,15 @@ export const CHAPTER1_OBJECTIVES = [
   "city_build"
 ];
 
-/** Old saves have no play id, so Chapter 1 starts again. Coins and the avatar stay. */
+/** Old saves have no play id, so the active chapter starts again. Coins and the avatar stay. */
 export function adoptChapterSave(player) {
   if (!player) return false;
   ensureChapter1(player);
-  if (player.chapter1.playId === CHAPTER1_PLAY_ID) return false;
+  const tutorial = typeof location !== "undefined" && new URLSearchParams(location.search).has("tutorial");
+  const nextId = tutorial ? CHAPTER1_PLAY_ID : "ms-signal";
+  if (player.chapter1.playId === nextId) return false;
   player.chapter1 = {
-    playId: CHAPTER1_PLAY_ID,
+    playId: nextId,
     crawlSeen: false,
     finaleSeen: false,
     ended: false
@@ -152,6 +154,10 @@ export function refreshGuide() {
   const el = document.getElementById("angelinaGuide");
   const player = window.me;
   if (!el || !player) return;
+  if (window.MissingSignal?.owns?.(player)) {
+    window.MissingSignal.refresh?.();
+    return;
+  }
   ensureChapter1(player);
   const key = guideKey(player);
   const stepId = window.Onboarding?.stepId?.() || "";
@@ -296,6 +302,7 @@ function finishFinale() {
 
 export function tryFinishChapter() {
   const player = window.me;
+  if (window.MissingSignal?.owns?.(player)) return false;
   if (!player || !chapterObjectivesMet(player)) return false;
   const st = ensureChapter1(player);
   if (st.ended) return false;
@@ -334,6 +341,10 @@ export function onWorldReady() {
   ensureChapter1(player);
   adoptChapterSave(player);
   startIdleWatch();
+  if (window.MissingSignal?.owns?.(player)) {
+    window.MissingSignal.boot?.();
+    return;
+  }
   if (shouldShowCrawl(player)) openCrawl();
   else {
     refreshGuide();

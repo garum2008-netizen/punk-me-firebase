@@ -108,7 +108,7 @@ async function oldSaveRestarts(browser) {
       inventory: { materials: {}, spells: [] }
     }));
   });
-  await page.goto(`${base}/?solo=1&v=old-save`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${base}/?solo=1&tutorial=1&v=old-save`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__playerLoaded === true && document.getElementById("chapterCrawl")?.classList.contains("active") === true, { timeout: 60000 });
   const state = await page.evaluate(() => ({
     coins: window.me.coins,
@@ -139,7 +139,7 @@ async function main() {
   await page.addInitScript({ content: AUDIO_INIT });
   const errors = [];
   page.on("pageerror", err => errors.push(err.message));
-  await page.goto(`${base}/?solo=1&v=cold`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${base}/?solo=1&tutorial=1&v=cold`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => typeof window.setLanguage === "function" && document.querySelectorAll("#charSelectUi .char-pick").length >= 1);
   await page.evaluate(() => setLanguage("en", true));
   await page.click('.char-pick[data-id="cobalt"]');

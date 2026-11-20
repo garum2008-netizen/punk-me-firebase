@@ -861,6 +861,7 @@ function init() {
       },
       onNpcClick: (nid) => openNpcDialog(nid),
       onInteract: () => {
+        if (window.MissingSignal?.owns?.(me) && window.MissingSignal.handleInteract?.()) return;
         const playCtx = { toast, save: saveMe, hasDog };
         const nid = window.World3D?.getNearestNpc?.() || null;
         const preferredNpcId = chapterWantsRazor() ? "razor" : null;
@@ -884,6 +885,10 @@ function init() {
       },
       onHints: h => window.updateContextHints?.(h),
       onPortal: (to) => {
+        if (window.MissingSignal?.owns?.(me) && window.MissingSignal.allowPortal && !window.MissingSignal.allowPortal(to)) {
+          window.MissingSignal.blockedPortal?.(to);
+          return;
+        }
         if (Date.now() < portalCooldown) return;
         portalCooldown = Date.now() + 1500;
         if (LOCATIONS[to]) goLocation(to);
@@ -1151,9 +1156,16 @@ function sanitizePlayer(p) {
           crawlSeen: !!p.chapter1.crawlSeen,
           finaleSeen: !!p.chapter1.finaleSeen,
           ended: !!p.chapter1.ended,
-          playId: p.chapter1.playId === "ch1-child" ? "ch1-child" : null
+          playId: p.chapter1.playId === "ch1-child" || p.chapter1.playId === "ms-signal" ? p.chapter1.playId : null
         }
       : { crawlSeen: false, finaleSeen: false, ended: false, playId: null },
+    missingSignal: p.missingSignal && typeof p.missingSignal === "object"
+      ? {
+          step: String(p.missingSignal.step || "cold"),
+          symbols: Number(p.missingSignal.symbols) || 0,
+          flags: p.missingSignal.flags && typeof p.missingSignal.flags === "object" ? { ...p.missingSignal.flags } : {}
+        }
+      : null,
     avatarLook: cleanAvatarLook(p.avatarLook),
     cityStones: Array.isArray(p.cityStones) ? p.cityStones.slice(0, 24) : [],
     roomPieces: Array.isArray(p.roomPieces) ? p.roomPieces.slice(0, 12).map(piece => ({
@@ -1419,6 +1431,10 @@ function afterLocationChange() {
 
 function goLocation(id, fromHash) {
   if (!LOCATIONS[id]) return;
+  if (window.MissingSignal?.owns?.(me) && window.MissingSignal.allowPortal && !window.MissingSignal.allowPortal(id)) {
+    window.MissingSignal.blockedPortal?.(id);
+    return;
+  }
   if (!fromHash && location.hash !== "#" + id) {
     history.replaceState(null, "", "#" + id);
   }

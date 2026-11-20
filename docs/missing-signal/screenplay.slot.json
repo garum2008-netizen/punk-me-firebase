@@ -1,0 +1,42 @@
+{
+  "id": "missing-signal-ch1",
+  "version": 1,
+  "primary": "ru",
+  "locales": ["ru", "en", "da"],
+  "note": "SLOT ONLY. The game does not load this file. The live script is data/story/missing-signal/screenplay.json, fetched by js/story/missing-signal.mjs. Do not copy story lines into this slot.",
+  "title": {
+    "ru": "Дом, которого нет",
+    "en": "House 13: The Missing Signal",
+    "da": "Hus 13: Det forsvundne signal"
+  },
+  "characters": [
+    { "id": "player", "presence_default": "body" },
+    { "id": "angelina", "presence_default": "absent" },
+    { "id": "angelina_screen", "presence_default": "absent" },
+    { "id": "razor", "presence_default": "body" },
+    { "id": "rusty_chains", "presence_default": "absent" },
+    { "id": "black_sparks", "presence_default": "absent" }
+  ],
+  "flags": [
+    { "id": "signal_heard", "values": [true] },
+    { "id": "missing_card_seen", "values": [true] },
+    { "id": "phone_watched", "values": [true] },
+    { "id": "door_unlocked", "values": [true] },
+    { "id": "writing_seen", "values": [true] },
+    { "id": "chains_version", "values": ["[PLACEHOLDER]"] },
+    { "id": "sparks_version", "values": ["[PLACEHOLDER]"] },
+    { "id": "razor_path", "values": ["beat", "outwit", "negotiate"] },
+    { "id": "symbols", "values": [0, 1, 2, 3] },
+    { "id": "cctv_seen", "values": [true] },
+    { "id": "companion", "values": [true] },
+    { "id": "hint_wrong_followed", "values": [true] },
+    { "id": "generator_on", "values": [true] },
+    { "id": "radio_found", "values": [true] },
+    { "id": "twist_seen", "values": [true] }
+  ],
+  "scenes": [],
+  "dialogues": [],
+  "cinematics": [],
+  "encounters": [],
+  "items": []
+}
