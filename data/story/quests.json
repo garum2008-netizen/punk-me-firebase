@@ -1,6 +1,28 @@
 {
   "quests": [
     {
+      "id": "q_tutorial",
+      "chapter": 0,
+      "type": "main",
+      "title": {
+        "ru": "Новенький в доме 13",
+        "en": "New kid at House 13",
+        "da": "Ny i hus 13"
+      },
+      "steps": [
+        {
+          "id": "s1",
+          "objective": {
+            "ru": "Пройди обучение с Angelina: комната → кухня → пёс → лифт → улица → Рейзор",
+            "en": "Finish Angelina's tutorial: room → kitchen → dog → elevator → street → Razor",
+            "da": "Fuldfør Angelinas tutorial: værelse → køkken → hund → elevator → gade → Razor"
+          },
+          "complete_on": "onboarding:done"
+        }
+      ],
+      "rewards": [{ "type": "xp", "value": 50 }]
+    },
+    {
       "id": "q_initiation_pay",
       "chapter": 1,
       "type": "main",

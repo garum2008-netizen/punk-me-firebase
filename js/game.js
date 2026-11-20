@@ -596,6 +596,7 @@ function startFreshPlayerKeepAccount() {
 }
 
 function hasDog() {
+  if (window.Onboarding?.needsTutorialDog?.()) return true;
   return me.pet === "pet_dog" || (me.owned || []).includes("pet_dog");
 }
 
@@ -819,7 +820,7 @@ function init() {
       onPortal: (to) => {
         if (Date.now() < portalCooldown) return;
         portalCooldown = Date.now() + 1500;
-        if (LOCATIONS[to]) goLocation(to);
+        if (LOCATIONS[to]) goLocation(to, false, true);
       },
       onReady: () => {
         syncStage3D();
@@ -909,6 +910,7 @@ function continueGameBoot() {
     initResponsiveHud();
     if (window.Onboarding) Onboarding.init();
     window.Onboarding?.adaptSpawnLocation?.();
+    window.ChapterGuide?.syncCompanion3d?.();
     if (me.onboarding?.done) {
       window.StoryEngine?.onOnboardingComplete?.();
       window.StoryEngine?.onLocationChange?.(me.location);
@@ -976,6 +978,10 @@ function renderMapModal() {
 function renderQuickNav() {
   const el = document.getElementById("navQuick");
   if (!el) return;
+  if (window.ChapterGuide?.portalFirstNav?.()) {
+    el.innerHTML = `<span class="nav-portal-hint">${escapeHtml(typeof t === "function" ? t("portal_nav_hint") : "Walk through glowing portals")}</span>`;
+    return;
+  }
   const picks = ["room", "street", "cemetery", "city", "construction", "roof", "parkour"].filter(id => id !== me.location);
   const navKey = {
     room: "nav_room", street: "nav_street", cemetery: "nav_cemetery", city: "nav_city",
@@ -1281,8 +1287,16 @@ function afterLocationChange() {
   }
 }
 
-function goLocation(id, fromHash) {
+function goLocation(id, fromHash, viaPortal) {
   if (!LOCATIONS[id]) return;
+  if (
+    window.ChapterGuide?.portalFirstNav?.() &&
+    !viaPortal &&
+    !fromHash
+  ) {
+    window.ChapterGuide?.showPortalBlockedHint?.();
+    return;
+  }
   if (!fromHash && location.hash !== "#" + id) {
     history.replaceState(null, "", "#" + id);
   }
@@ -1380,6 +1394,10 @@ function renderAll() {
   LifeEngine.onSceneRender(loc);
   LifeEngine.decorateEntities();
   renderQuickNav();
+  const mapBtn = document.querySelector('#panelBottom button[onclick*="mapModal"]');
+  if (mapBtn) {
+    mapBtn.style.display = window.ChapterGuide?.portalFirstNav?.() ? "none" : "";
+  }
   renderQuest();
   renderDailyQuestHud();
   renderNpcMarkers();
@@ -1444,6 +1462,7 @@ function renderPlayers() {
 function petDog(fromLife) {
   if (!fromLife) LifeEngine.barkAndPet();
   toast(t("petHappy"));
+  window.Onboarding?.onPetDog?.();
   me.dogHappy = Math.min(100, (me.dogHappy || 35) + 8);
   window.PlayV21?.bumpDaily?.(me, "pet_dog", { toast, save: saveMe });
   if (!isOwner) me.coins += 6;

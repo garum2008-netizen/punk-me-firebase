@@ -2,11 +2,11 @@
 
 export const ONBOARDING_STEP_IDS = [
   "move",
-  "go_street",
-  "talk_razor",
-  "visit_cemetery",
-  "win_fight",
-  "shop_buy"
+  "visit_kitchen",
+  "pet_dog",
+  "visit_elevator",
+  "visit_street",
+  "talk_razor"
 ];
 
 export function onboardingStepId(onboarding) {
@@ -19,7 +19,7 @@ export function onboardingStepId(onboarding) {
 /** Talk / duel steps on the street: E must not pay the arcade. */
 export function streetTalkBlocksArcade(onboarding) {
   const id = onboardingStepId(onboarding);
-  return id === "talk_razor" || id === "win_fight";
+  return id === "talk_razor";
 }
 
 /**

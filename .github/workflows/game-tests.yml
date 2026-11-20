@@ -1,0 +1,34 @@
+name: Game tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [cursor/**]
+
+jobs:
+  unit-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run test:task03
+
+  chapter-journey:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install chromium
+      - name: Start static server
+        run: |
+          npx serve -l 3456 . &
+          sleep 3
+      - run: npm run test:chapter1

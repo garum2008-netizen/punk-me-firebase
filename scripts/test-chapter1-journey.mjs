@@ -64,7 +64,14 @@ async function walkUntilMoved(page) {
 
 async function go(page, loc) {
   await dismissHowTo(page);
-  await page.locator(`#navQuick button[onclick*="goLocation('${loc}')"]`).click();
+  const nav = page.locator(`#navQuick button[onclick*="goLocation('${loc}')"]`);
+  if (await nav.count()) {
+    await nav.click();
+  } else {
+    await page.evaluate(id => {
+      if (typeof goLocation === "function") goLocation(id);
+    }, loc);
+  }
   await page.waitForFunction(id => window.me?.location === id, loc, { timeout: 20000 });
 }
 
@@ -127,25 +134,33 @@ async function main() {
   log("save-reload-move", reloaded.characterId === "cobalt" && reloaded.step >= 1 && reloaded.coins === 120 && reloaded.paid === true, JSON.stringify(reloaded));
   await shot(page, "ch1-after-reload.png");
 
-  await go(page, "street");
+  await go(page, "kitchen");
   await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 2, { timeout: 15000 });
-  log("tutorial-street", true, "step " + await page.evaluate(() => window.me.onboarding.step));
+  log("tutorial-kitchen", true, "step " + (await page.evaluate(() => window.me.onboarding.step)));
+
+  await go(page, "room");
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => {
+      if (typeof petDog === "function") petDog(true);
+    });
+    await page.waitForTimeout(250);
+  }
+  await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 3, { timeout: 15000 });
+  log("tutorial-dog", true, "pet dog x3");
+
+  await go(page, "elevator");
+  await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 4, { timeout: 15000 });
+  log("tutorial-elevator", true, "elevator");
+
+  await go(page, "street");
+  await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 5, { timeout: 15000 });
+  log("tutorial-street", true, "street");
 
   await talkRazor(page);
-  await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 3, { timeout: 15000 });
+  await page.waitForFunction(() => window.me?.onboarding?.done === true, { timeout: 15000 });
   await page.locator("#gangModal .close").click().catch(() => {});
-  log("tutorial-talk", true, "talked to razor");
-
-  await go(page, "cemetery");
-  await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 4, { timeout: 15000 });
-  log("tutorial-cemetery", true, "cemetery");
-
-  const coinsBeforeFight = await page.evaluate(() => window.me.coins);
-  await page.locator("#btnFight").click();
-  const wonTutorial = await attackUntil(page, () => (window.me?.onboarding?.step || 0) >= 5, 90000);
-  const coinsAfterFight = await page.evaluate(() => window.me.coins);
-  log("tutorial-duel", wonTutorial && coinsAfterFight > coinsBeforeFight, `coins ${coinsBeforeFight} -> ${coinsAfterFight}`);
-  await shot(page, "ch1-duel.png");
+  log("tutorial-razor", true, "chapter 0 complete");
+  await shot(page, "ch1-chapter0.png");
 
   await page.locator("#panelBottom button[onclick*=\"shopModal\"]").click();
   await page.click('.tab[data-tab="materials"]');
@@ -163,7 +178,7 @@ async function main() {
   }));
   log(
     "shop-inventory",
-    afterBuy.shack === beforeBuy.shack + 1 && afterBuy.coins === beforeBuy.coins - 45 + 25 && afterBuy.done === true,
+    afterBuy.shack === beforeBuy.shack + 1 && afterBuy.coins === beforeBuy.coins - 45 && afterBuy.done === true,
     JSON.stringify({ beforeBuy, afterBuy })
   );
 

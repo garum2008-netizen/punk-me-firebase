@@ -325,6 +325,13 @@ function onJoinedGang() {
   const p = me();
   const st = ensureStoryState(p);
   st.flags.joined_gang = true;
+  window.__angelinaCompanionOn = false;
+  const bye = L({
+    ru: "Angelina: Ты свой. Дальше — с бандой!",
+    en: "Angelina: You're in. Go with the gang!",
+    da: "Angelina: Du er med. Videre med bandet!"
+  });
+  hooks.toast?.(bye);
   if ((st.authority || 0) < 100) st.authority = 100;
   st.gang_rank = "gang_member";
   st.auth = st.auth || {};
@@ -655,6 +662,42 @@ export function renderObjectivePanel() {
       });
     }
   } else {
+    const initiationDone =
+      st.quest.completed?.q_initiation_pay ||
+      st.quest.completed?.q_initiation_duel ||
+      st.quest.completed?.q_initiation_graffiti;
+    let handled = false;
+  if (!st.flags.joined_gang && p.onboarding?.done && !initiationDone) {
+      const q = getActiveQuest();
+      const step = getActiveStep();
+      if (q?.type === "main" && String(q.id || "").startsWith("q_initiation_") && step) {
+        title = L(q.title);
+        objective = L(step.objective);
+        if (step.beacon) setBeacon(step.beacon);
+        const hintLevel = st.idleHintLevel || 0;
+        if (hintLevel > 0 && step.hint_60s) sub = L(step.hint_60s);
+        handled = true;
+      } else {
+        title = L({
+          ru: "Глава 1 · Прописка в банде",
+          en: "Chapter 1 · Join the gang",
+          da: "Kapitel 1 · Bliv en del af bandet"
+        });
+        objective = L({
+          ru: "Иди на Улицу и поговори с Рейзором (E). Выбери испытание.",
+          en: "Go to Gang Street and talk to Razor (E). Pick your trial.",
+          da: "Gå til Bandegaden og tal med Razor (E). Vælg din prøve."
+        });
+        sub = L({
+          ru: "Angelina ведёт к неону — только через порталы.",
+          en: "Angelina leads to the neon — use portals only.",
+          da: "Angelina leder til neonet — kun via portaler."
+        });
+        setBeacon("npc_razor");
+        handled = true;
+      }
+    }
+    if (!handled) {
     const authObj = !st.flags.joined_gang ? Authority.getAuthorityObjective(p) : null;
     if (authObj) {
       title = authObj.title;
@@ -685,16 +728,21 @@ export function renderObjectivePanel() {
       });
     }
     }
+    }
   }
 
   Authority.renderAuthorityHud(p);
+  const angelina = window.ChapterGuide?.panelHtml?.() || "";
   box.innerHTML = `<div class="quest-tracker story-objective">
+    ${angelina}
     <b>${escapeHtml(title)}</b>
     <div class="quest-step-title">${escapeHtml(objective)}</div>
     ${sub ? `<div class="quest-step-text story-subgoal">${escapeHtml(sub)}</div>` : ""}
     <div class="story-meters"><span>⚡ ${Math.round(p.energy ?? st.energy)}</span> <span>☺ ${Math.round(p.mood ?? st.mood)}</span></div>
   </div>`;
+  window.ChapterGuide?.syncCompanion3d?.();
   updateConstructionHud();
+  syncBeacon();
   return true;
 }
 
@@ -1001,10 +1049,18 @@ export function initStoryEngine(h) {
 }
 
 export function onOnboardingComplete() {
-  Authority.startAuthorityPath(me());
+  const p = me();
+  const st = ensureStoryState(p);
+  st.chapter = Math.max(st.chapter || 0, 1);
+  st.quest.completed = st.quest.completed || {};
+  st.quest.completed.q_tutorial = true;
+  setBeacon("npc_razor");
+  window.ChapterGuide?.onChapter0Complete?.();
+  Authority.startAuthorityPath(p);
   pickNextObjective();
   renderObjectivePanel();
   Authority.renderAuthorityHud();
+  syncBeacon();
 }
 
 const api = {

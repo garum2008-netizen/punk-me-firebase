@@ -37,6 +37,7 @@ import {
   setQuestMarkersVisible,
   clearQuestMarkers
 } from "./world/quest-markers.mjs";
+import { ensureAngelinaSprite, updateAngelinaCompanion } from "./world/angelina-companion.mjs";
 import { initTouchControls } from "./touch-controls.mjs";
 import { buildHangoutVisual } from "./world/construction-hangout.mjs";
 import { tickStory } from "./story/story-engine.mjs";
@@ -396,6 +397,7 @@ function rebuildLocation(locId) {
   (locationProps.cats || []).forEach(c => locationRoot.add(c));
   spawnParticles(locId);
   ensureMarkerRoot(scene);
+  ensureAngelinaSprite(scene);
   onGameplayLocationBuilt(locId, locationRoot, bounds);
 }
 
@@ -1374,6 +1376,7 @@ function loop() {
   else {
     setQuestMarkersVisible(true);
     setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    updateAngelinaCompanion(!!window.__angelinaCompanionOn, actors.get("player"), sceneTime);
   }
   const nearNpc = getNearestNpcId();
   const nearPortal = getNearPortal();

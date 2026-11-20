@@ -84,7 +84,7 @@ function testOnboardingRewards() {
 }
 
 function testStreetInteract() {
-  const talk = { step: 2, done: false, progress: {}, paid: {} };
+  const talk = { step: 5, done: false, progress: {}, paid: {} };
   assert.deepEqual(resolvePrimaryInteract({ location: "street", nearestNpcId: "razor" }), {
     type: "npc",
     npcId: "razor"
