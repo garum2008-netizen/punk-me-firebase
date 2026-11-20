@@ -121,6 +121,7 @@ function completeStep() {
   else saveMeQuiet();
   renderOnboardingQuest();
   syncGuideTarget();
+  window.ChapterGuide?.syncCompanion3d?.();
 }
 
 function saveMeQuiet() {
@@ -233,6 +234,7 @@ function initOnboarding() {
   ensurePlayerOnboarding();
   renderOnboardingQuest();
   syncGuideTarget();
+  window.ChapterGuide?.syncCompanion3d?.();
 }
 
 window.Onboarding = {
