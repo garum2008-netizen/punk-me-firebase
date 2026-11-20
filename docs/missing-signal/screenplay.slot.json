@@ -3,11 +3,11 @@
   "version": 1,
   "primary": "ru",
   "locales": ["ru", "en", "da"],
-  "note": "SLOT ONLY. The game does not load this file. Replace it with data/story/missing-signal/screenplay.json when the CEO screenplay is approved. Do not put story lines here.",
+  "note": "SLOT ONLY. The game does not load this file. The live script is data/story/missing-signal/screenplay.json, fetched by js/story/missing-signal.mjs. Do not copy story lines into this slot.",
   "title": {
     "ru": "Дом, которого нет",
     "en": "House 13: The Missing Signal",
-    "da": "[PLACEHOLDER]"
+    "da": "Hus 13: Det forsvundne signal"
   },
   "characters": [
     { "id": "player", "presence_default": "body" },

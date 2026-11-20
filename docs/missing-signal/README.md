@@ -2,7 +2,7 @@
 
 Russian title: **Дом, которого нет**.
 
-Status of this folder: planning documents for owner approval. No scene in this folder is cleared to build.
+Status of this folder: the plan below is the record of the 20 Nov outline. The later takeover told Cursor to write the script and a playable chapter on this branch. That playable build is local. The closed preview still serves the rejected tutorial. Production stays on hold. This folder is not an acceptance.
 
 ## What the owner decided
 
@@ -31,7 +31,11 @@ The lamp exists to reveal hidden writing. The stall is cover for a secret radio.
 | [AUDIT.md](AUDIT.md) | What the current game already has, what can be turned, and what the outline still needs. File paths included. |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Scene-by-scene build order, scope, risks, and the age-appropriate QA gates. |
 | [DIALOGUE_SPEC.md](DIALOGUE_SPEC.md) | The data format the screenplay will load into. |
-| [screenplay.slot.json](screenplay.slot.json) | Empty slot. The game does not load it. The CEO fills the real screenplay later. |
+| [screenplay.slot.json](screenplay.slot.json) | Empty contract. The game does not load it. |
+| [CHARACTER_BIBLE.md](CHARACTER_BIBLE.md) | Who is already approved, who is new, and which mesh is not replaced. |
+| [CONTINUITY.md](CONTINUITY.md) | Lines, flags, and facts the chapter is not allowed to contradict. |
+| [CINEMATICS.md](CINEMATICS.md) | What the cold open actually draws, and what is still only in the outline. |
+| [CHAPTERS_2_5.md](CHAPTERS_2_5.md) | Setup for later chapters. Not a playable script and not a build GO. |
 
 ## Quality gates
 
@@ -49,6 +53,6 @@ A later build may be called complete only when all of these are true on one test
 
 ## Holds
 
-Do not merge. Do not deploy. Do not buy assets or a voice. Do not delete the rejected story docs, the preview, saves, models, or espeak files. `f70cac8` stays the parent commit and is not rewritten.
+Do not merge. Do not deploy production. Do not buy assets or a voice. Do not delete the rejected story docs, the preview, saves, models, or espeak files. `f70cac8` stays in history and is not rewritten. A preview update of `punk-me-ch1-preview` is allowed only when an upload credential is already on the machine. This machine does not have one.
 
 The closed preview `https://punk-me-ch1-preview.pages.dev` still serves `3f0f3d367f862a2baa2d32e21dc859eddf6e67da` (checked 20 Nov 2026, 23:49 Europe/Copenhagen). That deployment is the rejected tutorial. It is not this plan.

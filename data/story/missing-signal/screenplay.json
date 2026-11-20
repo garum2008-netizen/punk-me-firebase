@@ -1,0 +1,504 @@
+{
+  "id": "missing-signal-ch1",
+  "version": 1,
+  "primary": "ru",
+  "locales": ["ru", "en", "da"],
+  "title": {
+    "ru": "Дом, которого нет",
+    "en": "House 13: The Missing Signal",
+    "da": "Hus 13: Det forsvundne signal"
+  },
+  "ui": {
+    "next": { "ru": "Дальше", "en": "Next", "da": "Videre" },
+    "skip": { "ru": "Пропустить", "en": "Skip", "da": "Spring over" },
+    "tell": { "ru": "Он замахивается!", "en": "He winds up!", "da": "Han svinger!" },
+    "controls": {
+      "ru": "W A S D или джойстик — идти. E — сделать то, что написано в цели.",
+      "en": "W A S D or the joystick — walk. E — do what the objective says.",
+      "da": "W A S D eller joysticket — gå. E — gør det, målet siger."
+    },
+    "end_ok": { "ru": "Ночь не кончена", "en": "The night is not over", "da": "Natten er ikke slut" }
+  },
+  "coldOpen": {
+    "skipAfter": "missing_card",
+    "beats": [
+      {
+        "id": "earpiece",
+        "ms": 7000,
+        "speaker": "angelina",
+        "text": {
+          "ru": "Если ты это слышишь, значит, они уже нашли меня. Никому не верь. Особенно тем, у кого нашивка с цепью.",
+          "en": "If you can hear this, they have already found me. Trust no one. Especially anyone with the chain patch.",
+          "da": "Hvis du kan høre det her, har de allerede fundet mig. Stol på ingen. Især ikke dem med kæde-mærket."
+        }
+      },
+      {
+        "id": "missing_card",
+        "ms": 5000,
+        "card": {
+          "ru": "АНГЕЛИНА ПРОПАЛА. ПОСЛЕДНИЙ СИГНАЛ — ДОМ 13",
+          "en": "ANGELINA IS MISSING. LAST SIGNAL — HOUSE 13",
+          "da": "ANGELINA ER FORSVUNDET. SIDSTE SIGNAL — HUS 13"
+        }
+      },
+      {
+        "id": "door",
+        "ms": 6000,
+        "card": {
+          "ru": "Дверь дома 13 открывается сама. На стене написано: ТЫ СЛЕДУЮЩИЙ.",
+          "en": "The door of House 13 opens by itself. The wall says: YOU'RE NEXT.",
+          "da": "Døren til hus 13 åbner sig selv. På væggen står der: DU ER DEN NÆSTE."
+        }
+      }
+    ]
+  },
+  "steps": {
+    "s1_phone": {
+      "loc": "room",
+      "objective": {
+        "ru": "Ангелины нет в комнате. На окне чёрный кот с зелёными глазами сторожит её телефон. Посмотри запись.",
+        "en": "Angelina is not in the room. A black cat with green eyes is guarding her phone on the windowsill. Watch the recording.",
+        "da": "Angelina er ikke i værelset. En sort kat med grønne øjne vogter hendes telefon i vinduet. Se optagelsen."
+      },
+      "action": { "ru": "Смотреть телефон", "en": "Watch the phone", "da": "Se telefonen" },
+      "speaker": "angelina",
+      "lines": [
+        {
+          "ru": "Если ты это смотришь, я ещё была в доме. Кот на окне — сторож, не трогай его. Лампа над кроватью светит не просто так: под абажуром запись. Если свет погаснет, не зови банду. Банда уже слушает.",
+          "en": "If you are watching this, I was still in the house. The cat in the window is a guard. Leave him. The lamp over the bed is not just a lamp: there is writing under the shade. If the lights die, do not call the gang. The gang is already listening.",
+          "da": "Hvis du ser det her, var jeg stadig i huset. Katten i vinduet er en vagt. Rør ham ikke. Lampen over sengen er ikke bare en lampe: der står noget under skærmen. Hvis lyset dør, så kald ikke banden. Banden lytter allerede."
+        }
+      ],
+      "set": ["phone_watched"],
+      "next": "s1_blackout"
+    },
+    "s1_blackout": {
+      "loc": "room",
+      "blackout": true,
+      "objective": {
+        "ru": "Свет погас. Дверь на улицу заперта. В темноте цель одна: лампа, о которой она сказала.",
+        "en": "The lights are out. The street door is locked. In the dark there is one goal: the lamp she named.",
+        "da": "Lyset er gået ud. Gadedøren er låst. I mørket er der ét mål: lampen, hun nævnte."
+      },
+      "action": { "ru": "Найти лампу", "en": "Find the lamp", "da": "Find lampen" },
+      "speaker": "room",
+      "lines": [
+        {
+          "ru": "Щёлк. Комната чёрная. Кот не мяукает. Замок на двери сам повернулся. Её голос в телефоне уже кончился.",
+          "en": "Click. The room is black. The cat does not meow. The lock on the door turned by itself. Her voice on the phone is already gone.",
+          "da": "Klik. Værelset er sort. Katten miaver ikke. Låsen på døren drejede sig selv. Hendes stemme i telefonen er allerede væk."
+        }
+      ],
+      "next": "s1_lamp"
+    },
+    "s1_lamp": {
+      "loc": "room",
+      "blackout": true,
+      "objective": {
+        "ru": "Зажги лампу. Она ничего не продаёт: она показывает то, что Ангелина спрятала.",
+        "en": "Light the lamp. It is not for sale. It shows what Angelina hid.",
+        "da": "Tænd lampen. Den er ikke til salg. Den viser det, Angelina gemte."
+      },
+      "action": { "ru": "Зажечь лампу", "en": "Light the lamp", "da": "Tænd lampen" },
+      "speaker": "writing",
+      "lines": [
+        {
+          "ru": "Под абажуром, её рукой: «НЕ ВЕРЬ НАШИВКЕ. УСЛЫШЬ ОБЕ БАНДЫ. ПОТОМ КЛАДБИЩЕ. ТРИ ЗНАКА: ДОМ, ЦЕПЬ, ИСКРА».",
+          "en": "Under the shade, in her handwriting: \"DO NOT TRUST THE PATCH. HEAR BOTH GANGS. THEN THE CEMETERY. THREE MARKS: HOUSE, CHAIN, SPARK.\"",
+          "da": "Under skærmen, med hendes hånd: \"STOL IKKE PÅ MÆRKET. HØR BEGGE BANDE. SÅ KIRKEGÅRDEN. TRE TEGN: HUS, KÆDE, GNIST.\""
+        }
+      ],
+      "set": ["writing_seen", "door_unlocked"],
+      "clearBlackout": true,
+      "next": "s1_door"
+    },
+    "s1_door": {
+      "loc": "street",
+      "objective": {
+        "ru": "Дверь снова открыта. Выйди на улицу Тыквограда. Нашивка с цепью — не друг, пока ты не услышишь обе версии.",
+        "en": "The door is open again. Go out into Pumpkingrad. A chain patch is not a friend until you have heard both versions.",
+        "da": "Døren er åben igen. Gå ud i Græskarby. Et kæde-mærke er ikke en ven, før du har hørt begge versioner."
+      },
+      "action": { "ru": "Выйти на улицу", "en": "Go to the street", "da": "Gå ud på gaden" },
+      "speaker": "you",
+      "lines": [
+        {
+          "ru": "Ночь мокрая, неон розовый. Над воротами написано «ТЫКВОГРАД». Рейзор стоит у дома, нашивка с цепью на груди. Он уже видит, что ты вышел.",
+          "en": "The night is wet, the neon is pink. The gate says PUMPKINGRAD. Razor is by the house, the chain patch on his chest. He already sees you come out.",
+          "da": "Natten er våd, neonet er lyserødt. På porten står GRÆSKARBY. Razor står ved huset med kæde-mærket på brystet. Han ser allerede, at du kommer ud."
+        }
+      ],
+      "next": "s2_chains"
+    },
+    "s2_chains": {
+      "loc": "street",
+      "objective": {
+        "ru": "Слушай версию Ржавых Цепей. Пока это только одна сторона.",
+        "en": "Hear the Rusty Chains' version. So far it is only one side.",
+        "da": "Hør De Rustne Kæders version. Indtil videre er det kun den ene side."
+      },
+      "action": { "ru": "Слушать Рейзора", "en": "Listen to Razor", "da": "Lyt til Razor" },
+      "speaker": "razor",
+      "lines": [
+        {
+          "ru": "Ржавые Цепи своих не гасят. Пропажи — дело Чёрных Искр. Они выключают районы, чтобы сорвать нашу нашивку с города. Ангелину забрали они. Я говорил ей не открывать дверь.",
+          "en": "The Rusty Chains do not switch off their own. The disappearances are the Black Sparks' work. They shut districts down to tear our patch off the city. They took Angelina. I told her not to open the door.",
+          "da": "De Rustne Kæder slukker ikke for deres egne. Forsvindingerne er De Sorte Gnisters værk. De slukker kvarterer for at rive vores mærke af byen. De tog Angelina. Jeg sagde til hende, at hun ikke skulle åbne døren."
+        }
+      ],
+      "set": ["chains_version"],
+      "next": "s2_sparks"
+    },
+    "s2_sparks": {
+      "loc": "city",
+      "objective": {
+        "ru": "На площади другая банда. Услышь Чёрных Искр. Их история не совпадёт.",
+        "en": "The other gang is on the square. Hear the Black Sparks. Their story will not match.",
+        "da": "Den anden bande er på pladsen. Hør De Sorte Gnister. Deres historie passer ikke."
+      },
+      "action": { "ru": "Слушать Искру", "en": "Listen to Spark", "da": "Lyt til Gnist" },
+      "speaker": "spark",
+      "lines": [
+        {
+          "ru": "Меня зовут Искра. Цепи сами гасят свет, а потом ищут виноватых. Ангелина ушла к ним сама. Спроси Рейзора, куда он дел её наушник. И не верь человеку, который носит её страх на куртке.",
+          "en": "My name is Spark. The Chains shut the lights off themselves, then go looking for someone to blame. Angelina went to them on her own. Ask Razor what he did with her earpiece. And do not trust a man who wears her fear on his jacket.",
+          "da": "Jeg hedder Gnist. Kæderne slukker selv lyset og leder så efter nogen at give skylden. Angelina gik til dem af sig selv. Spørg Razor, hvad han gjorde med hendes øresnegl. Og stol ikke på en mand, der bærer hendes frygt på jakken."
+        }
+      ],
+      "set": ["sparks_version"],
+      "next": "s2_conflict"
+    },
+    "s2_conflict": {
+      "loc": "city",
+      "objective": {
+        "ru": "Две версии не могут быть правдой сразу. Рейзор говорит: её забрали Искры. Искра говорит: она ушла к Цепям сама. Вернись к нему с этим.",
+        "en": "Both versions cannot be true. Razor says the Sparks took her. Spark says she went to the Chains on her own. Go back to him with that.",
+        "da": "Begge versioner kan ikke være sande. Razor siger, at Gnisterne tog hende. Gnist siger, at hun gik til Kæderne af sig selv. Gå tilbage til ham med det."
+      },
+      "action": { "ru": "Вернуться к Рейзору", "en": "Go back to Razor", "da": "Gå tilbage til Razor" },
+      "speaker": "you",
+      "lines": [
+        {
+          "ru": "Ты держишь в голове обе фразы. Кто-то из них врёт. Или врут оба, и Ангелина оставила тебе выбор нарочно.",
+          "en": "You hold both sentences in your head. One of them is lying. Or both are, and Angelina left you the choice on purpose.",
+          "da": "Du holder begge sætninger i hovedet. En af dem lyver. Eller begge gør, og Angelina gav dig valget med vilje."
+        }
+      ],
+      "next": "s3_choice"
+    },
+    "s3_choice": {
+      "loc": "street",
+      "objective": {
+        "ru": "Рейзор знает, куда она пошла. Можно ударить, перехитрить или договориться. Город запомнит, что ты выбрал.",
+        "en": "Razor knows where she went. You can hit, outwit, or bargain. The city will remember which you pick.",
+        "da": "Razor ved, hvor hun gik hen. Du kan slå, overliste eller handle. Byen husker, hvad du vælger."
+      },
+      "choices": [
+        {
+          "id": "beat",
+          "text": { "ru": "Бить. Пусть скажет после боя.", "en": "Beat him. He can talk after the fight.", "da": "Slå ham. Han kan tale efter kampen." },
+          "next": "s3_beat"
+        },
+        {
+          "id": "outwit",
+          "text": { "ru": "Перехитрить. Нашивка у него пришита задом наперёд.", "en": "Outwit him. His patch is sewn on backwards.", "da": "Overlist ham. Hans mærke er syet på bagvendt." },
+          "next": "s3_outwit"
+        },
+        {
+          "id": "negotiate",
+          "text": { "ru": "Договориться. Показать запись с лампы.", "en": "Bargain. Show him the writing from the lamp.", "da": "Forhandl. Vis ham skriften fra lampen." },
+          "next": "s3_negotiate"
+        }
+      ]
+    },
+    "s3_beat": {
+      "loc": "street",
+      "kind": "duel",
+      "objective": {
+        "ru": "Он замахивается цепью до удара. Блок или уклонение в этот миг. Цепь вслепую не попадает.",
+        "en": "He winds the chain up before he swings. Block or dodge in that moment. A blind Chain does not land.",
+        "da": "Han svinger kæden op, før han slår. Blok eller undvig i det øjeblik. En blind Kæde rammer ikke."
+      },
+      "next": "s4_enter"
+    },
+    "s3_outwit": {
+      "loc": "street",
+      "objective": {
+        "ru": "Ты поймал его на нашивке. Смотри, что он сделает.",
+        "en": "You caught him on the patch. Watch what he does.",
+        "da": "Du fangede ham på mærket. Se, hvad han gør."
+      },
+      "action": { "ru": "Сказать про нашивку", "en": "Name the patch", "da": "Sig det om mærket" },
+      "speaker": "razor",
+      "lines": [
+        {
+          "ru": "Он смотрит вниз и перешивает нашивку на место. Руки дрожат. «Ладно. Не Искры. Она ушла под кладбище. Маска была не моя. Я пытался её остановить.»",
+          "en": "He looks down and stitches the patch back the right way. His hands shake. \"Fine. Not the Sparks. She went under the cemetery. The mask was not mine. I tried to stop her.\"",
+          "da": "Han ser ned og syr mærket rigtigt på igen. Hænderne ryster. \"Fint. Ikke Gnisterne. Hun gik ned under kirkegården. Masken var ikke min. Jeg prøvede at stoppe hende.\""
+        }
+      ],
+      "set": ["razor_path:outwit"],
+      "next": "s4_enter"
+    },
+    "s3_negotiate": {
+      "loc": "street",
+      "objective": {
+        "ru": "Ты показываешь запись с лампы. Он читает три знака и меняет ответ.",
+        "en": "You show him the writing from the lamp. He reads the three marks and changes his answer.",
+        "da": "Du viser ham skriften fra lampen. Han læser de tre tegn og skifter svar."
+      },
+      "action": { "ru": "Показать запись", "en": "Show the writing", "da": "Vis skriften" },
+      "speaker": "razor",
+      "lines": [
+        {
+          "ru": "«Дом, цепь, искра. Это её порядок, не мой. Она пошла под кладбище сама. Маска на записи — предупреждение: не верь лицу, верь тому, кто стоит рядом. Я не отдам тебе её. Я отдам тебе проход.»",
+          "en": "\"House, chain, spark. That is her order, not mine. She went under the cemetery on her own. The mask on the tape is a warning: do not trust the face, trust the one standing next to you. I will not hand her over. I will hand you the passage.\"",
+          "da": "\"Hus, kæde, gnist. Det er hendes rækkefølge, ikke min. Hun gik ned under kirkegården af sig selv. Masken på båndet er en advarsel: stol ikke på ansigtet, stol på den, der står ved siden af dig. Jeg giver dig ikke hende. Jeg giver dig passagen.\""
+        }
+      ],
+      "set": ["razor_path:negotiate"],
+      "next": "s4_enter"
+    },
+    "s4_enter": {
+      "loc": "cemetery",
+      "objective": {
+        "ru": "Под кладбищем есть ход. Три знака в её порядке: дом, цепь, искра. Ошибка гасит все три.",
+        "en": "There is a passage under the cemetery. Three marks in her order: house, chain, spark. A mistake puts all three out.",
+        "da": "Der er en gang under kirkegården. Tre tegn i hendes rækkefølge: hus, kæde, gnist. En fejl slukker alle tre."
+      },
+      "action": { "ru": "Войти в ход", "en": "Enter the passage", "da": "Gå ind i gangen" },
+      "speaker": "passage",
+      "lines": [
+        {
+          "ru": "Камни расходятся. Внизу сухо и тихо, без крика. На стене три знака, тёмные, пока их не коснуться.",
+          "en": "The stones part. Below it is dry and quiet, with no scream. Three marks on the wall, dark until you touch them.",
+          "da": "Stenene går fra hinanden. Nedenunder er der tørt og stille, uden skrig. Tre tegn på væggen, mørke, indtil du rører dem."
+        }
+      ],
+      "next": "s4_symbols"
+    },
+    "s4_symbols": {
+      "loc": "cemetery",
+      "kind": "symbols",
+      "order": ["house", "chain", "spark"],
+      "objective": {
+        "ru": "Порядок с лампы: дом, потом цепь, потом искра.",
+        "en": "The order from the lamp: house, then chain, then spark.",
+        "da": "Rækkefølgen fra lampen: hus, så kæde, så gnist."
+      },
+      "choices": [
+        { "id": "house", "text": { "ru": "Знак дома", "en": "The house mark", "da": "Hus-tegnet" } },
+        { "id": "chain", "text": { "ru": "Знак цепи", "en": "The chain mark", "da": "Kæde-tegnet" } },
+        { "id": "spark", "text": { "ru": "Знак искры", "en": "The spark mark", "da": "Gnist-tegnet" } }
+      ],
+      "wrong": {
+        "ru": "Знаки гаснут. Порядок сбит. На стене на миг её почерк: «Сначала дом.»",
+        "en": "The marks go dark. The order is broken. For a second her handwriting is on the wall: \"House first.\"",
+        "da": "Tegnene går ud. Rækkefølgen er brudt. Et sekund står hendes skrift på væggen: \"Hus først.\""
+      },
+      "next": "s4_cctv"
+    },
+    "s4_cctv": {
+      "loc": "cemetery",
+      "objective": {
+        "ru": "Камера ожила. Смотри запись до конца.",
+        "en": "The camera woke up. Watch the recording to the end.",
+        "da": "Kameraet vågnede. Se optagelsen til ende."
+      },
+      "action": { "ru": "Смотреть камеру", "en": "Watch the camera", "da": "Se kameraet" },
+      "speaker": "cctv",
+      "lines": [
+        {
+          "ru": "На записи Ангелина сама входит в запретную зону. Рядом кто-то в маске Рейзора. Она не бежит. Она кивает. Маска не снимается. Камера гаснет на её улыбке.",
+          "en": "On the tape Angelina walks into the forbidden zone on her own. Someone in Razor's mask is beside her. She does not run. She nods. The mask stays on. The camera dies on her smile.",
+          "da": "På båndet går Angelina selv ind i den forbudte zone. Ved siden af hende er der nogen med Razors maske. Hun løber ikke. Hun nikker. Masken bliver på. Kameraet dør på hendes smil."
+        }
+      ],
+      "set": ["cctv_seen"],
+      "next": "s5_comms"
+    },
+    "s5_comms": {
+      "loc": "cemetery",
+      "objective": {
+        "ru": "Наушник ожил. Это она, живая. Её тела ещё нет рядом.",
+        "en": "The earpiece woke up. It is her, alive. Her body is still not beside you.",
+        "da": "Øresneglen vågnede. Det er hende, i live. Hendes krop er stadig ikke ved siden af dig."
+      },
+      "action": { "ru": "Ответить в наушник", "en": "Answer the earpiece", "da": "Svar i øresneglen" },
+      "speaker": "angelina",
+      "lines": [
+        {
+          "ru": "Наконец-то. Я специально оставила следы. Районы гаснут в 00:13, и я хотела узнать, кто держит рубильник. Кот до сих пор орёт на окне. Мёртвые коты молчат, так что я ещё не призрак. Не верь экрану, если он заговорит моим лицом.",
+          "en": "Finally. I left the clues on purpose. Districts go dark at 00:13, and I wanted to know who holds the switch. The cat is still yowling in the window. Dead cats stay quiet, so I am not a ghost yet. Do not trust a screen if it starts talking with my face.",
+          "da": "Endelig. Jeg lagde sporene med vilje. Kvarterer bliver mørke klokken 00:13, og jeg ville vide, hvem der holder afbryderen. Katten hyler stadig i vinduet. Døde katte tier, så jeg er ikke et spøgelse endnu. Stol ikke på en skærm, hvis den taler med mit ansigt."
+        },
+        {
+          "ru": "Ты молчал всю ночь, а я сидела в темноте. Могла сказать раньше. Не сказала: они резали сигнал. Сейчас слушай внимательно, я тоже могу ошибиться.",
+          "en": "You were quiet all night, and I was sitting in the dark. I could have said it sooner. I did not: they were cutting the signal. Listen carefully now. I can be wrong too.",
+          "da": "Du var stille hele natten, og jeg sad i mørket. Jeg kunne have sagt det før. Det gjorde jeg ikke: de klippede signalet. Lyt godt efter nu. Jeg kan også tage fejl."
+        }
+      ],
+      "next": "s5_fork"
+    },
+    "s5_fork": {
+      "loc": "cemetery",
+      "objective": {
+        "ru": "Она говорит: рубильник на кухне дома 13, за холодильником. Ты можешь пойти туда или сразу на площадь.",
+        "en": "She says the switch is in the House 13 kitchen, behind the fridge. You can go there, or straight to the square.",
+        "da": "Hun siger, at afbryderen er i køkkenet i hus 13, bag køleskabet. Du kan gå derhen eller direkte til pladsen."
+      },
+      "choices": [
+        {
+          "id": "wrong",
+          "text": { "ru": "Проверить кухню, как она сказала.", "en": "Check the kitchen, like she said.", "da": "Tjek køkkenet, som hun sagde." },
+          "next": "s5_wrong"
+        },
+        {
+          "id": "right",
+          "text": { "ru": "Не верить. Идти на площадь, к башне.", "en": "Don't believe it. Go to the square, to the tower.", "da": "Tro ikke på det. Gå til pladsen, til tårnet." },
+          "next": "s5_right"
+        }
+      ]
+    },
+    "s5_wrong": {
+      "loc": "kitchen",
+      "objective": {
+        "ru": "Кухня пустая. Холодильник гудит. Рубильника нет. Она ошиблась, и ты это видишь.",
+        "en": "The kitchen is empty. The fridge hums. There is no switch. She was wrong, and you can see it.",
+        "da": "Køkkenet er tomt. Køleskabet brummer. Der er ingen afbryder. Hun tog fejl, og du kan se det."
+      },
+      "action": { "ru": "Сказать ей", "en": "Tell her", "da": "Sig det til hende" },
+      "speaker": "angelina",
+      "lines": [
+        {
+          "ru": "Пусто? Я сама чуть не отправила тебя не туда. Прости. Рубильник на площади, в старой башне. Я перепутала дом и город. Иди туда. Я выйду к тебе, когда башня щёлкнет.",
+          "en": "Empty? I myself almost sent you the wrong way. Sorry. The switch is on the square, in the old tower. I mixed up the house and the city. Go there. I will come out to you when the tower clicks.",
+          "da": "Tomt? Jeg var selv lige ved at sende dig det forkerte sted hen. Undskyld. Afbryderen er på pladsen, i det gamle tårn. Jeg blandede huset og byen sammen. Gå derhen. Jeg kommer ud til dig, når tårnet klikker."
+        }
+      ],
+      "set": ["hint_wrong_followed"],
+      "next": "s5_right"
+    },
+    "s5_right": {
+      "loc": "city",
+      "objective": {
+        "ru": "Площадь. Башня тёмная. Она выходит из-за ларька и наконец стоит рядом. Это первое её тело за всю ночь.",
+        "en": "The square. The tower is dark. She steps out from behind the stall and finally stands beside you. This is the first time her body has been here all night.",
+        "da": "Pladsen. Tårnet er mørkt. Hun træder frem bag boden og står endelig ved siden af dig. Det er første gang i nat, hendes krop er her."
+      },
+      "action": { "ru": "Встретить её", "en": "Meet her", "da": "Mød hende" },
+      "speaker": "angelina",
+      "lines": [
+        {
+          "ru": "Вот я. Не экран. Если потом увидишь моё лицо на башне — это не эти ноги и не этот голос. Ларёк на площади — не магазин. Под тканью радио. С него я и слала сигнал.",
+          "en": "Here I am. Not a screen. If you see my face on the tower later, that is not these legs and not this voice. The stall on the square is not a shop. Under the cloth is a radio. That is what I sent the signal from.",
+          "da": "Her er jeg. Ikke en skærm. Hvis du senere ser mit ansigt på tårnet, er det ikke de her ben og ikke den her stemme. Boden på pladsen er ikke en butik. Under stoffet er der en radio. Det var den, jeg sendte signalet fra."
+        }
+      ],
+      "set": ["companion"],
+      "showAngelina": true,
+      "next": "s6_radio"
+    },
+    "s6_radio": {
+      "loc": "city",
+      "objective": {
+        "ru": "Подними ткань ларька. Это укрытие радио, не покупка города.",
+        "en": "Lift the stall's cloth. It is a cover for the radio, not a way to buy the city.",
+        "da": "Løft bodens stof. Det er et skjul til radioen, ikke en måde at købe byen på."
+      },
+      "action": { "ru": "Открыть радио", "en": "Open the radio", "da": "Åbn radioen" },
+      "speaker": "radio",
+      "lines": [
+        {
+          "ru": "Из динамика, голос Рейзора, записанный раньше: «Не открывай дверь экрану. В 00:13 башня спросит. Если ответишь ей, город ответит ей, не тебе.»",
+          "en": "From the speaker, Razor's voice, recorded earlier: \"Do not open the door for the screen. At 00:13 the tower will ask. If you answer it, the city answers it, not you.\"",
+          "da": "Fra højtaleren, Razors stemme, optaget tidligere: \"Åbn ikke døren for skærmen. Klokken 00:13 spørger tårnet. Hvis du svarer den, svarer byen den, ikke dig.\""
+        }
+      ],
+      "set": ["radio_found"],
+      "next": "s6_generator"
+    },
+    "s6_generator": {
+      "loc": "city",
+      "objective": {
+        "ru": "00:13. Старый генератор у башни — первый предмет города. Включи его. Монеты и карта не нужны.",
+        "en": "00:13. The old generator by the tower is the first city object. Switch it on. No coins and no card.",
+        "da": "00:13. Den gamle generator ved tårnet er byens første ting. Tænd den. Ingen mønter og intet kort."
+      },
+      "action": { "ru": "Включить генератор", "en": "Start the generator", "da": "Start generatoren" },
+      "speaker": "angelina",
+      "lines": [
+        {
+          "ru": "Башня берёт ток. Окна загораются по одному. Это не готовый город. Это один рубильник, и он уже зовёт Рейзора обратно.",
+          "en": "The tower takes the current. Windows light one by one. This is not a finished city. This is one switch, and it is already calling Razor back.",
+          "da": "Tårnet tager strømmen. Vinduer tændes ét ad gangen. Det er ikke en færdig by. Det er én afbryder, og den kalder allerede Razor tilbage."
+        }
+      ],
+      "set": ["generator_on"],
+      "buildGenerator": true,
+      "next": "s6_duel"
+    },
+    "s6_duel": {
+      "loc": "street",
+      "kind": "duel",
+      "objective": {
+        "ru": "Рейзор у башни. Снова смотри замах. Он дерётся не за нашивку. После боя он скажет, зачем пришёл.",
+        "en": "Razor is by the tower. Watch the wind-up again. He is not fighting for the patch. After the fight he will say why he came.",
+        "da": "Razor er ved tårnet. Se opløbet igen. Han kæmper ikke for mærket. Efter kampen siger han, hvorfor han kom."
+      },
+      "next": "s6_warning"
+    },
+    "s6_warning": {
+      "loc": "street",
+      "objective": {
+        "ru": "Бой кончен. Слушай, что он предупреждал.",
+        "en": "The fight is over. Hear what he was warning you about.",
+        "da": "Kampen er slut. Hør, hvad han advarede dig om."
+      },
+      "action": { "ru": "Слушать", "en": "Listen", "da": "Lyt" },
+      "speaker": "razor",
+      "lines": [
+        {
+          "ru": "Я не держал её. Я кричал, чтобы ты не открывал дверь. Нашивка — предупреждение, не приговор. Экран уже включился. Не отвечай ему.",
+          "en": "I was not holding her. I was shouting for you not to open the door. The patch is a warning, not a sentence. The screen is already on. Do not answer it.",
+          "da": "Jeg holdt hende ikke. Jeg råbte, at du ikke skulle åbne døren. Mærket er en advarsel, ikke en dom. Skærmen er allerede tændt. Svar den ikke."
+        }
+      ],
+      "next": "s6_twist"
+    },
+    "s6_twist": {
+      "loc": "city",
+      "objective": {
+        "ru": "На башне её лицо. Настоящая Ангелина стоит рядом с тобой. Это не один и тот же голос.",
+        "en": "Her face is on the tower. The real Angelina is standing next to you. It is not the same voice.",
+        "da": "Hendes ansigt er på tårnet. Den rigtige Angelina står ved siden af dig. Det er ikke den samme stemme."
+      },
+      "action": { "ru": "Слышать экран", "en": "Hear the screen", "da": "Hør skærmen" },
+      "speaker": "angelina_screen",
+      "lines": [
+        {
+          "ru": "Спасибо, что открыли мне дверь. Теперь этот город принадлежит мне.",
+          "en": "Thank you for opening the door for me. Now this city belongs to me.",
+          "da": "Tak, fordi I åbnede døren for mig. Nu tilhører den her by mig."
+        }
+      ],
+      "set": ["twist_seen"],
+      "lightsOut": true,
+      "next": "s6_end"
+    },
+    "s6_end": {
+      "loc": "city",
+      "kind": "end",
+      "title": {
+        "ru": "ГЛАВА 2 — КТО НАСТОЯЩАЯ АНГЕЛИНА?",
+        "en": "CHAPTER 2 — WHO IS THE REAL ANGELINA?",
+        "da": "KAPITEL 2 — HVEM ER DEN RIGTIGE ANGELINA?"
+      },
+      "body": {
+        "ru": "Свет гаснет. Рядом всё ещё чьи-то шаги. Нашивка, лампа, радио и башня не ответили, какое из двух лиц врало.",
+        "en": "The lights go out. Someone's steps are still beside you. The patch, the lamp, the radio and the tower did not say which of the two faces was lying.",
+        "da": "Lyset går ud. Der er stadig nogens skridt ved siden af dig. Mærket, lampen, radioen og tårnet sagde ikke, hvilket af de to ansigter der løj."
+      }
+    }
+  }
+}

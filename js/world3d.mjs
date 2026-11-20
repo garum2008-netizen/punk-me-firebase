@@ -1569,8 +1569,18 @@ function sync(data) {
     placeActorWorld(a, a.wx, a.wz, false, true);
   });
 
-  keep.add("angelina");
-  ensureAngelina(actors.get("player"));
+  const showGuide = window.MissingSignal?.showAngelina ? window.MissingSignal.showAngelina() : true;
+  if (showGuide) {
+    keep.add("angelina");
+    ensureAngelina(actors.get("player"));
+  } else {
+    const guide = actors.get("angelina");
+    if (guide) {
+      scene.remove(guide.group);
+      guide.mixer?.stopAllAction();
+      actors.delete("angelina");
+    }
+  }
 
   actors.forEach((a, id) => {
     if (!keep.has(id)) {

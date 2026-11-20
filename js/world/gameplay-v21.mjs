@@ -381,10 +381,12 @@ function startDuel3D(nid, opts = {}) {
     startedAt: typeof performance !== "undefined" ? performance.now() : Date.now(),
     plHits: 0,
     npcHits: 0,
-    plHp: training ? 999 : 100,
-    npcHp: training ? 999 : 100,
-    plMax: training ? 999 : 100,
-    npcMax: training ? 999 : 100,
+    storyTell: !!opts.storyTell,
+    tell: 0,
+    plHp: training ? 999 : (opts.hp || 100),
+    npcHp: training ? 999 : (opts.npcHp || opts.hp || 100),
+    plMax: training ? 999 : (opts.hp || 100),
+    npcMax: training ? 999 : (opts.npcHp || opts.hp || 100),
     cd: 0,
     npcCd: 0,
     plBlock: 0,
@@ -428,7 +430,8 @@ function stopDuel3D(win) {
       : `<b>${t("lose_fight")}</b><div>${t("fight_try_again")}</div>`;
     setTimeout(() => res.classList.add("hidden"), 3200);
   }
-  window._duel3dEnd?.(win);
+  if (d?.storyTell) window.MissingSignal?.onDuelEnd?.(!!win);
+  else window._duel3dEnd?.(win);
 }
 
 function spawnChainTrail(ctx, fromX, fromZ, toX, toZ) {
@@ -592,6 +595,10 @@ function tickDuel(dt, ctx) {
     }
   });
   if (window._duelAttack && d.cd <= 0) {
+    if (d.storyTell && d.tell > 0) {
+      window._duelAttack = false;
+      d.cd = 0.35;
+    } else {
     const dmg = 12 + Math.floor(Math.random() * 8);
     if (d.training) d.plHits += 1;
     else d.npcHp -= dmg;
@@ -612,6 +619,7 @@ function tickDuel(dt, ctx) {
     window._duelAttack = false;
     d.swings = (d.swings || 0) + 1;
     d.cd = d.razorFinale ? 0.7 : 0.55;
+    }
   }
   if (window._duelDodge) {
     d.dodgeT = 0.85;
@@ -629,10 +637,31 @@ function tickDuel(dt, ctx) {
   } else if (d.plBlock <= 0) {
     pl.group.rotation.x *= 0.85;
   }
-  if (d.npcCd <= 0 && d.npcHp > 0) {
-    d.npcCd = 1.15;
+  const hud = document.getElementById("duel3dHud");
+  if (d.storyTell && d.tell > 0) {
+    d.tell -= dt;
+    hud?.classList.add("duel-tell");
+    if (d.tell <= 0) {
+      hud?.classList.remove("duel-tell");
+      const answered = d.dodgeT > 0 || d.plBlock > 0;
+      if (!answered && !d.training) {
+        d.plHp -= 10;
+        flashActor(pl, 0.11);
+        d.flashPl = 0.11;
+      }
+    }
+  } else if (d.npcCd <= 0 && d.npcHp > 0) {
+    d.npcCd = d.storyTell ? 1.7 : 1.15;
+    if (d.storyTell) {
+      d.tell = 0.7;
+      hud?.classList.add("duel-tell");
+      const banner = hud?.querySelector(".duel-tell-banner");
+      if (banner) banner.textContent = window.t?.("duel_tell") && window.t("duel_tell") !== "duel_tell"
+        ? window.t("duel_tell")
+        : (document.documentElement.lang === "da" ? "Han svinger!" : document.documentElement.lang === "en" ? "He winds up!" : "Он замахивается!");
+    }
     d.npcLunge = 0.28;
-    if (d.dodgeT <= 0 && d.plBlock <= 0) {
+    if (!d.storyTell && d.dodgeT <= 0 && d.plBlock <= 0) {
       let dmg = 8 + Math.floor(Math.random() * 6);
       if (d.plBlock > 0) dmg = Math.floor(dmg * 0.25);
       if (d.training) d.npcHits += 1;

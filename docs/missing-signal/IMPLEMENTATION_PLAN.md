@@ -1,8 +1,8 @@
 # Implementation plan — after the screenplay is approved
 
-This is the build order for a later GO. It is not a GO. Step 2 of the rejected tutorial is cancelled. Nothing in `docs/chapter1-story/` is the script.
+This is the build order written before the takeover. It is not a release GO. Step 2 of the rejected tutorial stays cancelled. Nothing in `docs/chapter1-story/` is the script.
 
-The CEO is writing the screenplay and the character bible. Implementation starts when that screenplay validates against [DIALOGUE_SPEC.md](DIALOGUE_SPEC.md) and the owner says to build. Until then the only code change allowed by this plan is none.
+The playable chapter on this branch follows this order. The words are in `data/story/missing-signal/screenplay.json`. Production and a claim of acceptance still need a separate owner GO.
 
 Scope is described as systems and files. There is no day count.
 

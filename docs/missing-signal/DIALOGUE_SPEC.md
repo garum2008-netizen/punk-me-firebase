@@ -1,12 +1,14 @@
 # Dialogue spec — slot for the screenplay
 
-The CEO is writing the screenplay and the character bible. This file is the format those documents must fit so a later loader can run them. It does not contain the story. Every sample sentence below is the token `[PLACEHOLDER]` and is not a line of the game.
+This file is the format the screenplay was written against. It does not contain the story. Sample sentences below that still say `[PLACEHOLDER]` are format tokens, not lines of the game.
+
+The live script is `data/story/missing-signal/screenplay.json`. `js/story/missing-signal.mjs` fetches that file. It does not go through `loadStoryData()`, and it does not read this slot.
 
 The empty contract is [screenplay.slot.json](screenplay.slot.json). The game does not fetch it. `js/story/story-engine.mjs` loads only the files named in `loadStoryData()`. When a GO adds a loader, the real file path is:
 
 `data/story/missing-signal/screenplay.json`
 
-Until that GO, do not put a screenplay under `data/`.
+That file is now the live script. Do not add a second copy under this folder.
 
 ## What the current engine can already load
 

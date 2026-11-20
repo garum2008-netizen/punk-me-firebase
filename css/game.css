@@ -706,6 +706,19 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   background: linear-gradient(90deg, #22c55e, #86efac);
 }
 .duel-3d-hud.hidden { display: none; }
+.duel-tell-banner { display: none; }
+.duel-3d-hud.duel-tell .duel-tell-banner {
+  display: block; position: absolute; top: 16%; left: 0; right: 0; text-align: center;
+  color: #ffe81f; font-size: 28px; font-weight: 700; text-shadow: 0 2px 8px #000;
+}
+.chapter-crawl.ms-card { z-index: 260; }
+.chapter-crawl.ms-card .chapter-crawl-body {
+  animation: none; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; transform: none;
+}
+.chapter-crawl-skip.is-locked { visibility: hidden; pointer-events: none; }
+body.ms-blackout #stage3d { filter: brightness(0.18); }
+body.ms-cold-open:not(.ms-cold-done) #charSelectConfirm { opacity: 0.45; pointer-events: none; }
 .duel-3d-result {
   position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
   z-index: 40; padding: 18px 28px; border-radius: 14px;
@@ -846,7 +859,7 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .chapter-ending-ok { position: static; }
 .angelina-guide {
   position: absolute; left: 12px; right: auto; top: 34%; bottom: auto; transform: translateY(-50%);
-  z-index: 24; max-width: min(300px, 34vw); max-height: 22vh; overflow: auto; pointer-events: none;
+  z-index: 24; max-width: min(340px, 40vw); max-height: 46vh; overflow: auto; pointer-events: none;
   padding: 8px 10px; border-radius: 10px; background: rgba(8, 6, 16, 0.88);
   border: 1px solid #ff6ec7; font-size: 13px; line-height: 1.35;
 }
@@ -861,6 +874,7 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
   text-shadow: 0 1px 2px #000;
 }
 .angelina-guide b { display: block; color: #ff6ec7; margin-bottom: 2px; }
+.angelina-guide button { pointer-events: auto; margin-top: 6px; }
 .angelina-hint { display: block; margin-top: 4px; color: #ffe81f; }
 .chapter-scene {
   position: absolute; left: 50%; top: 58px; transform: translateX(-50%);
