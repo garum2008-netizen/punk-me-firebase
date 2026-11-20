@@ -1,7 +1,8 @@
 /**
- * Angelina's lines. Files are local espeak-ng recordings, one per language.
- * Nothing here calls a paid voice service.
+ * Angelina's lines. The active voice comes from angelina-voice-config.mjs.
+ * espeak-ng is the fallback. Nothing here calls a paid voice service.
  */
+import { ANGELINA_VOICE } from "../angelina-voice-config.mjs";
 
 let audio = null;
 const heard = [];
@@ -20,8 +21,19 @@ function t(key) {
   return typeof window.t === "function" ? window.t(key) : key;
 }
 
+export function resolveClip(cfg, language, id) {
+  const code = language === "da" || language === "en" ? language : "ru";
+  const espeak = `assets/audio/voice/${code}/${id}.wav`;
+  const name = String(cfg?.candidate || "").trim();
+  if (!name) return { url: espeak, fallback: "" };
+  return {
+    url: `assets/audio/voice/candidates/${name}/${code}/${id}.mp3`,
+    fallback: espeak
+  };
+}
+
 export function clipUrl(id) {
-  return `assets/audio/voice/${lang()}/${id}.wav`;
+  return resolveClip(ANGELINA_VOICE, lang(), id).url;
 }
 
 export function playAngelina(id) {
@@ -30,7 +42,7 @@ export function playAngelina(id) {
   try {
     if (localStorage.getItem("punkme_voice_mute") === "1") return;
   } catch (_) {}
-  const url = clipUrl(id);
+  const choice = resolveClip(ANGELINA_VOICE, lang(), id);
   heard.push(`${lang()}/${id}`);
   if (typeof window !== "undefined") window.__angelinaHeard = heard.slice();
   if (typeof Audio === "undefined") return;
@@ -39,8 +51,16 @@ export function playAngelina(id) {
       audio.pause();
       audio = null;
     }
-    audio = new Audio(url);
+    audio = new Audio(choice.url);
     audio.volume = 1;
+    if (choice.fallback) {
+      audio.addEventListener("error", () => {
+        if (!audio || audio.dataset.fellBack === "1") return;
+        audio.dataset.fellBack = "1";
+        audio.src = choice.fallback;
+        audio.play().catch(() => {});
+      }, { once: true });
+    }
     audio.play().catch(() => {});
   } catch (_) {}
 }

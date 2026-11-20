@@ -5,6 +5,7 @@
 import fs from "fs";
 import path from "path";
 import { chromium } from "playwright";
+import { AUDIO_INIT, writeCapture, muxVideoAudio, audioMeanDb } from "./capture-page-audio.mjs";
 
 const base = process.env.PUNK_BASE || "http://127.0.0.1:3456";
 const outDir = process.env.CH1_OUT || "/opt/cursor/artifacts/ch1-child-playthrough";
@@ -135,6 +136,7 @@ async function main() {
   });
   const page = await context.newPage();
   page.setDefaultTimeout(120000);
+  await page.addInitScript({ content: AUDIO_INIT });
   const errors = [];
   page.on("pageerror", err => errors.push(err.message));
   await page.goto(`${base}/?solo=1&v=cold`, { waitUntil: "domcontentloaded" });
@@ -349,14 +351,22 @@ async function main() {
   const serious = errors.filter(e => !/WebGL|GL Driver/i.test(e));
   log("no-pageerror", serious.length === 0, serious.join(" | ") || "none");
 
+  const captured = await page.evaluate(() => window.__punkAudioStop?.() || null);
+  const audioFile = path.join(outDir, "playthrough-audio.webm");
+  const audioSaved = writeCapture(captured, audioFile);
   const video = page.video();
   await context.close();
   await browser.close();
   if (video) {
     const src = await video.path();
+    const silent = path.join(outDir, "09-desktop-playthrough-silent.webm");
     const dest = path.join(outDir, "09-desktop-playthrough.webm");
-    fs.copyFileSync(src, dest);
+    fs.copyFileSync(src, silent);
+    const mixed = audioSaved && muxVideoAudio(silent, audioFile, dest);
+    const mean = mixed ? audioMeanDb(dest) : null;
+    if (!mixed) fs.copyFileSync(silent, dest);
     log("playthrough-video", fs.statSync(dest).size > 1000, dest);
+    log("playthrough-audio", mixed === true && mean != null && mean > -45, `mean ${mean} dB`);
   }
   const summary = { pass: results.every(row => row.pass), results };
   fs.writeFileSync(path.join(outDir, "ch1-results.json"), JSON.stringify(summary, null, 2));
