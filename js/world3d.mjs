@@ -1393,29 +1393,39 @@ function npcWithin(nid, range = 7) {
   return Math.hypot(pl.wx - npc.wx, pl.wz - npc.wz) <= range;
 }
 
+function resolvedGuideTarget() {
+  if (!guideTarget) return null;
+  if (!guideTarget.npcId) return guideTarget;
+  const act = actors.get("npc_" + guideTarget.npcId);
+  if (act) return guideTarget;
+  const spot = NPC_WORLD[currentLoc]?.[guideTarget.npcId];
+  if (!spot) return guideTarget;
+  return { ...guideTarget, wx: spot.x, wz: spot.z };
+}
+
 function updateGuideArrow() {
   const el = document.getElementById("guideArrow");
   const nameEl = document.getElementById("guideArrowName");
   if (!el) return;
-  if (!guideTarget) {
+  const target = resolvedGuideTarget();
+  if (!target) {
     el.hidden = true;
     return;
   }
   let wx;
   let wz;
   let label = "";
-  if (guideTarget.npcId) {
-    const act = actors.get("npc_" + guideTarget.npcId);
-    if (!act) {
-      el.hidden = true;
-      return;
-    }
+  if (target.npcId && actors.get("npc_" + target.npcId)) {
+    const act = actors.get("npc_" + target.npcId);
     wx = act.wx;
     wz = act.wz;
-    label = typeof window.t === "function" ? window.t("npc_" + guideTarget.npcId) : guideTarget.npcId;
-  } else if (guideTarget.wx != null) {
-    wx = guideTarget.wx;
-    wz = guideTarget.wz;
+    label = typeof window.t === "function" ? window.t("npc_" + target.npcId) : target.npcId;
+  } else if (target.wx != null) {
+    wx = target.wx;
+    wz = target.wz;
+    if (target.npcId) {
+      label = typeof window.t === "function" ? window.t("npc_" + target.npcId) : target.npcId;
+    }
   } else {
     el.hidden = true;
     return;
@@ -1688,7 +1698,7 @@ function loop() {
     if (arrowEl) arrowEl.hidden = true;
   } else {
     setQuestMarkersVisible(true);
-    setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    setQuestMarkerTarget(resolvedGuideTarget(), actors, sceneTime);
     updateGuideArrow();
   }
   const nearNpc = getNearestNpcId();
@@ -1867,6 +1877,25 @@ const api = {
   getLocation: () => currentLoc,
   getNearestNpc: getNearestNpcId,
   npcWithin,
+  guideOffset: () => {
+    const pl = actors.get("player");
+    const target = resolvedGuideTarget();
+    if (!pl || !target) return null;
+    const act = target.npcId ? actors.get("npc_" + target.npcId) : null;
+    const wx = act ? act.wx : target.wx;
+    const wz = act ? act.wz : target.wz;
+    if (wx == null || wz == null) return null;
+    const dx = wx - pl.wx;
+    const dz = wz - pl.wz;
+    const fx = Math.sin(cameraYaw);
+    const fz = Math.cos(cameraYaw);
+    return {
+      dist: Math.hypot(dx, dz),
+      forward: dx * fx + dz * fz,
+      right: dx * fz + dz * -fx,
+      arrow: document.getElementById("guideArrow")?.hidden === false
+    };
+  },
   getNearestDog: getNearestDogId,
   getNearPortal,
   setGuideTarget: t => { guideTarget = t; },

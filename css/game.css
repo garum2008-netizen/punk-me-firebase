@@ -262,7 +262,7 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .badge-stat .stat-label::after { content: ":"; margin-right: 2px; }
 .game-bottom-bar {
   position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
-  z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  z-index: 34; display: flex; flex-direction: column; align-items: center; gap: 8px;
   max-width: min(96vw, 720px); pointer-events: none;
 }
 .game-bottom-bar .panel-bottom,
@@ -845,8 +845,8 @@ body.mode-3d .ambient-life.ambient-police { display: none !important; }
 .chapter-ending-body { font-size: 18px; line-height: 1.4; margin-bottom: 18px; }
 .chapter-ending-ok { position: static; }
 .angelina-guide {
-  position: absolute; right: 12px; left: auto; top: auto; bottom: 16px; z-index: 27;
-  max-width: min(340px, 46vw); max-height: 24vh; overflow: auto; pointer-events: none;
+  position: absolute; left: 12px; right: auto; top: 34%; bottom: auto; transform: translateY(-50%);
+  z-index: 24; max-width: min(300px, 34vw); max-height: 22vh; overflow: auto; pointer-events: none;
   padding: 8px 10px; border-radius: 10px; background: rgba(8, 6, 16, 0.88);
   border: 1px solid #ff6ec7; font-size: 13px; line-height: 1.35;
 }

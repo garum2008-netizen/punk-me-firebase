@@ -373,11 +373,7 @@ function startDuel3D(nid, opts = {}) {
   const ctx = ctxGet?.();
   const pl = ctx?.actors?.get("player");
   if (!pl || !ctx.scene) return false;
-  const npc = ctx.actors?.get("npc_" + nid) || ctx.actors?.get("npc_razor");
-  if (!npc) {
-    ensureActorNpc(ctx, nid);
-  }
-  const opponent = ctx.actors.get("npc_" + nid) || ctx.actors.get("npc_razor");
+  const opponent = ctx.actors.get("npc_" + nid);
   if (!opponent) return false;
   snapshotActorMaterials(pl);
   snapshotActorMaterials(opponent);
@@ -396,11 +392,15 @@ function startDuel3D(nid, opts = {}) {
   frameDuelCamera(ctx, pl, opponent);
   const training = !!opts.training;
   const firstTo = opts.firstTo || (training ? 3 : 0);
+  const razorFinale = !training && nid === "razor";
   state.duel = {
     active: true,
     nid,
     training,
+    razorFinale,
     firstTo,
+    swings: 0,
+    startedAt: typeof performance !== "undefined" ? performance.now() : Date.now(),
     plHits: 0,
     npcHits: 0,
     plHp: training ? 999 : 100,
@@ -631,7 +631,8 @@ function tickDuel(dt, ctx) {
     d.flashNpc = 0.11;
     fadeEmote(pl, "interact");
     window._duelAttack = false;
-    d.cd = 0.55;
+    d.swings = (d.swings || 0) + 1;
+    d.cd = d.razorFinale ? 0.7 : 0.55;
   }
   if (window._duelDodge) {
     d.dodgeT = 0.85;
@@ -674,7 +675,12 @@ function tickDuel(dt, ctx) {
     else if (d.npcHits >= d.firstTo) stopDuel3D(false);
   } else {
     if (d.plHp <= 0) stopDuel3D(false);
-    if (d.npcHp <= 0) stopDuel3D(true);
+    else if (d.npcHp <= 0) {
+      const elapsed = (typeof performance !== "undefined" ? performance.now() : Date.now()) - (d.startedAt || 0);
+      const held = d.razorFinale && ((d.swings || 0) < 4 || elapsed < 2500);
+      if (held) d.npcHp = 1;
+      else stopDuel3D(true);
+    }
   }
 }
 
@@ -705,8 +711,9 @@ function updateDuelHpBars(ctx) {
   const hpN = hud.querySelector(".duel-hp-npc");
   if (hpP) hpP.style.cssText = `left:${p1.x}px;top:${p1.y}px;width:64px;`;
   if (hpN) hpN.style.cssText = `left:${p2.x}px;top:${p2.y}px;width:64px;`;
-  if (hpP) hpP.style.setProperty("--w", `${d.plHp}%`);
-  if (hpN) hpN.style.setProperty("--w", `${d.npcHp}%`);
+  const pct = (hp, max) => `${Math.max(0, Math.min(100, (hp / (max || 1)) * 100))}%`;
+  if (hpP) hpP.style.setProperty("--w", pct(d.plHp, d.plMax));
+  if (hpN) hpN.style.setProperty("--w", pct(d.npcHp, d.npcMax));
 }
 
 function throwFetchBall() {

@@ -42,6 +42,32 @@ async function attackUntil(page, pred, timeoutMs) {
   return page.evaluate(pred);
 }
 
+async function walkToGuide(page, near) {
+  const start = Date.now();
+  while (Date.now() - start < 28000) {
+    const steer = await page.evaluate(limit => {
+      const g = window.World3D?.guideOffset?.();
+      return g && g.dist <= limit ? { done: true, ...g } : g;
+    }, near);
+    if (steer?.done) return steer;
+    if (!steer) {
+      await page.keyboard.down("w");
+      await page.waitForTimeout(250);
+      await page.keyboard.up("w");
+      continue;
+    }
+    const key = Math.abs(steer.right) > Math.abs(steer.forward)
+      ? (steer.right > 0 ? "d" : "a")
+      : (steer.forward > 0 ? "w" : "s");
+    await page.keyboard.down(key);
+    if (steer.forward > 0.4 && key !== "w") await page.keyboard.down("w");
+    await page.waitForTimeout(280);
+    await page.keyboard.up(key);
+    await page.keyboard.up("w");
+  }
+  return page.evaluate(() => window.World3D?.guideOffset?.() || null);
+}
+
 async function clickLanguage(page, code) {
   const btn = page.locator(`#langSwitch button[data-lang="${code}"]`);
   const box = await btn.boundingBox();
@@ -178,8 +204,17 @@ async function main() {
   await page.waitForFunction(() => {
     const line = document.querySelector("#angelinaGuide .angelina-line")?.textContent || "";
     const heard = window.__angelinaHeard || [];
-    return line.includes("Razor er prøven") && heard.some(id => String(id).startsWith("da/"));
+    const nav = document.getElementById("navQuick")?.innerText || "";
+    return line.includes("Razor er prøven") && heard.some(id => String(id).startsWith("da/")) && /Gade|Kirkegård|By/.test(nav) && !/\bStreet\b/.test(nav);
   });
+  const navHit = await page.evaluate(() => {
+    const btn = document.querySelector("#navQuick button");
+    if (!btn) return "";
+    const r = btn.getBoundingClientRect();
+    const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return el?.closest?.("#navQuick button") ? "nav" : (el?.id || el?.className || "");
+  });
+  if (navHit !== "nav") throw new Error("location button covered: " + navHit);
   await clickLanguage(page, "en");
   await page.waitForFunction(() => (document.querySelector("#angelinaGuide .angelina-line")?.textContent || "").includes("Razor is the test"));
   log("voice-languages", true, "clicked ru da en, danish voice heard");
@@ -188,10 +223,16 @@ async function main() {
   await page.waitForFunction(() => /Conflict/i.test(document.getElementById("chapterScene")?.textContent || ""));
   const conflict = await page.evaluate(() => document.getElementById("chapterScene")?.textContent || "");
   log("conflict-scene", /Conflict/i.test(conflict), conflict);
-  await page.locator("#panelBottom button[onclick*=\"gangModal\"]").click();
-  await page.click('#gangList .npc-row[data-npc="razor"]');
-  await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 3);
-  await page.locator("#gangModal .close").click().catch(() => {});
+  await page.waitForFunction(() => window.World3D?.guideOffset?.()?.arrow === true, undefined, { timeout: 8000 });
+  log("razor-marker", true, "arrow visible");
+  const walked = await walkToGuide(page, 6.5);
+  await page.keyboard.press("e");
+  await page.waitForTimeout(400);
+  const talked = await page.evaluate(() => (window.me?.onboarding?.step || 0) >= 3);
+  log("razor-e-talk", talked === true, JSON.stringify(walked));
+  if (!talked) throw new Error("E did not talk to Razor");
+  await page.locator("#gangModal.active .close").click().catch(() => {});
+  await page.locator("#storyDialog.active #storyDlgNext").click().catch(() => {});
 
   await go(page, "cemetery");
   await page.waitForFunction(() => (window.me?.onboarding?.step || 0) >= 4);
@@ -200,6 +241,17 @@ async function main() {
   await page.locator("#btnFight").click();
   const won = await attackUntil(page, () => (window.me?.onboarding?.step || 0) >= 5, 90000);
   log("climax-duel", won === true, String(won));
+  const afterTrain = await page.evaluate(() => ({
+    joined: window.me?.story?.flags?.joined_gang === true,
+    event: window.me?.story?.events?.duel_razor_win === true,
+    finale: (document.querySelector("#chapterFinaleLine")?.textContent || "").length > 0,
+    quest: window.me?.story?.quest?.activeId || ""
+  }));
+  log(
+    "training-does-not-finish-initiation",
+    afterTrain.joined === false && afterTrain.event === false && afterTrain.finale === false && afterTrain.quest !== "q_initiation_duel",
+    JSON.stringify(afterTrain)
+  );
 
   await page.locator("#panelBottom button[onclick*=\"shopModal\"]").click();
   await page.click("#shopModal .tab[data-tab='materials']");
@@ -211,6 +263,10 @@ async function main() {
   await page.locator("#shopModal .close").click().catch(() => {});
 
   await go(page, "room");
+  await clickLanguage(page, "da");
+  await page.waitForFunction(() => /Lampe/.test(document.querySelector("#buy-lamp")?.textContent || ""));
+  await clickLanguage(page, "en");
+  await page.waitForFunction(() => /Lamp/.test(document.querySelector("#buy-lamp")?.textContent || ""));
   const coinsBeforeLamp = await page.evaluate(() => window.me.coins);
   await page.click("#buy-lamp");
   await page.waitForFunction(() => (window.me.roomPieces || []).length >= 1);
@@ -251,8 +307,9 @@ async function main() {
   await go(page, "street");
   const chain = await page.locator("#questBox").innerText();
   log("one-quest-chain", /Razor/i.test(chain) && !/pizza/i.test(chain), chain.slice(0, 180));
-  await page.locator("#panelBottom button[onclick*=\"gangModal\"]").click();
-  await page.click('#gangList .npc-row[data-npc="razor"]');
+  await page.waitForFunction(() => window.World3D?.guideOffset?.()?.arrow === true, undefined, { timeout: 8000 });
+  await walkToGuide(page, 6.5);
+  await page.keyboard.press("e");
   await page.waitForSelector("#storyDialog.active", { timeout: 15000 });
   for (let i = 0; i < 4; i++) {
     const choice = page.locator("#storyDialog.active [data-choice='c_duel']");
@@ -270,7 +327,17 @@ async function main() {
     return hud && !hud.classList.contains("hidden") && window.me?.story?.flags?.joined_gang !== true;
   }, { timeout: 10000 });
   log("finale-duel-starts", true, "3d chain duel before the patch");
+  await page.waitForTimeout(2200);
+  const stillFighting = await page.evaluate(() => {
+    const hud = document.getElementById("duel3dHud");
+    return !!hud && !hud.classList.contains("hidden") && window.me?.story?.flags?.joined_gang !== true
+      && !(document.querySelector("#chapterFinaleLine")?.textContent || "").includes("patch");
+  });
+  log("finale-duel-needs-input", stillFighting === true, "still fighting after 2s with no chain press");
+  if (!stillFighting) throw new Error("finale duel ended without player input");
+  const fightStarted = Date.now();
   const initiated = await attackUntil(page, () => window.me?.story?.flags?.joined_gang === true, 60000);
+  log("finale-duel-duration", Date.now() - fightStarted > 2000, `${Date.now() - fightStarted}ms`);
   await page.waitForFunction(() => (document.querySelector("#chapterFinaleLine")?.textContent || "").includes("The patch is yours"), { timeout: 15000 });
   log("finale", initiated === true, "patch line visible");
   await page.screenshot({ path: path.join(outDir, "05-finale.png") });

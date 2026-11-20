@@ -6,7 +6,7 @@ import {
 } from "./world/meshy-punk.mjs";
 import { updateProcedural } from "./character-rig.mjs";
 import { attachAvatarLook } from "./avatar-mesh.mjs";
-import { presetFor, HAIR, HAIR_STYLES, SKINS, JACKETS, ACCESSORIES, CYBER_BLUE, isCyberBlue } from "./avatar-look.mjs";
+import { presetFor, HAIR, HAIR_STYLES, SKINS, JACKETS, ACCESSORIES, CYBER_BLUE, WARM_CREW, isCyberBlue } from "./avatar-look.mjs";
 
 /** Vertical padding inside the canvas (hair top / boots bottom). */
 const PREVIEW_MARGIN_Y = 0.08;
@@ -148,6 +148,7 @@ function creatorHtml() {
     <div class="avatar-row"><span>${label("avatar_jacket", "Jacket")}</span>${swatchButtons(JACKETS, "jacket", draftLook.jacket)}</div>
     <div class="avatar-row"><span>${label("avatar_accessory", "Detail")}</span>${accessory}</div>
     <button type="button" class="btn" id="avatarCyberBlue" data-avatar-preset="cyber-blue">${label("avatar_cyber", "Cyber punk blue")}</button>
+    <button type="button" class="btn" id="avatarWarmCrew" data-avatar-preset="warm-crew">${label("avatar_warm", "Warm skin, blue mohawk, wings")}</button>
   </div>`;
 }
 
@@ -204,6 +205,14 @@ function buildUi() {
   if (cyber) {
     cyber.onclick = () => {
       draftLook = { ...CYBER_BLUE };
+      buildUi();
+      showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
+    };
+  }
+  const warm = document.getElementById("avatarWarmCrew");
+  if (warm) {
+    warm.onclick = () => {
+      draftLook = { ...WARM_CREW };
       buildUi();
       showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
     };

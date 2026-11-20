@@ -34,6 +34,15 @@ export const CYBER_BLUE = {
   accessory: "wings"
 };
 
+/** Warm skin, blue mohawk, cyber jacket, wings. A selectable test look, not a new character. */
+export const WARM_CREW = {
+  hair: "cyan",
+  hairStyle: "mohawk",
+  skin: "tan",
+  jacket: "cyber",
+  accessory: "wings"
+};
+
 export const AVATAR_PRESETS = {
   cobalt: { hair: "cyan", hairStyle: "pigtails", skin: "porcelain", jacket: "night", accessory: "spikes" },
   vienna: { hair: "pink", hairStyle: "mohawk", skin: "tan", jacket: "magenta", accessory: "choker" },
@@ -81,6 +90,7 @@ if (typeof window !== "undefined") {
     JACKETS,
     ACCESSORIES,
     AVATAR_PRESETS,
-    CYBER_BLUE
+    CYBER_BLUE,
+    WARM_CREW
   };
 }

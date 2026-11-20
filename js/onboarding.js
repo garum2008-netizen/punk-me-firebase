@@ -9,7 +9,7 @@ const ONBOARDING_STEPS = [
   { id: "visit_cemetery", key: "visit_cemetery", goal: 1, reward: { coins: 50, xp: 30 },
     target: () => ({ loc: "street", wx: 10, wz: -2 }) },
   { id: "win_fight", key: "win_fight", goal: 1, reward: { coins: 80, xp: 45 },
-    target: () => ({ loc: "street", npcId: "razor" }) },
+    target: () => ({ loc: "cemetery", wx: 0.2, wz: 1.6 }) },
   { id: "shop_buy", key: "shop_buy", goal: 1, reward: { coins: 25, xp: 35 },
     target: () => ({ loc: "room", wx: -1, wz: 0, ui: "shop" }) },
   { id: "room_decor", key: "room_decor", goal: 1, reward: { coins: 20, xp: 20 },
