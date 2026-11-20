@@ -818,6 +818,7 @@ async function completeOnboarding(page) {
     if (step < 0) step = 0;
     if (step !== lastLoggedStep) {
       logScene(`onboarding_step_${step}`, `progress step ${step}`);
+      if (step === 6) logScene("onboarding_shop_travel", "shop step begin");
       lastLoggedStep = step;
       if (step === 7) {
         await page.waitForTimeout(1200);
@@ -1006,7 +1007,7 @@ async function completeOnboarding(page) {
     } else if (step === 6) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.click("#gangModal .close").catch(() => {});
-      logScene("onboarding_shop_travel", "map → room for spell shop");
+      logScene("onboarding_shop_room", "map → room for spell shop");
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
       await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 90000 });
       logScene("onboarding_shop_open", "shop spell purchase");
