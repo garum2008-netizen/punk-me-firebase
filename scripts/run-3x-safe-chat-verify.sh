@@ -21,14 +21,25 @@ for i in $(seq 1 "$STREAK"); do
     SAFE_CHAT_INTEGRATION=1 npm run test:safe-chat
   ) > "$ROOT/.cursor/3x-run$i.log" 2>&1 && EC=0 || EC=$?
   echo "EXIT=$EC" | tee -a "$REPORT"
+  node "$ROOT/scripts/extract-safe-chat-run-evidence.mjs" "$ROOT/.cursor/3x-run$i.log" "$i" "$EC" || true
   node "$ROOT/scripts/safe-chat-autopilot-checkpoint.mjs" run-end "$i" "$EC" || true
   rg "^ Test Files|^      Tests " "$ROOT/.cursor/3x-run$i.log" | tee -a "$REPORT" || true
   rg "All safe-chat automated checks passed|CTRL0:|MUT-MIRROR-HIDDEN:|M2:|review8-mutation-check:" "$ROOT/.cursor/3x-run$i.log" | tee -a "$REPORT" || true
   if [[ "$EC" -ne 0 ]]; then
     rg "FAIL  src|shuffle seed.*FAIL|NOT CAUGHT|mutation-check:" "$ROOT/.cursor/3x-run$i.log" | tail -12 | tee -a "$REPORT" || true
+    SIG="$(node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('$ROOT/.cursor/ci-artifacts/run-${i}-evidence.json','utf8'));console.log(j.failureSignature||'unknown');" 2>/dev/null || echo unknown)"
+    echo "FAILURE_SIGNATURE=$SIG" | tee -a "$REPORT"
+    node "$ROOT/scripts/safe-chat-autopilot-recovery.mjs" "$SIG" record || true
+    if ! node "$ROOT/scripts/safe-chat-autopilot-recovery.mjs" "$SIG" check; then
+      echo "ESCALATE_CEO=recovery limit (3) exceeded for signature $SIG" | tee -a "$REPORT"
+      echo "FULL_SHA=$SHA" >> "$REPORT"
+      exit 42
+    fi
+    echo "STREAK_RESET=1 (any EXIT 1 resets consecutive count)" | tee -a "$REPORT"
     echo "FULL_SHA=$SHA" >> "$REPORT"
     exit "$EC"
   fi
 done
 echo "FULL_SHA=$SHA" >> "$REPORT"
 echo "STREAK=3x EXIT 0" | tee -a "$REPORT"
+echo "VERIFICATION_PASS=technical only; merge/deploy requires CEO authorization" | tee -a "$REPORT"

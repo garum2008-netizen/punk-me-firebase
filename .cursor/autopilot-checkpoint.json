@@ -54,5 +54,20 @@
     "Owner GHA run on fresh ubuntu runner (recommended)",
     "Owner merge/deploy authorization"
   ],
-  "mergeDeploy": "FORBIDDEN"
+  "mergeDeploy": "FORBIDDEN",
+  "ceoDecisionAt": "2026-11-20T22:15:00+01:00",
+  "ceoDecision": "BLOCKED_MERGE_DEPLOY_HOLD",
+  "confirmedStreak": "0/3",
+  "verificationPass": false,
+  "autopilot": {
+    "localStreak": "in_progress_after_ceo_order",
+    "ghaBlocker": "workflow not on default branch until PR #78 merge",
+    "ghaEnablePr": 78,
+    "recoveryLimitPerSignature": 3
+  },
+  "pending": [
+    "CEO merge draft PR #78 (CI workflow only) then workflow_dispatch streak",
+    "3x consecutive EXIT 0 on verification SHA 758b5e3+ with per-run evidence JSON",
+    "CEO authorization for merge/deploy (not automatic on 3/3)"
+  ]
 }
