@@ -188,7 +188,7 @@ export function ensureLifeCh1(player) {
   if (st.flags == null || typeof st.flags !== "object" || Array.isArray(st.flags)) st.flags = {};
   st.claimedSteps = normalizeClaimedSteps(st.claimedSteps);
   st.angelinaSkin = normalizeSkinId(st.angelinaSkin || "A");
-  if (typeof st.playerCutout !== "boolean") st.playerCutout = st.playerCutout !== false;
+  if (typeof st.playerCutout !== "boolean") st.playerCutout = false;
   clampStepIndex(st);
   return st;
 }
@@ -501,6 +501,69 @@ function trustChoiceReflectBonus(st) {
   return 0;
 }
 
+function showCh1ClimaxNarrative(done) {
+  const panel = document.getElementById("lifeCh1ClimaxPanel");
+  const titleEl = panel?.querySelector(".life-ch1-climax-title");
+  const bodyEl = panel?.querySelector(".life-ch1-climax-body");
+  const rewardEl = panel?.querySelector(".life-ch1-climax-reward");
+  const title = L({
+    ru: "Город, забывший имя",
+    en: "The town that forgot its name",
+    da: "Byen der glemte sit navn"
+  });
+  const body = L({
+    ru: "Ночной импульс пронзает квартал — память просыпается.",
+    en: "A midnight pulse rips through the district — memory stirs.",
+    da: "En midnats-puls gennemborer kvarteret — mindet vågner."
+  });
+  const reward = L({
+    ru: "MIDNIGHT PULSE · +180 монет · +120 XP",
+    en: "MIDNIGHT PULSE · +180 coins · +120 XP",
+    da: "MIDNIGHT PULSE · +180 mønter · +120 XP"
+  });
+  if (!panel || !titleEl) {
+    window.World3D?.playLifeCh1ClimaxBeat?.(done) || done?.();
+    return;
+  }
+  titleEl.textContent = title;
+  if (bodyEl) bodyEl.textContent = body;
+  if (rewardEl) rewardEl.textContent = reward;
+  const st = ensureLifeCh1();
+  if (st) claimStepReward(st, rewardClaimKey(st.stepIndex, "midnight_pulse"), 180, 120);
+  panel.hidden = false;
+  window.AngelinaGuide?.react?.("ch1_climax_town", 9000);
+  setTimeout(() => {
+    window.World3D?.playLifeCh1ClimaxBeat?.(() => {
+      panel.hidden = true;
+      done?.();
+    });
+  }, 3800);
+}
+
+function markLifeCh1SliceComplete(st) {
+  st.stepIndex = maxStepIndex();
+  st.completed = true;
+  st.active = false;
+  document.body.classList.remove("life-ch1-active");
+  hooks.toast?.(
+    L({
+      ru: "Глава жизни 1 — фрагмент завершён!",
+      en: "Life chapter 1 slice complete!",
+      da: "Liv kapitel 1 færdig!"
+    })
+  );
+  window.AngelinaGuide?.react?.("ch1_complete", 7000);
+  syncCompanionAngelina3D();
+  clampStepIndex(st);
+  persistLocalOverlay();
+  hooks.save?.();
+  renderObjectivePanel();
+  syncBeacon();
+  updateChatPresetMode();
+  applyMusicSceneClass();
+  syncPlayerLifeCh1Skin();
+}
+
 function advanceStep(extraReward = 0) {
   const st = ensureLifeCh1();
   if (!st || st.completed) return;
@@ -516,19 +579,18 @@ function advanceStep(extraReward = 0) {
   window.AngelinaGuide?.react?.(`lifech1_step_${step?.id || st.stepIndex}_done`, 4500);
   const next = st.stepIndex + 1;
   if (next >= steps.length) {
-    st.stepIndex = maxStepIndex();
-    st.completed = true;
-    st.active = false;
-    document.body.classList.remove("life-ch1-active");
-    hooks.toast?.(
-      L({
-        ru: "Глава жизни 1 — фрагмент завершён!",
-        en: "Life chapter 1 slice complete!",
-        da: "Liv kapitel 1 færdig!"
-      })
-    );
-    window.AngelinaGuide?.react?.("ch1_complete", 7000);
-    syncCompanionAngelina3D();
+    if (step?.id === "reflect" && !st._climaxDone) {
+      const runComplete = () => {
+        st._climaxDone = true;
+        markLifeCh1SliceComplete(st);
+      };
+      showCh1ClimaxNarrative(runComplete);
+      return;
+      runComplete();
+      return;
+    }
+    markLifeCh1SliceComplete(st);
+    return;
   } else {
     st.stepIndex = next;
     const upcoming = steps[next];
@@ -576,6 +638,30 @@ export function isCompleted() {
   return !!ensureLifeCh1(me())?.completed;
 }
 
+export function onLocationChanged(locId) {
+  if (!isLifeCh1SliceEnabled() || !isActive()) return;
+  const st = ensureLifeCh1();
+  const step = currentStep();
+  if (step?.id === "move") {
+    if (locId === "room") {
+      delete st._moveStepBaseline;
+      delete st._moveStepLast;
+      delete st._moveStepAccum;
+      delete st._needsRoomForMove;
+      try {
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.snapPlayerToLocationSpawn?.();
+        window.World3D?.setPortalGrace?.(1800);
+      } catch (_) {}
+      renderObjectivePanel();
+      syncBeacon();
+    } else {
+      st._needsRoomForMove = true;
+      renderObjectivePanel();
+    }
+  }
+}
+
 export async function tryStartAfterOnboarding() {
   if (!isLifeCh1SliceEnabled()) return false;
   await loadSpec();
@@ -588,6 +674,9 @@ export async function tryStartAfterOnboarding() {
   st.startedAt = Date.now();
   st.stepIndex = 0;
   delete st._moveStepBaseline;
+  delete st._moveStepLast;
+  delete st._moveStepAccum;
+  st._needsRoomForMove = p?.location !== "room";
   st.playerCutout = false;
   document.body.classList.add("life-ch1-active");
   try {
@@ -664,12 +753,18 @@ export function onBoot() {
 }
 
 let lastRoomWedgeResyncMs = 0;
+let lastBeaconSyncMs = 0;
 
 export function onMove() {
   if (!isActive() && !ensureLifeCh1()?.completed) return;
   if (Date.now() - lastRoomWedgeResyncMs > 500) {
     lastRoomWedgeResyncMs = Date.now();
     resyncLifeCh1RoomSpawnIfNeeded();
+  }
+  if (isActive() && Date.now() - lastBeaconSyncMs > 1200) {
+    lastBeaconSyncMs = Date.now();
+    syncBeacon();
+    renderObjectivePanel();
   }
   if (!isActive()) return;
   const step = currentStep();
@@ -680,11 +775,22 @@ export function onMove() {
   const pos = playerWorldPos();
   if (st._moveStepBaseline == null) {
     st._moveStepBaseline = { x: pos.x, z: pos.z };
+    st._moveStepLast = { x: pos.x, z: pos.z };
+    st._moveStepAccum = 0;
     return;
   }
-  const dist = distWorld(pos.x, pos.z, st._moveStepBaseline.x, st._moveStepBaseline.z);
-  if (dist < 1.25) return;
+  const last = st._moveStepLast || st._moveStepBaseline;
+  const leg = distWorld(pos.x, pos.z, last.x, last.z);
+  if (leg > 0.015) {
+    st._moveStepAccum = (st._moveStepAccum || 0) + leg;
+    st._moveStepLast = { x: pos.x, z: pos.z };
+  }
+  const distFromStart = distWorld(pos.x, pos.z, st._moveStepBaseline.x, st._moveStepBaseline.z);
+  const walkedEnough = (st._moveStepAccum || 0) >= 0.72 || distFromStart >= 0.82;
+  if (!walkedEnough) return;
   delete st._moveStepBaseline;
+  delete st._moveStepLast;
+  delete st._moveStepAccum;
   advanceStep();
   setSubtitle(
     L({
@@ -838,7 +944,8 @@ export function closeWardrobePanel() {
   if (panel) panel.hidden = true;
 }
 
-function showDialogue(dlgId) {
+async function showDialogue(dlgId) {
+  if (!skinManifest) await loadAngelinaSkinManifest();
   const dlgRoot = spec?.dialogues?.[dlgId];
   if (!dlgRoot) return;
   let node;
@@ -870,9 +977,12 @@ function showDialogue(dlgId) {
   const speakerLine = L(node.text);
   setSubtitle("", 0);
   playUiBlip();
-  const skin = readSelectedSkin(ensureLifeCh1());
+  const stDlg = ensureLifeCh1();
+  const skin = normalizeSkinId(stDlg?.companionAngelinaSkin || stDlg?.angelinaSkin || readSelectedSkin(stDlg));
   const portrait =
-    node.speaker === "player" || node.speaker === "angelina" ? dialogPortraitHtml(skin) : "";
+    dlgId.startsWith("dlg_life_ch1_") || node.speaker === "player" || node.speaker === "angelina"
+      ? dialogPortraitHtml(skin)
+      : "";
 
   if (node.choices?.length) {
     body.innerHTML =
@@ -905,6 +1015,7 @@ export function closeDialogue() {
   activeDlg = null;
   const panel = document.getElementById("storyDialog");
   panel?.classList.remove("active", "life-ch1-dialog", "story-dialog-cinematic");
+  window.StoryEngine?.clearDialogueCamera?.();
 }
 
 function outfitInteractTarget() {
@@ -964,7 +1075,14 @@ export function renderObjectivePanel() {
   }
   if (!isActive()) return false;
   const step = currentStep();
-  const objective = step ? L(step.objective) : L({ ru: "Готово", en: "Done", da: "Færdig" });
+  let objective = step ? L(step.objective) : L({ ru: "Готово", en: "Done", da: "Færdig" });
+  if (step?.id === "move" && me()?.location !== "room") {
+    objective = L({
+      ru: "Сначала карта → твоя комната, потом пройдись WASD",
+      en: "Map → your room first, then walk around (WASD)",
+      da: "Kort → dit værelse, derefter gå rundt"
+    });
+  }
   const i = (st.stepIndex || 0) + 1;
   const n = spec?.steps?.length || 4;
   box.innerHTML = `<div class="quest-tracker story-objective life-ch1-tracker" data-testid="life-ch1-quest-panel">
@@ -1041,6 +1159,7 @@ export async function initLifeCh1Slice(h) {
     tryStartAfterOnboarding,
     onBoot,
     onMove,
+    onLocationChanged,
     tryInteract,
     renderObjectivePanel,
     isActive,

@@ -4,7 +4,12 @@ import { MeshoptDecoder } from "../vendor/meshopt_decoder.module.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { buildIdleStandClip } from "./meshy-idle-clip.mjs";
 // PlayerWave builder kept in meshy-wave-clip.mjs (disabled for release — see WAVE_EMOTE_ENABLED).
-import { accentForActor, hueShiftAccentTexture } from "./meshy-accent-tint.mjs";
+import {
+  accentForActor,
+  accentKeyFromHairHex,
+  hueShiftAccentTexture,
+  tintHairTexture
+} from "./meshy-accent-tint.mjs";
 import { attachSkeletonWings } from "./cosmetic-wings.mjs";
 
 /** Inna-approved merge: wave emote off; clip file remains for future use. */
@@ -37,6 +42,7 @@ const MESHY_DIRECT_URL = {
 };
 
 const templateByCharacter = new Map();
+const templateLoadInflight = new Map();
 const templateLoadedListeners = new Set();
 
 export function onMeshyTemplateLoaded(fn) {
@@ -168,14 +174,8 @@ function markTemplateLoadFailed(id, url) {
   notifyTemplateLoaded(id);
 }
 
-export async function loadMeshyTemplateForCharacter(characterId) {
+async function loadMeshyTemplateForCharacterInner(characterId) {
   const id = characterId || DEFAULT_MESHY_CHARACTER;
-  const existing = templateByCharacter.get(id);
-  if (existing) {
-    if (existing.loadFailed) return null;
-    return existing;
-  }
-
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   const shipped = await getShippedMeshyIds();
@@ -222,6 +222,23 @@ export async function loadMeshyTemplateForCharacter(characterId) {
       return null;
     }
   }
+}
+
+export async function loadMeshyTemplateForCharacter(characterId) {
+  const id = characterId || DEFAULT_MESHY_CHARACTER;
+  const existing = templateByCharacter.get(id);
+  if (existing) {
+    if (existing.loadFailed) return null;
+    return existing;
+  }
+  let inflight = templateLoadInflight.get(id);
+  if (!inflight) {
+    inflight = loadMeshyTemplateForCharacterInner(id).finally(() => {
+      if (templateLoadInflight.get(id) === inflight) templateLoadInflight.delete(id);
+    });
+    templateLoadInflight.set(id, inflight);
+  }
+  return inflight;
 }
 
 /** @deprecated use loadMeshyTemplateForCharacter("vienna") */
@@ -276,20 +293,20 @@ export function findHeadBone(root) {
   return findBone(root, "Head");
 }
 
-export function applyPunkMaterials(root, _look = {}, opts = {}) {
+export function applyPunkMaterials(root, look = {}, opts = {}) {
   const { accent = null } = opts;
+  const hairHex = look?.hair != null ? Number(look.hair) >>> 0 : null;
   root.traverse(o => {
     if (!o.isMesh || !o.material) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     mats.forEach((m, i) => {
       const mat = m.clone();
       if (mat.map) {
-        if (accent) {
-          mat.map = hueShiftAccentTexture(mat.map, accent);
-        } else {
-          mat.map = mat.map.clone();
-          mat.map.needsUpdate = true;
-        }
+        let tex = mat.map;
+        if (accent) tex = hueShiftAccentTexture(tex, accent);
+        if (hairHex != null) tex = tintHairTexture(tex, hairHex);
+        mat.map = tex;
+        mat.map.needsUpdate = true;
       }
       mat.metalness = Math.min(0.4, mat.metalness ?? 0.25);
       mat.roughness = Math.max(0.42, mat.roughness ?? 0.55);
@@ -339,16 +356,22 @@ export function bindProceduralBones(root) {
   };
 }
 
-function accentForMeshyActor(characterId, templateEntry, opts) {
+function accentForMeshyActor(characterId, templateEntry, opts, look) {
   if (!meshyUsesTint(characterId, templateEntry)) return null;
   const actorId = opts.actorId || "player";
+  if (opts.isPlayer && look?.hair != null) {
+    return accentKeyFromHairHex(look.hair);
+  }
   const accentKey = actorId === "player" ? characterId : actorId;
   return accentForActor(characterId, accentKey);
 }
 
 export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
   const { gltf, foot, def } = templateEntry;
-  const accent = accentForMeshyActor(characterId, templateEntry, opts);
+  let accent = accentForMeshyActor(characterId, templateEntry, opts, look);
+  if (opts.isPlayer && look?.hair != null) {
+    accent = accentKeyFromHairHex(look.hair);
+  }
 
   const root = cloneSkinned(gltf.scene);
   const scl = def.scale * (look.scale || 1);
@@ -387,7 +410,7 @@ export function createMeshyActor(templateEntry, characterId, look, opts = {}) {
     meshUrl: def.url,
     _meshy: true,
     _proc: proc,
-    _accent: accent,
+    _accent: accent || null,
     _wings: wings
   };
 }

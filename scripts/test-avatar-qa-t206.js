@@ -64,7 +64,7 @@ async function assertCatalogAndDiversity() {
   }
   assertDiversityDistinct(DIVERSITY_QA_CONFIGS);
   const look = mod.buildLookFromConfig(QA_CYBER_PUNK_BLUE, cat);
-  if (look.hair !== 44607) throw new Error(`hair hex expected electric_blue 44607 got ${look.hair}`);
+  if (look.hair !== 3381759) throw new Error(`hair hex expected electric_blue 3381759 got ${look.hair}`);
   if (look.tint !== 16755234) throw new Error(`skin tint expected tone_02 got ${look.tint}`);
   if (!look.wings) throw new Error("wings flag missing on QA look");
   if (look.jacket !== 2752872) throw new Error("cyber punk jacket color mismatch");
@@ -135,7 +135,7 @@ async function runVisualQa(base) {
     }, QA_CYBER_PUNK_BLUE);
     if (!cfg.match) throw new Error("avatarConfig mismatch after confirm: " + JSON.stringify(cfg));
     if (cfg.playerCutout !== false) throw new Error("playerCutout must be false (companion Angelina)");
-    if (cfg.characterId !== "life_ch1_proxy") throw new Error("expected life_ch1_proxy player id");
+    if (cfg.characterId !== "mohawk") throw new Error("expected mohawk mesh hero, got " + cfg.characterId);
 
     await page.waitForTimeout(1200);
     await page.screenshot({ path: path.join(OUT, "t206-gameplay-room-cyber-punk-blue.png") });

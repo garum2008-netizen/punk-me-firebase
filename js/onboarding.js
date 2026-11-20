@@ -6,6 +6,8 @@ const ONBOARDING_STEPS = [
     target: () => ({ loc: "room", wx: 0, wz: 5.5 }) },
   { id: "talk_razor", key: "talk_razor", goal: 1, reward: { coins: 40, xp: 25 },
     target: () => ({ loc: "street", npcId: "razor" }) },
+  { id: "angelina_street", key: "angelina_street", goal: 1, reward: { coins: 35, xp: 22 },
+    target: () => ({ loc: "street", wx: -3.2, wz: -1.4 }) },
   { id: "visit_cemetery", key: "visit_cemetery", goal: 1, reward: { coins: 50, xp: 30 },
     target: () => ({ loc: "street", wx: 10, wz: -2 }) },
   { id: "win_fight", key: "win_fight", goal: 1, reward: { coins: 80, xp: 45 },
@@ -18,7 +20,16 @@ const ONBOARDING_STEPS = [
 
 /** Portal waypoints when the player is not yet in the step's target location. */
 const PORTAL_WAYPOINTS = {
-  street: { room: { wx: 0, wz: 5.5 } },
+  street: {
+    room: { wx: 0, wz: 5.5 },
+    city: { wx: -8, wz: 7 },
+    cemetery: { wx: 0, wz: 7.5 },
+    construction: { wx: 0, wz: 8.5 },
+    kitchen: { wx: 0, wz: 5.5 },
+    toilet: { wx: 0, wz: 5.5 },
+    elevator: { wx: 0.85, wz: -0.45 },
+    roof: { wx: 0, wz: 5.5 }
+  },
   cemetery: { street: { wx: 10, wz: -2 }, room: { wx: 0, wz: 5.5 } },
   city: { street: { wx: 45, wz: 70 }, room: { wx: 0, wz: 5.5 } }
 };
@@ -83,6 +94,7 @@ function saveMeQuiet() {
 }
 
 function renderOnboardingQuest() {
+  syncGuideTarget();
   const box = document.getElementById("questBox");
   if (!box) return;
   if (window.me?.onboarding?.done) {
@@ -94,12 +106,22 @@ function renderOnboardingQuest() {
   const i = stepIndex() + 1;
   const title = typeof t === "function" ? t("onboard_title") : "Your mission";
   const stepTitle = typeof t === "function" ? t(`onboard_${st.id}_title`) : st.id;
-  const stepText = typeof t === "function" ? t(`onboard_${st.id}_text`) : "";
+  let stepText = typeof t === "function" ? t(`onboard_${st.id}_text`) : "";
+  if (st.key === "moved" && !worldLocomotionReady()) {
+    stepText = typeof t === "function" ? t("onboard_loading_room") : "Loading your room…";
+  }
+  let offPath =
+    st.key === "angelina_street" && window.me?.location && window.me.location !== "street"
+      ? typeof t === "function"
+        ? t("onboard_angelina_street_offpath")
+        : ""
+      : "";
   const prog = progress()[st.key] || 0;
   box.innerHTML = `<div class="quest-tracker">
     <b>${escapeHtml(title)}</b> <span class="quest-step-num">${i}/${ONBOARDING_STEPS.length}</span>
     <div class="quest-step-title">${escapeHtml(stepTitle)}</div>
     <div class="quest-step-text">${escapeHtml(stepText)}</div>
+    ${offPath ? `<div class="quest-step-offpath">${escapeHtml(offPath)}</div>` : ""}
     <div class="quest-progress">${prog}/${st.goal}</div>
   </div>`;
 }
@@ -124,10 +146,15 @@ function getGuideTarget() {
     return waypointToReach("city") || null;
   }
   const here = window.me.location;
+  if (st.key === "angelina_street" && tgt.loc === "street" && here !== "street") {
+    const wp = waypointToReach("street");
+    if (wp) return { wx: wp.wx, wz: wp.wz, loc: here, returnTo: "street" };
+    return { wx: 0, wz: 0, loc: here, returnTo: "street", useMap: true };
+  }
   if (tgt.loc && here !== tgt.loc) {
     const wp = waypointToReach(tgt.loc);
     if (wp) return { wx: wp.wx, wz: wp.wz, loc: here };
-    return null;
+    return { wx: 0, wz: 0, loc: here, useMap: true };
   }
   if (tgt.npcId) return { npcId: tgt.npcId };
   if (tgt.wx != null && tgt.wz != null) return { wx: tgt.wx, wz: tgt.wz, loc: here };
@@ -139,11 +166,35 @@ function syncGuideTarget() {
   World3D.setGuideTarget(getGuideTarget());
 }
 
-const ONBOARD_WORLD_MOVE_DIST = 1.15;
+const ONBOARD_WORLD_MOVE_DIST = 0.88;
+
+function worldLocomotionReady() {
+  const W = window.World3D || window.Scene3D;
+  if (!document.body?.classList?.contains("mode-world3d")) return false;
+  if (typeof W?.isRoomPlayable === "function") return !!W.isRoomPlayable();
+  return !!(W?.isReady?.() && actorsPlayerReady(W));
+}
+
+function actorsPlayerReady(W) {
+  try {
+    return typeof W.getPlayerWorldPosition === "function" && !!W.getDebugCamera?.()?.player;
+  } catch (_) {
+    return false;
+  }
+}
 
 function onWorldMove(wx, wz) {
   const st = currentStep();
-  if (!st || st.key !== "moved") return;
+  if (!st) return;
+  if (st.key === "angelina_street" && window.me?.location === "street" && wx != null && wz != null) {
+    const tgt = st.target();
+    if (Math.hypot(wx - tgt.wx, wz - tgt.wz) < 2.85) {
+      window.AngelinaGuide?.react?.("street_brief_town", 6500);
+      bump("angelina_street", 1);
+      return;
+    }
+  }
+  if (st.key !== "moved") return;
   if (wx == null || wz == null) return;
   const last = window.me._onboardLastW;
   if (!last) {
@@ -161,8 +212,14 @@ function onMove(x, y) {
   const st = currentStep();
   if (!st || st.key !== "moved") return;
   if (document.body?.classList?.contains("mode-world3d")) {
-    const w = window.World3D?.getPlayerWorldPosition?.();
-    if (w) onWorldMove(w.x, w.z);
+    if (!worldLocomotionReady()) {
+      window.me._onboardAwaitWorld = true;
+      return;
+    }
+    delete window.me._onboardAwaitWorld;
+    const W = window.World3D || window.Scene3D;
+    const w = W.getPlayerWorldPosition();
+    onWorldMove(w.x, w.z);
     return;
   }
   if (!window.me._onboardOrigin) window.me._onboardOrigin = { x, y };
@@ -173,9 +230,22 @@ function onMove(x, y) {
 function onEnterLocation(loc) {
   const st = currentStep();
   if (!st) return;
+  if (st.key === "angelina_street") {
+    syncGuideTarget();
+    if (loc === "street") {
+      if (window.me?._onboardLeftStreetDuringAngelina) {
+        window.AngelinaGuide?.react?.("angelina_street_back", 6200);
+        window.me._onboardLeftStreetDuringAngelina = false;
+      }
+    } else {
+      window.me._onboardLeftStreetDuringAngelina = true;
+      window.AngelinaGuide?.react?.("angelina_street_wrong_loc", 7800);
+    }
+  }
   if (st.key === "visit_street" && loc === "street") bump("visit_street", 1);
   if (st.key === "visit_cemetery" && loc === "cemetery") bump("visit_cemetery", 1);
   if (st.key === "city_build" && loc === "city") syncGuideTarget();
+  syncGuideTarget();
 }
 
 function onTalkRazor() { bump("talk_razor", 1); }
@@ -208,14 +278,32 @@ function adaptSpawnLocation() {
   window.AngelinaGuide?.refresh?.();
 }
 
+function onRoomPlayableForOnboarding() {
+  if (!window.me?.onboarding || window.me.onboarding.done) return;
+  const st = currentStep();
+  if (!st || st.key !== "moved") return;
+  delete window.me._onboardAwaitWorld;
+  delete window.me._onboardLastW;
+  delete window.me._onboardOrigin;
+  delete window.me._onboardPathM;
+  renderOnboardingQuest();
+  syncGuideTarget();
+  window.AngelinaGuide?.refresh?.();
+}
+
 function initOnboarding() {
   if (!window.me) return;
   if (!window.me.onboarding) {
     window.me.onboarding = { step: 0, progress: {}, done: false };
   }
+  if (!window.__punkOnboardRoomPlayableBound) {
+    window.__punkOnboardRoomPlayableBound = true;
+    window.addEventListener("punk-room-playable", onRoomPlayableForOnboarding, { passive: true });
+  }
   renderOnboardingQuest();
   syncGuideTarget();
   window.AngelinaGuide?.refresh?.();
+  if (worldLocomotionReady()) onRoomPlayableForOnboarding();
 }
 
 window.Onboarding = {
@@ -232,6 +320,7 @@ window.Onboarding = {
   onShopBuy,
   onCityBuildPlaced,
   getGuideTarget,
+  worldLocomotionReady,
   isActive: () => !!(window.me?.onboarding && !window.me.onboarding.done),
   currentStep
 };

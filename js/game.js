@@ -717,7 +717,8 @@ function migratePlayerFromSave(raw) {
     typeof window !== "undefined" &&
     v.lifeCh1 &&
     typeof v.lifeCh1 === "object" &&
-    v.lifeCh1.playerCutout !== false
+    v.lifeCh1.playerCutout !== false &&
+    !v.avatarConfig
   ) {
     const proxy = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
     const playable = window.PLAYABLE_CHARACTER_IDS || [];
@@ -785,15 +786,28 @@ function showLoadingFailure(message, detail) {
 function normalizeSlicePlayerMeshCharacterId() {
   if (!window.LifeCh1Slice?.isLifeCh1SliceEnabled?.()) return;
   const proxy = window.LIFE_CH1_PLAYER_MESH_ID || "life_ch1_proxy";
-  const playable = window.PLAYABLE_CHARACTER_IDS || [];
   const st = me.lifeCh1;
-  if (st && st.playerCutout === false) {
-    me.characterId = proxy;
-    return;
+  if (me.avatarConfig && typeof window.meshIdFromAvatarConfig === "function") {
+    const mesh = window.meshIdFromAvatarConfig(me.avatarConfig);
+    if (mesh) {
+      me.characterId = mesh;
+      return;
+    }
   }
-  if (st && st.playerCutout !== false && playable.includes(me.characterId)) {
+  if (st && st.playerCutout !== false) {
     me.characterId = proxy;
   }
+}
+
+function resolveEffectivePlayerMeshId(playerState) {
+  const p = playerState || me;
+  if (!p) return "vienna";
+  if (p.avatarConfig && typeof window.meshIdFromAvatarConfig === "function") {
+    const mesh = window.meshIdFromAvatarConfig(p.avatarConfig);
+    if (mesh) return mesh;
+  }
+  const raw = p.characterId || "vienna";
+  return raw === "life_ch1_proxy" ? "vienna" : raw;
 }
 
 function applyFirebasePlayerSnapshot(snap) {
@@ -865,7 +879,18 @@ function finishLoadMeFlow() {
     me.characterId = window.meshIdFromAvatarConfig?.(me.avatarConfig) || "mohawk";
     writeStoredCharacterId(me.characterId);
   }
-  continueGameBoot();
+  const boot = () => continueGameBoot();
+  const bootstrap = window.World3D?.bootstrapWorldAfterCharacter;
+  if (me.characterId && typeof bootstrap === "function") {
+    bootstrap()
+      .then(boot)
+      .catch(err => {
+        console.error("World3D bootstrap on load", err);
+        boot();
+      });
+    return;
+  }
+  boot();
 }
 
 function startFreshPlayerKeepAccount() {
@@ -1031,10 +1056,11 @@ function syncStage3D() {
     x: 18 + i * 18,
     y: 58 + (i % 2) * 6
   }));
+  const meshId = resolveEffectivePlayerMeshId(me);
   Scene3D.sync({
     player: {
       x: me.x, y: me.y, avatar: me.avatar,
-      characterId: me.characterId || "vienna",
+      characterId: meshId,
       anim: me._animState || "idle"
     },
     others: othersForStage3D(),
@@ -1269,9 +1295,21 @@ function pickCharacterAndContinue(id, companionSkin, avatarBundle) {
   window.__playerLoaded = true;
   if (typeof performance !== "undefined") {
     window.__punkTimeToPlayerMs = Math.round(performance.now() - (window.__punkPageLoadStart || 0));
+    window.__punkCharacterConfirmMs = performance.now();
   }
   saveMe();
-  continueGameBoot();
+  const boot = () => continueGameBoot();
+  const bootstrap = window.World3D?.bootstrapWorldAfterCharacter;
+  if (typeof bootstrap === "function") {
+    bootstrap()
+      .then(boot)
+      .catch(err => {
+        console.error("World3D bootstrap", err);
+        boot();
+      });
+  } else {
+    boot();
+  }
 }
 
 function previewSliceEconomyActive() {
@@ -1318,6 +1356,15 @@ function continueGameBoot() {
     applyHashRoute();
     window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
     syncStage3D();
+    import("./avatar/avatar-catalog.mjs")
+      .then(m => m.loadAvatarCatalog())
+      .then(cat => {
+        window.__punkAvatarCatalog = cat;
+        normalizeSlicePlayerMeshCharacterId();
+        window.World3D?.rebuildPlayerFromAvatar?.();
+        syncStage3D();
+      })
+      .catch(err => console.warn("avatar catalog boot", err));
     if (isPreviewBuild()) initPreviewShopModule();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
   } catch (err) {
@@ -1337,6 +1384,7 @@ function resolveCharacterIdForPlayer(v, opts = {}) {
 
 window.__punkMigratePlayer = migratePlayerFromSave;
 window.__punkInferCharacterId = inferCharacterIdFromSave;
+window.resolveEffectivePlayerMeshId = resolveEffectivePlayerMeshId;
 window.__punkResolveCharacterId = (v, allowAvatarInfer) =>
   resolveCharacterIdForPlayer(v, { allowAvatarInfer: !!allowAvatarInfer });
 window.__punkApplyFirebaseSnapshot = applyFirebasePlayerSnapshot;
@@ -1459,6 +1507,11 @@ function initMobileTravelNav() {
     if (sheet?.classList.contains("open")) {
       e.preventDefault();
       closeMobileNavSheet();
+      return;
+    }
+    const storyDlg = document.getElementById("storyDialog");
+    if (storyDlg?.classList.contains("active")) {
+      window.StoryEngine?.dismissAllStoryUi?.();
     }
   });
 }
@@ -1831,8 +1884,13 @@ function goLocation(id, fromHash) {
   if (!isPreviewBuild() && !isLifeCh1LocalSaveBuild() && presenceOk && presenceRef && db)
     db.ref("presence/" + me.location + "/" + uid).remove().catch(() => {});
   me.location = id;
-  me.x = 45;
-  me.y = 60;
+  if (id === "city" || id === "construction") {
+    me.x = 50;
+    me.y = 50;
+  } else {
+    me.x = 45;
+    me.y = 60;
+  }
   portalCooldown = Date.now() + 1600;
   window.World3D?.setPortalGrace?.(1600);
   saveMe();
@@ -1849,7 +1907,16 @@ function goLocation(id, fromHash) {
   window.LifeCh1Slice?.syncPlayerLifeCh1Skin?.();
   window.LifeCh1Slice?.syncCompanionAngelina3D?.();
   window.AngelinaGuide?.refresh?.();
+  try {
+    window.World3D?.releaseCaptureFrame?.();
+  } catch (_) {}
+  window.LifeCh1Slice?.onLocationChanged?.(id);
   syncStage3D();
+  if (id === "city" || id === "construction") {
+    try {
+      window.World3D?.snapPlayerToLocationSpawn?.();
+    } catch (_) {}
+  }
   toast(locTitle(id));
   if (pendingJobAction) {
     const act = pendingJobAction;
@@ -2094,6 +2161,8 @@ function openModal(id) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove("active");
+  if (id === "mapModal" || id === "gangModal") window.World3D?.resetFollowCamera?.();
+  window.World3D?.releaseCaptureFrame?.();
 }
 
 function renderGangList() {
@@ -2359,6 +2428,16 @@ function travelJob(action, loc) {
 
 function toggleBuildMode() {
   buildMode = !buildMode;
+  try {
+    window.World3D?.releaseCaptureFrame?.();
+    window.World3D?.resetFollowCamera?.();
+  } catch (_) {}
+  if (buildMode && me.location === "city") {
+    try {
+      window.World3D?.snapPlayerToLocationSpawn?.();
+      window.World3D?.setPortalGrace?.(1200);
+    } catch (_) {}
+  }
   toast(buildMode ? t("build_mode_on") : t("build_mode_off"));
 }
 
@@ -2398,6 +2477,7 @@ function placeBuildAt(x, y) {
     saveMe();
     questBump("built", 1);
     window.Onboarding?.onCityBuildPlaced?.();
+    window.World3D?.refreshCityBuilds3D?.();
     toast(t("built"));
     return;
   }
@@ -2410,6 +2490,21 @@ function placeBuildAt(x, y) {
   questBump("built", 1);
   window.Onboarding?.onCityBuildPlaced?.();
   toast(t("built"));
+}
+
+function tryOnboardingCryptPlace() {
+  const st = window.Onboarding?.currentStep?.();
+  if (st?.key !== "city_build" || me.location !== "city") return false;
+  me.inventory = me.inventory || { materials: {}, spells: [] };
+  me.inventory.materials = me.inventory.materials || {};
+  const mats = me.inventory.materials;
+  if ((mats.floor || 0) < 1) mats.floor = 2;
+  if ((mats.crypt || 0) < 1) mats.crypt = 1;
+  selectedBuild = "floor";
+  placeBuildAt(50, 52);
+  selectedBuild = "crypt";
+  placeBuildAt(51, 52);
+  return true;
 }
 
 function tryDecorPlace() {
@@ -2435,14 +2530,104 @@ window.startTrainingDuelMohawk = function () {
   }
 };
 
+function punkStartOnboardDuel() {
+  const st = window.Onboarding?.currentStep?.();
+  if (st?.key !== "win_fight") return { ok: false, reason: "not_win_fight_step" };
+  closeModal("gangModal");
+  if (me.location !== "street") goLocation("street");
+  syncStage3D();
+  window.World3D?.releaseCaptureFrame?.();
+  window.World3D?.snapPlayerToLocationSpawn?.();
+  const duelOpts = { training: true, firstTo: 1 };
+  const started = !!window.World3D?.startDuel3D?.("razor", duelOpts);
+  if (started) {
+    fight = {
+      npcName: tNpcName("razor"),
+      npcHp: 100,
+      npcMax: 100,
+      playerHp: 100,
+      playerMax: 100,
+      shield: 0,
+      log: [],
+      _duel3d: true
+    };
+    window._duel3dEnd = win => endFight(win);
+  }
+  return {
+    ok: started,
+    hud: !document.getElementById("duel3dHud")?.classList.contains("hidden"),
+    loc: me.location,
+    mode3d: document.body.classList.contains("mode-world3d"),
+  };
+}
+
 function startNpcFight(nid) {
   const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
-  if (window.World3D?.startDuel3D?.(nid || npc.id)) {
-    const atk = document.querySelector('[data-testid="duel3d-attack"]');
-    const r = atk?.getBoundingClientRect?.();
-    if (r && r.width > 2 && r.height > 2) {
+  const wantId = nid || npc.id || "razor";
+  const onboardFight = window.Onboarding?.currentStep?.()?.key === "win_fight";
+  const duelOpts = onboardFight ? { training: true, firstTo: 1 } : undefined;
+  const duelSyncMs = onboardFight ? 520 : 150;
+  const beginDuel3D = () => {
+    if (onboardFight && me.location !== "street") goLocation("street");
+    syncStage3D();
+    window.World3D?.releaseCaptureFrame?.();
+    window.World3D?.snapPlayerToLocationSpawn?.();
+    return window.World3D?.startDuel3D?.(wantId, duelOpts);
+  };
+  if (document.body.classList.contains("mode-world3d")) {
+    if (me.location !== "street") {
+      goLocation("street");
+      setTimeout(() => {
+        const ok = beginDuel3D();
+        if (!ok) toast(t("fight_try_again") || "3D duel unavailable");
+        else {
+          fight = {
+            npcName: tNpcName(wantId),
+            npcHp: 100,
+            npcMax: 100,
+            playerHp: 100,
+            playerMax: 100,
+            shield: 0,
+            log: [],
+            _duel3d: true
+          };
+          window._duel3dEnd = win => endFight(win);
+        }
+      }, duelSyncMs);
+      return;
+    }
+    if (onboardFight) {
+      const armDuel = ok => {
+        if (!ok) return false;
+        fight = {
+          npcName: tNpcName(wantId),
+          npcHp: 100,
+          npcMax: 100,
+          playerHp: 100,
+          playerMax: 100,
+          shield: 0,
+          log: [],
+          _duel3d: true
+        };
+        window._duel3dEnd = win => endFight(win);
+        return true;
+      };
+      const tryOnboardDuel = () => {
+        if (armDuel(beginDuel3D())) return;
+        setTimeout(() => {
+          if (!armDuel(beginDuel3D())) toast(t("fight_try_again") || "3D duel unavailable");
+        }, duelSyncMs);
+      };
+      const boot = window.World3D?.bootstrapWorldAfterCharacter;
+      if (typeof boot === "function") {
+        boot().then(tryOnboardDuel).catch(tryOnboardDuel);
+      } else tryOnboardDuel();
+      return;
+    }
+    const ok = beginDuel3D();
+    if (ok) {
       fight = {
-        npcName: tNpcName(npc.id || nid),
+        npcName: tNpcName(wantId),
         npcHp: 100,
         npcMax: 100,
         playerHp: 100,
@@ -2454,8 +2639,22 @@ function startNpcFight(nid) {
       window._duel3dEnd = win => endFight(win);
       return;
     }
-    document.getElementById("duel3dHud")?.classList.add("hidden");
-    window.PlayV21?.stopDuel3D?.(false);
+    toast(t("fight_try_again") || "3D duel unavailable");
+    return;
+  }
+  if (window.World3D?.startDuel3D?.(wantId, duelOpts)) {
+    fight = {
+      npcName: tNpcName(npc.id || nid),
+      npcHp: 100,
+      npcMax: 100,
+      playerHp: 100,
+      playerMax: 100,
+      shield: 0,
+      log: [],
+      _duel3d: true
+    };
+    window._duel3dEnd = win => endFight(win);
+    return;
   }
   fight = {
     npcName: tNpcName(npc.id || nid),
@@ -2471,6 +2670,14 @@ function startNpcFight(nid) {
 }
 
 function duel3dAttack() { window._duelAttack = true; }
+function duel3dSpell() {
+  const spells = me.inventory?.spells || [];
+  if (!spells.length) {
+    toast(t("no_scrolls"));
+    return;
+  }
+  window._duelSpell = true;
+}
 function duel3dDodge() { window._duelDodge = true; }
 function duel3dBlock() {
   window._duelBlock = true;
@@ -2548,7 +2755,7 @@ function endFight(win) {
     toast(t("win_fight") + " +" + reward);
     questBump("win_fight");
     window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
-    window.Onboarding?.onWinFight?.();
+    if (!fight?._duel3d) window.Onboarding?.onWinFight?.();
     window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
   } else {
     toast(t("lose_fight"));
@@ -2637,6 +2844,7 @@ window.startFightUi = startFightUi;
 window.fightAttack = fightAttack;
 window.fightDodge = fightDodge;
 window.duel3dAttack = duel3dAttack;
+window.duel3dSpell = duel3dSpell;
 window.duel3dDodge = duel3dDodge;
 window.duel3dBlock = duel3dBlock;
 window.decorPlaceAtWorld = decorPlaceAtWorld;
@@ -2660,6 +2868,9 @@ window.runJobAction = runJobAction;
 function exposePreviewBuildHooks() {
   if (isPreviewBuild() || isLifeCh1LocalSaveBuild()) {
     window.tryPlaceBuild = (x, y) => placeBuildAt(x, y);
+    window.tryOnboardingCryptPlace = tryOnboardingCryptPlace;
+    window.goLocation = goLocation;
+    window.__punkStartOnboardDuel = punkStartOnboardDuel;
   } else if ("tryPlaceBuild" in window) {
     delete window.tryPlaceBuild;
   }

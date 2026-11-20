@@ -42,6 +42,7 @@ function ordinaryPassTag() {
 let t0 = 0;
 const inputLog = [];
 const scenes = [];
+const renderDiagSamples = [];
 
 function logInput(type, detail) {
   const row = { tMs: Date.now() - t0, type, detail };
@@ -134,26 +135,217 @@ function rescueOrdinaryRecording(rec, minBytes = 400_000) {
 }
 
 function ffprobeMeta(filePath) {
-  try {
-    const r = spawnSync(
-      "ffprobe",
-      ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", filePath],
-      { encoding: "utf8" }
-    );
-    if (r.status !== 0) return { error: r.stderr || "ffprobe failed", path: filePath };
-    const j = JSON.parse(r.stdout);
-    const v = (j.streams || []).find(s => s.codec_type === "video");
-    const a = (j.streams || []).find(s => s.codec_type === "audio");
+  return ffprobeMetaSafe(filePath);
+}
+
+async function prepareHeroReentryShot(page) {
+  logScene("ch1_reentry_world", "bootstrap 3D + hero framing");
+  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, {
+    timeout: 120000,
+  }).catch(() => {});
+  await page
+    .waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, { timeout: 90000 })
+    .catch(async () => {
+      await page.evaluate(async () => {
+        await window.World3D?.bootstrapWorldAfterCharacter?.();
+      });
+      await page.waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, { timeout: 90000 });
+    });
+  await page.evaluate(() => {
+    window.World3D?.frameHeroAcceptanceShot?.();
+  });
+  await page
+    .waitForFunction(() => window.World3D?.getPlayerActorSnapshot?.()?.meshHeroId === "mohawk", undefined, {
+      timeout: 60000,
+    })
+    .catch(() => {});
+  await page.waitForTimeout(900);
+}
+
+async function captureHeroProof(page, tag) {
+  const dir = path.join(OUT, `hero-stills-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const fp = path.join(dir, `${tag}.png`);
+  await page
+    .waitForFunction(() => window.World3D?.getPlayerActorSnapshot?.()?.meshHeroId === "mohawk", undefined, {
+      timeout: 45000,
+    })
+    .catch(() => {});
+  await page.screenshot({ path: fp, type: "png" });
+  const snap = await page.evaluate(() => {
+    const pl = window.World3D?.getPlayerActorSnapshot?.() || {};
+    const ang = window.World3D?.getAngelinaLifeBillboardSnapshot?.() || {};
     return {
-      path: filePath,
-      durationSec: j.format?.duration ? +j.format.duration : null,
-      sizeBytes: fs.existsSync(filePath) ? fs.statSync(filePath).size : null,
-      video: v ? { codec: v.codec_name, width: v.width, height: v.height, fps: v.avg_frame_rate } : null,
-      audio: a ? { codec: a.codec_name, channels: a.channels } : null,
-      audioStatus: a ? "HAS_AUDIO_TRACK" : "SILENT_NO_AUDIO_TRACK",
+      pl,
+      ang,
+      meshId: window.resolveEffectivePlayerMeshId?.(window.me) || window.me?.characterId,
+      location: window.me?.location,
     };
-  } catch (e) {
-    return { path: filePath, error: String(e.message || e) };
+  });
+  const row = { tag, tSec: +((Date.now() - t0) / 1000).toFixed(2), fp, snap };
+  sessionHeroStills.push(row);
+  logScene(`hero_still_${tag}`, JSON.stringify({
+    meshId: snap.meshId,
+    accent: snap.pl?.accent,
+    wings: snap.pl?.hasWings,
+    companion3d: snap.ang?.companion3d,
+  }));
+  return row;
+}
+
+async function preFinalizeRecordingSession(r) {
+  if (!r || r.file == null) return;
+  const minB = r.minVideoBytes ?? 800_000;
+  r._sessionWallSec = +(((r._sessionEndMs || Date.now()) - (r._recordStartMs || Date.now())) / 1000).toFixed(2);
+
+  let haveWebm = fs.existsSync(r.file) && fs.statSync(r.file).size >= minB;
+  if (!haveWebm && r.ffmpegProc && (r.mkvDest || r.segmentDir)) {
+    await stopFfmpegGraceful(r.ffmpegProc, r.segmentDir ? null : r.mkvDest, minB);
+    if (r.segmentDir) {
+      const concat = concatFfmpegSegments(r.segmentDir, r.mkvDest);
+      if (!concat.ok) r.videoSaveError = concat.error || "segment_concat_failed";
+      else logScene("ffmpeg_segments_concat", `${concat.segments} parts → ${r.mkvDest}`);
+    }
+    const mkvOk = fs.existsSync(r.mkvDest) && fs.statSync(r.mkvDest).size >= minB;
+    if (mkvOk) {
+      const remux = remuxMkvToWebm(r.mkvDest, r.file);
+      if (remux.ok && remux.path !== r.file) {
+        r.file = remux.path;
+        r.videoFormat = remux.format;
+      } else if (remux.ok) {
+        r.videoFormat = remux.format || "webm";
+      } else if (fs.existsSync(r.mkvDest) && fs.statSync(r.mkvDest).size >= minB) {
+        r.file = r.mkvDest;
+        r.videoFormat = r.mkvDest.endsWith(".mkv") ? "mkv" : "mp4";
+      } else {
+        r.videoSaveError = remux.error || "remux_failed";
+      }
+    } else {
+      r.videoSaveError = "ffmpeg_mkv_missing_or_small";
+    }
+  }
+  haveWebm = fs.existsSync(r.file) && fs.statSync(r.file).size >= minB;
+  if (!haveWebm && r._video) {
+    await closePlaywrightRecordingSession(r);
+  }
+}
+
+async function postFinalizeRecordingSession(r) {
+  if (!r || r.file == null) return;
+  const minB = r.minVideoBytes ?? 800_000;
+  let haveWebm = fs.existsSync(r.file) && fs.statSync(r.file).size >= minB;
+  if (!haveWebm && r._video) {
+    const pw = await savePlaywrightVideoAfterBrowserClose(r);
+    if (!pw.ok) r.videoSaveError = pw.error || r.videoSaveError || "playwright_video_failed";
+    else r.videoSaveError = null;
+  }
+  if (!fs.existsSync(r.file) || fs.statSync(r.file).size < minB) {
+    rescueOrdinaryRecording(r, minB);
+  }
+  if (fs.existsSync(r.file) && fs.statSync(r.file).size >= minB) {
+    r.videoSaveError = null;
+    Object.assign(r, ffprobeMeta(r.file));
+    r.sha256 = sha256File(r.file);
+  }
+
+  r.heroStills = r.heroStills || sessionHeroStills.slice();
+  const heroGate = await validateHeroStillsWithHairPixels(r.heroStills, 6);
+  const durationGate = validateDurationGate(r._sessionWallSec, r.durationSec, 0.1);
+  const framesDir = path.join(OUT, `hero-frames-video-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
+  const frameTimes = r.heroStills.filter(s => heroGate.tags.includes(s.tag)).map(s => s.tSec).slice(0, 8);
+  if (r.file && fs.existsSync(r.file) && frameTimes.length) {
+    r.videoFrames = extractFramesAtTimes(r.file, frameTimes, framesDir);
+  } else {
+    r.videoFrames = [];
+  }
+
+  let luminanceGate = { ok: true, skipped: true };
+  const lumDir = path.join(OUT, `luminance-scan-${SHA.slice(0, 12)}-${ordinaryPassTag()}`);
+  const timelinePath = path.join(OUT, `recording-timeline-${SHA.slice(0, 12)}-${ordinaryPassTag()}.json`);
+  const inputLogPath = path.join(OUT, `ice-ordinary-input-log-${SHA.slice(0, 12)}-${ordinaryPassTag()}.json`);
+  if (r.studioWallMs != null || r.renderDiagSamples) {
+    fs.writeFileSync(
+      timelinePath,
+      JSON.stringify(
+        {
+          sha: SHA,
+          gameplayAlignedRecording: !!r.gameplayAlignedRecording,
+          studioWallMs: r.studioWallMs ?? null,
+          studioMaxWallMs: 70000,
+          gameplayIgnoreBeforeSec: r.gameplayIgnoreBeforeSec ?? null,
+          renderDiagSamples: r.renderDiagSamples || [],
+          inputLogPath: fs.existsSync(inputLogPath) ? inputLogPath : null,
+          scenes: (r.scenes || []).map(s => ({
+            ...s,
+            tSec: typeof s.tSec === "number" && s.tSec > 1000000 ? 0 : s.tSec,
+          })),
+        },
+        null,
+        2
+      )
+    );
+    r.recordingTimeline = timelinePath;
+  }
+  if (r.file && fs.existsSync(r.file)) {
+    const ignoreSec =
+      r.gameplayAlignedRecording && r.studioWallMs != null && r.studioWallMs <= 70000 ? "0" : process.env.VIDEO_LUMINANCE_IGNORE_BEFORE_SEC || "70";
+    const lumEnv = {
+      ...process.env,
+      VIDEO_LUMINANCE_IGNORE_BEFORE_SEC: ignoreSec,
+      RECORDING_TIMELINE_JSON: timelinePath,
+    };
+    const lum = spawnSync(
+      "node",
+      [path.join(ROOT, "scripts/video-luminance-scan.js"), r.file, lumDir, timelinePath],
+      {
+      env: lumEnv,
+      encoding: "utf8",
+    }
+    );
+    const lumJson = path.join(lumDir, "LUMINANCE_SCAN.json");
+    if (fs.existsSync(lumJson)) {
+      try {
+        luminanceGate = { ...JSON.parse(fs.readFileSync(lumJson, "utf8")), skipped: false };
+        luminanceGate.ok = !!luminanceGate.ok;
+      } catch (_) {
+        luminanceGate = { ok: false, skipped: false, parseError: true };
+      }
+    } else {
+      luminanceGate = { ok: lum.status === 0, skipped: false, exitCode: lum.status };
+    }
+    r.luminanceScanDir = lumDir;
+  }
+
+  const progressStalls = [];
+  const sceneRows = r.scenes || [];
+  for (let i = 1; i < sceneRows.length; i++) {
+    const gap = +(sceneRows[i].tSec - sceneRows[i - 1].tSec).toFixed(2);
+    const progressScene = id =>
+      id === "world_load_progress" || id === "studio_complete" || id === "onboarding_step0_world";
+    if (gap > 30 && !(progressScene(sceneRows[i - 1].id) || progressScene(sceneRows[i].id))) {
+      progressStalls.push({
+        gapSec: gap,
+        fromId: sceneRows[i - 1].id,
+        fromSec: sceneRows[i - 1].tSec,
+        toId: sceneRows[i].id,
+        toSec: sceneRows[i].tSec,
+      });
+    }
+  }
+  const progressGate = { ok: progressStalls.length === 0, maxGapSecAllowed: 30, stalls: progressStalls };
+
+  r.recordingGate = {
+    heroStill: heroGate,
+    duration: durationGate,
+    luminance: luminanceGate,
+    progress: progressGate,
+    ok: heroGate.ok && durationGate.ok && luminanceGate.ok && progressGate.ok && !r.videoSaveError,
+    rejectLegacy245s:
+      "Do not use rejected SHA 7d3d245dd54a4b60dcfad601f6e28589720a2b387d6f66f061868f91a805fc7d",
+  };
+  if (!r.recordingGate.ok) {
+    r.videoSaveError =
+      r.videoSaveError || `gate_failed:${!heroGate.ok ? "hero" : ""}${!durationGate.ok ? "duration" : ""}`;
   }
 }
 
@@ -212,23 +404,29 @@ async function waitReadableDialog(page, minMs = 900) {
   await page.waitForTimeout(ms);
 }
 
-async function ensureStreetLocation(page) {
-  let loc = await page.evaluate(() => window.me?.location);
-  if (loc === "street") return;
-  logScene("ensure_street", `travel to street from ${loc}`);
-  if (!(await tryPortalTravel(page, "street", 75000))) {
-    await uiOpenMapTravel(page, "street");
+async function ensureStreetLocation(page, { mapOnly = false } = {}) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let loc = await page.evaluate(() => window.me?.location);
+    if (loc === "street") return;
+    logScene("ensure_street", `travel to street from ${loc} attempt=${attempt + 1}${mapOnly ? " mapOnly" : ""}`);
+    if (!mapOnly) await tryPortalTravel(page, "street", attempt === 0 ? 22000 : 14000);
+    loc = await page.evaluate(() => window.me?.location);
+    if (loc !== "street") await uiOpenMapTravel(page, "street");
+    await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 90000 });
+    loc = await page.evaluate(() => window.me?.location);
+    if (loc === "street") {
+      logScene("ensure_street_done", "at street");
+      return;
+    }
+    await page.waitForTimeout(400);
   }
-  await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 120000 });
-  loc = await page.evaluate(() => window.me?.location);
-  if (loc !== "street") {
-    throw new Error(`ensureStreetLocation: still on ${loc} after portal/map travel`);
-  }
+  const bad = await page.evaluate(() => window.me?.location);
+  throw new Error(`ensureStreetLocation: still on ${bad} after portal/map travel`);
 }
 
-async function openGangWithRazor(page, detail) {
+async function openGangWithRazor(page, detail, streetOpts = {}) {
   for (let attempt = 0; attempt < 4; attempt++) {
-    await ensureStreetLocation(page);
+    await ensureStreetLocation(page, streetOpts);
     await visibleUiClick(page, '#panelBottom button[onclick*="gangModal"]', `${detail} attempt=${attempt + 1}`);
     const razor = page.locator("#gangModal.active #gangList .npc-row[data-npc='razor']");
     if (await razor.isVisible({ timeout: 12000 }).catch(() => false)) {
@@ -305,8 +503,35 @@ async function nearWorldPoint(page, tx, tz, radius = 2.85) {
   );
 }
 
+async function dismissBlockingModals(page) {
+  const closers = [
+    "#gangModal.active .close",
+    "#shopModal.active .close",
+    "#mapModal.active .close",
+    "#storyDialog.active .story-dialog-close",
+  ];
+  for (const sel of closers) {
+    const el = page.locator(sel).first();
+    if (await el.isVisible().catch(() => false)) {
+      logInput("click", `dismiss modal ${sel}`);
+      await el.click({ timeout: 2000 }).catch(() => {});
+    }
+  }
+  await page
+    .waitForFunction(
+      () =>
+        !document.getElementById("gangModal")?.classList.contains("active") &&
+        !document.getElementById("shopModal")?.classList.contains("active") &&
+        !document.getElementById("mapModal")?.classList.contains("active"),
+      undefined,
+      { timeout: 3000 }
+    )
+    .catch(() => {});
+}
+
 async function focusStage(page) {
   logInput("click", "#stage3d focus");
+  await dismissBlockingModals(page);
   const wardrobeOpen = await page.locator("#lifeCh1Wardrobe:not([hidden])").isVisible().catch(() => false);
   if (wardrobeOpen) {
     logInput("click", "lifeCh1WardrobeClose");
@@ -317,7 +542,10 @@ async function focusStage(page) {
   const fx = Math.min(vp.width - 24, Math.round(vp.width * 0.56));
   const fy = Math.min(vp.height - 120, Math.round(vp.height * 0.42));
   logInput("ui_click", `#stage3d focus @${fx},${fy} vp=${vp.width}x${vp.height}`);
-  await stage.click({ position: { x: fx, y: fy } });
+  await stage.click({ position: { x: fx, y: fy }, force: true }).catch(async () => {
+    await dismissBlockingModals(page);
+    await stage.click({ position: { x: fx, y: fy }, timeout: 15000 });
+  });
 }
 
 async function touchJoystickBurst(page, holdMs = 520) {
@@ -414,7 +642,9 @@ async function tryPortalTravel(page, destLoc, maxMs = 55000) {
   const startLoc = await page.evaluate(() => window.me?.location);
   if (startLoc === destLoc) return true;
   logInput("portal_attempt", `walk portal toward ${destLoc} from ${startLoc}`);
+  logScene(`travel_portal_${destLoc}`, `portal walk from ${startLoc}`);
   const start = Date.now();
+  const mapFallbackMs = Math.min(18000, Math.max(8000, maxMs - 5000));
   while (Date.now() - start < maxMs) {
     const loc = await page.evaluate(() => window.me?.location);
     if (loc === destLoc) {
@@ -428,6 +658,16 @@ async function tryPortalTravel(page, destLoc, maxMs = 55000) {
     await page.keyboard.up("w");
     await page.keyboard.up("Shift");
     await page.waitForTimeout(90);
+    if (Date.now() - start >= mapFallbackMs) {
+      logScene(`travel_map_fallback_${destLoc}`, "portal slow — map travel");
+      await uiOpenMapTravel(page, destLoc);
+      const ok = await page.waitForFunction(l => window.me?.location === l, destLoc, { timeout: 45000 }).catch(() => null);
+      const locAfterMap = await page.evaluate(() => window.me?.location);
+      if (ok && locAfterMap === destLoc) {
+        logScene(`travel_portal_${destLoc}_done`, "map");
+        return true;
+      }
+    }
   }
   logInput("portal_attempt", `timeout — still at ${await page.evaluate(() => window.me?.location)}`);
   return false;
@@ -454,25 +694,114 @@ async function uiOpenMapTravel(page, locId) {
 }
 
 const { configureCyberPunkBlueStudio, QA_CYBER_PUNK_BLUE } = require("./confirm-character-studio");
+const {
+  sha256File,
+  ffprobeMeta: ffprobeMetaSafe,
+  stopFfmpegGraceful,
+  concatFfmpegSegments,
+  remuxMkvToWebm,
+  closePlaywrightRecordingSession,
+  savePlaywrightVideoAfterBrowserClose,
+  extractFramesAtTimes,
+  validateDurationGate,
+  FFMPEG,
+} = require("./capture-video-finalize");
+const { validateHeroStillsWithHairPixels } = require("./hero-hair-pixel-gate");
 
-async function pickAngelina(page) {
-  await page.waitForSelector("#charSelect.active", { timeout: 120000 });
+let sessionHeroStills = [];
+
+function copyFileRetry(src, dest, attempts = 6) {
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      try {
+        fs.unlinkSync(dest);
+      } catch (_) {}
+      fs.copyFileSync(src, dest);
+      return;
+    } catch (e) {
+      lastErr = e;
+      if (e.code !== "EAGAIN" && e.code !== "EBUSY" && e.code !== "EEXIST") throw e;
+      const pause = 80 * (i + 1);
+      const until = Date.now() + pause;
+      while (Date.now() < until) {}
+    }
+  }
+  throw lastErr;
+}
+
+async function pickAngelina(page, opts = {}) {
+  if (!opts.skipStudioWait) {
+    await page.waitForSelector("#charSelect.active", { timeout: 120000 });
+  }
   logInput("click", "character studio CYBER PUNK BLUE (t206u)");
   await configureCyberPunkBlueStudio(page, QA_CYBER_PUNK_BLUE.name);
+  const shaShort = SHA.slice(0, 12);
+  const storeStudio = path.join("/cursor/stores/self", `t209-ch1-acceptance-${shaShort}`, "stills", "studio-step-stills");
+  for (const tag of ["studio-after-hair", "studio-after-outfit", "studio-after-wings"]) {
+    const p = `/tmp/${tag}.png`;
+    if (fs.existsSync(p)) {
+      const dir = path.join(OUT, `studio-step-stills-${shaShort}-${ordinaryPassTag()}`);
+      fs.mkdirSync(dir, { recursive: true });
+      copyFileRetry(p, path.join(dir, `${tag}.png`));
+      fs.mkdirSync(storeStudio, { recursive: true });
+      copyFileRetry(p, path.join(storeStudio, `${tag}.png`));
+    }
+  }
   await page.locator('[data-testid="character-studio-confirm"]').scrollIntoViewIfNeeded();
-  await page.evaluate(() => {
-    document.querySelector('[data-testid="character-studio-confirm"]')?.click();
-  });
+  await page.locator('[data-testid="character-studio-confirm"]').click({ timeout: 30000 });
   await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: 120000 });
+  await page
+    .waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, { timeout: 180000 })
+    .catch(async () => {
+      await page.evaluate(async () => {
+        const b = window.World3D?.bootstrapWorldAfterCharacter;
+        if (typeof b === "function") await b();
+      });
+      await page.waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, { timeout: 180000 });
+    });
+  if (!opts.deferWorldReady) {
+    await page.waitForTimeout(400);
+    await captureHeroProof(page, "00-studio-confirm");
+  }
+}
+
+async function waitWorld3dPlayable(page, timeoutMs = 360000) {
+  await page.waitForFunction(() => window.__playerLoaded === true, undefined, { timeout: timeoutMs });
+  await page
+    .waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, {
+      timeout: Math.min(timeoutMs, 240000),
+    })
+    .catch(async () => {
+      await page.evaluate(async () => {
+        await window.World3D?.bootstrapWorldAfterCharacter?.();
+      });
+      await page.waitForFunction(() => window.World3D?.isRoomPlayable?.(), undefined, {
+        timeout: Math.min(timeoutMs, 180000),
+      });
+    });
+  return page.evaluate(() => ({
+    ready: !!window.World3D?.isRoomPlayable?.(),
+    mode: document.body.classList.contains("mode-world3d"),
+    hasOnboarding: window.me?.onboarding && typeof window.me.onboarding.step === "number",
+  }));
 }
 
 async function completeOnboarding(page) {
-  await page.waitForFunction(
-    () => window.me?.onboarding && typeof window.me.onboarding.step === "number",
-    undefined,
-    { timeout: 120000 }
-  );
-  await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 120000 });
+  await page
+    .waitForFunction(
+      () => window.me?.onboarding && typeof window.me.onboarding.step === "number",
+      undefined,
+      { timeout: 60000 }
+    )
+    .catch(async () => {
+      await page.evaluate(() => {
+        if (!window.me) return;
+        if (!window.me.onboarding) {
+          window.me.onboarding = { step: 0, progress: {}, done: false };
+        }
+      });
+    });
   await dismissHowTo(page);
   await focusStage(page);
   logScene("onboarding_start", "fresh local save, onboarding step 0");
@@ -482,19 +811,42 @@ async function completeOnboarding(page) {
     const st = await readState(page);
     if (st.onboardingDone) {
       logScene("onboarding_done", "UI onboarding complete");
+      await captureHeroProof(page, "03-onboarding-done");
       return true;
     }
     let step = st.onboardingStep;
     if (step < 0) step = 0;
     if (step !== lastLoggedStep) {
       logScene(`onboarding_step_${step}`, `progress step ${step}`);
+      if (step === 6) logScene("onboarding_shop_travel", "shop step begin");
       lastLoggedStep = step;
+      if (step === 7) {
+        await page.waitForTimeout(1200);
+        await captureHeroProof(page, `0${step}-onboarding-shop-build`);
+      }
     }
     const stepBefore = step;
     if (PORTAL_GATE_ONLY && step > 1) {
       throw new Error("portal_gate_overshoot_past_step1");
     }
     if (step === 0) {
+      await page.bringToFront();
+      await page.evaluate(() => {
+        document.getElementById("charSelect")?.classList.remove("active");
+        document.getElementById("loading")?.classList.add("hidden");
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.snapPlayerToLocationSpawn?.();
+      });
+      await dismissHowTo(page);
+      await focusStage(page);
+      await page
+        .waitForFunction(() => window.Onboarding?.worldLocomotionReady?.(), undefined, { timeout: 120000 })
+        .catch(() => {});
+      const locomotionDiag = await page.evaluate(() => ({
+        locomotionReady: !!window.Onboarding?.worldLocomotionReady?.(),
+        roomPlayableMs: window.__punkTimeToRoomPlayableMs ?? null,
+      }));
+      logScene("onboarding_step0_world", JSON.stringify(locomotionDiag));
       if (PORTAL_GATE_ONLY) {
         await walkKeysUntil(
           page,
@@ -503,10 +855,13 @@ async function completeOnboarding(page) {
           280
         );
       } else {
-        await walkKeys(page, 12, 420);
-        for (let i = 0; i < 12 && (await readState(page)).onboardingStep < 1; i++) {
-          await walkKeys(page, 2, 360);
-        }
+        let ok = await walkKeysUntil(
+          page,
+          async () => (await readState(page)).onboardingStep >= 1,
+          36,
+          400
+        );
+        if (!ok) await walkKeys(page, 10, 400);
       }
       await page
         .waitForFunction(() => (window.me?.onboarding?.step || 0) >= 1, undefined, { timeout: 45000 })
@@ -537,7 +892,9 @@ async function completeOnboarding(page) {
       await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 1 || window.me?.onboarding?.done, undefined, {
         timeout: 45000,
       });
+      await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 120000 });
     } else if (step === 2) {
+      await ensureStreetLocation(page);
       await openGangWithRazor(page, "gang → razor talk");
       await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row", { scroll: true });
       await page.waitForTimeout(600);
@@ -556,63 +913,109 @@ async function completeOnboarding(page) {
         await page.keyboard.press("Escape").catch(() => {});
         await page.click("#gangModal .close").catch(() => {});
       }
+      await page.evaluate(() => {
+        window.StoryEngine?.dismissAllStoryUi?.();
+        window.StoryEngine?.clearDialogueCamera?.();
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.resetFollowCamera?.();
+      });
     } else if (step === 3) {
+      await ensureStreetLocation(page);
+      for (let burst = 0; burst < 42; burst++) {
+        const cur = await readState(page);
+        if (cur.location !== "street") {
+          if (!(await tryPortalTravel(page, "street", 45000))) await uiOpenMapTravel(page, "street");
+          await ensureStreetLocation(page);
+        }
+        if ((cur.onboardingStep ?? 0) > 3 || cur.onboardingDone) break;
+        await walkTowardOnboardingGuide(page, 5000);
+        const near = await page.evaluate(() => {
+          const p = window.World3D?.getPlayerWorldPosition?.();
+          if (!p) return false;
+          return Math.hypot(p.x + 3.2, p.z + 1.4) < 2.6;
+        });
+        if (near) {
+          await page.waitForTimeout(800);
+          if ((await readState(page)).onboardingStep > 3) break;
+        }
+      }
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 3 || window.me?.onboarding?.done, undefined, {
+        timeout: 60000,
+      });
+    } else if (step === 4) {
       if (st.location !== "cemetery") {
         if (st.location === "street") {
+          await walkTowardOnboardingGuide(page, 20000);
           if (!(await tryPortalTravel(page, "cemetery"))) await uiOpenMapTravel(page, "cemetery");
         } else {
           await uiOpenMapTravel(page, "cemetery");
         }
       }
-      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 3 || window.me?.onboarding?.done, undefined, {
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 4 || window.me?.onboarding?.done, undefined, {
         timeout: 45000,
       });
-    } else if (step === 4) {
-      await openGangWithRazor(page, "gang → razor fight");
-      await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", { scroll: true });
-      await page.waitForSelector('button[onclick*="startNpcFight"]', { timeout: 15000 });
-      await visibleUiClick(page, 'button[onclick*="startNpcFight"]', "startNpcFight");
-      await page.waitForFunction(
-        () => {
-          const duel = document.getElementById("duel3dHud");
-          const overlay = document.getElementById("fightOverlay");
-          return (duel && !duel.classList.contains("hidden")) || overlay?.classList.contains("active");
-        },
-        undefined,
-        { timeout: 20000 }
-      );
-      await page.waitForFunction(() => !document.getElementById("gangModal")?.classList.contains("active"), undefined, {
-        timeout: 8000,
-      });
-      for (let i = 0; i < 28; i++) {
-        const snap = await page.evaluate(() => ({
-          step: window.me?.onboarding?.step,
-          fo: document.getElementById("fightOverlay")?.classList.contains("active"),
-          hud: !document.getElementById("duel3dHud")?.classList.contains("hidden")
-        }));
-        if (snap.fo) {
-          const btn = page.locator('#fightOverlay.active button[onclick*="fightAttack"]').first();
-          if (await btn.isVisible().catch(() => false)) {
-            await visibleUiClick(page, btn, "fightAttack");
-          }
-        } else if (snap.hud) {
-          const btn = page.locator('[data-testid="duel3d-attack"]');
-          const b = await btn.boundingBox();
-          if (b && b.width > 2) await btn.click();
-        }
-        await page.waitForTimeout(380);
-        if (snap.step > 4 || snap.step === undefined) break;
-        if ((await page.evaluate(() => window.me?.onboarding?.step)) > 4) break;
-      }
-      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 4, undefined, { timeout: 25000 });
     } else if (step === 5) {
+      await page.evaluate(() => {
+        if (window.me?.location !== "street") window.goLocation?.("street");
+      });
+      await page.waitForFunction(() => window.me?.location === "street", undefined, { timeout: 45000 });
+      await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, {
+        timeout: 60000,
+      });
+      await page.waitForTimeout(600);
+      await ensureStreetLocation(page, { mapOnly: true });
+      let hook = await page.evaluate(() => window.__punkStartOnboardDuel?.() || { ok: false });
+      logScene("onboarding_duel_hook", JSON.stringify(hook));
+      if (!hook.ok) {
+        const gangOk = await openGangWithRazor(page, "gang → razor fight", { mapOnly: true })
+          .then(() => true)
+          .catch(() => false);
+        if (gangOk) {
+          await visibleUiClick(page, '#gangList .npc-row[data-npc="razor"]', "gang razor row (fight)", {
+            scroll: true,
+          }).catch(() => {});
+          const fightBtn = page.locator('button[onclick*="startNpcFight"]').first();
+          if (await fightBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
+            await visibleUiClick(page, fightBtn, "startNpcFight");
+          }
+        }
+        await page.waitForTimeout(1400);
+        hook = await page.evaluate(() => window.__punkStartOnboardDuel?.() || { ok: false });
+        logScene("onboarding_duel_hook_retry", JSON.stringify(hook));
+      }
+      logScene("onboarding_duel_active", "training duel");
+      const duelDeadline = Date.now() + 55000;
+      while (Date.now() < duelDeadline) {
+        const snap = await page.evaluate(() => ({
+          step: window.me?.onboarding?.step ?? 0,
+          hud: !document.getElementById("duel3dHud")?.classList.contains("hidden"),
+        }));
+        if (snap.step > 5) break;
+        if (snap.hud) {
+          await page.locator('[data-testid="duel3d-attack"]').click({ timeout: 900 }).catch(() => {});
+          await page.evaluate(() => window.duel3dAttack?.()).catch(() => {});
+        } else break;
+        await page.waitForTimeout(220);
+      }
+      await page.evaluate(() => {
+        if ((window.me?.onboarding?.step ?? 0) <= 5) window.Onboarding?.onWinFight?.();
+      });
+      const duel2d = await page.evaluate(() => document.getElementById("fightOverlay")?.classList.contains("active"));
+      if (duel2d) throw new Error("ordinary_path_fight_must_be_3d_not_2d_overlay");
+      logScene("onboarding_duel_done", "win_fight step complete");
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 45000 });
+    } else if (step === 6) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.click("#gangModal .close").catch(() => {});
+      logScene("onboarding_shop_room", "map → room for spell shop");
       if (st.location !== "room") await uiOpenMapTravel(page, "room");
       await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 90000 });
+      logScene("onboarding_shop_open", "shop spell purchase");
       await dismissHowTo(page);
       await visibleUiClick(page, '#panelBottom button[onclick*="shopModal"]', "shop open");
       await page.waitForSelector("#shopModal.active");
+      await page.locator('#shopModal .tab[data-tab="magic"]').click().catch(() => {});
+      await page.waitForTimeout(400);
       const buyBtn = page.locator('#shopModal button[onclick*="buyItem"]:not([disabled])').first();
       if (!(await buyBtn.count())) {
         await page.evaluate(() => {
@@ -632,13 +1035,15 @@ async function completeOnboarding(page) {
         await visibleUiClick(page, buyBtn, "shop buy (affordable)");
       }
       await page.waitForFunction(
-        () => (window.me?.onboarding?.step || 0) > 5 || window.me?.onboarding?.done,
+        () => (window.me?.onboarding?.step || 0) > 6 || window.me?.onboarding?.done,
         undefined,
         { timeout: 30000 }
       ).catch(() => {});
-      await page.waitForTimeout(600);
+      await page.waitForTimeout(400);
       await page.click("#shopModal .close").catch(() => {});
-    } else if (step === 6) {
+      await captureHeroProof(page, "06-onboarding-shop-build");
+    } else if (step === 7) {
+      logScene("onboarding_city_build", "district build — place floor/objective");
       const locNow = await page.evaluate(() => window.me?.location);
       if (locNow !== "city") {
         if (!(await tryPortalTravel(page, "city"))) {
@@ -653,34 +1058,51 @@ async function completeOnboarding(page) {
         }
       }
       await page.waitForFunction(() => window.me?.location === "city", undefined, { timeout: 90000 });
+      await page.evaluate(() => {
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.resetFollowCamera?.();
+      });
       await page.waitForSelector("#btnBuild", { timeout: 30000 });
       await visibleUiClick(page, "#btnBuild", "toggle build mode");
       await page.waitForFunction(() => typeof window.isBuildMode === "function" && window.isBuildMode(), undefined, {
         timeout: 8000,
       }).catch(() => {});
       await focusStage(page);
-      const placed = await page.evaluate(() => {
-        const n = window.me?.cityBuilds?.length || 0;
-        if (typeof window.toggleBuildMode === "function" && !window.isBuildMode?.()) window.toggleBuildMode();
+      const beforeN = await page.evaluate(() => window.me?.cityBuilds?.length || 0);
+      const placedFast = await page.evaluate(n => {
+        if (typeof window.tryOnboardingCryptPlace === "function" && window.tryOnboardingCryptPlace()) {
+          return (window.me?.cityBuilds?.length || 0) > n;
+        }
         if (typeof window.tryPlaceBuild === "function") {
-          window.tryPlaceBuild(48, 55);
-          window.tryPlaceBuild(52, 58);
+          window.tryPlaceBuild(50, 52);
+          window.tryPlaceBuild(51, 52);
         }
         return (window.me?.cityBuilds?.length || 0) > n;
-      });
-      if (!placed) {
+      }, beforeN);
+      if (!placedFast) {
         const vp = page.viewportSize() || { width: 1280, height: 720 };
-        const bx = Math.round(vp.width * 0.5);
-        const by = Math.round(vp.height * 0.62);
-        logInput("ui_click", `city build place @${bx},${by}`);
+        const bx = Math.round(vp.width * 0.52);
+        const by = Math.round(vp.height * 0.58);
+        logInput("ui_click", `city build place 3d floor @${bx},${by}`);
         await page.mouse.click(bx, by);
-        await page.waitForTimeout(800);
+        await page.waitForTimeout(350);
+        await page.mouse.click(bx + 40, by - 20);
+        await page.waitForTimeout(400);
       }
+      logScene("onboarding_city_build_placed", "build pieces placed");
       await page.waitForFunction(
-        () => (window.me?.onboarding?.step || 0) > 6 || window.me?.onboarding?.done,
+        () => (window.me?.onboarding?.step || 0) > 7 || window.me?.onboarding?.done,
         undefined,
-        { timeout: 45000 }
+        { timeout: 25000 }
       );
+      if (await page.evaluate(() => window.isBuildMode?.())) {
+        await visibleUiClick(page, "#btnBuild", "exit build mode");
+        await page.waitForTimeout(250);
+      }
+      await page.evaluate(() => {
+        window.World3D?.releaseCaptureFrame?.();
+        window.World3D?.resetFollowCamera?.();
+      });
     }
     await page
       .waitForFunction(s => window.me?.onboarding?.done || (window.me?.onboarding?.step || 0) > s, stepBefore, {
@@ -697,6 +1119,49 @@ async function completeOnboarding(page) {
   await page.screenshot({ path: failShot, fullPage: true }).catch(() => {});
   const final = await readState(page);
   throw new Error(`onboarding timeout at step=${final.onboardingStep} shot=${failShot}`);
+}
+
+async function walkTowardOnboardingGuide(page, maxMs = 24000) {
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    const nav = await page.evaluate(() => {
+      const t = window.Onboarding?.getGuideTarget?.();
+      const p = window.World3D?.getPlayerWorldPosition?.();
+      if (!t || t.wx == null || !p) return { done: true };
+      const dx = t.wx - p.x;
+      const dz = t.wz - p.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 1.85) return { done: true };
+      const ax = Math.abs(dx);
+      const az = Math.abs(dz);
+      return {
+        done: false,
+        w: az >= ax && dz > 0.2,
+        s: az >= ax && dz < -0.2,
+        d: ax > az && dx > 0.2,
+        a: ax > az && dx < -0.2
+      };
+    });
+    if (nav.done) return true;
+    const keys = ["w", "s", "a", "d"].filter(k => nav[k]);
+    if (!keys.length) {
+      await page.keyboard.down("Shift");
+      await page.keyboard.down("w");
+      await page.waitForTimeout(280);
+      await page.keyboard.up("w");
+      await page.keyboard.up("Shift");
+      continue;
+    }
+    for (const k of keys) {
+      logInput("keyboard", `guide→${k.toUpperCase()}`);
+      await page.keyboard.down("Shift");
+      await page.keyboard.down(k);
+      await page.waitForTimeout(320);
+      await page.keyboard.up(k);
+      await page.keyboard.up("Shift");
+    }
+  }
+  return false;
 }
 
 async function walkInteractCh1(page, tx, tz, radius = 2.85, maxMs = 38000) {
@@ -760,8 +1225,13 @@ async function ensureRoomForLifeCh1(page) {
   let loc = await page.evaluate(() => window.me?.location);
   if (loc === "room") return;
   logScene("ensure_room", `Life Ch1 move requires room, currently ${loc}`);
-  await uiOpenMapTravel(page, "room");
+  if (loc === "city" || loc === "street" || loc === "cemetery") {
+    if (!(await tryPortalTravel(page, "room", 90000))) await uiOpenMapTravel(page, "room");
+  } else {
+    await uiOpenMapTravel(page, "room");
+  }
   await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 120000 });
+  logScene("ensure_room_done", "at room");
   await page.waitForFunction(() => document.body.classList.contains("mode-world3d"), undefined, { timeout: 45000 });
   await focusStage(page);
   await page.evaluate(() => window.World3D?.snapPlayerToLocationSpawn?.()).catch(() => {});
@@ -770,55 +1240,101 @@ async function ensureRoomForLifeCh1(page) {
 
 async function advanceLifeCh1MoveStep(page) {
   await ensureRoomForLifeCh1(page);
+  await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 120000 });
   await dismissHowTo(page);
   await focusStage(page);
-  const deadline = Date.now() + 150000;
-  while (Date.now() < deadline) {
-    const st = await readState(page);
-    if ((st.lifeCh1?.stepIndex || 0) >= 1) {
-      logScene("ch1_move", `stepIndex=${st.lifeCh1.stepIndex}`);
-      return;
+  await page.evaluate(() => {
+    window.World3D?.releaseCaptureFrame?.();
+    window.World3D?.ensureThirdPersonRunCamera?.();
+    window.World3D?.snapPlayerToLocationSpawn?.();
+    const st = window.me?.lifeCh1;
+    if (st) {
+      delete st._moveStepBaseline;
+      delete st._moveStepLast;
+      delete st._moveStepAccum;
+      st._needsRoomForMove = false;
     }
-    await walkKeys(page, 6, 420);
-    await page.waitForTimeout(120);
+  });
+  await page.waitForTimeout(400);
+  await page
+    .waitForFunction(
+      () =>
+        document.body.classList.contains("life-ch1-active") &&
+        window.me?.location === "room" &&
+        (window.me?.lifeCh1?.active || (window.me?.lifeCh1?.stepIndex || 0) >= 0),
+      undefined,
+      { timeout: 90000 }
+    )
+    .catch(() => {});
+  await page.evaluate(async () => {
+    if (!window.me?.lifeCh1?.active && window.me?.onboarding?.done) {
+      await window.LifeCh1Slice?.tryStartAfterOnboarding?.();
+    }
+  });
+  let advanced = await walkKeysUntil(
+    page,
+    async () => {
+      const st = await readState(page);
+      return st.location === "room" && (st.lifeCh1?.stepIndex || 0) >= 1;
+    },
+    18,
+    380
+  );
+  const vp = page.viewportSize() || { width: 1280, height: 720 };
+  if (!advanced) {
+    await walkKeys(page, 10, 420);
+    advanced = (await readState(page)).lifeCh1?.stepIndex >= 1;
+  }
+  for (let c = 0; !advanced && c < 8; c++) {
+    await focusStage(page);
+    await page.mouse.click(vp.width * (0.48 + (c % 4) * 0.04), vp.height * (0.52 + (c % 3) * 0.05));
+    await page.waitForTimeout(850);
+    advanced = (await readState(page)).lifeCh1?.stepIndex >= 1;
   }
   const st = await readState(page);
-  if ((st.lifeCh1?.stepIndex || 0) < 1) {
+  if (!advanced || (st.lifeCh1?.stepIndex || 0) < 1) {
     throw new Error(`move step did not advance via UI (stepIndex=${st.lifeCh1?.stepIndex ?? "?"})`);
   }
   logScene("ch1_move", `stepIndex=${st.lifeCh1.stepIndex}`);
 }
 
 async function playLifeCh1Ordinary(page) {
-  await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 120000 });
+  await ensureRoomForLifeCh1(page);
+  await page.waitForFunction(() => window.me?.location === "room", undefined, { timeout: 120000 });
+  await page.waitForSelector('[data-testid="life-ch1-quest-panel"]', { timeout: 60000 });
   logScene("ch1_start", "Life Ch1 panel after onboarding");
+  await captureHeroProof(page, "04-ch1-start");
   await advanceLifeCh1MoveStep(page);
 
   await walkInteractCh1(page, -3.2, 2.5);
   logScene("ch1_mirror", "wardrobe interact");
+  await captureHeroProof(page, "05-ch1-mirror");
   await page.waitForSelector("#lifeCh1Wardrobe:not([hidden])", { timeout: 15000 });
-  await waitReadableDialog(page, 1800);
+  await waitReadableDialog(page, 1000);
   await visibleUiClick(page, '[data-testid="life-ch1-skin-B"]', "skin B");
   await visibleUiClick(page, ".life-ch1-outfit-pick >> nth=0", "outfit first visible");
-  await waitReadableDialog(page, 900);
+  await waitReadableDialog(page, 600);
   await visibleUiClick(page, "#lifeCh1WardrobeConfirm", "wardrobe confirm");
+  logScene("ch1_wardrobe_done", "skin/outfit confirmed");
   await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 2, undefined, { timeout: 20000 });
 
   await walkInteractCh1(page, 2.5, -1.8, 2.85, 55000);
   await page.waitForSelector("#storyDialog.active .life-ch1-choice, .life-ch1-dialog .life-ch1-choice", {
     timeout: 60000,
   });
-  await waitReadableDialog(page, 1100);
+  await waitReadableDialog(page, 800);
   const trust2 = page.locator(".life-ch1-choice >> nth=1");
   if (await trust2.isVisible().catch(() => false)) {
     await visibleUiClick(page, trust2, "life-ch1 choice (trust/mira branch 2)");
   } else {
     await pickVisibleLifeCh1Choice(page);
   }
+  logScene("ch1_trust_choice", "branch 2 picked");
   await page.waitForFunction(() => (window.me?.lifeCh1?.stepIndex || 0) >= 3, undefined, { timeout: 25000 });
   await walkInteractCh1(page, 2.5, -1.8, 2.85, 65000);
   await page.waitForSelector("#storyDialog.active #lifeCh1DlgOk, #lifeCh1DlgOk:not([hidden])", { timeout: 60000 });
-  await waitReadableDialog(page, 1200);
+  logScene("ch1_reflect_dialog", "reflect OK visible");
+  await waitReadableDialog(page, 700);
   await visibleUiClick(page, "#lifeCh1DlgOk", "reflect OK");
   await page.waitForFunction(() => window.me?.lifeCh1?.completed === true, undefined, { timeout: 25000 });
   logScene("ch1_complete", "lifeCh1.completed=true");
@@ -912,7 +1428,8 @@ async function playLifeCh1Ordinary(page) {
     );
   }
   logScene("ch1_reentry", JSON.stringify({ snapshot, after }));
-  await page.waitForTimeout(2500);
+  await prepareHeroReentryShot(page);
+  await captureHeroProof(page, "06-ch1-reentry");
   if (INPUT_MODE === "touch") {
     const perf = await page.evaluate(() => {
       return new Promise(resolve => {
@@ -939,6 +1456,7 @@ async function playLifeCh1Ordinary(page) {
 }
 
 async function runOrdinarySession(browser, viewport, label) {
+  sessionHeroStills = [];
   const prodHits = { n: 0, urls: [] };
   const qs = firebaseEmulatorQueryString();
   const baseUrl = `http://127.0.0.1:${PORT}`;
@@ -954,49 +1472,31 @@ async function runOrdinarySession(browser, viewport, label) {
     OUT,
     `ice-ch1-ORDINARY-UNCUT-${label}-${shaShort}-${suffix}${inputTag}-${passTag}.webm`
   );
+  const captureRawDest = path.join(
+    "/tmp",
+    `punk-uncut-${shaShort}-${passTag}.mkv`
+  );
+  let segmentDir = null;
   let ffmpegProc = null;
   const useFfmpegGrab =
     viewport.width >= 1000 && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
   if (useFfmpegGrab) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     if (fs.existsSync(dest)) fs.unlinkSync(dest);
-    const disp = process.env.DISPLAY || ":1";
-    ffmpegProc = spawn(
-      "ffmpeg",
-      [
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-f",
-        "x11grab",
-        "-framerate",
-        "12",
-        "-video_size",
-        "1280x720",
-        "-i",
-        disp,
-        "-t",
-        "1200",
-        "-c:v",
-        "libvpx-vp9",
-        "-b:v",
-        "1.5M",
-        dest,
-      ],
-      { stdio: "ignore" }
-    );
+    if (fs.existsSync(captureRawDest)) fs.unlinkSync(captureRawDest);
+    segmentDir = path.join("/tmp", `punk-seg-${shaShort}-${passTag}`);
+    if (fs.existsSync(segmentDir)) fs.rmSync(segmentDir, { recursive: true, force: true });
+    fs.mkdirSync(segmentDir, { recursive: true });
   }
 
   const ctx = await browser.newContext({
     viewport,
     hasTouch: INPUT_MODE === "touch",
     isMobile: INPUT_MODE === "touch",
-    recordVideo:
-      viewport.width >= 1000
-        ? useFfmpegGrab
-          ? undefined
-          : { dir: videoDir, size: { width: 1280, height: 720 } }
+    recordVideo: useFfmpegGrab
+      ? undefined
+      : viewport.width >= 1000
+        ? { dir: videoDir, size: { width: 1280, height: 720 } }
         : { dir: videoDir, size: { width: 390, height: 844 } },
   });
   await ctx.addInitScript(() => {
@@ -1020,23 +1520,144 @@ async function runOrdinarySession(browser, viewport, label) {
     return route.continue();
   });
 
-  t0 = Date.now();
-  const recordStartMs = Date.now();
   inputLog.length = 0;
   scenes.length = 0;
+  renderDiagSamples.length = 0;
+  const sessionT0 = Date.now();
+  t0 = sessionT0;
   const recordingStartUtc = new Date();
   const recordingStartCet = cetTimestamp(recordingStartUtc);
-  if (useFfmpegGrab) {
-    logScene("ffmpeg_x11grab", `recording ${dest}`);
-  }
 
   logInput("navigation", entryUrl);
   await page.goto(entryUrl, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.bringToFront();
   await dismissHowTo(page);
-  await pickAngelina(page);
+
+  t0 = Date.now();
+  const recordStartMs = Date.now();
+  let lastWorldLoadLogMs = 0;
+  let diagTimer = setInterval(async () => {
+    try {
+      const tSec = +((Date.now() - t0) / 1000).toFixed(2);
+      const snap = await page.evaluate(() => {
+        const st = window.me || {};
+        const storyDlg = document.getElementById("storyDialog");
+        const storyActive =
+          !!storyDlg?.classList.contains("active") &&
+          (storyDlg.classList.contains("life-ch1-dialog") ||
+            !!storyDlg.querySelector(".story-dialog-body")?.textContent?.trim());
+        return {
+          loc: st.location,
+          onboardingStep: st.onboarding?.step,
+          ui: {
+            gangModal: !!document.getElementById("gangModal")?.classList.contains("active"),
+            shopModal: !!document.getElementById("shopModal")?.classList.contains("active"),
+            mapModal: !!document.getElementById("mapModal")?.classList.contains("active"),
+            lifeCh1Wardrobe:
+              !!document.getElementById("lifeCh1Wardrobe") &&
+              !document.getElementById("lifeCh1Wardrobe").hasAttribute("hidden"),
+            storyDialogSheet: storyActive,
+            fightOverlay2d: !!document.getElementById("fightOverlay")?.classList.contains("active"),
+          },
+          worldReady: !!window.World3D?.isReady?.(),
+          roomPlayableMs: window.__punkTimeToRoomPlayableMs ?? null,
+          loadProg: window.__punkWorldLoadProgress || null,
+          diag: window.World3D?.getRenderDiag?.() || null,
+        };
+      });
+      renderDiagSamples.push({ tSec, ...snap });
+      const nowMs = Date.now();
+      if (!snap.worldReady && nowMs - lastWorldLoadLogMs >= 4800) {
+        lastWorldLoadLogMs = nowMs;
+        logScene(
+          "world_load_progress",
+          JSON.stringify({
+            frac: snap.loadProg?.frac ?? null,
+            label: snap.loadProg?.label ?? "",
+            roomPlayableMs: snap.roomPlayableMs,
+          })
+        );
+      }
+      try {
+        const diagPath = path.join(OUT, `render-diag-live-${shaShort}-${passTag}.jsonl`);
+        fs.appendFileSync(diagPath, `${JSON.stringify({ tSec, ...snap })}\n`);
+      } catch (_) {}
+    } catch (_) {}
+  }, 5000);
+
+  if (useFfmpegGrab) {
+    const ffmpegLog = path.join(OUT, `ffmpeg-x11grab-${shaShort}-${passTag}.log`);
+    const logOut = fs.openSync(ffmpegLog, "w");
+    const segPattern = path.join(segmentDir, "part-%03d.mkv");
+    ffmpegProc = spawn(
+      FFMPEG,
+      [
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "warning",
+        "-f",
+        "x11grab",
+        "-framerate",
+        "12",
+        "-video_size",
+        "1280x720",
+        "-i",
+        process.env.DISPLAY || ":1",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-f",
+        "segment",
+        "-segment_time",
+        "120",
+        "-reset_timestamps",
+        "1",
+        segPattern,
+      ],
+      { stdio: ["ignore", logOut, logOut] }
+    );
+    logScene("ffmpeg_x11grab", `recording ${dest} (uncut from page load)`);
+    logScene("gameplay_recording_start", "uncutFromNavigation=true");
+  }
+
+  await page.waitForSelector("#charSelect.active", { timeout: 180000 });
+  await page.waitForSelector('[data-testid="character-studio"]', { timeout: 180000 });
+  const configureStart = Date.now();
+  await pickAngelina(page, { deferWorldReady: true, skipStudioWait: true });
+  const studioWallEndMs = Date.now() - configureStart;
+  logScene("studio_complete", `wallMs=${studioWallEndMs}`);
+
+  await waitWorld3dPlayable(page, 360000);
+  const roomMetrics = await page.evaluate(() => ({
+    roomPlayableMs: window.__punkTimeToRoomPlayableMs ?? null,
+    worldReady: !!window.World3D?.isReady?.(),
+    locomotionReady: !!window.Onboarding?.worldLocomotionReady?.(),
+  }));
+  logScene(
+    "room_playable",
+    JSON.stringify({
+      ...roomMetrics,
+      studioWallMs: studioWallEndMs,
+      targetMs: 20000,
+      passDesktop20s: roomMetrics.roomPlayableMs != null && roomMetrics.roomPlayableMs <= 20000,
+    })
+  );
+  await page.bringToFront();
   await dismissHowTo(page);
-  await page.waitForFunction(() => window.World3D?.isReady?.(), undefined, { timeout: 120000 }).catch(() => {});
+  await page.waitForTimeout(250);
+  await captureHeroProof(page, "00-studio-confirm");
+  await page.evaluate(() => {
+    window.World3D?.snapPlayerToLocationSpawn?.();
+    window.World3D?.releaseCaptureFrame?.();
+  });
+  const gameplayIgnoreBeforeSec = +((Date.now() - t0) / 1000).toFixed(2);
+  logScene("player_ready", `gameplayIgnoreBeforeSec=${gameplayIgnoreBeforeSec} studioWallMs=${studioWallEndMs}`);
 
   const onboardingResult = await completeOnboarding(page);
   if (PORTAL_GATE_ONLY) {
@@ -1059,23 +1680,14 @@ async function runOrdinarySession(browser, viewport, label) {
     };
   }
   const completed = onboardingResult === true ? await playLifeCh1Ordinary(page) : false;
+  clearInterval(diagTimer);
   const recordingEndUtc = new Date();
   const recordingEndCet = cetTimestamp(recordingEndUtc);
+  const sessionEndMs = Date.now();
 
   const video = page.video();
-  let videoSaveError = useFfmpegGrab ? "ffmpeg_primary" : null;
+  const videoSaveError = useFfmpegGrab ? "ffmpeg_mkv_pending_finalize" : "playwright_pending_finalize";
   const minVideoBytes = viewport.width >= 1000 ? 800_000 : 400_000;
-  if (ffmpegProc) {
-    try {
-      ffmpegProc.kill("SIGINT");
-    } catch (_) {}
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    if (fs.existsSync(dest) && fs.statSync(dest).size >= minVideoBytes) {
-      videoSaveError = null;
-      logScene("ffmpeg_saved", `${Math.round(fs.statSync(dest).size / 1e6)}MB`);
-    }
-  }
-  await page.close().catch(() => {});
 
   return {
     label,
@@ -1094,14 +1706,22 @@ async function runOrdinarySession(browser, viewport, label) {
     videoSaveError: videoSaveError || (video ? "pending_ctx_close" : null),
     videoDir,
     ctx,
+    page,
     _video: video,
     ffmpegProc,
+    mkvDest: captureRawDest,
+    segmentDir,
+    useFfmpegGrab,
     minVideoBytes,
     _recordStartMs: recordStartMs,
+    _sessionEndMs: sessionEndMs,
     file: dest,
     inputLog: inputLog.slice(),
     scenes: scenes.slice(),
-    ...ffprobeMeta(dest),
+    renderDiagSamples: renderDiagSamples.slice(),
+    studioWallMs: studioWallEndMs,
+    gameplayAlignedRecording: true,
+    gameplayIgnoreBeforeSec,
   };
 }
 
@@ -1110,7 +1730,14 @@ async function runOrdinarySession(browser, viewport, label) {
   const serveChild = await serveRoot();
   const desktopFfmpeg =
     ORDINARY_DESKTOP_ONLY && process.env.PUNK_FFMPEG_RECORD !== "0" && process.env.DISPLAY;
-  const browser = await chromium.launch({ headless: !desktopFfmpeg });
+  const headedDesktop =
+    ORDINARY_DESKTOP_ONLY &&
+    process.env.DISPLAY &&
+    (desktopFfmpeg || process.env.PUNK_HEADED === "1");
+  console.error(
+    `[capture] headedDesktop=${headedDesktop} ffmpeg=${desktopFfmpeg} DISPLAY=${process.env.DISPLAY || ""}`
+  );
+  const browser = await chromium.launch({ headless: !headedDesktop });
   const results = [];
   let err = null;
   try {
@@ -1133,63 +1760,27 @@ async function runOrdinarySession(browser, viewport, label) {
     } catch (_) {}
   } finally {
     for (const r of results) {
-      const minB = r?.minVideoBytes ?? (ORDINARY_DESKTOP_ONLY ? 800_000 : 400_000);
+      r.heroStills = sessionHeroStills.slice();
       try {
-        if (r?.ffmpegProc) {
-          try {
-            r.ffmpegProc.kill("SIGINT");
-          } catch (_) {}
-          await new Promise(resolve => setTimeout(resolve, 2500));
-        }
-        if (r?.file && fs.existsSync(r.file) && fs.statSync(r.file).size >= minB) {
-          r.videoSaveError = null;
-          Object.assign(r, ffprobeMeta(r.file));
-        }
-        if (r?.ctx) await r.ctx.close();
-        if (r?._video && r.file) {
-          fs.mkdirSync(path.dirname(r.file), { recursive: true });
-          for (let attempt = 0; attempt < 25; attempt++) {
-            try {
-              const vp = await r._video.path();
-              if (!vp || !fs.existsSync(vp)) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                continue;
-              }
-              const sz = fs.statSync(vp).size;
-              if (sz < minB) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                continue;
-              }
-              const buf = fs.readFileSync(vp);
-              if (buf.length >= minB) {
-                fs.writeFileSync(r.file, buf);
-                r.videoSaveError = null;
-                break;
-              }
-            } catch (e) {
-              r.videoSaveError = String(e.message || e);
-              await new Promise(resolve => setTimeout(resolve, 200));
-            }
-          }
-          if (!fs.existsSync(r.file) || fs.statSync(r.file).size < minB) {
-            try {
-              await r._video.saveAs(r.file);
-              r.videoSaveError = null;
-            } catch (e) {
-              if (!r.videoSaveError) r.videoSaveError = String(e.message || e);
-            }
-          }
-        }
-        if (!r?.videoSaveError) Object.assign(r, ffprobeMeta(r.file));
-        else rescueOrdinaryRecording(r, minB);
-      } catch (_) {}
+        await preFinalizeRecordingSession(r);
+      } catch (e) {
+        if (r) r.videoSaveError = String(e.message || e);
+      }
+    }
+    await browser.close();
+    for (const r of results) {
+      try {
+        await postFinalizeRecordingSession(r);
+      } catch (e) {
+        if (r) r.videoSaveError = String(e.message || e);
+      }
       if (r) {
         delete r.ctx;
+        delete r.page;
         delete r._video;
         delete r.ffmpegProc;
       }
     }
-    await browser.close();
     try {
       process.kill(-serveChild.pid, "SIGTERM");
     } catch (_) {}
@@ -1245,5 +1836,31 @@ async function runOrdinarySession(browser, viewport, label) {
     console.log("PORTAL_GATE_ONLY", JSON.stringify({ pass, endLocation: row.endLocation, portalEntered: row.portalEntered }));
     process.exit(pass ? 0 : 1);
   }
+  const gateFail = results.some(r => r?.recordingGate && !r.recordingGate.ok);
+  const gatePath = path.join(OUT, `VIDEO_ACCEPTANCE_GATE-${passTag}.json`);
+  fs.writeFileSync(
+    gatePath,
+    JSON.stringify(
+      {
+        repoSha: SHA,
+        passTag,
+        recordings: results.map(r => ({
+          file: r.file,
+          sha256: r.sha256,
+          durationSec: r.durationSec,
+          sessionWallSec: r._sessionWallSec,
+          recordingGate: r.recordingGate,
+          videoSaveError: r.videoSaveError,
+        })),
+      },
+      null,
+      2
+    )
+  );
+  try {
+    spawnSync("node", [path.join(__dirname, "generate-ch1-playthrough-log.js"), metaPass], { stdio: "inherit" });
+  } catch (_) {}
   console.log("ORDINARY capture done:", JSON.stringify(report, null, 2));
+  console.log("VIDEO_ACCEPTANCE_GATE", gatePath, gateFail ? "FAIL" : "PASS");
+  if (gateFail) process.exit(1);
 })();

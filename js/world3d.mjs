@@ -43,6 +43,7 @@ import {
 } from "./world/quest-markers.mjs";
 import { initTouchControls } from "./touch-controls.mjs";
 import { buildHangoutVisual } from "./world/construction-hangout.mjs";
+import { createCityBuilds3DGroup, syncCityBuilds3D } from "./world/city-builds-3d.mjs";
 import { tickStory } from "./story/story-engine.mjs";
 import {
   getInputState,
@@ -65,6 +66,7 @@ let hooks = {};
 let actors = new Map();
 let car = null;
 let locationRoot = null;
+let cityBuilds3dGroup = null;
 let bounds = null;
 let furnitureColliders = [];
 let floorMesh = null;
@@ -77,8 +79,94 @@ let meLastDx = 0;
 let meLastDy = 0;
 let playerAnimState = "idle";
 let modelsReady = false;
+let roomPlayableMarked = false;
+let worldBootstrappedForCharacter = false;
+let bootstrapWorldPromise = null;
 let pendingSyncData = null;
 let captureFrameLock = false;
+let dialogueCameraLock = false;
+
+function isStoryUiBlockingWorldCamera() {
+  const storyDlg = document.getElementById("storyDialog");
+  if (storyDlg?.classList.contains("active")) {
+    if (storyDlg.classList.contains("life-ch1-dialog")) return true;
+    const body = storyDlg.querySelector(".story-dialog-body");
+    if (body?.textContent?.trim() || body?.querySelector(".story-choice, .life-ch1-choice, button")) return true;
+  }
+  if (document.querySelector(".life-ch1-dialog-overlay.active")) return true;
+  if (document.getElementById("lifeCh1Wardrobe") && !document.getElementById("lifeCh1Wardrobe").hasAttribute("hidden")) {
+    return true;
+  }
+  return false;
+}
+
+function releaseCaptureFrame() {
+  const a = actors.get("player");
+  if (a) a.group.rotation.y = captureSavedRotY;
+  if (captureHideActors) {
+    captureHideActors.forEach(act => {
+      if (act.group) act.group.visible = true;
+    });
+    captureHideActors = null;
+  }
+  actors.forEach((act, id) => {
+    if (act.group) act.group.visible = true;
+    setDialogueCaptureScale(act, 1);
+  });
+  if (car?.group) car.group.visible = currentLoc === "street" && !isDuelActive();
+  if (locationRoot) locationRoot.visible = true;
+  document.getElementById("storyDialog")?.classList.remove("story-dialog-cinematic");
+  dialogueLiveMinHead = 0;
+  setElevatorCutaway(false);
+  resetPropDimOpacity();
+  resetOccluderOpacity();
+  if (dialogueCaptureBoost) {
+    if (scene?.fog && dialogueCaptureBoost.fogD != null) scene.fog.density = dialogueCaptureBoost.fogD;
+    if (dialogueCaptureBoost.exp != null) renderer.toneMappingExposure = dialogueCaptureBoost.exp;
+    if (scene?.background?.setHex && dialogueCaptureBoost.bg != null) scene.background.setHex(dialogueCaptureBoost.bg);
+    if (dialogueCaptureBoost.hemi != null) {
+      scene.traverse(c => {
+        if (c.isHemisphereLight) c.intensity = dialogueCaptureBoost.hemi;
+      });
+    }
+    dialogueCaptureBoost = null;
+  }
+  if (locFillLight) locFillLight.intensity = 3.2;
+  if (dialogueKeyLight) dialogueKeyLight.visible = false;
+  if (dialogueRimLight) dialogueRimLight.visible = false;
+  if (dialogueNpcFill) dialogueNpcFill.visible = false;
+  if (dialogueBackdrop) dialogueBackdrop.visible = false;
+  actors.forEach(act => {
+    if (act.isPlayer || act.id?.startsWith("npc_")) {
+      boostActorCaptureLight(act, false);
+      setDialogueCaptureScale(act, 1);
+    }
+  });
+  captureFrameLock = false;
+  dialogueCameraLock = false;
+  if (camera && actors.get("player") && !isDuelActive()) {
+    positionCameraBehindPlayer(true);
+    if (currentLoc === "city" || currentLoc === "construction") {
+      snapPlayerToLocationSpawn();
+      refreshCityBuilds3DFromMe();
+    }
+  }
+}
+
+function clearStaleDialogueCapture() {
+  if (isDuelActive()) return;
+  const storyDlg = document.getElementById("storyDialog");
+  if (storyDlg && !isStoryUiBlockingWorldCamera()) {
+    storyDlg.classList.remove("active", "story-dialog-cinematic", "life-ch1-dialog");
+  }
+  if (typeof window.isBuildMode === "function" && window.isBuildMode()) {
+    if (captureFrameLock || dialogueCameraLock) releaseCaptureFrame();
+    return;
+  }
+  if (!captureFrameLock && !dialogueCameraLock) return;
+  if (isStoryUiBlockingWorldCamera()) return;
+  releaseCaptureFrame();
+}
 let dialogueLiveMinHead = 0;
 let portalGraceUntil = 0;
 let captureSavedRotY = 0;
@@ -96,6 +184,16 @@ let lifeAngelinaBillboard = {
   loc: "room",
   visible: false,
   followPlayer: false
+};
+/** In-world Angelina companion (t209) — small Meshy hero, not flat UI cutout. */
+let lifeAngelinaCompanion = {
+  group: null,
+  root: null,
+  mixer: null,
+  actions: null,
+  _meshy: false,
+  ready: false,
+  loading: false
 };
 /** Life ch1 player cutout (t569u) — follows hero, transparent WebP only. */
 let lifeCh1PlayerSkin = {
@@ -367,6 +465,60 @@ function ensureLifeAngelinaBillboardSprite() {
   return sp;
 }
 
+function hideAngelinaFlatSprite() {
+  const sp = lifeAngelinaBillboard.sprite;
+  if (sp) sp.visible = false;
+}
+
+function clearAngelinaCompanionMesh() {
+  if (lifeAngelinaCompanion.group) {
+    scene?.remove(lifeAngelinaCompanion.group);
+    lifeAngelinaCompanion.mixer?.stopAllAction();
+  }
+  lifeAngelinaCompanion = {
+    group: null,
+    root: null,
+    mixer: null,
+    actions: null,
+    _meshy: false,
+    ready: false,
+    loading: false
+  };
+}
+
+async function ensureAngelinaCompanionMesh() {
+  if (lifeAngelinaCompanion.ready || lifeAngelinaCompanion.loading || !scene) return;
+  lifeAngelinaCompanion.loading = true;
+  try {
+    const tpl = await loadMeshyTemplateForCharacter("cobalt");
+    if (!tpl?.gltf) return;
+    const built = createCc0Actor(tpl, "cobalt", { scale: 0.94, wings: false }, {
+      actorId: "angelina_companion",
+      isPlayer: false
+    });
+    const group = new THREE.Group();
+    group.userData.isAngelinaCompanion = true;
+    built.root.scale.multiplyScalar(0.82);
+    group.add(built.root);
+    group.visible = false;
+    scene.add(group);
+    lifeAngelinaCompanion = {
+      group,
+      root: built.root,
+      mixer: built.mixer,
+      actions: built.actions,
+      _meshy: built._meshy,
+      ready: true,
+      loading: false
+    };
+    built.actions.idle?.reset().setEffectiveWeight(1).play();
+    built.mixer?.update(0);
+  } catch (e) {
+    console.warn("angelina companion mesh", e);
+    lifeAngelinaCompanion.loading = false;
+  }
+}
+
 function setAngelinaLifeBillboard(opts = {}) {
   lifeAngelinaBillboard.visible = !!opts.visible;
   lifeAngelinaBillboard.wx = opts.wx ?? lifeAngelinaBillboard.wx;
@@ -374,9 +526,21 @@ function setAngelinaLifeBillboard(opts = {}) {
   lifeAngelinaBillboard.loc = opts.loc ?? lifeAngelinaBillboard.loc;
   if (typeof opts.followPlayer === "boolean") lifeAngelinaBillboard.followPlayer = opts.followPlayer;
   if (opts.url) lifeAngelinaBillboard.url = opts.url;
+  const useCompanion3d = opts.companion3d !== false && lifeAngelinaBillboard.followPlayer;
+  if (!lifeAngelinaBillboard.visible) {
+    hideAngelinaFlatSprite();
+    if (lifeAngelinaCompanion.group) lifeAngelinaCompanion.group.visible = false;
+    return;
+  }
+  if (useCompanion3d) {
+    hideAngelinaFlatSprite();
+    void ensureAngelinaCompanionMesh();
+    return;
+  }
+  clearAngelinaCompanionMesh();
   const sp = ensureLifeAngelinaBillboardSprite();
   if (!sp) return;
-  if (!lifeAngelinaBillboard.visible || currentLoc !== lifeAngelinaBillboard.loc) {
+  if (currentLoc !== lifeAngelinaBillboard.loc) {
     sp.visible = false;
     return;
   }
@@ -392,7 +556,26 @@ function setAngelinaLifeBillboard(opts = {}) {
 }
 
 function tickLifeAngelinaBillboard() {
-  if (!lifeAngelinaBillboard.visible || !lifeAngelinaBillboard.sprite) return;
+  if (!lifeAngelinaBillboard.visible) return;
+  if (lifeAngelinaCompanion.ready && lifeAngelinaCompanion.group) {
+    const onLoc = currentLoc === lifeAngelinaBillboard.loc;
+    lifeAngelinaCompanion.group.visible = onLoc;
+    if (!onLoc) return;
+    const pl = actors.get("player");
+    let wx = lifeAngelinaBillboard.wx;
+    let wz = lifeAngelinaBillboard.wz;
+    let yaw = 0;
+    if (lifeAngelinaBillboard.followPlayer && pl?.wx != null) {
+      wx = pl.wx - 0.95;
+      wz = pl.wz + 0.55;
+      yaw = pl.group?.rotation?.y ?? 0;
+    }
+    lifeAngelinaCompanion.group.position.set(wx, 0, wz);
+    lifeAngelinaCompanion.group.rotation.y = yaw + 0.35;
+    lifeAngelinaCompanion.mixer?.update(1 / 60);
+    return;
+  }
+  if (!lifeAngelinaBillboard.sprite) return;
   if (currentLoc !== lifeAngelinaBillboard.loc) {
     lifeAngelinaBillboard.sprite.visible = false;
     return;
@@ -408,6 +591,20 @@ function tickLifeAngelinaBillboard() {
     }
   }
   lifeAngelinaBillboard.sprite.position.set(wx, 1.55, wz);
+}
+
+function rebuildPlayerFromAvatar() {
+  if (!modelsReady) return false;
+  const meshId = resolvePlayerHeroMeshId();
+  const pl = actors.get("player");
+  const sig = playerAvatarLookSignature();
+  if (pl && pl.characterId === meshId && pl._lookSig === sig && pl.root?.visible !== false) return false;
+  destroyActor("player");
+  if (pendingSyncData?.player) {
+    pendingSyncData.player.characterId = meshId;
+    sync(pendingSyncData);
+  }
+  return true;
 }
 let mobileQuality = false;
 let locFillLight = null;
@@ -573,6 +770,7 @@ function createActorFromCatalog(id, characterId, isNpc) {
     id, characterId: cid, group, root, mixer, actions,
     current: "idle", wx: 0, wz: 0, isNpc: false, def, _visibleReady: false,
     _meshUrl: tpl.def.url, _meshy: built._meshy, _proc: built._proc,
+    _accent: built._accent,
     _wings: built._wings,
     _visPushX: 0, _visPushZ: 0
   };
@@ -821,25 +1019,92 @@ function npcActorOnScreen(actorId) {
   return !!(head && head.x >= margin && head.x <= cw - margin && head.y >= margin && head.y <= ch - margin);
 }
 
-async function loadModels() {
-  const rawPlayer =
+function resolvePlayerHeroMeshId() {
+  if (window.me?.avatarConfig && typeof window.meshIdFromAvatarConfig === "function") {
+    const mesh = window.meshIdFromAvatarConfig(window.me.avatarConfig);
+    if (mesh) return mesh;
+  }
+  const raw =
     window.me?.characterId ||
     (typeof window.LIFE_CH1_PLAYER_MESH_ID === "string" ? window.LIFE_CH1_PLAYER_MESH_ID : null);
-  const playerHero =
-    rawPlayer === "life_ch1_proxy" ? "vienna" : rawPlayer || null;
+  if (!raw || raw === "life_ch1_proxy") return "vienna";
+  return raw;
+}
+
+function setWorldLoadProgress(frac, label) {
+  const f = Math.max(0, Math.min(1, frac));
+  window.__punkWorldLoadProgress = { frac: f, label: label || "", t: performance.now() };
+  const overlay = document.getElementById("worldLoadOverlay");
+  const bar = document.getElementById("worldLoadBar");
+  const lbl = document.getElementById("worldLoadLabel");
+  if (overlay) overlay.hidden = false;
+  if (bar) bar.style.width = `${Math.round(f * 100)}%`;
+  if (lbl) {
+    lbl.textContent =
+      label ||
+      (typeof t === "function" ? t("world_load_heroes") : "Loading heroes…");
+  }
+}
+
+function hideWorldLoadProgress() {
+  const overlay = document.getElementById("worldLoadOverlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function tryMarkRoomPlayable() {
+  if (roomPlayableMarked) return;
+  if (!modelsReady) return;
+  if (!actors.get("player")) return;
+  markRoomPlayable();
+}
+
+function markRoomPlayable() {
+  if (roomPlayableMarked) return;
+  roomPlayableMarked = true;
+  document.body.classList.add("mode-world3d");
+  const page0 = window.__punkPageLoadStart || performance.now();
+  const anchor = window.__punkCharacterConfirmMs || page0;
+  window.__punkTimeToRoomPlayableFromNavigationMs = Math.round(performance.now() - page0);
+  window.__punkTimeToRoomPlayableMs = Math.round(performance.now() - anchor);
+  setWorldLoadProgress(1, typeof t === "function" ? t("world_load_ready") : "Ready");
+  hideWorldLoadProgress();
+  window.dispatchEvent(
+    new CustomEvent("punk-room-playable", {
+      detail: {
+        ms: window.__punkTimeToRoomPlayableMs,
+        fromNavigationMs: window.__punkTimeToRoomPlayableFromNavigationMs
+      }
+    })
+  );
+}
+
+function loadDeferredWorldAssets(playerHero) {
   const roomHeroes = ["vienna", "mohawk", "cobalt"];
+  const npcParallel = [...new Set(roomHeroes.filter(id => id !== playerHero))];
+  void (async () => {
+    setWorldLoadProgress(0.72, typeof t === "function" ? t("world_load_npc") : "Extras…");
+    await Promise.all(npcParallel.map(id => loadMeshyTemplateForCharacter(id)));
+    setWorldLoadProgress(0.86, typeof t === "function" ? t("world_load_city") : "City assets…");
+    await loadMeshyTemplateForCharacter("razor");
+    void loadAllCc0Templates();
+    void loadPunkDogTemplate().then(tpl => {
+      punkDogTemplate = tpl;
+    });
+    window.dispatchEvent(new CustomEvent("punk-world-assets-ready"));
+  })().catch(err => console.warn("deferred world assets", err));
+}
+
+async function loadModels() {
+  const playerHero = resolvePlayerHeroMeshId();
+  setWorldLoadProgress(0.08, typeof t === "function" ? t("world_load_hero") : "Your hero…");
   if (playerHero) {
     await loadMeshyTemplateForCharacter(playerHero);
   }
-  const npcParallel = [...new Set(roomHeroes.filter(id => id !== playerHero))];
-  await Promise.all(npcParallel.map(id => loadMeshyTemplateForCharacter(id)));
+  setWorldLoadProgress(0.58, typeof t === "function" ? t("world_load_room") : "Punk room…");
   modelsReady = true;
   if (pendingSyncData) sync(pendingSyncData);
-  void loadMeshyTemplateForCharacter("razor");
-  void loadAllCc0Templates();
-  void loadPunkDogTemplate().then(t => {
-    punkDogTemplate = t;
-  });
+  tryMarkRoomPlayable();
+  loadDeferredWorldAssets(playerHero || "mohawk");
 }
 
 function clearLocation() {
@@ -852,6 +1117,7 @@ function clearLocation() {
 
 function rebuildLocation(locId) {
   if (locId !== currentLoc) onGameplayLocationChanged(locId, currentLoc);
+  releaseCaptureFrame();
   clearLocation();
   disposeLifeCh1PlayerSprite();
   actors.forEach((a, id) => {
@@ -871,7 +1137,8 @@ function rebuildLocation(locId) {
   scene.fog = new THREE.FogExp2(theme.fog, theme.fogD);
   scene.background = new THREE.Color(theme.bg);
   if (locFillLight) scene.remove(locFillLight);
-  locFillLight = new THREE.PointLight(theme.hemi || 0xffccff, 3.2, 28);
+  const fillPow = locId === "city" || locId === "street" || locId === "room" ? 4.6 : 3.2;
+  locFillLight = new THREE.PointLight(theme.hemi || 0xffccff, fillPow, 32);
   locFillLight.position.set(0, 4.2, 1);
   scene.add(locFillLight);
   locationProps = built.props || { showCar: false };
@@ -879,7 +1146,27 @@ function rebuildLocation(locId) {
   (locationProps.cats || []).forEach(c => locationRoot.add(c));
   spawnParticles(locId);
   ensureMarkerRoot(scene);
+  cityBuilds3dGroup = createCityBuilds3DGroup();
+  locationRoot.add(cityBuilds3dGroup);
+  refreshCityBuilds3DFromMe();
   onGameplayLocationBuilt(locId, locationRoot, bounds);
+  if (renderer) {
+    const prev = renderer.toneMappingExposure;
+    renderer.toneMappingExposure = Math.min(1.68, prev * 1.2);
+    let frames = 0;
+    const pulse = () => {
+      frames += 1;
+      if (frames < 12) requestAnimationFrame(pulse);
+      else renderer.toneMappingExposure = prev;
+    };
+    requestAnimationFrame(pulse);
+  }
+}
+
+function refreshCityBuilds3DFromMe() {
+  if (!cityBuilds3dGroup || !bounds) return;
+  const builds = typeof window !== "undefined" ? window.me?.cityBuilds : null;
+  syncCityBuilds3D(cityBuilds3dGroup, bounds, builds || []);
 }
 
 function spawnParticles(locId) {
@@ -1271,8 +1558,8 @@ const LOCATION_CAMERA = {
     }
   },
   street: { dist: 6.85, height: 2.55, lookY: 1.32, yaw: 0.38 },
-  city: { dist: 7.2, height: 2.62, lookY: 1.34, yaw: 0.28 },
-  cemetery: { dist: 7.0, height: 2.5, lookY: 1.3, yaw: 0.32 },
+  city: { dist: 5.85, height: 2.52, lookY: 1.34, yaw: 0.28 },
+  cemetery: { dist: 8.85, height: 2.72, lookY: 1.44, yaw: 0.3 },
   roof: { dist: 7.4, height: 2.7, lookY: 1.36, yaw: 0.25 },
   toilet: { dist: 4.5, height: 2.38, lookY: 1.24, yaw: 0.22 },
   kitchen: {
@@ -1410,6 +1697,21 @@ function collectCameraOccluders() {
   return list;
 }
 
+const MIN_CAMERA_DIST_FROM_PLAYER = 4.1;
+const MIN_CAMERA_WALL_PULLBACK = 0.85;
+
+function clampCameraOrbitFromPlayer(target, playerPos, minHoriz = MIN_CAMERA_DIST_FROM_PLAYER) {
+  if (!playerPos || !target) return target;
+  const dx = target.x - playerPos.x;
+  const dz = target.z - playerPos.z;
+  const d = Math.hypot(dx, dz);
+  if (d >= minHoriz) return target;
+  const ang = d > 0.02 ? Math.atan2(dx, dz) : cameraYaw;
+  target.x = playerPos.x + Math.sin(ang) * minHoriz;
+  target.z = playerPos.z + Math.cos(ang) * minHoriz;
+  return target;
+}
+
 function resolveCameraWallCollision(eye, desired) {
   const occluders = collectCameraOccluders();
   if (!occluders.length || !raycaster) return desired;
@@ -1420,7 +1722,7 @@ function resolveCameraWallCollision(eye, desired) {
   raycaster.set(eye, dir);
   const hits = raycaster.intersectObjects(occluders, false);
   if (hits.length && hits[0].distance < dist - 0.08) {
-    return eye.clone().add(dir.multiplyScalar(Math.max(0.45, hits[0].distance - 0.42)));
+    return eye.clone().add(dir.multiplyScalar(Math.max(MIN_CAMERA_WALL_PULLBACK, hits[0].distance - 0.42)));
   }
   return desired;
 }
@@ -1480,6 +1782,13 @@ function positionCameraBehindPlayer(instant = false, dt = lastCameraDt) {
   const eye = p.clone().add(new THREE.Vector3(0, lookY - 0.15, 0));
   let target = new THREE.Vector3(p.x + ox, height, p.z + oz);
   target = resolveCameraWallCollision(eye, target);
+  target = clampCameraOrbitFromPlayer(target, p, MIN_CAMERA_DIST_FROM_PLAYER);
+  if (bounds) {
+    const edge = 0.55;
+    target.x = Math.max(bounds.minX + edge, Math.min(bounds.maxX - edge, target.x));
+    target.z = Math.max(bounds.minZ + edge, Math.min(bounds.maxZ - edge, target.z));
+  }
+  if (target.y < p.y + 1.05) target.y = p.y + 1.05;
   const t = instant ? 1 : 1 - Math.exp(-14 * Math.max(dt, 0.001));
   if (instant) camera.position.copy(target);
   else camera.position.lerp(target, t);
@@ -1580,7 +1889,17 @@ function tickNpcPatrols(dt) {
 }
 
 function onboardingPortalForStep(step, locId) {
-  if (step === 1 && locId === "room") return (PORTALS.room || []).find(p => p.to === "street") || null;
+  const st = window.Onboarding?.currentStep?.();
+  const key = st?.key;
+  if ((step === 1 || key === "visit_street") && locId === "room") {
+    return (PORTALS.room || []).find(p => p.to === "street") || null;
+  }
+  if ((key === "visit_cemetery" || step === 4) && locId === "street") {
+    return (PORTALS.street || []).find(p => p.to === "cemetery") || null;
+  }
+  if (key === "city_build" && locId === "street") {
+    return (PORTALS.street || []).find(p => p.to === "city") || null;
+  }
   if (step === 3 && locId === "street") return (PORTALS.street || []).find(p => p.to === "cemetery") || null;
   return null;
 }
@@ -1619,8 +1938,12 @@ function checkPortals() {
   const portals = PORTALS[currentLoc] || [];
   const px = player.wx ?? player.group.position.x;
   const pz = player.wz ?? player.group.position.z;
+  const onboard = !!window.Onboarding?.isActive?.();
+  const stKey = window.Onboarding?.currentStep?.()?.key;
+  if (onboard && stKey === "win_fight" && currentLoc === "street") return;
+  const reachMul = onboard ? 1.45 : 1;
   for (const portal of portals) {
-    if (Math.hypot(px - portal.x, pz - portal.z) <= portal.r) {
+    if (Math.hypot(px - portal.x, pz - portal.z) <= portal.r * reachMul) {
       hooks.onPortal?.(portal.to);
       break;
     }
@@ -1686,7 +2009,37 @@ function lifeCh1SteerCameraWhileMoving(input) {
 function spawnPrefForLoc(locId) {
   if (locId === "kitchen") return { x: -0.12, z: 0.36 };
   if (locId === "elevator") return { x: 0, z: 0.02 };
+  if (locId === "city" || locId === "construction") return { x: 0, z: 0 };
   return { x: 0, z: -1.2 };
+}
+
+function guardWorldPlateAndCamera() {
+  const pl = actors.get("player");
+  if (!pl || !bounds || !camera || dialogueCameraLock) return;
+  const pad = 0.5;
+  let oob =
+    pl.wx < bounds.minX - pad ||
+    pl.wx > bounds.maxX + pad ||
+    pl.wz < bounds.minZ - pad ||
+    pl.wz > bounds.maxZ + pad;
+  if (!oob) {
+    const cx = (bounds.minX + bounds.maxX) * 0.5;
+    const cz = (bounds.minZ + bounds.maxZ) * 0.5;
+    const span = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+    oob = Math.hypot(pl.wx - cx, pl.wz - cz) > span * 0.52;
+  }
+  if (oob) {
+    snapPlayerToLocationSpawn();
+    positionCameraBehindPlayer(true);
+    return;
+  }
+  const look = new THREE.Vector3();
+  camera.getWorldDirection(look);
+  const ax = camera.position.x + look.x * 5;
+  const az = camera.position.z + look.z * 5;
+  if (ax < bounds.minX - 1.2 || ax > bounds.maxX + 1.2 || az < bounds.minZ - 1.2 || az > bounds.maxZ + 1.2) {
+    positionCameraBehindPlayer(true);
+  }
 }
 
 function snapPlayerToLocationSpawn(prep = null) {
@@ -1697,9 +2050,72 @@ function snapPlayerToLocationSpawn(prep = null) {
   player.wx = clear.x;
   player.wz = clear.z;
   placeActorWorld(player, clear.x, clear.z, true);
+  player.group.position.y = 0;
+  player._vy = 0;
+  player._onGround = true;
   const g = worldToGameLoc(clear.x, clear.z, bounds);
   hooks.onMove?.(g.x, g.y, { sync3d: false, skipLifeCh1Move: true });
   return true;
+}
+
+function playLifeCh1ClimaxBeat(done) {
+  const pl = actors.get("player");
+  if (!pl?.group || !scene) {
+    done?.();
+    return;
+  }
+  releaseCaptureFrame();
+  const flash = document.createElement("div");
+  flash.className = "life-ch1-climax-flash";
+  flash.setAttribute("aria-hidden", "true");
+  document.body.appendChild(flash);
+  const lights = [
+    new THREE.PointLight(0x00ffff, 18, 14),
+    new THREE.PointLight(0xff66ff, 12, 10)
+  ];
+  lights[0].position.set(pl.wx, 2.5, pl.wz);
+  lights[1].position.set(pl.wx, 1.2, pl.wz + 1.2);
+  scene.add(lights[0], lights[1]);
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.5, 3.8, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.95,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending
+    })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(pl.wx, 0.12, pl.wz);
+  scene.add(ring);
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2, 0.55, 8, 12),
+    new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.55 })
+  );
+  pillar.position.set(pl.wx, 4, pl.wz);
+  scene.add(pillar);
+  fadeTo(pl, "interact");
+  let pulse = 0;
+  const tick = setInterval(() => {
+    pulse += 1;
+    const s = 1 + pulse * 0.35;
+    ring.scale.set(s, s, s);
+    ring.material.opacity = Math.max(0, 0.95 - pulse * 0.11);
+    pillar.material.opacity = Math.max(0, 0.55 - pulse * 0.06);
+    lights.forEach(l => {
+      l.intensity = Math.max(0, l.intensity * 0.92);
+    });
+    if (pulse >= 12) {
+      clearInterval(tick);
+      ring.removeFromParent();
+      pillar.removeFromParent();
+      lights.forEach(l => l.removeFromParent());
+      flash.remove();
+      fadeTo(pl, "idle");
+      done?.();
+    }
+  }, 280);
 }
 
 function processInput(dt) {
@@ -1854,6 +2270,9 @@ function sync(data) {
     const g = worldToGameLoc(wx, wz, bounds);
     hooks.onMove?.(g.x, g.y);
   }
+  if (justChangedLoc && (location === "city" || location === "construction") && player && bounds) {
+    snapPlayerToLocationSpawn();
+  }
 
   const keep = new Set(["player"]);
   if (player) {
@@ -1870,6 +2289,7 @@ function sync(data) {
       applyPlayerLifeCh1SkinOpts(lifeCh1PlayerSkin.pending);
     }
     window.dispatchEvent(new CustomEvent("punk-player-actor-ready", { detail: { characterId: player.characterId } }));
+    tryMarkRoomPlayable();
   }
 
   const hideCrowd = isDuelActive() || captureFrameLock;
@@ -2021,9 +2441,18 @@ function loop() {
   if (pl) {
     pl._vy = (pl._vy || 0) - 14 * dt;
     let y = (pl.group.position.y || 0) + pl._vy * dt;
-    if (y <= 0) { y = 0; pl._vy = 0; pl._onGround = true; }
-    else pl._onGround = false;
+    if (y <= 0) {
+      y = 0;
+      pl._vy = 0;
+      pl._onGround = true;
+    } else pl._onGround = false;
     pl.group.position.y = y;
+    if (y < -0.02) {
+      pl.group.position.y = 0;
+      pl._vy = 0;
+      pl._onGround = true;
+      snapPlayerToLocationSpawn();
+    }
   }
   separateActors();
   if (locationRoot) pulseScene(locationRoot, sceneTime);
@@ -2036,6 +2465,8 @@ function loop() {
     }
     attr.needsUpdate = true;
   }
+  clearStaleDialogueCapture();
+  guardWorldPlateAndCamera();
   if (captureFrameLock) setQuestMarkersVisible(false);
   else {
     setQuestMarkersVisible(true);
@@ -2084,8 +2515,12 @@ function loop() {
   tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
   tickStory(dt);
   lastCameraDt = dt;
-  if (!captureFrameLock) updateThirdPersonCamera(dt);
-  else if (captureHideActors?.length && !motionProbe) {
+  if (isDuelActive() && window.PlayV21?.frameDuelCamera) {
+    window.PlayV21.frameDuelCamera();
+  } else if (!dialogueCameraLock || !isStoryUiBlockingWorldCamera()) {
+    if (dialogueCameraLock && !isStoryUiBlockingWorldCamera()) releaseCaptureFrame();
+    updateThirdPersonCamera(dt);
+  } else if (captureHideActors?.length && !motionProbe) {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     checkPortals();
     return;
@@ -2110,7 +2545,7 @@ function init(h) {
   renderer.setPixelRatio(mobileQuality ? 1 : Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = !mobileQuality;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
+  camera = new THREE.PerspectiveCamera(42, 1, 0.22, 190);
   clock = new THREE.Clock();
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
@@ -2128,7 +2563,7 @@ function init(h) {
   scene.add(sun);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.28;
   atmospherePipe = createAtmospherePipeline(renderer, scene, camera, !mobileQuality);
 
   canvas.addEventListener("pointerdown", onPointer);
@@ -2139,19 +2574,49 @@ function init(h) {
   initControls3D(canvas, delta => { cameraYaw += delta; });
   initTouchControls({ onCameraOrbit: delta => { cameraYaw += delta; } });
   window.addEventListener("resize", resize);
-  document.body.classList.add("mode-world3d");
 
   onMeshyTemplateLoaded(rebuildActorsForCharacter);
 
-  return loadModels().then(() => {
-    resize();
-    loop();
-    hooks.onReady?.();
+  resize();
+  loop();
+  return Promise.resolve(true);
+}
+
+async function bootstrapWorldAfterCharacter() {
+  if (modelsReady) {
+    await ensurePlayerHeroMesh();
+    tryMarkRoomPlayable();
     return true;
-  }).catch(err => {
-    console.error("World3D load failed", err);
-    return false;
-  });
+  }
+  if (bootstrapWorldPromise) return bootstrapWorldPromise;
+  if (!renderer) init(hooks);
+  worldBootstrappedForCharacter = true;
+  setWorldLoadProgress(0.02, typeof t === "function" ? t("world_load_heroes") : "Loading heroes…");
+  bootstrapWorldPromise = (async () => {
+    try {
+      await loadModels();
+      hooks.onReady?.();
+      tryMarkRoomPlayable();
+      return true;
+    } catch (err) {
+      console.error("World3D bootstrap failed", err);
+      bootstrapWorldPromise = null;
+      throw err;
+    }
+  })();
+  window.__punkWorldBootstrapPromise = bootstrapWorldPromise;
+  return bootstrapWorldPromise;
+}
+
+async function ensurePlayerHeroMesh() {
+  const playerHero = resolvePlayerHeroMeshId();
+  if (!getTemplateForCharacter(playerHero)) {
+    setWorldLoadProgress(0.35, typeof t === "function" ? t("world_load_hero") : "Your hero…");
+    await loadMeshyTemplateForCharacter(playerHero);
+  }
+  if (pendingSyncData) sync(pendingSyncData);
+  else rebuildPlayerFromAvatar();
+  tryMarkRoomPlayable();
 }
 
 function applyViewportCameraProfile() {
@@ -2192,6 +2657,10 @@ const api = {
     playOneShot(a, name === "sit" ? "sit" : "interact", 1500);
   },
   isReady: () => modelsReady,
+  isRoomPlayable: () => modelsReady && !!actors.get("player"),
+  getTimeToRoomPlayableMs: () => window.__punkTimeToRoomPlayableMs ?? null,
+  bootstrapWorldAfterCharacter,
+  ensurePlayerHeroMesh,
   getDebugCamera: () => {
     const pl = actors.get("player");
     const dog = actors.get("dog");
@@ -2337,26 +2806,75 @@ const api = {
   },
   setGuideTarget: t => { guideTarget = t; },
   snapPlayerToLocationSpawn,
+  playLifeCh1ClimaxBeat,
+  refreshCityBuilds3D: refreshCityBuilds3DFromMe,
+  getPlayerFloorSnapshot: () => {
+    const pl = actors.get("player");
+    if (!pl) return null;
+    const rootY = pl.group?.position?.y ?? 0;
+    return {
+      loc: currentLoc,
+      wx: pl.wx,
+      wz: pl.wz,
+      rootY,
+      vy: pl._vy || 0,
+      belowFloor: rootY < -0.05
+    };
+  },
   setAngelinaLifeBillboard: setAngelinaLifeBillboard,
   clearAngelinaLifeBillboard: () => setAngelinaLifeBillboard({ visible: false }),
   getAngelinaLifeBillboardSnapshot: () => ({
     visible: lifeAngelinaBillboard.visible,
     followPlayer: lifeAngelinaBillboard.followPlayer,
     loc: lifeAngelinaBillboard.loc,
-    hasSprite: !!lifeAngelinaBillboard.sprite
+    hasSprite: !!lifeAngelinaBillboard.sprite,
+    companion3d: !!lifeAngelinaCompanion.ready,
+    companionVisible: !!lifeAngelinaCompanion.group?.visible
   }),
+  rebuildPlayerFromAvatar,
+  frameHeroAcceptanceShot: () => {
+    releaseCaptureFrame();
+    snapPlayerToLocationSpawn();
+    const pl = actors.get("player");
+    if (!pl?.group || !camera) return false;
+    cameraYaw = pl.group.rotation.y + 0.42;
+    if (camera) {
+      camera.fov = 46;
+      camera.updateProjectionMatrix();
+    }
+    positionCameraBehindPlayer(true);
+    const wx = pl.wx ?? pl.group.position.x;
+    const wz = pl.wz ?? pl.group.position.z;
+    camera.position.y = Math.max(camera.position.y, 1.72);
+    camera.lookAt(wx, 1.38, wz);
+    if (renderer && scene) renderAtmosphere(atmospherePipe, renderer, scene, camera);
+    return true;
+  },
+  resetFollowCamera: resetCameraForLocation,
   setPlayerLifeCh1Skin,
   getPlayerLifeCh1SkinRenderState,
   getPlayerActorSnapshot: () => {
     const a = actors.get("player");
     if (!a) return null;
+    const meshId = resolvePlayerHeroMeshId();
+    const look =
+      typeof window !== "undefined" && typeof window.getPlayerAvatarLook === "function"
+        ? window.getPlayerAvatarLook()
+        : null;
     return {
       characterId: a.characterId,
+      meshHeroId: meshId,
+      meshUrl: a._meshUrl || "",
+      usesPinkFallback: (a._meshUrl || "").includes("punk_pink"),
+      accent: a._accent || null,
+      hairHex: look?.hair ?? null,
       hasWings: !!a._wings,
       wingAttachBone: a._wings?.attachBone || null,
       wingFeathers: a._wings?.feathers?.length || 0,
       current: a.current,
       visible: a.root?.visible !== false,
+      meshVisible: a.root?.visible !== false,
+      cutoutSpriteVisible: !!lifeCh1PlayerSkin.sprite?.visible,
       actionKeys: a.actions ? Object.keys(a.actions) : []
     };
   },
@@ -2438,43 +2956,7 @@ const api = {
   setPortalGrace: (ms = 1500) => {
     portalGraceUntil = performance.now() + ms;
   },
-  releaseCaptureFrame: () => {
-    const a = actors.get("player");
-    if (a) a.group.rotation.y = captureSavedRotY;
-    if (captureHideActors) {
-      captureHideActors.forEach(act => { if (act.group) act.group.visible = true; });
-      captureHideActors = null;
-    }
-    actors.forEach(a => setDialogueCaptureScale(a, 1));
-    dialogueLiveMinHead = 0;
-    setElevatorCutaway(false);
-    resetPropDimOpacity();
-    resetOccluderOpacity();
-    if (dialogueCaptureBoost) {
-      if (scene.fog && dialogueCaptureBoost.fogD != null) scene.fog.density = dialogueCaptureBoost.fogD;
-      if (dialogueCaptureBoost.exp != null) renderer.toneMappingExposure = dialogueCaptureBoost.exp;
-      if (scene.background?.setHex && dialogueCaptureBoost.bg != null) scene.background.setHex(dialogueCaptureBoost.bg);
-      if (dialogueCaptureBoost.hemi != null) {
-        scene.traverse(c => {
-          if (c.isHemisphereLight) c.intensity = dialogueCaptureBoost.hemi;
-        });
-      }
-      dialogueCaptureBoost = null;
-    }
-    if (locFillLight) locFillLight.intensity = 3.2;
-    if (dialogueKeyLight) dialogueKeyLight.visible = false;
-    if (dialogueRimLight) dialogueRimLight.visible = false;
-    if (dialogueNpcFill) dialogueNpcFill.visible = false;
-    if (dialogueBackdrop) dialogueBackdrop.visible = false;
-    const pl = actors.get("player");
-    actors.forEach(a => {
-      if (a.isPlayer || a.id?.startsWith("npc_")) {
-        boostActorCaptureLight(a, false);
-        setDialogueCaptureScale(a, 1);
-      }
-    });
-    captureFrameLock = false;
-  },
+  releaseCaptureFrame,
   captureDogCloseup: () => {
     const dog = actors.get("dog");
     const pl = actors.get("player");
@@ -3091,11 +3573,45 @@ const api = {
       dogActor.group.visible = false;
       captureHideActors.push(dogActor);
     }
-    captureFrameLock = true;
+    dialogueCameraLock = true;
+    if (!live) captureFrameLock = true;
     captureSavedRotY = pl.group.rotation.y;
     if (locationRoot) pulseScene(locationRoot, sceneTime);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return true;
+  },
+  getRenderDiag: () => {
+    const pl = actors.get("player");
+    const look = new THREE.Vector3();
+    camera?.getWorldDirection(look);
+    return {
+      activeScene: currentLoc,
+      loc: currentLoc,
+      sceneChildren: scene?.children?.length ?? 0,
+      locationRootVisible: !!locationRoot?.visible,
+      locationRootChildren: locationRoot?.children?.length ?? 0,
+      captureFrameLock,
+      dialogueCameraLock,
+      duel: isDuelActive(),
+      hideActors: captureHideActors?.length ?? 0,
+      renderCalls: renderer?.info?.render?.calls ?? null,
+      camera: camera
+        ? {
+            x: +camera.position.x.toFixed(2),
+            y: +camera.position.y.toFixed(2),
+            z: +camera.position.z.toFixed(2),
+            fov: camera.fov,
+            lookAt: {
+              x: +(camera.position.x + look.x * 3).toFixed(2),
+              y: +(camera.position.y + look.y * 3).toFixed(2),
+              z: +(camera.position.z + look.z * 3).toFixed(2)
+            }
+          }
+        : null,
+      player: pl ? { wx: pl.wx, wz: pl.wz, y: pl.group?.position?.y } : null,
+      fogD: scene?.fog?.density,
+      bg: scene?.background?.getHex?.()
+    };
   },
   snapScreenshotView: () => {
     const a = actors.get("player");
@@ -3372,7 +3888,7 @@ const api = {
       updateProcedural(pl, dt, null, false);
       notePlayerMotion(pl);
     }
-    if (!captureFrameLock) updateThirdPersonCamera(dt);
+    if (!dialogueCameraLock && !isDuelActive()) updateThirdPersonCamera(dt);
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     return motionProbe.frames.length;
   },
@@ -3524,7 +4040,10 @@ bindGameplayToWorld3D(api, () => ({
   currentLoc,
   hooks,
   camera,
-  car
+  car,
+  ensureActor,
+  placeActorWorld,
+  playOneShot
 }));
 api.snapDialogueNpcShot = (npcId = "mohawk") => api.engageDialogueFraming(npcId, { live: false });
 window.World3D = api;

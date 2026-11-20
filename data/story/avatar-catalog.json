@@ -36,7 +36,7 @@
     { "id": "hc_brown", "hex": 6042426, "label": { "ru": "Каштан", "en": "Brown", "da": "Brun" } },
     { "id": "hc_blonde", "hex": 16764006, "label": { "ru": "Блонд", "en": "Blonde", "da": "Blond" } },
     { "id": "hc_red", "hex": 13369344, "label": { "ru": "Рыжий", "en": "Red", "da": "Rød" } },
-    { "id": "electric_blue", "hex": 44607, "label": { "ru": "Электрик синий", "en": "Electric blue", "da": "Elektrisk blå" } },
+    { "id": "electric_blue", "hex": 3381759, "label": { "ru": "Электрик синий", "en": "Electric blue", "da": "Elektrisk blå" } },
     { "id": "hc_pink", "hex": 16711805, "label": { "ru": "Неон розовый", "en": "Neon pink", "da": "Neon pink" } },
     { "id": "hc_purple", "hex": 9109759, "label": { "ru": "Фиолет", "en": "Purple", "da": "Lilla" } },
     { "id": "hc_green", "hex": 43520, "label": { "ru": "Кислотный", "en": "Acid green", "da": "Grøn" } },

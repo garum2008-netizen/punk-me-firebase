@@ -1,12 +1,14 @@
 import * as THREE from "three";
 import {
   loadAllCc0Templates,
+  loadMeshyTemplateForCharacter,
   getTemplateForCharacter,
   createCc0Actor
 } from "./world/meshy-punk.mjs";
 import { updateProcedural } from "./character-rig.mjs";
 import { loadAvatarCatalog } from "./avatar/avatar-catalog.mjs";
 import { mountCharacterStudio } from "./avatar/character-studio.mjs";
+import { clearAccentTexCache } from "./world/meshy-accent-tint.mjs";
 
 /** Vertical padding inside the canvas (hair top / boots bottom). */
 const PREVIEW_MARGIN_Y = 0.08;
@@ -67,13 +69,25 @@ function ensurePreviewLights() {
 
 function showCharacter(id, lookOverride) {
   if (!templatesReady) return;
-  if (actorRoot) scene.remove(actorRoot);
+  clearAccentTexCache();
+  if (actorRoot) {
+    scene.remove(actorRoot);
+    actorRoot.traverse?.(o => {
+      if (o.isMesh) {
+        o.geometry?.dispose?.();
+        const m = o.material;
+        if (Array.isArray(m)) m.forEach(x => x.dispose?.());
+        else m?.dispose?.();
+      }
+    });
+    actorRoot = null;
+  }
   const def = getCharacterDef(id);
   const tpl = getTemplateForCharacter(id);
   const look = lookOverride ? { ...(def.look || {}), ...lookOverride } : def.look || {};
   const built = createCc0Actor(tpl, id, look, {
-    isPlayer: false,
-    actorId: id
+    isPlayer: true,
+    actorId: "player"
   });
   actorRoot = built.root;
   actorRoot.visible = true;
@@ -92,6 +106,12 @@ function showCharacter(id, lookOverride) {
   );
   const canvas = document.getElementById("charSelect3d");
   if (canvas && camera) framePreviewActor(actorRoot, camera, canvas);
+  renderer?.render(scene, camera);
+  requestAnimationFrame(() => renderer?.render(scene, camera));
+  if (typeof window !== "undefined") {
+    window.__lastStudioPreviewMs = Date.now();
+    window.__studioPreviewMeshId = id;
+  }
   previewPhase = 0;
   const line = characterIntroLine(id);
   const el = document.getElementById("charSelectIntro");
@@ -244,19 +264,42 @@ async function openCharacterStudio(onPick) {
     clock = new THREE.Clock();
   }
   resize();
-  await loadAvatarCatalog();
-  await loadAllCc0Templates().then(() => {
+  if (canvas && typeof ResizeObserver !== "undefined" && !canvas._charSelectObs) {
+    canvas._charSelectObs = new ResizeObserver(() => {
+      resize();
+      renderer?.render(scene, camera);
+    });
+    canvas._charSelectObs.observe(canvas);
+  }
+  let pendingStudioPreview = null;
+  let previewLoadGen = 0;
+  async function ensurePreviewTemplate(meshId, look) {
+    const id = meshId || "vienna";
+    const gen = ++previewLoadGen;
+    await loadMeshyTemplateForCharacter(id);
+    if (gen !== previewLoadGen) return;
     templatesReady = true;
     if (!raf) loop();
-  });
+    if (look) showCharacter(id, look);
+    else showCharacter(id);
+  }
   const studioHost = document.getElementById("charSelectUi");
   studioApi = await mountCharacterStudio(studioHost, {
-    onPreview: (meshId, look) => showCharacter(meshId, look),
+    onPreview: (meshId, look) => {
+      if (!templatesReady) {
+        pendingStudioPreview = { meshId, look };
+      }
+      void ensurePreviewTemplate(meshId, look).then(() => {
+        if (pendingStudioPreview?.meshId === meshId) pendingStudioPreview = null;
+      });
+    },
     onConfirm: cfg => {
       close();
       onPickCb?.(cfg.meshId, cfg.companionAngelinaSkin, cfg);
     }
   });
+  void ensurePreviewTemplate("vienna");
+  void loadMeshyTemplateForCharacter("mohawk");
 }
 
 function open(onPick) {
@@ -291,11 +334,13 @@ function open(onPick) {
     clock = new THREE.Clock();
   }
   resize();
-  loadAllCc0Templates().then(() => {
+  const pickId = PLAYABLE_CHARACTER_IDS[selectedIdx] || "vienna";
+  loadMeshyTemplateForCharacter(pickId).then(() => {
     templatesReady = true;
     buildUi();
-    showCharacter(PLAYABLE_CHARACTER_IDS[selectedIdx]);
+    showCharacter(pickId);
     if (!raf) loop();
+    void loadAllCc0Templates();
   });
 }
 

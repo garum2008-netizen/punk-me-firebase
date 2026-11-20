@@ -2,7 +2,16 @@
  * Angelina — permanent story companion (text guide banner + reaction lines).
  * t208u: reacts to player actions; separate from the custom 3D hero.
  */
-const ONBOARD_IDS = ["move", "go_street", "talk_razor", "visit_cemetery", "win_fight", "shop_buy", "city_build"];
+const ONBOARD_IDS = [
+  "move",
+  "go_street",
+  "talk_razor",
+  "angelina_street",
+  "visit_cemetery",
+  "win_fight",
+  "shop_buy",
+  "city_build"
+];
 
 let reactUntil = 0;
 let reactKey = null;
@@ -69,6 +78,10 @@ const REACT_I18N = {
   fight_lose: "angelina_react_fight_lose",
   shop_buy: "angelina_react_shop_buy",
   ch1_complete: "angelina_react_ch1_complete",
+  street_brief_town: "angelina_react_street_brief_town",
+  angelina_street_wrong_loc: "angelina_react_angelina_street_wrong_loc",
+  angelina_street_back: "angelina_react_angelina_street_back",
+  ch1_climax_town: "angelina_react_ch1_climax_town",
   trust_choice: "angelina_react_trust_choice",
   build_need_material: "angelina_react_build_need_material"
 };

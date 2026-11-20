@@ -58,6 +58,10 @@
     <div id="ambients" class="night-fx"></div>
     <div id="streetCover" class="street-sign-cover" aria-hidden="true"><span>PUNK ME</span></div>
     <canvas id="stage3d"></canvas>
+    <div id="worldLoadOverlay" class="world-load-overlay" hidden aria-live="polite">
+      <div class="world-load-track" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div id="worldLoadBar" class="world-load-bar"></div></div>
+      <div id="worldLoadLabel" class="world-load-label">Loading…</div>
+    </div>
     <div id="doors"></div>
     <div id="entities"></div>
   </div>
@@ -79,6 +83,13 @@
       <div class="story-dialog-title"></div>
       <div class="story-dialog-body"></div>
       <button type="button" class="btn secondary" style="margin-top:10px" onclick="StoryEngine?.dismissAllStoryUi?.(); window.LifeCh1Slice?.closeDialogue?.();">✕</button>
+    </div>
+  </div>
+  <div id="lifeCh1ClimaxPanel" class="life-ch1-climax-panel" role="dialog" aria-labelledby="lifeCh1ClimaxTitle" hidden>
+    <div class="life-ch1-climax-card">
+      <h2 id="lifeCh1ClimaxTitle" class="life-ch1-climax-title"></h2>
+      <p class="life-ch1-climax-body"></p>
+      <p class="life-ch1-climax-reward"></p>
     </div>
   </div>
   <div id="lifeCh1Wardrobe" class="life-ch1-wardrobe" role="dialog" aria-modal="true" aria-labelledby="lifeCh1WardrobeTitle" hidden>
@@ -142,6 +153,7 @@
     <div class="duel-hp-npc bar"></div>
     <div class="duel-3d-actions">
       <button type="button" class="btn danger" onclick="duel3dAttack()" data-i18n="chainBtn" data-testid="duel3d-attack">Chain</button>
+      <button type="button" class="btn secondary" onclick="duel3dSpell()" data-i18n="magic" data-testid="duel3d-spell">Magic</button>
       <button type="button" class="btn secondary" onclick="duel3dBlock()" data-i18n="fight_block">Block</button>
       <button type="button" class="btn secondary" onclick="duel3dDodge()" data-i18n="dodge">Dodge</button>
     </div>

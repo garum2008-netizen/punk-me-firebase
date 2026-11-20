@@ -2,7 +2,7 @@ const { QA_CYBER_PUNK_BLUE } = require("./avatar-qa-presets");
 
 /** t206u: full UI path for mandatory CYBER PUNK BLUE QA hero. */
 async function configureCyberPunkBlueStudio(page, heroName = QA_CYBER_PUNK_BLUE.name) {
-  await page.waitForSelector('[data-testid="character-studio"]', { timeout: 120000 });
+  await page.waitForSelector('[data-testid="character-studio"]', { timeout: 180000 });
   const clicks = [
     ["hairStyle", QA_CYBER_PUNK_BLUE.hairStyle],
     ["skinTone", QA_CYBER_PUNK_BLUE.skinTone],
@@ -11,10 +11,40 @@ async function configureCyberPunkBlueStudio(page, heroName = QA_CYBER_PUNK_BLUE.
     ["outfitStyle", QA_CYBER_PUNK_BLUE.outfitStyle],
     ["accessoryToggle", "wings_01"]
   ];
-  for (const [field, id] of clicks) {
-    await page.locator(`[data-field="${field}"][data-id="${id}"]`).scrollIntoViewIfNeeded();
-    await page.click(`[data-field="${field}"][data-id="${id}"]`);
-    await page.waitForTimeout(80);
+  const studioStillSteps = [
+    { after: ["hairColor", QA_CYBER_PUNK_BLUE.hairColor], tag: "studio-after-hair" },
+    { after: ["outfitStyle", QA_CYBER_PUNK_BLUE.outfitStyle], tag: "studio-after-outfit" },
+    { after: ["accessoryToggle", "wings_01"], tag: "studio-after-wings" }
+  ];
+  const fast = process.env.CAPTURE_STUDIO_FAST === "1";
+  if (fast) {
+    await page.evaluate(cl => {
+      for (const [field, id] of cl) {
+        document.querySelector(`[data-field="${field}"][data-id="${id}"]`)?.click();
+      }
+    }, clicks);
+    await page.waitForTimeout(350);
+    for (const still of studioStillSteps) {
+      await page.waitForTimeout(100);
+      await page.locator("#charSelect3d").screenshot({ path: `/tmp/${still.tag}.png` }).catch(() => {});
+      still._captured = true;
+    }
+  } else {
+    for (const [field, id] of clicks) {
+      await page.locator(`[data-field="${field}"][data-id="${id}"]`).scrollIntoViewIfNeeded();
+      const prev = await page.evaluate(() => window.__lastStudioPreviewMs || 0);
+      await page.click(`[data-field="${field}"][data-id="${id}"]`);
+      await page
+        .waitForFunction(p => (window.__lastStudioPreviewMs || 0) > p, prev, { timeout: 5000 })
+        .catch(() => {});
+      await page.waitForTimeout(60);
+      const still = studioStillSteps.find(s => s.after[0] === field && s.after[1] === id);
+      if (still) {
+        await page.waitForTimeout(120);
+        await page.locator("#charSelect3d").screenshot({ path: `/tmp/${still.tag}.png` }).catch(() => {});
+        still._captured = true;
+      }
+    }
   }
   await page.evaluate(() => {
     document.querySelector('[data-field="accessoryToggle"][data-id="wings_01"]')?.click();

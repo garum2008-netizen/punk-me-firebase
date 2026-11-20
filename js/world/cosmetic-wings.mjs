@@ -36,7 +36,7 @@ function findBone(root, shortName) {
 const WING_ATTACH = { y: 0.04, z: -0.1, xSpread: 0.07 };
 
 function wingMaterial(emissive) {
-  const em = emissive ?? 0x95ff00;
+  const em = emissive ?? 0x3399ff;
   return new THREE.MeshStandardMaterial({
     color: em,
     emissive: em,
@@ -84,7 +84,8 @@ export function attachSkeletonWings(root, look, attachBoneOverride = null) {
     resolveSpineFromSkinnedMesh(root);
   if (!bone) return null;
 
-  const mat = wingMaterial(look.emissive);
+  const wingHex = look.hair != null ? Number(look.hair) >>> 0 : look.emissive ?? 0x3399ff;
+  const mat = wingMaterial(wingHex);
   const wingRoot = new THREE.Group();
   wingRoot.name = "cosmetic_wings";
   wingRoot.position.set(0, WING_ATTACH.y, -0.14);
