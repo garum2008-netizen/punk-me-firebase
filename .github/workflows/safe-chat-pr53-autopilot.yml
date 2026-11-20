@@ -1,0 +1,133 @@
+name: Safe Chat PR53 autopilot verify
+
+# Authoritative CI runner: npm ci + full test:safe-chat streak on a pinned verification SHA.
+# Do not treat integration-only green as PASS; suite exit code is the gate.
+# No deploy, no production secrets, no worker security mutations beyond frozen baseline.
+
+on:
+  workflow_dispatch:
+    inputs:
+      verification_sha:
+        description: "Exact commit to verify (checked out and HEAD must match)"
+        required: true
+      frozen_security_sha:
+        description: "Frozen Safe Chat worker security commit (must be ancestor; workers/safe-chat/src unchanged)"
+        required: true
+        default: "d31a624cdf407fac20c1560958dd426a6c174b39"
+      streak:
+        description: "Consecutive full-suite runs required (default 3)"
+        required: true
+        default: "3"
+
+concurrency:
+  group: safe-chat-pr53-autopilot-${{ github.event.inputs.verification_sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.verification_sha }}
+          fetch-depth: 0
+
+      - name: Pin verification SHA (no branch tip substitution)
+        env:
+          EXPECTED: ${{ github.event.inputs.verification_sha }}
+        run: |
+          set -euo pipefail
+          ACTUAL="$(git rev-parse HEAD)"
+          if [[ "$ACTUAL" != "$EXPECTED" ]]; then
+            echo "VERIFICATION_SHA_MISMATCH expected=$EXPECTED actual=$ACTUAL"
+            exit 1
+          fi
+          echo "VERIFICATION_SHA_PINNED=$ACTUAL"
+
+      - name: Enforce frozen security baseline (fail closed)
+        env:
+          FROZEN: ${{ github.event.inputs.frozen_security_sha }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          WORKER=workers/safe-chat/src
+          if ! git cat-file -e "${FROZEN}^{commit}"; then
+            echo "FROZEN_SECURITY_GATE_FAIL invalid frozen SHA"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${FROZEN}" HEAD_SHA; then
+            echo "FROZEN_SECURITY_GATE_FAIL frozen is not ancestor of HEAD"
+            exit 1
+          fi
+          if ! git diff --quiet "${FROZEN}" HEAD_SHA -- "${WORKER}"; then
+            echo "FROZEN_SECURITY_GATE_FAIL worker src differs from frozen baseline"
+            git diff --stat "${FROZEN}" HEAD_SHA -- "${WORKER}"
+            exit 1
+          fi
+          echo "FROZEN_SECURITY_GATE_PASS frozen=${FROZEN} head=${HEAD_SHA}"
+
+      - name: Record environment metadata
+        env:
+          FROZEN: ${{ github.event.inputs.frozen_security_sha }}
+        run: |
+          mkdir -p .cursor/ci-artifacts
+          node -e "
+          const fs=require('fs');
+          const {execSync}=require('child_process');
+          const frozen=process.env.FROZEN;
+          const head=execSync('git rev-parse HEAD').toString().trim();
+          const worker='workers/safe-chat/src';
+          const diff=execSync('git diff --stat '+frozen+' '+head+' -- '+worker).toString().trim();
+          const meta={
+            runner:'github-actions',
+            workflow:'safe-chat-pr53-autopilot',
+            verificationSha: head,
+            frozenSecuritySha: frozen,
+            frozenGate: diff.length===0 && execSync('git merge-base --is-ancestor '+frozen+' '+head+' && echo pass || echo fail').toString().trim(),
+            node: process.version,
+            startedAt: new Date().toISOString()
+          };
+          fs.writeFileSync('.cursor/ci-artifacts/env-metadata.json', JSON.stringify(meta,null,2));
+          console.log(JSON.stringify(meta,null,2));
+          "
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            workers/safe-chat/package-lock.json
+
+      - name: npm ci (root + safe-chat worker)
+        run: |
+          npm ci
+          npm ci --prefix workers/safe-chat
+
+      - name: Assert verification scripts present at pinned SHA
+        run: |
+          test -f scripts/run-3x-safe-chat-verify.sh
+          test -f scripts/run-safe-chat-tests.mjs
+
+      - name: Full safe-chat verification streak
+        env:
+          SAFE_CHAT_INTEGRATION: "1"
+          SAFE_CHAT_STREAK: ${{ github.event.inputs.streak }}
+        run: bash scripts/run-3x-safe-chat-verify.sh
+
+      - name: Upload logs and checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safe-chat-pr53-${{ github.run_id }}
+          path: |
+            .cursor/autopilot-3x-*.txt
+            .cursor/3x-run*.log
+            .cursor/autopilot-checkpoint.json
+            .cursor/ci-artifacts/
+          if-no-files-found: warn
