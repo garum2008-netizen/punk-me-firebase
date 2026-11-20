@@ -983,23 +983,26 @@ async function completeOnboarding(page) {
         logScene("onboarding_duel_hook_retry", JSON.stringify(hook));
       }
       logScene("onboarding_duel_active", "training duel");
-      const duelDeadline = Date.now() + 95000;
+      const duelDeadline = Date.now() + 55000;
       while (Date.now() < duelDeadline) {
-        const stepNow = await page.evaluate(() => window.me?.onboarding?.step ?? 0);
-        if (stepNow > 5) break;
-        await page.locator('[data-testid="duel3d-attack"]').click({ timeout: 900 }).catch(() => {});
-        await page.waitForTimeout(240);
+        const snap = await page.evaluate(() => ({
+          step: window.me?.onboarding?.step ?? 0,
+          hud: !document.getElementById("duel3dHud")?.classList.contains("hidden"),
+        }));
+        if (snap.step > 5) break;
+        if (snap.hud) {
+          await page.locator('[data-testid="duel3d-attack"]').click({ timeout: 900 }).catch(() => {});
+          await page.evaluate(() => window.duel3dAttack?.()).catch(() => {});
+        } else break;
+        await page.waitForTimeout(220);
       }
+      await page.evaluate(() => {
+        if ((window.me?.onboarding?.step ?? 0) <= 5) window.Onboarding?.onWinFight?.();
+      });
       const duel2d = await page.evaluate(() => document.getElementById("fightOverlay")?.classList.contains("active"));
       if (duel2d) throw new Error("ordinary_path_fight_must_be_3d_not_2d_overlay");
       logScene("onboarding_duel_done", "win_fight step complete");
-      const stepAfterDuel = await page
-        .waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 20000 })
-        .catch(() => null);
-      if (!stepAfterDuel) {
-        await page.evaluate(() => window.Onboarding?.onWinFight?.());
-        await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 15000 });
-      }
+      await page.waitForFunction(() => (window.me?.onboarding?.step || 0) > 5, undefined, { timeout: 45000 });
     } else if (step === 6) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.click("#gangModal .close").catch(() => {});
