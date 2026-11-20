@@ -857,6 +857,7 @@ def _apply_candidate_alpha255_lock(
     inset_px: int,
     *,
     semi_lock_band: bool = False,
+    semi_lock_exempt: np.ndarray | None = None,
 ) -> None:
     fg = alpha_ref >= (128 / 255.0)
     dist_in = ndimage.distance_transform_edt(fg)
@@ -865,7 +866,10 @@ def _apply_candidate_alpha255_lock(
     solid = fg & (alpha_ref >= thresh) & (dist_in >= inset_px)
     solid |= fg & (alpha_ref >= 0.965) & (dist_in >= 1)
     if semi_lock_band:
-        solid |= fg & (alpha_ref >= 0.75) & (alpha_ref < 0.80) & (dist_in >= 2)
+        semi_rule = fg & (alpha_ref >= 0.75) & (alpha_ref < 0.80) & (dist_in >= 2)
+        if semi_lock_exempt is not None:
+            semi_rule &= ~semi_lock_exempt
+        solid |= semi_rule
     out[solid, 0:3] = src_rgb[solid]
     r, g, b = out[:, :, 0], out[:, :, 1], out[:, :, 2]
     lum = (r.astype(np.int32) + g.astype(np.int32) + b.astype(np.int32)) / 3.0
