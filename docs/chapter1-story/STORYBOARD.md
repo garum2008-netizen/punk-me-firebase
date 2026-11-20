@@ -1,6 +1,10 @@
+# Раскадровка главы 1 — на одобрение
+
+Русский — основной язык. Слова Ангелины от первого лица: [ONBOARDING_SCRIPT.md](ONBOARDING_SCRIPT.md) и [RU_VOICE_LINES.md](RU_VOICE_LINES.md). Ниже десять кадров по-английски, как схема кадров. Картинки — предложение, не скриншоты текущей игры.
+
 # Chapter 1 storyboard — for owner approval
 
-Ten frames. The six pictures are the plates in [art/](art/). They are proposals, not screenshots of the current game. Words are the script in [ONBOARDING_SCRIPT.md](ONBOARDING_SCRIPT.md).
+Ten frames. The six pictures are the plates in [art/](art/). They are proposals, not screenshots of the current game. The Russian script is the source of the words.
 
 | # | Beat | What the child sees | What is said | Picture |
 | --- | --- | --- | --- | --- |

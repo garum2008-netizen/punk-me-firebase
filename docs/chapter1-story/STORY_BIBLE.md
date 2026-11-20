@@ -1,168 +1,196 @@
-# Chapter 1 story bible — for owner approval
+# Библия главы 1 — на одобрение
 
-Status: **draft for Inna.** Nothing in this folder is in the playable build yet. Step 2 (backgrounds, intro, objective UI, scenes, climax, preview) waits for a GO.
+Статус: черновик для Инны. В игру ещё не встроено. Шаг 2 ждёт отдельного GO.
 
-The pictures are in [art/](art/). Each one is 16:9.
+Русский — основной язык. Английский и датский стоят ниже и короче: это перевод, не источник.
 
----
-
-## Read this first
-
-**What the game is for.** A child spends one night earning a place in a punk band. The prize is a patch, not a finished city.
-
-**What the player wants.** To stop being the new kid at House 13 and hear Razor say, “You are one of us.”
-
-**The plot in one line.** Angelina walks you from your room to the street, through a practice duel, to one stall you build in Pumpkingrad, and then to the real duel with Razor.
-
-**Where you are.** Four places, and only these four: your room in House 13, the street, the cemetery practice yard, and the Pumpkingrad square. The skyline behind the square is still dark on purpose.
-
-**What to do.** Follow the yellow marker. Each scene starts with one goal sentence: what to do, how, and why.
-
-**The climax.** After the stall is standing, you duel Razor with the chain. The cemetery fight was practice and gives no patch. This fight is the one that counts. Nobody is really hurt. Razor gives you the patch. The ending says the stall is a first mark, not a finished city.
-
-**Chapter 2 hook.** The lights stop at your stall. The next night the band asks you to stand up for another new kid.
+Картинки лежат в [art/](art/). Каждая 16:9. Реплики Ангелины — в [RU_VOICE_LINES.md](RU_VOICE_LINES.md).
 
 ---
 
-## Premise
+## Сначала это
 
-**RU.** Ты новенький в доме 13 и хочешь, чтобы банда «Ржавые Цепи» приняла тебя: Ангелина проводит тебя через одну ночь в Тыквограде, ты оставляешь один ларёк на площади, и только после этого Рейзор отдаёт нашивку.
+**Зачем игра.** Ребёнок за одну ночь зарабатывает место в панк-банде. Приз — нашивка, а не готовый город.
 
-**EN.** You are the new kid at House 13, and you want the Rusty Chains to let you into the band: Angelina walks you through one night in Pumpkingrad, you leave one stall on the square, and only then does Razor give you the patch.
+**Чего хочет игрок.** Перестать быть новеньким в доме 13 и услышать от Рейзора: «Теперь ты свой».
 
-The game exists so a child can see the goal, do it with their own hands, and understand why it mattered.
+**Сюжет одной фразой.** Ангелина ведёт из комнаты на улицу, через учебный бой, к одному ларьку в Тыквограде, и только потом — на настоящую дуэль с Рейзором.
+
+**Где мы.** Четыре места, и только они: комната в доме 13, улица, учебный двор на кладбище, площадь Тыквограда. Башни за площадью тёмные нарочно.
+
+**Что делать.** Каждая сцена начинается с цели. Ангелина говорит её вслух от первого лица, как будто сама сейчас играет: что она делает, какой кнопкой и зачем это истории.
+
+**Кульминация.** Когда ларёк уже стоит, она идёт к Рейзору и жмёт «Цепь». Бой на кладбище был учёбой и нашивку не даёт. Этот бой — тот, который считается. По-настоящему никто не страдает. Рейзор отдаёт нашивку. В конце сказано: ларёк — первая метка, не готовый город.
+
+**Крючок главы 2.** За ларьком город ещё тёмный. Следующей ночью банда спросит про другого новенького.
 
 ---
 
-## World — Pumpkingrad
+## Завязка
 
-Pumpkingrad is a night town. The pumpkin lamps stay lit. The band lives at **House 13**. The square in front of the skyline is not a finished district. Chapter 1 adds **one stall**. The other buildings in the skyline stay dark. The story must not call the city finished.
+Ты новенький в доме 13 и хочешь, чтобы банда «Ржавые Цепи» приняла тебя. Ангелина проходит эту ночь вместе с тобой: вы оставляете один ларёк на площади Тыквограда, и только после этого Рейзор отдаёт нашивку.
 
-| Place | What the child should recognize | Picture |
+Игра для того, чтобы ребёнок видел цель, делал её руками и понимал, зачем она была.
+
+---
+
+## Как говорит Ангелина
+
+Она не диктор за кадром. Она играет сейчас, рядом, своим голосом.
+
+Образец тона, не отдельный квест: «Смотри, я сначала прыгаю на крышу — оттуда видно, куда бежать!» В главе 1 крыши в целях нет. Таким же живым «смотри, я сначала…» она говорит про настоящие шаги: комната, улица, Рейзор, учёба, лавка, лампа, ларёк, финал.
+
+В каждой реплике три вещи:
+
+- что она делает прямо сейчас;
+- как: WASD или джойстик слева, E справа, кнопки «Улица», «Кладбище», «Лавка», «Город», «Цепь»;
+- зачем это истории, а не просто кнопке.
+
+На удачу она радуется и сразу говорит, что это дало сюжету. На ошибку не ругает: говорит, что сама чуть не сделала не то, смотрит на цель сверху и пробует снова. Она подросток, быстрая, тёплая, на «ты» с игроком. Это не копия реального человека.
+
+Нашивку она отдать не может. Это говорит вслух.
+
+---
+
+## Мир — Тыквоград
+
+Тыквоград — ночной город. Тыквенные фонари горят. Банда живёт в **доме 13**. Площадь перед башнями — не готовый район. В главе 1 появляется **один ларёк**. Остальные башни остаются тёмными. Называть город построенным нельзя.
+
+| Место | Что ребёнок должен узнать | Картинка |
 | --- | --- | --- |
-| House 13, your room | A bedroom, a lamp, Angelina | [03-house13.png](art/03-house13.png) |
-| The street | Razor in front of the band’s door, a pumpkin, a pink sign | [04-street-razor.png](art/04-street-razor.png) |
-| The cemetery yard | A practice chain duel, stones, pumpkin lamps. No scares, no one is hurt | [05-cemetery.png](art/05-cemetery.png) |
-| Pumpkingrad square | A skyline and one lit stall | [02-pumpkingrad-skyline.png](art/02-pumpkingrad-skyline.png) |
-| Title | The band, the night, the invitation | [01-title.png](art/01-title.png) |
-| Climax | You, Razor, the chain, the stall, the patch | [06-climax.png](art/06-climax.png) |
+| Дом 13, комната | Спальня, лампа, Ангелина | [03-house13.png](art/03-house13.png) |
+| Улица | Рейзор у двери банды, тыква, розовая вывеска | [04-street-razor.png](art/04-street-razor.png) |
+| Кладбище | Учебная дуэль на цепи, камни, тыквы. Без страшилок, никто не ранен | [05-cemetery.png](art/05-cemetery.png) |
+| Площадь Тыквограда | Небоскрёбы и один светящийся ларёк | [02-pumpkingrad-skyline.png](art/02-pumpkingrad-skyline.png) |
+| Титр | Банда, ночь, приглашение | [01-title.png](art/01-title.png) |
+| Кульминация | Ты, Рейзор, цепь, ларёк, нашивка | [06-climax.png](art/06-climax.png) |
 
 ---
 
-## Angelina and the band
+## Ангелина и банда
 
-Original characters. No borrowed names, no borrowed posters.
+Свои герои. Чужих имён и чужих постеров нет.
 
-**Angelina** is the guide. Pink hair, teenage, kind, direct. She is not the boss and she cannot give the patch. She says the goal, the reason, and the button. She walks with you. She is not a copy of a real person.
+**Ангелина** — проводник. Розовые волосы, подросток, прямая и живая. Не начальник. Нашивку не выдаёт. Идёт рядом и говорит, что делает сама.
 
-**You** pick a look before the night starts (hair, skin, jacket, wings). The look is yours. The story is the same.
+**Ты** до ночи выбираешь вид: волосы, кожу, куртку, крылья. Вид твой. История та же.
 
-**Razor** keeps the patch. He is the test, not a monster. He blocks strangers. He teaches the chain as a sport. He gives the patch only after you have left something standing in the city.
+**Рейзор** держит нашивку. Он проверка, не чудовище. Чужих не берёт. Цепь у него — спорт. Нашивку отдаёт только после того, как на площади остался свет.
 
-**Vienna, Cobalt, Mohawk, Ghost** are the rest of the band. In this chapter they are the crew you are joining. They do not add a second quest chain.
+**Вена, Кобальт, Ирокез, Призрак** — остальная банда. В этой главе они свои, к которым ты приходишь. Второй цепочки квестов они не открывают.
 
-**Schnurok** is the band’s dog. He can be in the room. He is not a quest.
+**Шнурок** — пёс банды. Может быть в комнате. Квестом не является.
 
-The band’s name is the Rusty Chains. Their sign is the patch. Their phrase for the night is: the chain is a sport, and the city is still being built.
-
----
-
-## Conflict and stakes
-
-**RU.** Рейзор не отдаёт нашивку чужому. Если уйти раньше, ты остаёшься гостем, а площадь остаётся тёмной. Если пройти ночь, у тебя есть лампа в комнате, ларёк на площади и место в банде.
-
-**EN.** Razor will not give the patch to a stranger. Leave early and you are still a guest, and the square stays dark. Finish the night and you have a lamp in your room, a stall on the square, and a place in the band.
-
-The duel does not injure anyone. Coins are the game’s coins. The shop never asks for a real card.
+Имя банды — «Ржавые Цепи». Их знак — нашивка. Фраза ночи: цепь — это спорт, а город ещё строится.
 
 ---
 
-## Chapter 1 in three acts
+## Конфликт и цена
 
-### Act 1 — Arrival
+Рейзор не отдаёт нашивку чужому. Уйдёшь раньше — останешься гостем, а площадь останется тёмной. Дойдёшь до конца — в комнате лампа, на площади ларёк, в банде место.
 
-You choose your look. The title says what the night is for. Angelina meets you in House 13 and asks you to walk the room, then to go out to the street. You learn the marker, the arrow, and E.
-
-### Act 2 — The test
-
-Razor stops you. He will not take a stranger. He sends you to the cemetery for a practice chain duel. You win it. Angelina says, out loud, that this win does **not** give the patch. Razor is still waiting.
-
-### Act 3 — Your mark, then the climax
-
-You take the free pin from the shop, put a lamp in your room, and pay for one stall on the Pumpkingrad square. Then you go back to Razor. The real chain duel is the climax. He gives you the patch. The ending names the stall and says it is a first mark, not a finished city.
+Дуэль никого не ранит. Монеты — игровые. Лавка настоящую карту не просит.
 
 ---
 
-## Quests
+## Три акта
 
-Every quest the child sees has three lines: the goal, why it matters, and how to do it. The words to put on screen are in [ONBOARDING_SCRIPT.md](ONBOARDING_SCRIPT.md).
+### Акт 1. Приход
 
-### 1. Walk the room
+Выбираешь вид. Титр говорит, зачем эта ночь. Ангелина встречает в доме 13 и сама обходит комнату, потом выходит на улицу. Тут появляются метка, стрелка и E.
 
-- **Goal.** Walk your room until the marker is done.
-- **Why.** The band opens the street door only if you can find the next step.
-- **How.** WASD or the arrow keys. On a phone, the joystick on the left. Follow the yellow marker.
+### Акт 2. Проверка
 
-### 2. Go to the street
+Рейзор останавливает. Чужих не берёт. Отправляет на кладбище на учебную дуэль. Победа есть. Ангелина сразу говорит: эта победа нашивку не даёт. Рейзор всё ещё ждёт.
 
-- **Goal.** Leave House 13 for the street.
-- **Why.** Razor and the patch are outside. They are not in the bedroom.
-- **How.** Walk into the street door, or press Street.
+### Акт 3. Метка, потом кульминация
 
-### 3. Talk to Razor
-
-- **Goal.** Stand near Razor and press E.
-- **Why.** Only Razor can say yes. Angelina cannot hand you the patch.
-- **How.** Follow the arrow until you are close. Press E. On a phone, the E button is on the right.
-
-### 4. Go to the cemetery
-
-- **Goal.** From the street, enter the cemetery yard.
-- **Why.** Razor wants a practice fight away from the door. This yard is the lesson, not the ending.
-- **How.** Follow the marker to the cemetery door, or press Cemetery.
-
-### 5. Win the practice duel
-
-- **Goal.** Press Chain until you win the practice fight.
-- **Why.** You learn the duel here. This win does not finish the chapter and does not give the patch.
-- **How.** Press the Chain button. Several presses. You are safe. Nobody is really hurt.
-
-### 6. Take the free pin
-
-- **Goal.** Open the shop and take the free pin.
-- **Why.** The pin is the band’s mark you can carry before you earn the patch. The shop takes game coins, never a real card.
-- **How.** Press Shop. Choose the free pin.
-
-### 7. Place the lamp
-
-- **Goal.** Buy the lamp and see it in your room.
-- **Why.** A dark room is still a guest room. The lamp means you live at House 13.
-- **How.** Press the lamp when you have the coins. Go back to the room and look.
-
-### 8. Build one stall
-
-- **Goal.** Open the city and buy the stall.
-- **Why.** Pumpkingrad is not finished. One stall is the mark the band can point at. The other pads can wait.
-- **How.** Press City. Buy the stall. Look at the square: one stall is lit, the skyline behind it is still dark.
+Бесплатный значок в лавке, лампа в комнате, один ларёк на площади. Потом возвращение к Рейзору. Настоящая дуэль на цепи — кульминация. Он отдаёт нашивку. Концовка называет ларёк и говорит, что это первая метка, не готовый город.
 
 ---
 
-## Climax
+## Квесты
 
-**The event.** You return to Razor on the street. He sees the stall. He offers the real chain duel. You have to press Chain. The fight lasts long enough to feel like a fight. Then he stops.
+Слова, которые ребёнок видит и слышит, лежат в [ONBOARDING_SCRIPT.md](ONBOARDING_SCRIPT.md). Здесь — смысл.
 
-**The reveal.** He was not waiting for a stronger punch. He was waiting to see if you would leave a light in the city.
+### 1. Обойти комнату
 
-**The payoff.** The patch is yours. Angelina says you are one of the band. You can still see the room, the street, the duel, and the stall.
+- **Цель.** Дойти до жёлтой метки в комнате.
+- **Зачем.** Банда откроет дверь на улицу, только если видно, что следующий шаг находится.
+- **Как.** WASD или стрелки. На телефоне джойстик слева.
 
-**On screen, after the duel.**
+### 2. Выйти на улицу
 
-- **RU.** Комната, улица, дуэль и ларёк, который ты поставил, стоят в Тыквограде. Это первая метка, не готовый город. Рейзор принял тебя в банду.
-- **EN.** The room, the street, the duel, and the stall you built are standing in Pumpkingrad. That is a first mark, not a finished city. Razor has taken you into the band.
+- **Цель.** Покинуть дом 13.
+- **Зачем.** Рейзор и нашивка снаружи, не в спальне.
+- **Как.** Войти в дверь «Улица» или нажать «Улица».
 
-**Hook to Chapter 2.**
+### 3. Поговорить с Рейзором
 
-- **RU.** За ларьком город ещё тёмный. Следующей ночью банда спросит тебя про другого новенького. Это глава 2.
-- **EN.** Past the stall the city is still dark. Next night the band will ask you about another new kid. That is Chapter 2.
+- **Цель.** Подойти и нажать E.
+- **Зачем.** «Да» может сказать только он. Ангелина нашивку не вручит.
+- **Как.** Идти по стрелке. Вплотную нажать E. На телефоне E справа.
 
-No new location and no new fight are required to tell that hook. It is one sentence on the ending card, then stop.
+### 4. Дойти до кладбища
+
+- **Цель.** С улицы войти на учебный двор.
+- **Зачем.** Рейзор не дерётся у двери. Это урок, не конец.
+- **Как.** Метка или кнопка «Кладбище».
+
+### 5. Выиграть учебный бой
+
+- **Цель.** Жать «Цепь», пока бой не выигран.
+- **Зачем.** Здесь учатся. Победа главу не кончает и нашивку не даёт.
+- **Как.** Кнопка «Цепь», несколько раз. Никто по-настоящему не пострадает.
+
+### 6. Взять бесплатный значок
+
+- **Цель.** Открыть лавку и взять бесплатный значок.
+- **Зачем.** Значок можно носить сразу. Нашивка будет позже. Лавка берёт монеты игры, не карту.
+- **Как.** Кнопка «Лавка», бесплатный значок.
+
+### 7. Поставить лампу
+
+- **Цель.** Купить лампу и увидеть её в комнате.
+- **Зачем.** Тёмная комната — всё ещё комната гостя. Свет значит, что тут живут.
+- **Как.** Кнопка лампы, когда хватает монет. Вернуться и посмотреть.
+
+### 8. Поставить один ларёк
+
+- **Цель.** Открыть город и купить ларёк.
+- **Зачем.** Тыквоград не достроен. Один ларёк — метка, на которую банда может показать. Остальные площадки подождут.
+- **Как.** Кнопка «Город», купить ларёк. На площади один свет, башни за ним тёмные.
+
+---
+
+## Кульминация
+
+**Событие.** Возвращение к Рейзору на улицу. Он видит ларёк. Предлагает настоящую дуэль на цепи. Надо жать «Цепь». Бой длится столько, чтобы это был бой, а не вспышка. Потом он останавливается.
+
+**Открытие.** Он ждал не более сильный удар. Он ждал, останется ли на площади свет.
+
+**Награда.** Нашивка твоя. Ангелина говорит, что ты теперь свой. Комната, улица, дуэль и ларёк на месте.
+
+**На экране после боя.** Комната, улица, дуэль и ларёк, который ты поставил, стоят в Тыквограде. Это первая метка, не готовый город. Рейзор принял тебя в банду.
+
+**Крючок главы 2.** За ларьком город ещё тёмный. Следующей ночью банда спросит про другого новенького. Это глава 2.
+
+Новая локация и новый бой для этого крючка не нужны. Одна фраза на карточке конца, и стоп.
+
+---
+
+## English (secondary)
+
+This is a translation of the Russian text above. The Russian is the source.
+
+You are the new kid at House 13. You want the Rusty Chains to let you in. Angelina plays the night beside you, in the first person, as if she is doing it right now. She says what she does, which control she uses, and why it matters. She cheers a success and, on a mistake, admits she almost did the wrong thing and looks back at the goal.
+
+One night, four places: the room, the street, the cemetery practice yard, and one stall on the Pumpkingrad square. The skyline stays dark. The cemetery duel is practice and gives no patch. The climax is the later chain duel with Razor, after the stall is standing. Nobody is really hurt. The ending names the stall as a first mark, not a finished city. Chapter 2 is the next night and another new kid.
+
+The eight steps are: walk the room, go to the street, talk to Razor with E, enter the cemetery, win the practice duel, take the free pin, place the lamp, buy the stall. Then the real duel.
+
+## Dansk (secondary)
+
+Dette er en kort oversættelse. Russisk er kilden.
+
+Du er ny i hus 13 og vil ind i banden De Rustne Kæder. Angelina spiller natten med dig, i jeg-form. Kirkegården er træning og giver ikke mærket. Den rigtige duel er med Razor, efter boden står på pladsen. Byen er ikke færdig. Kapitel 2 er næste nat og en anden ny.

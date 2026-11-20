@@ -1,281 +1,227 @@
-# Chapter 1 onboarding script — for owner approval
+# Сценарий онбординга — на одобрение
 
-Status: **proposed words.** They are not in the game yet. Every scene starts with the goal sentence. Angelina says the same facts in speech. The why-card is the short reason, shown before the child has to act.
+Статус: предлагаемые слова. В игре их ещё нет.
 
-Languages: Russian and English are the approval text. Danish matches them so the three buttons stay in step.
+Русский — основной язык и написан первым. Английский и датский в конце, как перевод.
 
-Controls named below: **WASD** or arrows, **E** to talk, **Street / Cemetery / Shop / City** buttons, **Chain** in a duel. On a phone: joystick on the left, **E** on the right.
+Каждая сцена начинается с цели. Ангелина говорит от первого лица, в настоящем времени, как будто сама сейчас играет. В реплике есть что она делает, как (кнопка) и зачем (история). На удачу и на ошибку у неё отдельные реплики. Субтитр совпадает с тем, что она говорит. Полная таблица: [RU_VOICE_LINES.md](RU_VOICE_LINES.md).
 
----
-
-## 0. Title
-
-**Goal.** See what this night is for, then make your look.
-
-| | Text |
-| --- | --- |
-| On screen RU | Панк-ночь. Дом 13. Заслужи нашивку. |
-| On screen EN | One night. House 13. Earn the patch. |
-| On screen DA | Én nat. Hus 13. Fortjen mærket. |
-| Angelina RU | Я Ангелина. Я покажу, что делать, как и зачем. Нашивку отдаёт только Рейзор. |
-| Angelina EN | I'm Angelina. I'll show you what to do, how, and why. Only Razor can give you the patch. |
-| Angelina DA | Jeg er Angelina. Jeg viser, hvad du skal gøre, hvordan og hvorfor. Kun Razor kan give dig mærket. |
-| Why RU | Игра — это одна ночь, чтобы банда приняла тебя. |
-| Why EN | The game is one night to be let into the band. |
-| Why DA | Spillet er én nat, hvor banden tager dig ind. |
-
-Then the child picks hair, skin, jacket, and wings, and presses **Join the gang**.
+Кнопки: WASD или стрелки, E, «Улица», «Кладбище», «Лавка», «Город», «Цепь». На телефоне джойстик слева, E справа.
 
 ---
 
-## 1. House 13 — walk the room
+## 0. Титр
 
-**Goal.** Walk your room. The yellow marker shows the spot.
+**Цель.** Понять, зачем эта ночь, и собрать свой вид.
 
-Picture: [art/03-house13.png](art/03-house13.png).
+Картинка: [art/01-title.png](art/01-title.png).
 
-| | Text |
-| --- | --- |
-| Banner RU | Пройди комнату. Метка показывает куда. |
-| Banner EN | Walk your room. The marker shows where. |
-| Banner DA | Gå rundt i værelset. Mærket viser hvor. |
-| Tracker RU | Шаг 1 из 8. Комната. |
-| Tracker EN | Step 1 of 8. Your room. |
-| Tracker DA | Trin 1 af 8. Dit værelse. |
-| Angelina RU | Это дом 13. Пройдись до жёлтой метки. Так я вижу, что ты находишь следующий шаг. |
-| Angelina EN | This is House 13. Walk to the yellow marker. Then I know you can find the next step. |
-| Angelina DA | Det her er hus 13. Gå hen til det gule mærke. Så ved jeg, at du finder næste skridt. |
-| Why RU | Банда откроет дверь на улицу, только если ты умеешь идти за меткой. |
-| Why EN | The band opens the street door only if you can follow the marker. |
-| Why DA | Banden åbner døren til gaden, kun hvis du kan følge mærket. |
-| Hint RU | WASD или джойстик слева. |
-| Hint EN | WASD, or the joystick on the left. |
-| Hint DA | WASD, eller joysticket til venstre. |
+**На экране.** Панк-ночь. Дом 13. Заслужи нашивку.
+
+**Ангелина.** Смотри, я уже здесь. Я Ангелина. Сначала собираю себе вид: волосы, кожу, куртку, крылья — и жму «В банду». Эта кнопка меня только впускает в ночь. Нашивку мне отдаст Рейзор, и только после дела. Зачем вид? Чтобы ночь была моя, а не чужая куртка.
+
+Потом выбор вида и кнопка «В банду».
 
 ---
 
-## 2. The street door
+## 1. Дом 13 — комната
 
-**Goal.** Leave the house. Razor is on the street.
+**Цель.** Обойти комнату. Жёлтая метка показывает куда.
 
-| | Text |
-| --- | --- |
-| Banner RU | Выйди на улицу. Рейзор там. |
-| Banner EN | Go to the street. Razor is there. |
-| Banner DA | Gå ud på gaden. Razor er der. |
-| Tracker RU | Шаг 2 из 8. Улица. |
-| Tracker EN | Step 2 of 8. The street. |
-| Tracker DA | Trin 2 af 8. Gaden. |
-| Angelina RU | Нашивка не в комнате. Иди в дверь «Улица» или нажми Улица. |
-| Angelina EN | The patch is not in the room. Take the Street door, or press Street. |
-| Angelina DA | Mærket er ikke i værelset. Gå gennem Gade-døren, eller tryk Gade. |
-| Why RU | Рейзор стоит снаружи. Он решает, брать ли тебя. |
-| Why EN | Razor is outside. He decides if you can join. |
-| Why DA | Razor står udenfor. Han bestemmer, om du må være med. |
+Картинка: [art/03-house13.png](art/03-house13.png).
+
+**На экране.** Шаг 1 из 8. Я обхожу комнату до жёлтой метки.
+
+**Ангелина.** Смотри, я сначала обхожу комнату — жёлтая метка прямо передо мной. Жму W, A, S, D или толкаю джойстик слева. Зачем: пока я не дойду, банда не откроет дверь на улицу, и мы так и останемся гостями в доме 13.
+
+**Удача.** О, дошла! Метка погасла. Дверь на улицу теперь наша.
+
+**Ошибка.** Эй, я стою и ничего не меняется. Возвращаюсь к жёлтой метке и иду снова. Цель написана сверху.
 
 ---
 
-## 3. Razor on the street
+## 2. Дверь на улицу
 
-**Goal.** Walk up to Razor and press E.
+**Цель.** Выйти из дома. Рейзор на улице.
 
-Picture: [art/04-street-razor.png](art/04-street-razor.png).
+**На экране.** Шаг 2 из 8. Я выхожу на улицу, к Рейзору.
 
-| | Text |
-| --- | --- |
-| Banner RU | Подойди к Рейзору и нажми E. |
-| Banner EN | Walk up to Razor and press E. |
-| Banner DA | Gå hen til Razor og tryk E. |
-| Tracker RU | Шаг 3 из 8. Рейзор. |
-| Tracker EN | Step 3 of 8. Razor. |
-| Tracker DA | Trin 3 af 8. Razor. |
-| Angelina RU | Жёлтая стрелка ведёт к нему. Подойди близко и нажми E. На телефоне E справа. |
-| Angelina EN | The yellow arrow leads to him. Get close and press E. On a phone, E is on the right. |
-| Angelina DA | Den gule pil fører hen til ham. Gå tæt på og tryk E. På en telefon er E til højre. |
-| Why RU | Нашивку может отдать только Рейзор. Я не могу. |
-| Why EN | Only Razor can give the patch. I can't. |
-| Why DA | Kun Razor kan give mærket. Det kan jeg ikke. |
-| Razor RU | Хочешь в банду? Чужих не берём. Сначала учебный бой на кладбище. |
-| Razor EN | You want in? We don't take strangers. First, a practice fight in the cemetery. |
-| Razor DA | Vil du med? Vi tager ikke fremmede. Først en øve-kamp på kirkegården. |
+**Ангелина.** Смотри, я выхожу из дома 13. Нашивка не в комнате, она у Рейзора на улице. Иду в светящуюся дверь или жму «Улица». Зачем: без улицы мы даже не увидим, кто нас проверяет.
+
+**Удача.** Я на улице. Рейзор уже где-то здесь, я это чувствую.
+
+**Ошибка.** Я всё ещё в комнате и жму не ту дверь. Останавливаюсь. Цель сверху — улица. Жму «Улица».
 
 ---
 
-## 4. The cemetery yard
+## 3. Рейзор
 
-**Goal.** Go to the cemetery. This is practice.
+**Цель.** Подойти к Рейзору и нажать E.
 
-| | Text |
-| --- | --- |
-| Banner RU | Иди на кладбище. Это учебный бой. |
-| Banner EN | Go to the cemetery. This fight is practice. |
-| Banner DA | Gå til kirkegården. Kampen er træning. |
-| Tracker RU | Шаг 4 из 8. Кладбище. |
-| Tracker EN | Step 4 of 8. The cemetery. |
-| Tracker DA | Trin 4 af 8. Kirkegården. |
-| Angelina RU | Рейзор не дерётся у двери. Учебный двор за меткой. Нажми Кладбище или войди в дверь. |
-| Angelina EN | Razor does not fight at the door. The practice yard is at the marker. Press Cemetery, or take the door. |
-| Angelina DA | Razor kæmper ikke ved døren. Øve-gården er ved mærket. Tryk Kirkegård, eller gå gennem døren. |
-| Why RU | Здесь ты учишься цепи. Нашивку здесь не дают. |
-| Why EN | Here you learn the chain. The patch is not given here. |
-| Why DA | Her lærer du kæden. Mærket gives ikke her. |
+Картинка: [art/04-street-razor.png](art/04-street-razor.png).
+
+**На экране.** Шаг 3 из 8. Я подхожу к Рейзору и жму E.
+
+**Ангелина.** Смотри, я иду по жёлтой стрелке прямо к Рейзору. Подхожу вплотную и жму E. На телефоне E справа. Зачем: чужим нашивку не дают, и сказать «да» может только он. Я за него нашивку не отдам.
+
+**Рейзор.** Хочешь в банду? Чужих не берём. Сначала учебный бой на кладбище.
+
+**Удача.** Он меня слышит. Говорит: сначала учёба на кладбище. Ладно. Нашивка ещё не сейчас.
+
+**Ошибка.** Не сработало. Я была слишком далеко или говорила не с ним. Возвращаюсь по стрелке, пока Рейзор не станет самым близким, и снова жму E.
 
 ---
 
-## 5. Practice duel
+## 4. Кладбище
 
-**Goal.** Press Chain until the practice duel is won.
+**Цель.** Дойти до учебного двора.
 
-Picture: [art/05-cemetery.png](art/05-cemetery.png).
+**На экране.** Шаг 4 из 8. Я иду на кладбище. Это учёба, не финал.
 
-| | Text |
-| --- | --- |
-| Banner RU | Жми «Цепь», пока не победишь. Это учёба. |
-| Banner EN | Press Chain until you win. This is practice. |
-| Banner DA | Tryk Kæde, indtil du vinder. Det er træning. |
-| Tracker RU | Шаг 5 из 8. Учебный бой. |
-| Tracker EN | Step 5 of 8. Practice duel. |
-| Tracker DA | Trin 5 af 8. Øve-duel. |
-| Angelina RU | Жми кнопку «Цепь» несколько раз. По-настоящему никто не пострадает. Нашивки ещё нет. |
-| Angelina EN | Press the Chain button several times. Nobody gets hurt for real. There is no patch yet. |
-| Angelina DA | Tryk på Kæde-knappen flere gange. Ingen kommer rigtigt til skade. Der er ikke noget mærke endnu. |
-| Why RU | Победа здесь не заканчивает главу. Рейзор всё ещё ждёт. |
-| Why EN | Winning here does not end the chapter. Razor is still waiting. |
-| Why DA | En sejr her slutter ikke kapitlet. Razor venter stadig. |
+**Ангелина.** Смотри, я не дерусь у двери. Иду на кладбище: там учебный двор. Жму «Кладбище» или вхожу в дверь по метке. Зачем: Рейзор хочет увидеть, что я умею цепь, до того как доверит нашивку.
 
-After the win, the tracker must stay on step 6. It must not say the chapter is over.
+**Удача.** Я на дворе. Тихо, без страшилок. Сейчас будет спорт, не конец главы.
+
+**Ошибка.** Я всё ещё на улице. Метка ведёт на кладбище, не в лавку. Жму «Кладбище».
 
 ---
 
-## 6. The free pin
+## 5. Учебный бой
 
-**Goal.** Open the shop and take the free pin.
+**Цель.** Жать «Цепь», пока учебный бой не выигран.
 
-| | Text |
-| --- | --- |
-| Banner RU | Открой лавку и возьми бесплатный значок. |
-| Banner EN | Open the shop and take the free pin. |
-| Banner DA | Åbn butikken og tag den gratis nål. |
-| Tracker RU | Шаг 6 из 8. Лавка. |
-| Tracker EN | Step 6 of 8. The shop. |
-| Tracker DA | Trin 6 af 8. Butikken. |
-| Angelina RU | Нажми Лавка. Значок бесплатный. Остальное стоит монеты игры, не карту. |
-| Angelina EN | Press Shop. The pin is free. Anything else costs game coins, not a card. |
-| Angelina DA | Tryk Butik. Nålen er gratis. Resten koster spilmønter, ikke et kort. |
-| Why RU | Значок можно носить уже сейчас. Нашивка будет позже, у Рейзора. |
-| Why EN | You can wear the pin now. The patch comes later, from Razor. |
-| Why DA | Du kan bære nålen nu. Mærket kommer senere, fra Razor. |
+Картинка: [art/05-cemetery.png](art/05-cemetery.png).
+
+**На экране.** Шаг 5 из 8. Я жму «Цепь». Это учёба. Нашивки тут нет.
+
+**Ангелина.** Смотри, я жму кнопку «Цепь». Не один раз — несколько. Это спорт, по-настоящему никто не пострадает. Зачем: я учусь. Нашивку тут не дают, глава не кончается, Рейзор всё ещё ждёт на улице.
+
+**Удача.** Есть! Учебный бой мой. Я не праздную слишком рано: нашивки всё ещё нет. Дальше лавка.
+
+**Ошибка.** Меня задели, и бой кончился не в мою пользу. Ничего, я цела. Жму «Цепь» ещё раз. Это всё ещё учёба, не финал.
+
+После победы трекер остаётся на шаге 6. Фразы «глава пройдена» здесь нет.
 
 ---
 
-## 7. The lamp
+## 6. Бесплатный значок
 
-**Goal.** Place a lamp in your room and see it there.
+**Цель.** Открыть лавку и взять бесплатный значок.
 
-| | Text |
-| --- | --- |
-| Banner RU | Поставь лампу. Она должна быть видна в комнате. |
-| Banner EN | Place a lamp. You should see it in the room. |
-| Banner DA | Sæt en lampe. Du skal kunne se den i værelset. |
-| Tracker RU | Шаг 7 из 8. Лампа. |
-| Tracker EN | Step 7 of 8. The lamp. |
-| Tracker DA | Trin 7 af 8. Lampen. |
-| Angelina RU | Купи лампу за монеты и вернись в комнату. Тёмная комната — всё ещё комната гостя. |
-| Angelina EN | Buy the lamp with coins and come back to the room. A dark room is still a guest room. |
-| Angelina DA | Køb lampen for mønter og gå tilbage til værelset. Et mørkt værelse er stadig et gæsteværelse. |
-| Why RU | Лампа значит, что ты здесь живёшь. |
-| Why EN | The lamp means you live here. |
-| Why DA | Lampen betyder, at du bor her. |
+**На экране.** Шаг 6 из 8. Я беру в лавке бесплатный значок.
+
+**Ангелина.** Смотри, я открываю лавку и беру бесплатный значок. Кнопка «Лавка». Карту доставать не надо: здесь монеты игры. Зачем: значок можно носить уже сейчас, а нашивка будет позже, из рук Рейзора.
+
+**Удача.** Значок мой, я его вижу. Это ещё не нашивка, но уже метка банды на мне.
+
+**Ошибка.** Ой, не то. Я чуть не потратила монеты не туда. Смотрю на цель сверху: нужен бесплатный значок. Его и беру.
 
 ---
 
-## 8. One stall in Pumpkingrad
+## 7. Лампа
 
-**Goal.** Buy the stall. Leave the rest of the city dark.
+**Цель.** Поставить лампу и увидеть её в комнате.
 
-Picture: [art/02-pumpkingrad-skyline.png](art/02-pumpkingrad-skyline.png).
+**На экране.** Шаг 7 из 8. Я ставлю лампу и проверяю, что она горит в комнате.
 
-| | Text |
-| --- | --- |
-| Banner RU | Купи ларёк на площади. Остальной город пусть останется тёмным. |
-| Banner EN | Buy the stall on the square. Leave the rest of the city dark. |
-| Banner DA | Køb boden på pladsen. Lad resten af byen være mørk. |
-| Tracker RU | Шаг 8 из 8. Ларёк в Тыквограде. |
-| Tracker EN | Step 8 of 8. The Pumpkingrad stall. |
-| Tracker DA | Trin 8 af 8. Boden i Græskarby. |
-| Angelina RU | Нажми Город и купи ларёк. Это первая метка, не готовый город. |
-| Angelina EN | Press City and buy the stall. That is a first mark, not a finished city. |
-| Angelina DA | Tryk By og køb boden. Det er et første mærke, ikke en færdig by. |
-| Why RU | Банда должна увидеть, что ты оставил свет, а не только выиграл бой. |
-| Why EN | The band needs to see that you left a light, not only that you won a fight. |
-| Why DA | Banden skal se, at du efterlod et lys, ikke kun at du vandt en kamp. |
+**Ангелина.** Смотри, я покупаю лампу и возвращаюсь в комнату, чтобы увидеть её своими глазами. Жму лампу, когда монет хватает. Зачем: тёмная комната — всё ещё комната гостя. Свет значит, что я тут живу.
 
-If the child taps the wrong thing, Angelina says:
+**Удача.** Вот она, горит. Комната стала моей. Я это вижу, не только в меню.
 
-| | Text |
-| --- | --- |
-| RU | Не то. Смотри на цель сверху. Я подожду. |
-| EN | Not that. Look at the goal at the top. I'll wait. |
-| DA | Ikke det. Se målet øverst. Jeg venter. |
-
-If the child stands still, she says:
-
-| | Text |
-| --- | --- |
-| RU | Я рядом. Сделай шаг из цели сверху. Метка показывает куда. |
-| EN | I'm here. Do the step in the goal at the top. The marker shows where. |
-| DA | Jeg er her. Gør trinnet i målet øverst. Mærket viser hvor. |
+**Ошибка.** Монет не хватило, или я купила не лампу. Останавливаюсь. Цель сверху — лампа. Коплю монеты игры и жму её.
 
 ---
 
-## 9. Climax — the real duel
+## 8. Один ларёк
 
-**Goal.** Go back to Razor and press Chain until he gives you the patch.
+**Цель.** Купить ларёк. Остальной город оставить тёмным.
 
-Picture: [art/06-climax.png](art/06-climax.png).
+Картинка: [art/02-pumpkingrad-skyline.png](art/02-pumpkingrad-skyline.png).
 
-| | Text |
-| --- | --- |
-| Banner RU | Вернись к Рейзору. Это настоящий бой. Жми «Цепь». |
-| Banner EN | Go back to Razor. This is the real duel. Press Chain. |
-| Banner DA | Gå tilbage til Razor. Det er den rigtige duel. Tryk Kæde. |
-| Tracker RU | Финал. Нашивка. |
-| Tracker EN | Finale. The patch. |
-| Tracker DA | Finale. Mærket. |
-| Angelina RU | Ларёк уже стоит. Теперь Рейзор может отдать нашивку. Подойди и нажми E, потом жми «Цепь». Это дольше, чем учёба. |
-| Angelina EN | The stall is standing. Now Razor can give you the patch. Walk up, press E, then press Chain. This one is longer than practice. |
-| Angelina DA | Boden står der. Nu kan Razor give dig mærket. Gå hen, tryk E, og tryk så Kæde. Den her er længere end træningen. |
-| Why RU | Учебный бой нашивку не даёт. Этот бой даёт, потому что в городе уже есть твой ларёк. |
-| Why EN | The practice fight does not give the patch. This fight does, because your stall is in the city. |
-| Why DA | Øve-kampen giver ikke mærket. Den her kamp gør, fordi din bod står i byen. |
-| Razor RU | Цепи — наш спорт. Ты оставил свет на площади. Нашивка твоя. |
-| Razor EN | The chains are our sport. You left a light on the square. The patch is yours. |
-| Razor DA | Kæderne er vores sport. Du efterlod et lys på pladsen. Mærket er dit. |
+**На экране.** Шаг 8 из 8. Я покупаю один ларёк. Башни за ним остаются тёмными.
 
-The three lines on the duel card, in order:
+**Ангелина.** Смотри, я жму «Город» и покупаю ларёк. Один. Остальные башни пусть остаются тёмными. Зачем: Рейзор ждёт не более сильный удар, а свет, который я оставила на площади. Это первая метка, не готовый город.
 
-| # | RU | EN | DA |
-| --- | --- | --- | --- |
-| 1 | Теперь ты свой. Нашивка — твоя. | You're one of us now. The patch is yours. | Nu er du en af os. Mærket er dit. |
-| 2 | Комната, улица, кладбище, дуэль и лавка позади. | The room, the street, the cemetery, the duel, and the shop are behind you. | Værelse, gade, kirkegård, duel og butik ligger bag dig. |
-| 3 | Ларёк, который ты поставил, — первая метка. Город ещё не построен. | The stall you built is a first mark. The city is not finished. | Boden, du byggede, er et første mærke. Byen er ikke færdig. |
+**Удача.** Ларёк стоит! Я оборачиваюсь: за ним город всё ещё тёмный. Так и надо. Теперь можно идти к Рейзору по-настоящему.
+
+**Ошибка.** Я ткнула не в тот участок. Останавливаюсь. Цель сверху — ларёк. Его и покупаю. Город достраивать не буду.
+
+Если просто стоишь без дела:
+
+**Ангелина.** Я всё ещё тут. Смотрю на цель сверху и делаю этот шаг. Метка показывает, куда бежать.
 
 ---
 
-## 10. Ending card
+## 9. Кульминация
 
-**Goal.** Read what you did, and what is still dark.
+**Цель.** Вернуться к Рейзору и жать «Цепь», пока он не отдаст нашивку.
 
-| | Text |
-| --- | --- |
-| Title RU | Глава 1 пройдена |
-| Title EN | Chapter 1 complete |
-| Title DA | Kapitel 1 fuldført |
-| Body RU | Комната, улица, дуэль и ларёк, который ты поставил, стоят в Тыквограде. Это первая метка, не готовый город. Рейзор принял тебя в банду. За ларьком город ещё тёмный. Следующей ночью банда спросит тебя про другого новенького. Это глава 2. |
-| Body EN | The room, the street, the duel, and the stall you built are standing in Pumpkingrad. That is a first mark, not a finished city. Razor has taken you into the band. Past the stall the city is still dark. Next night the band will ask you about another new kid. That is Chapter 2. |
-| Body DA | Værelset, gaden, duellen og boden, du byggede, står i Græskarby. Det er et første mærke, ikke en færdig by. Razor har taget dig ind i banden. Bag boden er byen stadig mørk. Næste nat spørger banden dig om en anden ny. Det er kapitel 2. |
-| Angelina RU | Я остаюсь рядом. Глава 2 начнётся, когда ты будешь готов. Сейчас ночь закончена. |
-| Angelina EN | I'll stay with you. Chapter 2 starts when you are ready. Tonight is done. |
-| Angelina DA | Jeg bliver hos dig. Kapitel 2 starter, når du er klar. I aften er færdig. |
+Картинка: [art/06-climax.png](art/06-climax.png).
 
-A reload after this must keep the lamp, the stall, and the patch. It must not play the intro again and must not pay the reward twice.
+**На экране.** Финал. Я у Рейзора. Жму «Цепь», пока нашивка не станет моей.
+
+**Ангелина.** Смотри, я возвращаюсь к Рейзору. Ларёк уже стоит, поэтому этот бой настоящий, не учебный. Подхожу, жму E, потом жму «Цепь» и не бросаю, пока он не отдаст нашивку. Зачем: кладбище нашивку не давало. Этот бой даёт, потому что в городе есть мой свет.
+
+**Рейзор.** Цепи — наш спорт. Ты оставил свет на площади. Нашивка твоя.
+
+**Удача.** Он сказал. Нашивка моя. Я своя. Комната, улица, дуэль и ларёк — это первая метка, не готовый город.
+
+**Ошибка.** Бой не кончается сам. Я снова жму «Цепь». Без моих ударов Рейзор нашивку не отдаёт.
+
+Три строки на карточке боя, по порядку:
+
+1. Теперь ты свой. Нашивка — твоя.
+2. Комната, улица, кладбище, дуэль и лавка позади.
+3. Ларёк, который ты поставил, — первая метка. Город ещё не построен.
+
+---
+
+## 10. Карточка конца
+
+**Цель.** Прочитать, что сделано и что ещё тёмное.
+
+**Заголовок.** Глава 1 пройдена.
+
+**Текст.** Комната, улица, дуэль и ларёк, который ты поставил, стоят в Тыквограде. Это первая метка, не готовый город. Рейзор принял тебя в банду. За ларьком город ещё тёмный. Следующей ночью банда спросит тебя про другого новенького. Это глава 2.
+
+**Ангелина.** Я остаюсь рядом. За ларьком город ещё тёмный. Следующей ночью банда спросит меня про другого новенького. Это уже глава 2. Сейчас ночь закончена.
+
+Повторный вход сохраняет лампу, ларёк и нашивку. Вступление заново не играет. Награда второй раз не выдаётся.
+
+---
+
+## English (secondary)
+
+Translated from the Russian. Angelina speaks in the first person, present tense.
+
+| Scene | Goal | Angelina |
+| --- | --- | --- |
+| Title | See what the night is for, then make your look. | Look, I'm already here. I'm Angelina. First I make my look — hair, skin, jacket, wings — and I press Join the gang. That button only lets me into the night. Razor gives me the patch, and only after the work. |
+| Room | Walk the room to the yellow marker. | Look, first I walk the room — the yellow marker is right in front of me. I press W, A, S, D, or I push the joystick on the left. Until I get there, the band will not open the street door, and we stay guests. |
+| Street | Leave the house. Razor is outside. | Look, I'm leaving House 13. The patch is not in the room. It's with Razor on the street. I take the glowing door or I press Street. |
+| Razor | Walk up and press E. | Look, I follow the yellow arrow straight to Razor. I get close and press E. On a phone, E is on the right. Only he can say yes. I can't hand over the patch for him. |
+| Cemetery | Reach the practice yard. | Look, I don't fight at the door. I go to the cemetery. I press Cemetery or I take the marked door. Razor wants to see that I can use the chain before he trusts me with the patch. |
+| Practice | Press Chain until the practice duel is won. | Look, I press Chain. Not once — several times. It's a sport. Nobody gets hurt for real. I'm learning. No patch here. The chapter does not end. Razor is still waiting. |
+| Pin | Open the shop and take the free pin. | Look, I open the shop and take the free pin. The Shop button. No real card: these are game coins. I can wear the pin now. The patch comes later, from Razor's hands. |
+| Lamp | Place the lamp and see it in the room. | Look, I buy the lamp and I go back to the room to see it with my own eyes. A dark room is still a guest room. Light means I live here. |
+| Stall | Buy one stall. Leave the rest dark. | Look, I press City and I buy the stall. One. The other towers stay dark. Razor is not waiting for a harder hit. He's waiting for a light I left on the square. A first mark, not a finished city. |
+| Climax | Go back to Razor and press Chain until the patch is yours. | Look, I go back to Razor. The stall is standing, so this fight is real. I press E, then I press Chain and I don't stop until he gives me the patch. The cemetery did not give it. This fight does, because my light is in the city. |
+| Mistake | — | Hey, that wasn't it. I almost did the wrong thing. I look at the goal at the top and I try again. |
+| Success, stall | — | The stall is standing! I turn around: past it the city is still dark. Good. Now I can go to Razor for real. |
+
+## Dansk (secondary)
+
+Oversat fra russisk. Angelina taler i jeg-form.
+
+| Scene | Mål | Angelina |
+| --- | --- | --- |
+| Titel | Forstå natten, og lav dit look. | Se, jeg er her allerede. Jeg er Angelina. Først laver jeg mit look og trykker Ind i banden. Knappen lukker mig kun ind i natten. Mærket giver Razor, og først bagefter. |
+| Værelse | Gå hen til det gule mærke. | Se, først går jeg rundt i værelset. Det gule mærke er lige foran mig. Jeg trykker W, A, S, D eller joysticket til venstre. Ellers åbner banden ikke døren. |
+| Gade | Forlad huset. | Se, jeg går ud af hus 13. Mærket er ikke i værelset. Det er hos Razor. Jeg tager døren eller trykker Gade. |
+| Razor | Gå hen og tryk E. | Se, jeg følger den gule pil hen til Razor. Jeg går tæt på og trykker E. På telefonen er E til højre. Kun han kan sige ja. |
+| Kirkegård | Nå øve-gården. | Se, jeg kæmper ikke ved døren. Jeg går til kirkegården og trykker Kirkegård. Razor vil se, at jeg kan kæden, før han giver mig mærket. |
+| Træning | Tryk Kæde, til du vinder. | Se, jeg trykker Kæde. Ikke én gang — flere. Det er sport. Ingen kommer rigtigt til skade. Intet mærke her. Kapitel slutter ikke. |
+| Nål | Tag den gratis nål. | Se, jeg åbner butikken og tager den gratis nål. Ingen rigtig kort. Nålen kan jeg have på nu. Mærket kommer senere. |
+| Lampe | Sæt lampen og se den. | Se, jeg køber lampen og går tilbage for at se den med mine egne øjne. Et mørkt værelse er stadig et gæsteværelse. |
+| Bod | Køb én bod. Lad resten være mørk. | Se, jeg trykker By og køber boden. Én. De andre tårne bliver mørke. Razor venter på et lys, ikke på et hårdere slag. |
+| Finale | Tilbage til Razor. Tryk Kæde. | Se, jeg går tilbage til Razor. Boden står, så kampen er rigtig. Jeg trykker E og så Kæde, og jeg stopper ikke, før mærket er mit. |
