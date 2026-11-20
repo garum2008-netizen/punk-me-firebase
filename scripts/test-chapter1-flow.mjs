@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { shouldShowCrawl, ensureCityKit, ensureChapter1, guideKey, chapterObjectivesMet, CHAPTER1_OBJECTIVES } from "../js/story/chapter1-flow.mjs";
+import { shouldShowCrawl, ensureCityKit, ensureChapter1, guideKey, chapterObjectivesMet, CHAPTER1_OBJECTIVES, adoptChapterSave, CHAPTER1_PLAY_ID } from "../js/story/chapter1-flow.mjs";
 
 const fresh = { onboarding: { step: 0, done: false, progress: {}, paid: {} } };
 assert.equal(shouldShowCrawl(fresh), true);
@@ -17,7 +17,23 @@ globalThis.window = {
   Onboarding: { stepId: () => "city_build" }
 };
 const training = { onboarding: { done: false, step: 6 }, chapter1: { ended: false } };
-assert.equal(guideKey(training), "angelina_city");
+assert.equal(guideKey(training), "angelina_plots");
+const oldSave = {
+  coins: 250,
+  onboarding: { step: 7, done: true, paid: { move: true, city_build: true } },
+  chapter1: { crawlSeen: true, finaleSeen: true, ended: true },
+  story: { chapter: 2, flags: { joined_gang: true }, quest: { activeId: "q_hangout_build" } },
+  gang_rank: "gang_member"
+};
+assert.equal(adoptChapterSave(oldSave), true);
+assert.equal(oldSave.chapter1.playId, CHAPTER1_PLAY_ID);
+assert.equal(oldSave.chapter1.crawlSeen, false);
+assert.equal(oldSave.onboarding.done, false);
+assert.equal(oldSave.story.flags.joined_gang, false);
+assert.equal(oldSave.coins, 250);
+oldSave.onboarding.done = true;
+assert.equal(adoptChapterSave(oldSave), false);
+assert.equal(oldSave.onboarding.done, true);
 training.onboarding.done = true;
 training.story = { flags: { joined_gang: true } };
 training.onboarding.paid = {};

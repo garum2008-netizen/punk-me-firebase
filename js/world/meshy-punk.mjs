@@ -149,7 +149,8 @@ export async function loadAllCc0Templates() {
   const ids = typeof PLAYABLE_CHARACTER_IDS !== "undefined"
     ? PLAYABLE_CHARACTER_IDS
     : ["razor", "vienna", "cobalt", "mohawk"];
-  await Promise.all(ids.map(id => loadMeshyTemplateForCharacter(id)));
+  const all = Array.from(new Set([...ids, "angelina"]));
+  await Promise.all(all.map(id => loadMeshyTemplateForCharacter(id)));
   return templateByCharacter;
 }
 
@@ -247,6 +248,7 @@ export function bindProceduralBones(root) {
 }
 
 function accentForMeshyActor(characterId, templateEntry, opts) {
+  if (opts.forceAccent) return opts.forceAccent;
   if (!meshyUsesTint(characterId, templateEntry)) return null;
   const actorId = opts.actorId || "player";
   const accentKey = actorId === "player" ? characterId : actorId;

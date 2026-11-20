@@ -1,21 +1,25 @@
 /**
  * Chapter 1 flow on top of the existing onboarding and gang initiation.
- * Crawl copy matches the approved intro slides. Voice files are the existing
- * narrator clips; nothing here is synthesized.
+ * Angelina's voice files are local recordings, one file per language.
  */
 
+import { playAngelina, startIdleWatch } from "./angelina-voice.mjs";
+
+export const CHAPTER1_PLAY_ID = "ch1-child";
+
 const CRAWL_KEYS = ["crawl_1", "crawl_2", "crawl_3", "crawl_4"];
-const CRAWL_CLIPS = ["intro_slide1", "intro_slide2", "intro_slide3", "intro_slide4"];
+const CRAWL_CLIPS = ["angelina_crawl_1", "angelina_crawl_2", "angelina_crawl_3", "angelina_crawl_4"];
 const STEP_CLIPS = {
-  move: "narr_onboard_move",
-  go_street: "narr_onboard_go_street",
-  talk_razor: "narr_onboard_talk_razor",
-  visit_cemetery: "narr_onboard_visit_cemetery",
-  win_fight: "narr_onboard_win_fight",
-  shop_buy: "narr_onboard_shop_buy"
+  move: "angelina_beginning",
+  go_street: "angelina_conflict",
+  talk_razor: "angelina_conflict",
+  visit_cemetery: "angelina_climax",
+  win_fight: "angelina_climax",
+  shop_buy: "angelina_shop",
+  room_decor: "angelina_room",
+  city_build: "angelina_plots"
 };
 
-let audio = null;
 let playedStep = "";
 
 export function ensureChapter1(player) {
@@ -52,8 +56,33 @@ export const CHAPTER1_OBJECTIVES = [
   "visit_cemetery",
   "win_fight",
   "shop_buy",
+  "room_decor",
   "city_build"
 ];
+
+/** Old saves have no play id, so Chapter 1 starts again. Coins and the avatar stay. */
+export function adoptChapterSave(player) {
+  if (!player) return false;
+  ensureChapter1(player);
+  if (player.chapter1.playId === CHAPTER1_PLAY_ID) return false;
+  player.chapter1 = {
+    playId: CHAPTER1_PLAY_ID,
+    crawlSeen: false,
+    finaleSeen: false,
+    ended: false
+  };
+  player.onboarding = { step: 0, progress: {}, done: false, paid: {} };
+  player.gang_rank = "newbie";
+  if (player.story && typeof player.story === "object") {
+    player.story.chapter = 1;
+    player.story.gang_rank = "newbie";
+    player.story.flags = { ...(player.story.flags || {}), joined_gang: false };
+    if (player.story.quest && player.story.quest.activeId === "q_hangout_build") {
+      player.story.quest.activeId = null;
+    }
+  }
+  return true;
+}
 
 /** Training steps plus the gang patch. The city step is one crypt stone, not a finished district. */
 export function chapterObjectivesMet(player) {
@@ -70,7 +99,8 @@ const ANGELINA_BEAT = {
   visit_cemetery: "angelina_climax",
   win_fight: "angelina_climax",
   shop_buy: "angelina_shop",
-  city_build: "angelina_city"
+  room_decor: "angelina_room",
+  city_build: "angelina_plots"
 };
 
 export function guideKey(player) {
@@ -84,41 +114,31 @@ export function guideKey(player) {
   return "angelina_initiation";
 }
 
-function lang() {
-  return typeof window.getLanguage === "function" ? window.getLanguage() : "ru";
-}
-
 function t(key) {
   return typeof window.t === "function" ? window.t(key) : key;
 }
 
-function clipUrl(id) {
-  const code = lang() === "da" ? "da" : lang() === "en" ? "en" : "ru";
-  // Approved crawl recordings exist only in Russian.
-  if (id.startsWith("intro_")) return `assets/audio/voice/ru/${id}.ogg`;
-  const coarse = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
-  return `assets/audio/voice/${code}/${id}_${coarse ? "touch" : "desktop"}.ogg`;
+function markToken(player) {
+  const kinds = (player?.cityPlots || []).map(plot => plot.kind || plot.id);
+  const key = kinds.includes("stall") ? "mark_stall"
+    : kinds.includes("arch") ? "mark_arch"
+    : kinds.includes("crypt") ? "mark_crypt"
+    : "mark_plot";
+  return t(key);
 }
 
-function voiceAllowed() {
-  try {
-    return localStorage.getItem("punkme_voice_mute") !== "1";
-  } catch (_) {
-    return true;
+function lineText(key, player) {
+  const mark = markToken(player || window.me);
+  const raw = String(t(key));
+  const text = raw.replaceAll("{mark}", mark);
+  if (raw.startsWith("{mark}") && mark) {
+    return mark.charAt(0).toUpperCase() + mark.slice(1) + text.slice(mark.length);
   }
+  return text;
 }
 
 function playClip(id) {
-  if (!voiceAllowed() || typeof Audio === "undefined") return;
-  try {
-    if (audio) {
-      audio.pause();
-      audio = null;
-    }
-    audio = new Audio(clipUrl(id));
-    audio.volume = 1;
-    audio.play().catch(() => {});
-  } catch (_) {}
+  playAngelina(id);
 }
 
 function setOverlay(id, on) {
@@ -136,7 +156,23 @@ export function refreshGuide() {
   const key = guideKey(player);
   const stepId = window.Onboarding?.stepId?.() || "";
   el.hidden = false;
-  el.innerHTML = `<b>${t("angelina_tag")}</b><span>${t(key)}</span>`;
+  let line = el.querySelector(".angelina-line");
+  if (!line) {
+    el.innerHTML = `<b></b><span class="angelina-line"></span><span id="angelinaHint" class="angelina-hint"></span>`;
+    line = el.querySelector(".angelina-line");
+  }
+  const tag = el.querySelector("b");
+  if (tag) tag.textContent = t("angelina_tag");
+  line.textContent = lineText(key, player);
+  const sceneFor = {
+    angelina_conflict: "conflict",
+    angelina_climax: "climax",
+    angelina_plots: "plots",
+    angelina_finale: "finale"
+  }[key];
+  const scene = document.getElementById("chapterScene");
+  if (sceneFor) showScene(sceneFor);
+  else if (scene) scene.hidden = true;
   if (shouldShowCrawl(player) || document.getElementById("chapterCrawl")?.classList.contains("active")) return;
   if (stepId && stepId !== playedStep && STEP_CLIPS[stepId] && !player.onboarding?.done) {
     playedStep = stepId;
@@ -151,8 +187,14 @@ function finishCrawl() {
     window.saveMe?.();
   }
   setOverlay("chapterCrawl", false);
-  if (audio) audio.pause();
   refreshGuide();
+}
+
+export function showScene(kind) {
+  const el = document.getElementById("chapterScene");
+  if (!el || !kind) return;
+  el.hidden = false;
+  el.textContent = t(`scene_${kind}`);
 }
 
 export function openCrawl() {
@@ -225,7 +267,7 @@ export function playFinale() {
   const showLine = () => {
     const body = el.querySelector(".story-dialog-body");
     if (!body) return;
-    body.innerHTML = `<p class="story-line" id="chapterFinaleLine">${t(FINALE_LINES[idx])}</p>
+    body.innerHTML = `<p class="story-line" id="chapterFinaleLine">${lineText(FINALE_LINES[idx])}</p>
       <button type="button" class="btn" id="storyDlgNext">${t("chapter1_finale_next")}</button>`;
     el.querySelector("#storyDlgNext").onclick = () => {
       idx += 1;
@@ -234,6 +276,8 @@ export function playFinale() {
     };
   };
   showLine();
+  playClip("angelina_finale");
+  showScene("finale");
   refreshGuide();
   return true;
 }
@@ -273,7 +317,7 @@ export function showEnding() {
   const root = document.getElementById("chapterEnding");
   if (!root) return;
   root.querySelector(".chapter-ending-title").textContent = t("chapter1_end_title");
-  root.querySelector(".chapter-ending-body").textContent = t("chapter1_end_body");
+  root.querySelector(".chapter-ending-body").textContent = lineText("chapter1_end_body", player);
   const btn = root.querySelector(".chapter-ending-ok");
   btn.textContent = t("howto_gotit");
   btn.onclick = () => {
@@ -288,6 +332,8 @@ export function onWorldReady() {
   const player = window.me;
   if (!player) return;
   ensureChapter1(player);
+  adoptChapterSave(player);
+  startIdleWatch();
   if (shouldShowCrawl(player)) openCrawl();
   else {
     refreshGuide();
@@ -305,6 +351,9 @@ if (typeof window !== "undefined") {
     chapterObjectivesMet,
     ensureCityKit,
     shouldShowCrawl,
-    ensureChapter1
+    ensureChapter1,
+    adoptChapterSave,
+    showScene,
+    CHAPTER1_PLAY_ID
   };
 }

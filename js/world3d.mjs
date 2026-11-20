@@ -15,10 +15,13 @@ import {
 } from "./world/locations.mjs";
 import { updateProcedural, markActorVisibleWhenReady } from "./character-rig.mjs";
 import { attachAvatarLook, readAvatarLook } from "./avatar-mesh.mjs";
+import { isCyberBlue } from "./avatar-look.mjs";
+import { buildFurnitureMesh } from "./world/room-furniture-catalog.mjs";
 import {
   loadAllCc0Templates,
   getTemplateForCharacter,
   createCc0Actor,
+  applyPunkMaterials,
   updateLocomotionTimeScale,
   WAVE_EMOTE_ENABLED,
 } from "./world/meshy-punk.mjs";
@@ -361,6 +364,76 @@ async function loadModels() {
   modelsReady = true;
 }
 
+function plotMesh(kind) {
+  const g = new THREE.Group();
+  if (kind === "arch") {
+    const mat = new THREE.MeshStandardMaterial({ color: 0xff66cc, emissive: 0xff2288, emissiveIntensity: 0.45 });
+    const left = new THREE.Mesh(new THREE.BoxGeometry(0.28, 2.4, 0.28), mat);
+    left.position.set(-0.7, 1.2, 0);
+    const right = left.clone();
+    right.position.x = 0.7;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.28, 0.28), mat);
+    beam.position.y = 2.35;
+    g.add(left, right, beam);
+  } else if (kind === "stall") {
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8a4b24, roughness: 0.72 });
+    const cloth = new THREE.MeshStandardMaterial({ color: 0xff7a18, roughness: 0.5 });
+    const cream = new THREE.MeshStandardMaterial({ color: 0xffe1a8, roughness: 0.5 });
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.16, 0.72), wood);
+    counter.position.y = 0.86;
+    const front = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.7, 0.08), wood);
+    front.position.set(0, 0.42, 0.32);
+    g.add(counter, front);
+    [[-0.75, 0.28], [0.75, 0.28], [-0.75, -0.28], [0.75, -0.28]].forEach(([x, z]) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.78, 0.08), wood);
+      leg.position.set(x, 0.39, z);
+      g.add(leg);
+    });
+    [-0.6, -0.2, 0.2, 0.6].forEach((x, i) => {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.06, 0.95), i % 2 ? cloth : cream);
+      stripe.position.set(x, 1.58, 0);
+      g.add(stripe);
+    });
+    const poleL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.15, 0.07), wood);
+    poleL.position.set(-0.82, 1.15, -0.42);
+    const poleR = poleL.clone();
+    poleR.position.x = 0.82;
+    g.add(poleL, poleR);
+    const pumpkin = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22, 16, 12),
+      new THREE.MeshStandardMaterial({ color: 0xff6a00, emissive: 0x662200, emissiveIntensity: 0.18, roughness: 0.6 })
+    );
+    pumpkin.scale.set(1.15, 0.82, 1.15);
+    pumpkin.position.set(0.15, 1.08, 0);
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.045, 0.14, 6),
+      new THREE.MeshStandardMaterial({ color: 0x2f7a32 })
+    );
+    stem.position.set(0.15, 1.28, 0);
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.28, 0.34), wood);
+    crate.position.set(-1.05, 0.14, 0.15);
+    g.add(pumpkin, stem, crate);
+  } else {
+    const stone = new THREE.Mesh(
+      new THREE.BoxGeometry(1.15, 0.95, 0.85),
+      new THREE.MeshStandardMaterial({ color: 0xb7b1c4, roughness: 0.82 })
+    );
+    stone.position.y = 0.48;
+    const roof = new THREE.Mesh(
+      new THREE.BoxGeometry(1.25, 0.16, 0.98),
+      new THREE.MeshStandardMaterial({ color: 0x6e6878, roughness: 0.7 })
+    );
+    roof.position.y = 1.02;
+    const door = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.52, 0.06),
+      new THREE.MeshStandardMaterial({ color: 0x2a2433, roughness: 0.6 })
+    );
+    door.position.set(0, 0.34, 0.42);
+    g.add(stone, roof, door);
+  }
+  return g;
+}
+
 function placeCityStone(x, z, remember) {
   if (!locationRoot || currentLoc !== "city" || typeof THREE === "undefined") return false;
   const mesh = new THREE.Mesh(
@@ -421,6 +494,133 @@ function rebuildLocation(locId) {
   ensureMarkerRoot(scene);
   onGameplayLocationBuilt(locId, locationRoot, bounds);
   if (locId === "city") replayCityStones();
+  replayPlayerBuilds();
+}
+
+function replayPlayerBuilds() {
+  if (!locationRoot || !window.me) return;
+  if (currentLoc === "room") {
+    (window.me.roomPieces || []).forEach((piece, index) => placeRoomPiece(piece.type, piece.x, piece.z, false, index));
+  }
+  if (currentLoc === "city") {
+    const pads = window.ChapterBuild?.CITY_PLOTS || window.me.cityPlots || [];
+    ensurePlotPads(pads);
+    (window.me.cityPlots || []).forEach(plot => placeCityPlot(plot, false));
+  }
+}
+
+function ensurePlotPads(plots) {
+  if (!locationRoot || currentLoc !== "city") return false;
+  (plots || []).forEach(plot => {
+    const name = "plot-pad-" + plot.id;
+    if (locationRoot.getObjectByName(name)) return;
+    const pad = new THREE.Mesh(
+      new THREE.RingGeometry(0.7, 0.95, 24),
+      new THREE.MeshBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
+    );
+    pad.rotation.x = -Math.PI / 2;
+    pad.position.set(plot.x, 0.04, plot.z);
+    pad.name = name;
+    locationRoot.add(pad);
+  });
+  return true;
+}
+
+function placeRoomPiece(type, x, z, remember, index) {
+  if (!locationRoot || currentLoc !== "room") return false;
+  const name = "room-piece-" + (index ?? (window.me?.roomPieces || []).length);
+  if (locationRoot.getObjectByName(name)) return true;
+  const mesh = buildFurnitureMesh(type);
+  mesh.position.set(x, 0, z);
+  mesh.name = name;
+  locationRoot.add(mesh);
+  if (remember && window.me) {
+    window.me.roomPieces = Array.isArray(window.me.roomPieces) ? window.me.roomPieces : [];
+    window.me.roomPieces.push({ type, x, z });
+    mesh.name = "room-piece-" + (window.me.roomPieces.length - 1);
+  }
+  return true;
+}
+
+function placeCityPlot(plot, remember) {
+  if (!locationRoot || currentLoc !== "city" || !plot?.id) return false;
+  const name = "plot-built-" + plot.id;
+  if (locationRoot.getObjectByName(name)) return true;
+  const mesh = plotMesh(plot.kind);
+  mesh.position.set(plot.x, 0, plot.z);
+  mesh.name = name;
+  locationRoot.add(mesh);
+  if (remember && window.me) {
+    window.me.cityPlots = Array.isArray(window.me.cityPlots) ? window.me.cityPlots : [];
+    if (!window.me.cityPlots.some(row => row.id === plot.id)) {
+      window.me.cityPlots.push({ id: plot.id, kind: plot.kind, x: plot.x, z: plot.z });
+    }
+  }
+  return true;
+}
+
+function angelinaNameSprite() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 64;
+  const g = canvas.getContext("2d");
+  g.clearRect(0, 0, 256, 64);
+  g.fillStyle = "#ff6ec7";
+  g.font = "bold 42px sans-serif";
+  g.textAlign = "center";
+  g.fillText("Angelina", 128, 44);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(canvas),
+    transparent: true,
+    depthWrite: false
+  }));
+  sprite.scale.set(0.55, 0.14, 1);
+  sprite.position.y = 1.72;
+  sprite.name = "angelina-name";
+  return sprite;
+}
+
+function ensureAngelina(playerActor) {
+  let guide = actors.get("angelina");
+  if (!guide) {
+    guide = ensureActor("angelina", "angelina", false);
+    if (!guide) return null;
+    guide.isGuide = true;
+    guide.group.name = "angelina";
+    if (guide.root) guide.root.name = "angelina-mesh";
+    guide.group.add(angelinaNameSprite());
+  }
+  if (playerActor && !guide._placed) {
+    const yaw = playerActor.group.rotation.y;
+    guide.wx = playerActor.wx - Math.sin(yaw) * 1.7 + Math.cos(yaw) * 1.35;
+    guide.wz = playerActor.wz - Math.cos(yaw) * 1.7 - Math.sin(yaw) * 1.35;
+    guide.group.position.set(guide.wx, 0, guide.wz);
+    guide._placed = true;
+  }
+  return guide;
+}
+
+function updateAngelinaFollow(dt, pl) {
+  const guide = actors.get("angelina");
+  if (!guide || !pl) return;
+  const yaw = pl.group.rotation.y;
+  const tx = pl.wx - Math.sin(yaw) * 1.7 + Math.cos(yaw) * 1.35;
+  const tz = pl.wz - Math.cos(yaw) * 1.7 - Math.sin(yaw) * 1.35;
+  const tgt = clampWorld(tx, tz);
+  const lerp = Math.min(1, dt * 6.5);
+  guide.wx += (tgt.x - guide.wx) * lerp;
+  guide.wz += (tgt.z - guide.wz) * lerp;
+  guide.group.position.set(guide.wx, 0, guide.wz);
+  const move = Math.hypot(tgt.x - guide.wx, tgt.z - guide.wz);
+  const following = move > 0.08 || (pl._spd || 0) > 0.2;
+  if (following) {
+    const ty = Math.atan2(pl.wx - guide.wx, pl.wz - guide.wz);
+    let diff = ty - guide.group.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    guide.group.rotation.y += diff * Math.min(1, dt * 8);
+  }
+  fadeTo(guide, following ? "walk" : "idle");
 }
 
 function spawnParticles(locId) {
@@ -449,7 +649,7 @@ function clampWorld(x, z, radius = 0.42) {
 }
 
 function separateActors() {
-  const list = [...actors.values()].filter(a => !a.isDog);
+  const list = [...actors.values()].filter(a => !a.isDog && !a.isGuide);
   const dog = actors.get("dog");
   const pl = actors.get("player");
   if (dog && pl) {
@@ -1174,6 +1374,86 @@ function getNearestDogId() {
   return d < 2.15;
 }
 
+function tintCyberBody(actor) {
+  if (!actor?.root || actor._cyberBody) return;
+  let ready = false;
+  actor.root.traverse(o => {
+    const mats = o.isMesh && o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    if (mats.some(m => m?.map?.image?.width)) ready = true;
+  });
+  if (!ready) return;
+  applyPunkMaterials(actor.root, {}, { accent: "blue" });
+  actor._cyberBody = true;
+}
+
+function npcWithin(nid, range = 7) {
+  const pl = actors.get("player");
+  const npc = actors.get("npc_" + nid);
+  if (!pl || !npc) return false;
+  return Math.hypot(pl.wx - npc.wx, pl.wz - npc.wz) <= range;
+}
+
+function resolvedGuideTarget() {
+  if (!guideTarget) return null;
+  if (!guideTarget.npcId) return guideTarget;
+  const act = actors.get("npc_" + guideTarget.npcId);
+  if (act) return guideTarget;
+  const spot = NPC_WORLD[currentLoc]?.[guideTarget.npcId];
+  if (!spot) return guideTarget;
+  return { ...guideTarget, wx: spot.x, wz: spot.z };
+}
+
+function updateGuideArrow() {
+  const el = document.getElementById("guideArrow");
+  const nameEl = document.getElementById("guideArrowName");
+  if (!el) return;
+  const target = resolvedGuideTarget();
+  if (!target) {
+    el.hidden = true;
+    return;
+  }
+  let wx;
+  let wz;
+  let label = "";
+  if (target.npcId && actors.get("npc_" + target.npcId)) {
+    const act = actors.get("npc_" + target.npcId);
+    wx = act.wx;
+    wz = act.wz;
+    label = typeof window.t === "function" ? window.t("npc_" + target.npcId) : target.npcId;
+  } else if (target.wx != null) {
+    wx = target.wx;
+    wz = target.wz;
+    if (target.npcId) {
+      label = typeof window.t === "function" ? window.t("npc_" + target.npcId) : target.npcId;
+    }
+  } else {
+    el.hidden = true;
+    return;
+  }
+  const p = projectWorldToScreen(wx, 2.6, wz);
+  const canvas = document.getElementById("stage3d");
+  if (!p || !canvas) {
+    el.hidden = true;
+    return;
+  }
+  const w = canvas.clientWidth || 1;
+  const h = canvas.clientHeight || 1;
+  const margin = 56;
+  const off = p.x < margin || p.y < margin || p.x > w - margin || p.y > h - margin;
+  const x = Math.min(w - margin, Math.max(margin, p.x));
+  const y = Math.min(h - margin, Math.max(margin, p.y));
+  el.hidden = false;
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  if (nameEl) nameEl.textContent = label || "";
+  if (off) {
+    const ang = Math.atan2(p.y - h / 2, p.x - w / 2);
+    el.style.transform = `translate(-50%, -50%) rotate(${ang + Math.PI / 2}rad)`;
+  } else {
+    el.style.transform = "translate(-50%, -140%)";
+  }
+}
+
 function getNearestNpcId() {
   const pl = actors.get("player");
   if (!pl) return null;
@@ -1248,6 +1528,7 @@ function sync(data) {
       && wanted.jacket === worn.jacket
       && wanted.accessory === worn.accessory;
     if (!sameLook) attachAvatarLook(a.root, wanted);
+    if (isCyberBlue(wanted)) tintCyberBody(a);
   }
 
   const hideCrowd = isDuelActive() || captureFrameLock;
@@ -1287,6 +1568,9 @@ function sync(data) {
     }
     placeActorWorld(a, a.wx, a.wz, false, true);
   });
+
+  keep.add("angelina");
+  ensureAngelina(actors.get("player"));
 
   actors.forEach((a, id) => {
     if (!keep.has(id)) {
@@ -1389,6 +1673,7 @@ function loop() {
   tickNpcPatrols(dt);
   const pl = actors.get("player");
   if (pl && actors.get("dog")) updateDogFollow(dt, pl);
+  if (pl && actors.get("angelina")) updateAngelinaFollow(dt, pl);
   if (pl) {
     pl._vy = (pl._vy || 0) - 14 * dt;
     let y = (pl.group.position.y || 0) + pl._vy * dt;
@@ -1407,10 +1692,14 @@ function loop() {
     }
     attr.needsUpdate = true;
   }
-  if (captureFrameLock) setQuestMarkersVisible(false);
-  else {
+  if (captureFrameLock) {
+    setQuestMarkersVisible(false);
+    const arrowEl = document.getElementById("guideArrow");
+    if (arrowEl) arrowEl.hidden = true;
+  } else {
     setQuestMarkersVisible(true);
-    setQuestMarkerTarget(guideTarget, actors, sceneTime);
+    setQuestMarkerTarget(resolvedGuideTarget(), actors, sceneTime);
+    updateGuideArrow();
   }
   const nearNpc = getNearestNpcId();
   const nearPortal = getNearPortal();
@@ -1450,7 +1739,7 @@ function loop() {
   tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
   tickStory(dt);
   lastCameraDt = dt;
-  if (!captureFrameLock) updateThirdPersonCamera(dt);
+  if (!captureFrameLock && !isDuelActive()) updateThirdPersonCamera(dt);
   else if (captureHideActors?.length && !motionProbe) {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     checkPortals();
@@ -1587,6 +1876,26 @@ const api = {
   },
   getLocation: () => currentLoc,
   getNearestNpc: getNearestNpcId,
+  npcWithin,
+  guideOffset: () => {
+    const pl = actors.get("player");
+    const target = resolvedGuideTarget();
+    if (!pl || !target) return null;
+    const act = target.npcId ? actors.get("npc_" + target.npcId) : null;
+    const wx = act ? act.wx : target.wx;
+    const wz = act ? act.wz : target.wz;
+    if (wx == null || wz == null) return null;
+    const dx = wx - pl.wx;
+    const dz = wz - pl.wz;
+    const fx = Math.sin(cameraYaw);
+    const fz = Math.cos(cameraYaw);
+    return {
+      dist: Math.hypot(dx, dz),
+      forward: dx * fx + dz * fz,
+      right: dx * fz + dz * -fx,
+      arrow: document.getElementById("guideArrow")?.hidden === false
+    };
+  },
   getNearestDog: getNearestDogId,
   getNearPortal,
   setGuideTarget: t => { guideTarget = t; },
@@ -1594,6 +1903,31 @@ const api = {
     if (locationRoot && currentLoc === "construction") buildHangoutVisual(stage, locationRoot);
   },
   placeCityStone: (x, z) => placeCityStone(x, z, true),
+  placeRoomPiece: (type, x, z) => placeRoomPiece(type, x, z, true),
+  placeCityPlot: plot => placeCityPlot(plot, true),
+  ensurePlotPads,
+  angelinaMark: () => {
+    const guide = actors.get("angelina");
+    const pl = actors.get("player");
+    if (!guide?.root) return { present: false, following: false, dist: null };
+    const dist = pl ? Math.hypot(guide.wx - pl.wx, guide.wz - pl.wz) : null;
+    return {
+      present: true,
+      following: dist != null && dist < 3.2,
+      dist,
+      mesh: guide.root.name === "angelina-mesh",
+      named: !!guide.group.getObjectByName("angelina-name"),
+      plotPads: currentLoc === "city" ? (window.ChapterBuild?.CITY_PLOTS || []).filter(plot =>
+        !!locationRoot?.getObjectByName("plot-pad-" + plot.id)
+      ).length : 0,
+      roomPieces: currentLoc === "room" ? (window.me?.roomPieces || []).filter((_, index) =>
+        !!locationRoot?.getObjectByName("room-piece-" + index)
+      ).length : (window.me?.roomPieces || []).length,
+      plots: (window.me?.cityPlots || []).filter(plot =>
+        !!locationRoot?.getObjectByName("plot-built-" + plot.id)
+      ).length
+    };
+  },
   setPortalGrace: (ms = 1500) => {
     portalGraceUntil = performance.now() + ms;
   },

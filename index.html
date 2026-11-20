@@ -51,6 +51,11 @@
     <div id="entities"></div>
   </div>
   <div class="loc-name" id="locTitle" data-i18n-loc="room">Комната панка</div>
+  <div class="lang-switch" id="langSwitch">
+    <button type="button" class="lang-btn" data-lang="ru">RU</button>
+    <button type="button" class="lang-btn" data-lang="en">EN</button>
+    <button type="button" class="lang-btn" data-lang="da">DA</button>
+  </div>
   <button type="button" class="btn-howto" id="btnHowTo" title="How to play">?</button>
   <div id="contextHint" class="context-hint" aria-live="polite"></div>
   <div id="voiceSubtitle" class="voice-subtitle" aria-live="polite"></div>
@@ -88,11 +93,6 @@
       <div class="badge badge-stat badge-stat-rep" title="Rep"><span class="stat-icon" aria-hidden="true">◆</span><span class="stat-label" data-i18n="rep">Репутация</span><strong id="rep">0</strong></div>
       <div class="badge badge-stat badge-stat-chain" title="Chain"><span class="stat-icon" aria-hidden="true">⛓</span><span class="stat-label" data-i18n="chain">Цепь</span><strong id="chainStat">10</strong></div>
       <div class="badge hud-online-combined"><span data-i18n="online">Здесь</span>: <strong id="onlineCount">0</strong> · <span data-i18n="onlineGlobal">Всего</span>: <strong id="onlineGlobal">0</strong></div>
-      <div class="lang-switch hud-desktop-only" id="langSwitch">
-        <button type="button" class="lang-btn" data-lang="ru">RU</button>
-        <button type="button" class="lang-btn" data-lang="en">EN</button>
-        <button type="button" class="lang-btn" data-lang="da">DA</button>
-      </div>
       <button type="button" class="lang-btn hud-desktop-only" id="btnVoiceMute" onclick="toggleVoiceMute()" data-i18n="voice_mute">Без голоса</button>
     </div>
     <div class="account-hud-wrap hud-account-row">
@@ -102,7 +102,7 @@
     </div>
     <div class="hud-actions hud-desktop-only">
       <button type="button" class="lang-btn" onclick="changeCharacter()" data-i18n="char_change_btn">Сменить героя</button>
-      <div class="badge hud-version">v <strong id="gameVersion">…</strong></div>
+      <strong id="gameVersion" hidden>…</strong>
     </div>
     <div class="hud-quests-wrap" id="hudQuestsWrap">
       <button type="button" class="hud-quests-toggle" id="hudQuestsToggle" aria-expanded="true" aria-controls="questBox dailyQuestHud">▾</button>
@@ -263,6 +263,9 @@
   </div>
 </div>
 <div id="angelinaGuide" class="angelina-guide" hidden></div>
+<div id="guideArrow" class="guide-arrow" hidden><span id="guideArrowName"></span></div>
+<div id="chapterScene" class="chapter-scene" hidden></div>
+<div id="chapterBuild" class="chapter-build" hidden></div>
 <div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -275,12 +278,14 @@
 <script src="js/voice.js?v=living3d-v22r6-ch1"></script>
 <script src="js/onboarding.js?v=living3d-v22r6-ch1"></script>
 <script type="module" src="js/story/chapter1-flow.mjs?v=living3d-v22r6-ch1"></script>
+<script type="module" src="js/story/chapter-build.mjs?v=living3d-v22r6-ch1"></script>
 <script type="module" src="js/context-hints.mjs?v=living3d-v22r6-ch1"></script>
 <script type="module" src="js/how-to-play.mjs?v=living3d-v22r6-ch1"></script>
 <script type="module" src="js/world3d.mjs?v=living3d-v22r6-ch1"></script>
 <script type="module" src="js/char-select.mjs?v=living3d-v22r6-ch1"></script>
 <script type="module" src="js/play-features-v21.mjs?v=living3d-v22r6-ch1"></script>
 <script src="js/life.js?v=living3d-v22r6-ch1"></script>
+<script src="js/preview-save.js?v=living3d-v22r6-ch1"></script>
 <script src="js/game.js?v=living3d-v22r6-ch1"></script>
 <script type="module">
   import { initPlayV21 } from "./js/play-features-v21.mjs?v=living3d-v22r6-ch1";

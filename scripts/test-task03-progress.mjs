@@ -96,6 +96,12 @@ function testStreetInteract() {
     true
   );
   assert.equal(resolvePrimaryInteract({ location: "room", nearestNpcId: "zoya" }).type, "continue");
+  assert.deepEqual(resolvePrimaryInteract({
+    location: "street",
+    nearestNpcId: "mohawk",
+    preferredNpcId: "razor",
+    preferredInRange: true
+  }), { type: "npc", npcId: "razor" });
   assert.equal(allowLocationProp("kitchen", { nearestNpcId: "zoya", onboarding: talk }), true);
 }
 

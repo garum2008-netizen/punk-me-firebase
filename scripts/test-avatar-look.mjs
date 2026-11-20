@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { normalizeAvatarLook, presetFor, isCyberBlue, CYBER_BLUE, HAIR, HAIR_STYLES, SKINS, JACKETS, ACCESSORIES } from "../js/avatar-look.mjs";
+import { normalizeAvatarLook, presetFor, isCyberBlue, CYBER_BLUE, WARM_CREW, HAIR, HAIR_STYLES, SKINS, JACKETS, ACCESSORIES } from "../js/avatar-look.mjs";
 
 assert.ok(HAIR.length >= 4);
 assert.ok(HAIR_STYLES.length >= 4);
@@ -13,4 +13,10 @@ assert.equal(kept.hairStyle, "bob");
 assert.equal(kept.skin, "porcelain");
 assert.equal(normalizeAvatarLook({ hair: "wings", jacket: "ink", accessory: "chain" }), null);
 assert.equal(presetFor("cobalt").accessory, "spikes");
+assert.equal(WARM_CREW.hair, "cyan");
+assert.equal(WARM_CREW.hairStyle, "mohawk");
+assert.equal(WARM_CREW.skin, "tan");
+assert.equal(WARM_CREW.jacket, "cyber");
+assert.equal(WARM_CREW.accessory, "wings");
+assert.equal(isCyberBlue(WARM_CREW), false);
 console.log("avatar look ok");

@@ -6,7 +6,9 @@ export const ONBOARDING_STEP_IDS = [
   "talk_razor",
   "visit_cemetery",
   "win_fight",
-  "shop_buy"
+  "shop_buy",
+  "room_decor",
+  "city_build"
 ];
 
 export function onboardingStepId(onboarding) {
@@ -25,7 +27,8 @@ export function streetTalkBlocksArcade(onboarding) {
 /**
  * @returns {{ type: "npc", npcId: string } | { type: "continue" }}
  */
-export function resolvePrimaryInteract({ location, nearestNpcId }) {
+export function resolvePrimaryInteract({ location, nearestNpcId, preferredNpcId, preferredInRange }) {
+  if (preferredNpcId && preferredInRange) return { type: "npc", npcId: preferredNpcId };
   if (location === "street" && nearestNpcId) return { type: "npc", npcId: nearestNpcId };
   return { type: "continue" };
 }

@@ -174,6 +174,41 @@ const CHARACTERS = {
     voice: { pitch: 1.05, rate: 0.88 },
     intro: { ru: "", en: "", da: "" }
   },
+  angelina: {
+    id: "angelina",
+    playable: false,
+    npc: false,
+    poster: "imagine_images/Oo040.jpg",
+    look: {
+      scale: 0.98,
+      hairStyle: "pigtails",
+      hair: 0xff6ec7,
+      jacket: 0x1a1030,
+      pants: 0x140818,
+      boots: 0x221018,
+      emissive: 0xff6ec7,
+      tint: 0xffd0e8,
+      chain: false,
+      choker: true,
+      spikes: false
+    },
+    anim: {
+      idle: ["Idle_Loop"],
+      walk: ["Walk_Loop"],
+      run: ["Jog_Fwd_Loop"],
+      talk: ["Idle_Talking_Loop"],
+      emote: ["Idle_Loop"],
+      walkSpeed: 1.05,
+      idleSpeed: 1,
+      runSpeed: 1.05
+    },
+    voice: { pitch: 1.2, rate: 1 },
+    intro: {
+      ru: "Я Ангелина. Я иду рядом.",
+      en: "I am Angelina. I walk with you.",
+      da: "Jeg er Angelina. Jeg går med dig."
+    }
+  },
   gravedigger: {
     id: "gravedigger",
     playable: false,

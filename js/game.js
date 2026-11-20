@@ -46,7 +46,12 @@ function soloMode() {
 }
 
 function isPreviewBuild() {
-  return window.__PUNK_PREVIEW__ === true;
+  if (window.__PUNK_PREVIEW__ === true) return true;
+  try {
+    return new URLSearchParams(location.search).has("solo");
+  } catch (e) {
+    return false;
+  }
 }
 
 function demoPartyMode() {
@@ -83,7 +88,7 @@ const LOCATIONS = {
       { x: 44, y: 72, w: 14, h: 14, to: "elevator", labelKey: "door_elevator" },
       { x: 68, y: 18, w: 12, h: 14, to: "roof", labelKey: "door_roof" }
     ],
-    npcs: ["vienna", "mohawk", "cobalt"],
+    npcs: [],
     job: false, buildZone: "room_private"
   },
   kitchen: {
@@ -121,14 +126,14 @@ const LOCATIONS = {
       { x: 85, y: 45, w: 10, h: 18, to: "cemetery", labelKey: "door_cemetery" },
       { x: 45, y: 70, w: 14, h: 14, to: "city", labelKey: "door_city" }
     ],
-    npcs: ["razor", "mohawk", "vienna", "cobalt", "ghost"],
+    npcs: ["razor"],
     night: true
   },
   cemetery: {
     id: "cemetery", title: "Кладбище у Вены", bg: "imagine_images/RgdDh.jpg",
     doors: [{ x: 4, y: 52, w: 10, h: 16, to: "street", labelKey: "door_street" }],
     job: true, night: true,
-    npcs: ["gravedigger", "cobalt"]
+    npcs: ["gravedigger"]
   },
   city: {
     id: "city", title: "Город", bg: "imagine_images/Z7wM3.jpg",
@@ -515,6 +520,8 @@ function applyFirebasePlayerSnapshot(snap) {
     if (v.chapter1 && typeof v.chapter1 === "object") me.chapter1 = v.chapter1;
     me.avatarLook = cleanAvatarLook(v.avatarLook);
     if (Array.isArray(v.cityStones)) me.cityStones = v.cityStones;
+    if (Array.isArray(v.roomPieces)) me.roomPieces = v.roomPieces;
+    if (Array.isArray(v.cityPlots)) me.cityPlots = v.cityPlots;
     me.energy = v.energy ?? me.energy ?? 100;
     me.mood = v.mood ?? me.mood ?? 100;
     me.stats = { ...defaultPlayer().stats, ...(v.stats || {}) };
@@ -530,6 +537,7 @@ function applyFirebasePlayerSnapshot(snap) {
   me.level = levelFromXp(me.xp || 0);
   me.lastSeen = Date.now();
   if (window.StoryEngine?.ensureStoryState) window.StoryEngine.ensureStoryState(me);
+  window.Chapter1?.adoptChapterSave?.(me);
   if (me.characterId) writeStoredCharacterId(me.characterId);
 }
 
@@ -773,6 +781,7 @@ function bootPreviewSession() {
 }
 
 function init() {
+  paintRazorPortrait();
   me = defaultPlayer();
   window.me = me;
   window.__playerLoaded = false;
@@ -781,6 +790,10 @@ function init() {
     renderAll();
     applyI18nDom();
     window.Chapter1?.refreshGuide?.();
+    window.ChapterBuild?.refresh?.();
+    window.StoryEngine?.renderObjectivePanel?.();
+    window.AngelinaVoice?.refreshHint?.();
+    window.AngelinaVoice?.replayCurrent?.();
   };
   initLanguage();
   document.querySelectorAll(".lang-btn").forEach(btn => {
@@ -850,10 +863,13 @@ function init() {
       onInteract: () => {
         const playCtx = { toast, save: saveMe, hasDog };
         const nid = window.World3D?.getNearestNpc?.() || null;
+        const preferredNpcId = chapterWantsRazor() ? "razor" : null;
         const primary = window.PunkInteract?.resolvePrimaryInteract?.({
           location: me.location,
           nearestNpcId: nid,
-          onboarding: me.onboarding
+          onboarding: me.onboarding,
+          preferredNpcId,
+          preferredInRange: !!(preferredNpcId && window.World3D?.npcWithin?.(preferredNpcId, 7))
         });
         if (primary?.type === "npc") {
           openNpcDialog(primary.npcId);
@@ -966,6 +982,7 @@ function pickCharacterAndContinue(pick) {
   if (typeof isCharacterJoinable === "function" && !isCharacterJoinable(id)) return;
   me.characterId = id;
   me.avatarLook = cleanAvatarLook(typeof pick === "object" ? pick.look : null);
+  window.Chapter1?.adoptChapterSave?.(me);
   writeStoredCharacterId(id);
   const def = getCharacterDef(id);
   me.avatar = def.poster;
@@ -998,6 +1015,7 @@ function continueGameBoot() {
     applyHashRoute();
     syncStage3D();
     window.__punkUpdateAccountUi?.(auth?.currentUser);
+    window.ChapterBuild?.refresh?.();
     window.Chapter1?.onWorldReady?.();
   } catch (err) {
     console.error("continueGameBoot", err);
@@ -1129,10 +1147,34 @@ function sanitizePlayer(p) {
         }
       : { step: 0, progress: {}, done: false, paid: {} },
     chapter1: p.chapter1 && typeof p.chapter1 === "object"
-      ? { crawlSeen: !!p.chapter1.crawlSeen, finaleSeen: !!p.chapter1.finaleSeen, ended: !!p.chapter1.ended }
-      : { crawlSeen: false, finaleSeen: false, ended: false },
+      ? {
+          crawlSeen: !!p.chapter1.crawlSeen,
+          finaleSeen: !!p.chapter1.finaleSeen,
+          ended: !!p.chapter1.ended,
+          playId: p.chapter1.playId === "ch1-child" ? "ch1-child" : null
+        }
+      : { crawlSeen: false, finaleSeen: false, ended: false, playId: null },
     avatarLook: cleanAvatarLook(p.avatarLook),
-    cityStones: Array.isArray(p.cityStones) ? p.cityStones.slice(0, 24) : []
+    cityStones: Array.isArray(p.cityStones) ? p.cityStones.slice(0, 24) : [],
+    roomPieces: Array.isArray(p.roomPieces) ? p.roomPieces.slice(0, 12).map(piece => ({
+      type: String(piece.type || "lamp"),
+      x: Number(piece.x) || 0,
+      z: Number(piece.z) || 0
+    })) : [],
+    cityPlots: Array.isArray(p.cityPlots) ? p.cityPlots.slice(0, 8).map(plot => ({
+      id: String(plot.id || ""),
+      kind: String(plot.kind || "stall"),
+      x: Number(plot.x) || 0,
+      z: Number(plot.z) || 0
+    })) : [],
+    dailyDay: typeof p.dailyDay === "string" ? p.dailyDay : "",
+    dailyQuests: Array.isArray(p.dailyQuests) ? p.dailyQuests.slice(0, 6).map(q => ({
+      id: String(q.id || ""),
+      key: String(q.key || ""),
+      need: Number(q.need) || 1,
+      prog: Number(q.prog) || 0,
+      reward: Number(q.reward) || 0
+    })) : []
   };
 }
 
@@ -1400,6 +1442,7 @@ function goLocation(id, fromHash) {
     setTimeout(() => runJobAction(act), 350);
   }
   afterLocationChange();
+  window.ChapterBuild?.refresh?.();
 }
 
 function onRoomClick(e) {
@@ -1640,7 +1683,47 @@ function renderGangList() {
   });
 }
 
+function chapterWantsRazor() {
+  if (!me) return false;
+  const step = window.Onboarding?.stepId?.();
+  if (step === "talk_razor" || step === "win_fight") return true;
+  return !!(me.onboarding?.done && !me.chapter1?.ended && !me.story?.flags?.joined_gang);
+}
+
+function paintRazorPortrait() {
+  if (typeof document === "undefined" || !NPCS.razor) return;
+  const c = document.createElement("canvas");
+  c.width = 160;
+  c.height = 160;
+  const g = c.getContext("2d");
+  if (!g) return;
+  g.fillStyle = "#140e18";
+  g.fillRect(0, 0, 160, 160);
+  g.fillStyle = "#1a120c";
+  g.fillRect(28, 108, 104, 52);
+  g.fillStyle = "#e8c56b";
+  g.fillRect(58, 112, 44, 7);
+  g.fillStyle = "#f0d2c0";
+  g.beginPath();
+  g.arc(80, 78, 32, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#ff7a18";
+  [[46, 18, 62, 70], [70, 8, 90, 64], [96, 16, 116, 72]].forEach(([x1, y1, x2, y2]) => {
+    g.beginPath();
+    g.moveTo((x1 + x2) / 2, y1);
+    g.lineTo(x2, y2);
+    g.lineTo(x1, y2);
+    g.closePath();
+    g.fill();
+  });
+  g.fillStyle = "#1a120c";
+  g.fillRect(62, 74, 10, 6);
+  g.fillRect(88, 74, 10, 6);
+  NPCS.razor.img = c.toDataURL("image/png");
+}
+
 function openNpcDialog(nid) {
+  if (nid === "razor") window.Onboarding?.onTalkRazor?.();
   if (window.StoryEngine?.tryStoryNpc?.(nid)) {
     closeModal("gangModal");
     return;
@@ -1656,10 +1739,7 @@ function openNpcDialog(nid) {
   openModal("gangModal");
   if (window.Voice) Voice.speakCharacter(nid, line);
   if (window.World3D?.setTalking) World3D.setTalking(nid, true);
-  if (nid === "razor") {
-    questBump("talk_razor");
-    window.Onboarding?.onTalkRazor?.();
-  }
+  if (nid === "razor") questBump("talk_razor");
 }
 
 window.changeCharacter = function () {
@@ -1928,10 +2008,11 @@ window.startTrainingDuelMohawk = function () {
 };
 
 function startNpcFight(nid) {
-  const npc = NPCS[nid] || { id: "razor", img: "imagine_images/MRgTC.jpg" };
-  if (window.World3D?.startDuel3D?.(nid || npc.id)) {
+  const id = nid || "razor";
+  if (window.World3D?.startDuel3D?.(id)) {
     fight = {
-      npcName: tNpcName(npc.id || nid),
+      opp: id,
+      npcName: tNpcName(id),
       npcHp: 100,
       npcMax: 100,
       playerHp: 100,
@@ -1944,7 +2025,8 @@ function startNpcFight(nid) {
     return;
   }
   fight = {
-    npcName: tNpcName(npc.id || nid),
+    opp: id,
+    npcName: tNpcName(id),
     npcHp: 55 + Math.floor(Math.random() * 30),
     npcMax: 85,
     playerHp: me.stats.hp,
@@ -2035,7 +2117,10 @@ function endFight(win) {
     questBump("win_fight");
     window.PlayV21?.bumpDaily?.(me, "win_duel", { toast, save: saveMe });
     window.Onboarding?.onWinFight?.();
-    window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
+    const initiation = window.StoryEngine?.ensureStoryState?.(me)?.quest?.activeId === "q_initiation_duel";
+    if (fight?.opp === "razor" && initiation) {
+      window.StoryEngine?.fireStoryEvent?.("duel_razor_win");
+    }
   } else {
     toast(t("lose_fight"));
     me.stats.hp = me.stats.maxHp;

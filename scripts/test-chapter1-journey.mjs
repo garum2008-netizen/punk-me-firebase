@@ -228,22 +228,29 @@ async function main() {
   );
   await page.locator("#shopModal .close").click().catch(() => {});
 
+  await go(page, "room");
+  await page.click("#buy-lamp");
+  await page.waitForFunction(() => (window.me.roomPieces || []).length >= 1 && (window.me.onboarding?.step || 0) >= 7, { timeout: 10000 });
+  const room = await page.evaluate(() => ({
+    pieces: window.me.roomPieces || [],
+    mesh: window.World3D?.angelinaMark?.().roomPieces || 0,
+    step: window.me.onboarding.step
+  }));
+  log("room-decor", room.pieces.length >= 1 && room.mesh >= 1 && room.step === 7, JSON.stringify(room));
+
   await go(page, "city");
   await page.waitForFunction(() => window.World3D?.isReady?.() === true, { timeout: 40000 });
-  const crypt = await page.evaluate(() => window.me.inventory?.materials?.crypt || 0);
-  if (crypt < 1) await page.evaluate(() => window.Chapter1.ensureCityKit(window.me));
   const cityLine = await page.locator("#angelinaGuide").innerText();
   log("angelina-city", /not a finished city/i.test(cityLine), cityLine);
-  await page.click("#btnBuild");
-  const cityCanvas = await page.locator("#stage3d").boundingBox();
-  await page.mouse.click(cityCanvas.x + cityCanvas.width * 0.5, cityCanvas.y + cityCanvas.height * 0.55);
-  await page.waitForFunction(() => window.me?.onboarding?.done === true && (window.me.cityStones || []).length >= 1, { timeout: 10000 });
+  await page.click("#buyPlot-stall");
+  await page.waitForFunction(() => window.me?.onboarding?.done === true && (window.me.cityPlots || []).length >= 1, { timeout: 10000 });
   const city = await page.evaluate(() => ({
-    stones: (window.me.cityStones || []).length,
-    built: window.me.built,
+    plots: (window.me.cityPlots || []).length,
+    mesh: window.World3D?.angelinaMark?.().plots || 0,
+    pads: window.World3D?.angelinaMark?.().plotPads || 0,
     done: window.me.onboarding.done
   }));
-  log("city-build", city.stones >= 1 && city.built >= 1 && city.done === true, JSON.stringify(city));
+  log("city-build", city.plots >= 1 && city.mesh >= 1 && city.pads >= 1 && city.done === true, JSON.stringify(city));
   const beforeJoin = await page.evaluate(() => ({
     ended: window.me?.chapter1?.ended === true,
     joined: !!window.me?.story?.flags?.joined_gang
@@ -258,11 +265,11 @@ async function main() {
     shack: window.me.inventory?.materials?.shack || 0,
     coins: window.me.coins,
     characterId: window.me.characterId,
-    stones: (window.me.cityStones || []).length
+    plots: (window.me.cityPlots || []).length
   }));
   log(
     "save-reload-progress",
-    persisted.done === true && persisted.shack >= 1 && persisted.characterId === "cobalt" && persisted.coins === afterBuy.coins + 55 && persisted.stones >= 1,
+    persisted.done === true && persisted.shack >= 1 && persisted.characterId === "cobalt" && persisted.coins === afterBuy.coins + 15 && persisted.plots >= 1,
     JSON.stringify(persisted)
   );
 
@@ -348,11 +355,11 @@ async function main() {
     chapter: window.me?.story?.chapter,
     characterId: window.me.characterId,
     ended: window.me?.chapter1?.ended === true,
-    stones: (window.me?.cityStones || []).length
+    plots: (window.me?.cityPlots || []).length
   }));
   const objectives = await page.evaluate(() => {
     const paid = window.me?.onboarding?.paid || {};
-    const ids = ["move", "go_street", "talk_razor", "visit_cemetery", "win_fight", "shop_buy", "city_build"];
+    const ids = ["move", "go_street", "talk_razor", "visit_cemetery", "win_fight", "shop_buy", "room_decor", "city_build"];
     return {
       training: ids.filter(id => paid[id] === true),
       joined: !!window.me?.story?.flags?.joined_gang,
@@ -367,7 +374,7 @@ async function main() {
   fs.writeFileSync(path.join(outDir, "ch1-objectives.json"), JSON.stringify(objectives, null, 2));
   log(
     "initiation-persists",
-    joinPersist.joined === true && joinPersist.characterId === "cobalt" && joinPersist.ended === true && joinPersist.stones >= 1 && objectives.training.length === 7 && objectives.finaleSeen === true && objectives.look?.accessory === "wings" && objectives.mark?.wings === true,
+    joinPersist.joined === true && joinPersist.characterId === "cobalt" && joinPersist.ended === true && joinPersist.plots >= 1 && objectives.training.length === 8 && objectives.finaleSeen === true && objectives.look?.accessory === "wings" && objectives.mark?.wings === true,
     JSON.stringify({ joinPersist, objectives })
   );
 
