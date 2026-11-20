@@ -1739,7 +1739,7 @@ function loop() {
   tickGameplayV21(dt, { actors, scene, locationRoot, bounds, currentLoc, hooks, camera });
   tickStory(dt);
   lastCameraDt = dt;
-  if (!captureFrameLock) updateThirdPersonCamera(dt);
+  if (!captureFrameLock && !isDuelActive()) updateThirdPersonCamera(dt);
   else if (captureHideActors?.length && !motionProbe) {
     renderAtmosphere(atmospherePipe, renderer, scene, camera);
     checkPortals();

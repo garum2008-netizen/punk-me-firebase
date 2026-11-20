@@ -88,7 +88,7 @@ const LOCATIONS = {
       { x: 44, y: 72, w: 14, h: 14, to: "elevator", labelKey: "door_elevator" },
       { x: 68, y: 18, w: 12, h: 14, to: "roof", labelKey: "door_roof" }
     ],
-    npcs: ["vienna", "mohawk", "cobalt"],
+    npcs: [],
     job: false, buildZone: "room_private"
   },
   kitchen: {
@@ -126,14 +126,14 @@ const LOCATIONS = {
       { x: 85, y: 45, w: 10, h: 18, to: "cemetery", labelKey: "door_cemetery" },
       { x: 45, y: 70, w: 14, h: 14, to: "city", labelKey: "door_city" }
     ],
-    npcs: ["razor", "mohawk", "vienna", "cobalt", "ghost"],
+    npcs: ["razor"],
     night: true
   },
   cemetery: {
     id: "cemetery", title: "Кладбище у Вены", bg: "imagine_images/RgdDh.jpg",
     doors: [{ x: 4, y: 52, w: 10, h: 16, to: "street", labelKey: "door_street" }],
     job: true, night: true,
-    npcs: ["gravedigger", "cobalt"]
+    npcs: ["gravedigger"]
   },
   city: {
     id: "city", title: "Город", bg: "imagine_images/Z7wM3.jpg",

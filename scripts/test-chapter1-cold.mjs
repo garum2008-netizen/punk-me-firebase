@@ -241,6 +241,12 @@ async function main() {
   const climax = await page.evaluate(() => document.getElementById("chapterScene")?.textContent || "");
   log("climax-scene", /Climax/i.test(climax), climax);
   await page.locator("#btnFight").click();
+  await page.waitForFunction(() => {
+    const hud = document.getElementById("duel3dHud");
+    return hud && !hud.classList.contains("hidden") && window.World3D?.measureDuelFraming?.()?.pass === true;
+  }, undefined, { timeout: 10000 });
+  const trainFrame = await page.evaluate(() => window.World3D?.measureDuelFraming?.() || null);
+  log("duel-both-in-frame", trainFrame?.pass === true, JSON.stringify(trainFrame));
   const won = await attackUntil(page, () => (window.me?.onboarding?.step || 0) >= 5, 90000);
   log("climax-duel", won === true, String(won));
   const afterTrain = await page.evaluate(() => ({
@@ -335,6 +341,8 @@ async function main() {
     return !!hud && !hud.classList.contains("hidden") && window.me?.story?.flags?.joined_gang !== true
       && !(document.querySelector("#chapterFinaleLine")?.textContent || "").includes("patch");
   });
+  const finaleFrame = await page.evaluate(() => window.World3D?.measureDuelFraming?.() || null);
+  log("finale-both-in-frame", finaleFrame?.pass === true, JSON.stringify(finaleFrame));
   log("finale-duel-needs-input", stillFighting === true, "still fighting after 2s with no chain press");
   if (!stillFighting) throw new Error("finale duel ended without player input");
   const fightStarted = Date.now();

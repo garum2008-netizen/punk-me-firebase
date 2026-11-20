@@ -433,8 +433,7 @@ export function buildLocationScene(locId, texLoader) {
     roomTex.colorSpace = THREE.SRGBColorSpace;
     const p1 = poster(roomTex, 4, 2.4);
     p1.position.set(0, 2, -5.82);
-    p1.userData.flap = true;
-    p1.userData.flapBase = 0;
+    p1.userData.propTag = "room_wall_poster";
     root.add(p1);
     addDustParticles(root, 60);
     const bed = wall(2.8, 0.45, 1.6, new THREE.MeshStandardMaterial({ color: 0x4a2060 }));

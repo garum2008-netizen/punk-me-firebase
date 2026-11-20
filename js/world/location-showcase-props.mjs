@@ -429,7 +429,6 @@ export function addShowcaseProps(locId, root) {
       root.add(g);
     }
     root.add(tagged("kitchen_pumpkin_fg", new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), mat(0xff6600, 0xff4400)).translateY(0.22).translateX(-1.2).translateZ(1.1)));
-    root.add(tagged("kitchen_graffiti_fg", box(1.4, 0.9, 0.03, mat(0x442266, 0xff00ff)).translateY(1.35).translateX(2.2).translateZ(0.8)));
     root.add(tagged("kitchen_bike_fg", box(0.9, 0.45, 0.2, mat(0x666677)).translateY(0.22).translateX(-0.5).translateZ(1.6)));
     for (let i = 0; i < 10; i++) {
       const g = tagged(
@@ -441,7 +440,6 @@ export function addShowcaseProps(locId, root) {
     }
     root.add(tagged("kitchen_portrait_bin", box(0.3, 0.45, 0.3, mat(0x333344)).translateY(0.22).translateX(1.8).translateZ(-0.6)));
     root.add(tagged("kitchen_portrait_lamp", box(0.12, 0.9, 0.12, mat(0xffcc00, 0xffaa00)).translateY(0.45).translateX(-1.5).translateZ(-0.2)));
-    root.add(tagged("kitchen_portrait_poster", box(0.9, 0.7, 0.03, mat(0x442266, 0xff00ff)).translateY(1.35).translateX(0.5).translateZ(-0.4)));
   } else if (locId === "room") {
     const roomElevSign = framedNeonPanel(1.5, 0.85, ["OPEN", "↑ LIFT"], 0x00ffff, 0xff00ff);
     roomElevSign.position.set(-1.35, 0.55, -5.62);
@@ -450,7 +448,6 @@ export function addShowcaseProps(locId, root) {
     roomPunkSign.position.set(1.4, 0.52, -5.62);
     root.add(tagged("room_elev_neon_punk", roomPunkSign));
     root.add(tagged("room_neon_punk", box(1.4, 0.35, 0.05, mat(0x00ffff, 0x00ffff)).translateY(2.35).translateZ(-5.65)));
-    root.add(tagged("room_poster_punk", box(1.1, 1.5, 0.03, mat(0x552266, 0x220044)).translateY(1.55).translateX(-5.5).translateZ(-2)));
     root.add(tagged("room_beanbag_fg", box(0.9, 0.35, 0.9, mat(0x5a2048)).translateY(0.18).translateX(-5.2).translateZ(-1.5)));
     root.add(tagged("room_sofa_fg", box(1.3, 0.38, 0.6, mat(0x4a2848)).translateY(0.2).translateX(5.2).translateZ(-0.8)));
     root.add(tagged("room_guitar_stand", box(0.35, 0.12, 0.1, mat(0xcc2222)).translateY(0.55).translateX(-5.5).translateZ(0.5)));

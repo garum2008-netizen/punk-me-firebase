@@ -13,7 +13,6 @@ function howToHtml() {
     ? (typeof t === "function" ? t("howto_body_touch") : "")
     : (typeof t === "function" ? t("howto_body_desktop") : "");
   const btn = typeof t === "function" ? t("howto_gotit") : "Got it";
-  const ver = document.getElementById("gameVersion")?.textContent || "";
   const mobileExtras = touch
     ? `<div class="howto-extras">
       <div class="lang-switch" id="howtoLangSwitch">
@@ -23,7 +22,6 @@ function howToHtml() {
       </div>
       <button type="button" class="lang-btn" id="howtoVoiceMute">${typeof t === "function" ? t("voice_mute") : "Mute"}</button>
       <button type="button" class="lang-btn" id="howtoChangeChar">${typeof t === "function" ? t("char_change_btn") : "Change hero"}</button>
-      <div class="badge hud-version">v <strong>${ver}</strong></div>
     </div>`
     : "";
   return `<div class="howto-panel" role="dialog" aria-labelledby="howtoTitle">
